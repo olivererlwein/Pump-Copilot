@@ -24,7 +24,7 @@ import websockets
 load_dotenv()
 
 BASE = Path(__file__).parent
-DB = BASE / "pumpcopilot.db"
+DB = Path(os.getenv("DB_PATH", str(BASE / "pumpcopilot.db")))
 
 API_KEY = os.getenv(
     "PUMPPORTAL_API_KEY",
