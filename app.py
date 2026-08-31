@@ -329,6 +329,11 @@ CREATE TABLE IF NOT EXISTS signal_outcomes(
     hit_tp50 INTEGER DEFAULT 0,
     hit_sl10 INTEGER DEFAULT 0,
 
+    tp25_ts REAL,
+    tp50_ts REAL,
+    sl10_ts REAL,
+                 
+
     created_ts REAL NOT NULL,
     updated_ts REAL NOT NULL
 )
@@ -1008,6 +1013,134 @@ def update_signal_outcome_15m(
 
     return True
 
+def update_signal_outcome_extremes(
+    outcome_id,
+    current_price,
+):
+    conn = db()
+
+    row = conn.execute(
+        """
+        SELECT
+            price_at_signal,
+            max_price,
+            min_price
+        FROM signal_outcomes
+        WHERE id = ?
+        LIMIT 1
+        """,
+        (outcome_id,)
+    ).fetchone()
+
+    if not row:
+        conn.close()
+        return False
+
+    price_at_signal = float(row[0] or 0)
+    old_max_price = float(row[1] or 0)
+    old_min_price = float(row[2] or 0)
+
+    if price_at_signal <= 0:
+        conn.close()
+        return False
+
+    current_price = float(current_price)
+
+    if old_max_price <= 0:
+        new_max_price = current_price
+    else:
+        new_max_price = max(
+            old_max_price,
+            current_price
+        )
+
+    if old_min_price <= 0:
+        new_min_price = current_price
+    else:
+        new_min_price = min(
+            old_min_price,
+            current_price
+        )
+
+    max_return = (
+        (new_max_price - price_at_signal)
+        / price_at_signal
+    ) * 100
+
+    min_return = (
+        (new_min_price - price_at_signal)
+        / price_at_signal
+    ) * 100
+
+    hit_tp25 = 1 if max_return >= 25 else 0
+    hit_tp50 = 1 if max_return >= 50 else 0
+    hit_sl10 = 1 if min_return <= -10 else 0
+
+    now = time.time()
+
+    conn.execute(
+        """
+                UPDATE signal_outcomes
+        SET
+            max_price = ?,
+            min_price = ?,
+            max_return = ?,
+            min_return = ?,
+
+            tp25_ts = CASE
+                WHEN tp25_ts IS NULL AND ? = 1
+                THEN ?
+                ELSE tp25_ts
+            END,
+
+            tp50_ts = CASE
+                WHEN tp50_ts IS NULL AND ? = 1
+                THEN ?
+                ELSE tp50_ts
+            END,
+
+            sl10_ts = CASE
+                WHEN sl10_ts IS NULL AND ? = 1
+                THEN ?
+                ELSE sl10_ts
+            END,
+
+            hit_tp25 = MAX(hit_tp25, ?),
+            hit_tp50 = MAX(hit_tp50, ?),
+            hit_sl10 = MAX(hit_sl10, ?),
+
+            updated_ts = ?
+        WHERE id = ?
+        """,
+                (
+            new_max_price,
+            new_min_price,
+            max_return,
+            min_return,
+
+            hit_tp25,
+            now,
+
+            hit_tp50,
+            now,
+
+            hit_sl10,
+            now,
+
+            hit_tp25,
+            hit_tp50,
+            hit_sl10,
+
+            now,
+            outcome_id,
+        )
+    )
+
+    conn.commit()
+    conn.close()
+
+    return True
+
 
 def process_signal_outcomes_event(
     mint,
@@ -1062,6 +1195,10 @@ AND (
 
     for row in rows:
         outcome_id = int(row[0])
+        update_signal_outcome_extremes(
+    outcome_id=outcome_id,
+    current_price=current_price
+)
         signal_ts = float(row[1] or 0)
         price_10s = row[2]
         price_30s = row[3]
@@ -2238,6 +2375,39 @@ def migrate_database():
             except Exception:
                 pass
 
+
+    existing_outcomes = [
+        row[1]
+        for row in conn.execute(
+            "PRAGMA table_info(signal_outcomes)"
+        ).fetchall()
+    ]
+
+    outcome_migrations = {
+        "tp25_ts":
+            "ALTER TABLE signal_outcomes "
+            "ADD COLUMN tp25_ts REAL",
+
+        "tp50_ts":
+            "ALTER TABLE signal_outcomes "
+            "ADD COLUMN tp50_ts REAL",
+
+        "sl10_ts":
+            "ALTER TABLE signal_outcomes "
+            "ADD COLUMN sl10_ts REAL"
+    }
+
+    for column, sql in outcome_migrations.items():
+
+        if column not in existing_outcomes:
+
+            try:
+                conn.execute(sql)
+
+            except Exception:
+                pass
+
+
     conn.commit()
     conn.close()
 
@@ -2402,6 +2572,323 @@ def score_trader(trader):
         trader,
         15
     )
+
+def get_trader_copyability_stats(trader):
+    conn = db()
+
+    row = conn.execute(
+        """
+        SELECT
+            COUNT(*),
+
+            COUNT(return_10s),
+            COUNT(return_30s),
+            COUNT(return_1m),
+            COUNT(return_5m),
+            COUNT(return_15m),
+
+            AVG(return_10s),
+            AVG(return_30s),
+            AVG(return_1m),
+            AVG(return_5m),
+            AVG(return_15m),
+
+            MAX(max_return),
+            MIN(min_return),
+
+            AVG(
+                CASE
+                    WHEN return_5m > 0 THEN 1.0
+                    WHEN return_5m IS NOT NULL THEN 0.0
+                    ELSE NULL
+                END
+            )
+
+        FROM signal_outcomes
+
+        WHERE trader = ?
+        AND price_at_signal > 0
+        """,
+        (trader,)
+    ).fetchone()
+
+    conn.close()
+
+    return {
+        "trader": trader,
+
+        "signals": int(row[0] or 0),
+
+        "samples_10s": int(row[1] or 0),
+        "samples_30s": int(row[2] or 0),
+        "samples_1m": int(row[3] or 0),
+        "samples_5m": int(row[4] or 0),
+        "samples_15m": int(row[5] or 0),
+
+        "avg_return_10s": round(float(row[6] or 0), 2),
+        "avg_return_30s": round(float(row[7] or 0), 2),
+        "avg_return_1m": round(float(row[8] or 0), 2),
+        "avg_return_5m": round(float(row[9] or 0), 2),
+        "avg_return_15m": round(float(row[10] or 0), 2),
+
+        "max_return": round(float(row[11] or 0), 2),
+        "min_return": round(float(row[12] or 0), 2),
+
+        "positive_5m_pct": round(
+            float(row[13] or 0) * 100,
+            2
+        ),
+    }
+
+def get_trader_hit_stats(trader):
+    conn = db()
+
+    row = conn.execute(
+        """
+        SELECT
+            COUNT(max_return),
+
+            SUM(
+                CASE
+                    WHEN max_return IS NOT NULL
+                    AND hit_tp25 = 1
+                    THEN 1
+                    ELSE 0
+                END
+            ),
+
+            SUM(
+                CASE
+                    WHEN max_return IS NOT NULL
+                    AND hit_tp50 = 1
+                    THEN 1
+                    ELSE 0
+                END
+            ),
+
+            SUM(
+                CASE
+                    WHEN min_return IS NOT NULL
+                    AND hit_sl10 = 1
+                    THEN 1
+                    ELSE 0
+                END
+            )
+
+        FROM signal_outcomes
+
+        WHERE trader = ?
+        AND price_at_signal > 0
+        """,
+        (trader,)
+    ).fetchone()
+
+    conn.close()
+
+    samples = int(row[0] or 0)
+
+    tp25_hits = int(row[1] or 0)
+    tp50_hits = int(row[2] or 0)
+    sl10_hits = int(row[3] or 0)
+
+    if samples > 0:
+        tp25_pct = tp25_hits / samples * 100
+        tp50_pct = tp50_hits / samples * 100
+        sl10_pct = sl10_hits / samples * 100
+    else:
+        tp25_pct = 0.0
+        tp50_pct = 0.0
+        sl10_pct = 0.0
+
+    return {
+        "trader": trader,
+        "samples": samples,
+
+        "tp25_hits": tp25_hits,
+        "tp25_pct": round(tp25_pct, 2),
+
+        "tp50_hits": tp50_hits,
+        "tp50_pct": round(tp50_pct, 2),
+
+        "sl10_hits": sl10_hits,
+        "sl10_pct": round(sl10_pct, 2),
+    }
+
+def get_signal_first_hit(outcome_id):
+    conn = db()
+
+    row = conn.execute(
+        """
+        SELECT
+            signal_ts,
+            tp25_ts,
+            tp50_ts,
+            sl10_ts
+        FROM signal_outcomes
+        WHERE id = ?
+        LIMIT 1
+        """,
+        (outcome_id,)
+    ).fetchone()
+
+    conn.close()
+
+    if not row:
+        return None
+
+    signal_ts = float(row[0] or 0)
+
+    hits = []
+
+    if row[1] is not None:
+        hits.append(
+            ("TP25", float(row[1]))
+        )
+
+    if row[2] is not None:
+        hits.append(
+            ("TP50", float(row[2]))
+        )
+
+    if row[3] is not None:
+        hits.append(
+            ("SL10", float(row[3]))
+        )
+
+    if not hits:
+        return None
+
+    hits.sort(
+        key=lambda item: item[1]
+    )
+
+    first_hit = hits[0][0]
+    first_hit_ts = hits[0][1]
+
+    elapsed_seconds = (
+        first_hit_ts - signal_ts
+    )
+
+    return {
+        "first_hit": first_hit,
+        "first_hit_ts": first_hit_ts,
+        "elapsed_seconds": round(
+            elapsed_seconds,
+            2
+        ),
+    }
+
+def get_trader_first_hit_stats(trader):
+    conn = db()
+
+    rows = conn.execute(
+        """
+        SELECT
+            tp25_ts,
+            sl10_ts
+        FROM signal_outcomes
+        WHERE trader = ?
+        AND price_at_signal > 0
+        AND (
+            tp25_ts IS NOT NULL
+            OR sl10_ts IS NOT NULL
+        )
+        """,
+        (trader,)
+    ).fetchall()
+
+    conn.close()
+
+    tp25_first = 0
+    sl10_first = 0
+    only_tp25 = 0
+    only_sl10 = 0
+
+    for row in rows:
+        tp25_ts = row[0]
+        sl10_ts = row[1]
+
+        if tp25_ts is not None and sl10_ts is not None:
+            if float(tp25_ts) < float(sl10_ts):
+                tp25_first += 1
+            elif float(sl10_ts) < float(tp25_ts):
+                sl10_first += 1
+
+        elif tp25_ts is not None:
+            only_tp25 += 1
+
+        elif sl10_ts is not None:
+            only_sl10 += 1
+
+    total = (
+        tp25_first
+        + sl10_first
+        + only_tp25
+        + only_sl10
+    )
+
+    return {
+        "trader": trader,
+        "samples": total,
+        "tp25_first": tp25_first,
+        "sl10_first": sl10_first,
+        "only_tp25": only_tp25,
+        "only_sl10": only_sl10,
+    }
+
+
+def calculate_copyability_score(trader):
+    stats = get_trader_copyability_stats(trader)
+
+    signals = stats["signals"]
+    samples_5m = stats["samples_5m"]
+
+    if signals == 0:
+        return {
+            "trader": trader,
+            "score": 0,
+            "confidence": 0,
+            "stats": stats,
+        }
+
+    sample_confidence = min(
+        samples_5m / 50,
+        1.0
+    )
+
+    positive_5m = stats["positive_5m_pct"]
+    avg_5m = stats["avg_return_5m"]
+
+    performance_score = 0.0
+
+    performance_score += min(
+        max(positive_5m, 0),
+        100
+    ) * 0.6
+
+    normalized_return = min(
+        max(avg_5m + 50, 0),
+        100
+    )
+
+    performance_score += (
+        normalized_return * 0.4
+    )
+
+    final_score = (
+        performance_score
+        * sample_confidence
+    )
+
+    return {
+        "trader": trader,
+        "score": round(final_score, 2),
+        "confidence": round(
+            sample_confidence * 100,
+            2
+        ),
+        "stats": stats,
+    }
 
 # =========================================================
 # SCORE: MARKET CAP
