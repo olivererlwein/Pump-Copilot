@@ -86,6 +86,21 @@ TRADER_QUALITY = {
     "epicsealdarkeye": 18,
     "supermandev": 18
 }
+
+TRUSTED_TRADERS = {
+    "marcell",
+    "hdegroot",
+    "gr3gor14n",
+    "epicsealdarkeye",
+    "supermandev",
+}
+
+OBSERVE_TRADERS = {
+    "ily",
+    "sapphy",
+    "FlippingProfits",
+}
+
 TRACKED_TOKENS = set()
 SUBSCRIBED_TOKENS = set()
 TOKENS_TO_UNSUBSCRIBE = set()
@@ -110,6 +125,8 @@ MIN_LIQUIDITY_SOL = 10.0
 
 EXECUTION_TIMEOUT_SECONDS = 10
 MAX_EXECUTION_RETRIES = 2
+
+STREAM_INACTIVITY_TIMEOUT = 120
 
 SEEN_SIGNATURES = set()
 FORCE_STREAM_ERROR = False
@@ -279,6 +296,43 @@ def db():
         )
         """
     )
+
+    conn.execute("""
+CREATE TABLE IF NOT EXISTS signal_outcomes(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    signal_id INTEGER,
+    mint TEXT NOT NULL,
+    trader TEXT,
+    signal_ts REAL NOT NULL,
+
+    price_at_signal REAL DEFAULT 0,
+
+    price_10s REAL,
+    price_30s REAL,
+    price_1m REAL,
+    price_5m REAL,
+    price_15m REAL,
+
+    max_price REAL,
+    min_price REAL,
+
+    return_10s REAL,
+    return_30s REAL,
+    return_1m REAL,
+    return_5m REAL,
+    return_15m REAL,
+
+    max_return REAL,
+    min_return REAL,
+
+    hit_tp25 INTEGER DEFAULT 0,
+    hit_tp50 INTEGER DEFAULT 0,
+    hit_sl10 INTEGER DEFAULT 0,
+
+    created_ts REAL NOT NULL,
+    updated_ts REAL NOT NULL
+)
+""")
 
 
     conn.execute(
@@ -567,6 +621,531 @@ def validate_liquidity(
         return False
 
     return True
+
+
+def create_signal_outcome(
+    signal_id,
+    mint,
+    trader,
+    signal_ts,
+    price_at_signal,
+):
+    now = time.time()
+
+    conn = db()
+    cursor = conn.execute(
+        """
+        INSERT INTO signal_outcomes(
+            signal_id,
+            mint,
+            trader,
+            signal_ts,
+            price_at_signal,
+            max_price,
+            min_price,
+            created_ts,
+            updated_ts
+        )
+        VALUES(?,?,?,?,?,?,?,?,?)
+        """,
+        (
+            signal_id,
+            mint,
+            trader,
+            float(signal_ts),
+            float(price_at_signal or 0),
+            float(price_at_signal or 0),
+            float(price_at_signal or 0),
+            now,
+            now,
+        ),
+    )
+    conn.commit()
+    outcome_id = cursor.lastrowid
+    conn.close()
+
+    return outcome_id
+
+
+def update_signal_outcome_10s(
+    outcome_id,
+    current_price,
+):
+    conn = db()
+
+    row = conn.execute(
+        """
+        SELECT price_at_signal
+        FROM signal_outcomes
+        WHERE id=?
+        LIMIT 1
+        """,
+        (outcome_id,)
+    ).fetchone()
+
+    if not row:
+        conn.close()
+        return False
+
+    price_at_signal = float(row[0] or 0)
+
+    if price_at_signal > 0:
+        return_10s = (
+            (float(current_price) - price_at_signal)
+            / price_at_signal
+        ) * 100
+    else:
+        return_10s = 0.0
+
+    now = time.time()
+
+    conn.execute(
+        """
+        UPDATE signal_outcomes
+        SET
+            price_10s=?,
+            return_10s=?,
+            max_price=CASE
+                WHEN max_price IS NULL OR ? > max_price
+                THEN ?
+                ELSE max_price
+            END,
+            min_price=CASE
+                WHEN min_price IS NULL OR ? < min_price
+                THEN ?
+                ELSE min_price
+            END,
+            updated_ts=?
+        WHERE id=?
+        """,
+        (
+            float(current_price),
+            return_10s,
+            float(current_price),
+            float(current_price),
+            float(current_price),
+            float(current_price),
+            now,
+            outcome_id,
+        )
+    )
+
+    conn.commit()
+    conn.close()
+
+    return True
+
+
+def update_signal_outcome_30s(
+    outcome_id,
+    current_price,
+):
+    conn = db()
+
+    row = conn.execute(
+        """
+        SELECT price_at_signal
+        FROM signal_outcomes
+        WHERE id=?
+        LIMIT 1
+        """,
+        (outcome_id,)
+    ).fetchone()
+
+    if not row:
+        conn.close()
+        return False
+
+    price_at_signal = float(row[0] or 0)
+
+    if price_at_signal > 0:
+        return_30s = (
+            (float(current_price) - price_at_signal)
+            / price_at_signal
+        ) * 100
+    else:
+        return_30s = 0.0
+
+    now = time.time()
+
+    conn.execute(
+        """
+        UPDATE signal_outcomes
+        SET
+            price_30s=?,
+            return_30s=?,
+            max_price=CASE
+                WHEN max_price IS NULL OR ? > max_price
+                THEN ?
+                ELSE max_price
+            END,
+            min_price=CASE
+                WHEN min_price IS NULL OR ? < min_price
+                THEN ?
+                ELSE min_price
+            END,
+            updated_ts=?
+        WHERE id=?
+        """,
+        (
+            float(current_price),
+            return_30s,
+            float(current_price),
+            float(current_price),
+            float(current_price),
+            float(current_price),
+            now,
+            outcome_id,
+        )
+    )
+
+    conn.commit()
+    conn.close()
+
+    return True
+
+def update_signal_outcome_1m(
+    outcome_id,
+    current_price,
+):
+    conn = db()
+
+    row = conn.execute(
+        """
+        SELECT price_at_signal
+        FROM signal_outcomes
+        WHERE id=?
+        LIMIT 1
+        """,
+        (outcome_id,)
+    ).fetchone()
+
+    if not row:
+        conn.close()
+        return False
+
+    price_at_signal = float(row[0] or 0)
+
+    if price_at_signal > 0:
+        return_1m = (
+            (float(current_price) - price_at_signal)
+            / price_at_signal
+        ) * 100
+    else:
+        return_1m = 0.0
+
+    now = time.time()
+
+    conn.execute(
+        """
+        UPDATE signal_outcomes
+        SET
+            price_1m=?,
+            return_1m=?,
+            max_price=CASE
+                WHEN max_price IS NULL OR ? > max_price
+                THEN ?
+                ELSE max_price
+            END,
+            min_price=CASE
+                WHEN min_price IS NULL OR ? < min_price
+                THEN ?
+                ELSE min_price
+            END,
+            updated_ts=?
+        WHERE id=?
+        """,
+        (
+            float(current_price),
+            return_1m,
+            float(current_price),
+            float(current_price),
+            float(current_price),
+            float(current_price),
+            now,
+            outcome_id,
+        )
+    )
+
+    conn.commit()
+    conn.close()
+
+    return True
+
+def update_signal_outcome_5m(
+    outcome_id,
+    current_price,
+):
+    conn = db()
+
+    row = conn.execute(
+        """
+        SELECT price_at_signal
+        FROM signal_outcomes
+        WHERE id=?
+        LIMIT 1
+        """,
+        (outcome_id,)
+    ).fetchone()
+
+    if not row:
+        conn.close()
+        return False
+
+    price_at_signal = float(row[0] or 0)
+
+    if price_at_signal > 0:
+        return_5m = (
+            (float(current_price) - price_at_signal)
+            / price_at_signal
+        ) * 100
+    else:
+        return_5m = 0.0
+
+    now = time.time()
+
+    conn.execute(
+        """
+        UPDATE signal_outcomes
+        SET
+            price_5m=?,
+            return_5m=?,
+            max_price=CASE
+                WHEN max_price IS NULL OR ? > max_price
+                THEN ?
+                ELSE max_price
+            END,
+            min_price=CASE
+                WHEN min_price IS NULL OR ? < min_price
+                THEN ?
+                ELSE min_price
+            END,
+            updated_ts=?
+        WHERE id=?
+        """,
+        (
+            float(current_price),
+            return_5m,
+            float(current_price),
+            float(current_price),
+            float(current_price),
+            float(current_price),
+            now,
+            outcome_id,
+        )
+    )
+
+    conn.commit()
+    conn.close()
+
+    return True
+
+def update_signal_outcome_15m(
+    outcome_id,
+    current_price,
+):
+    conn = db()
+
+    row = conn.execute(
+        """
+        SELECT price_at_signal
+        FROM signal_outcomes
+        WHERE id=?
+        LIMIT 1
+        """,
+        (outcome_id,)
+    ).fetchone()
+
+    if not row:
+        conn.close()
+        return False
+
+    price_at_signal = float(row[0] or 0)
+
+    if price_at_signal > 0:
+        return_15m = (
+            (float(current_price) - price_at_signal)
+            / price_at_signal
+        ) * 100
+    else:
+        return_15m = 0.0
+
+    now = time.time()
+
+    conn.execute(
+        """
+        UPDATE signal_outcomes
+        SET
+            price_15m=?,
+            return_15m=?,
+            max_price=CASE
+                WHEN max_price IS NULL OR ? > max_price
+                THEN ?
+                ELSE max_price
+            END,
+            min_price=CASE
+                WHEN min_price IS NULL OR ? < min_price
+                THEN ?
+                ELSE min_price
+            END,
+            updated_ts=?
+        WHERE id=?
+        """,
+        (
+            float(current_price),
+            return_15m,
+            float(current_price),
+            float(current_price),
+            float(current_price),
+            float(current_price),
+            now,
+            outcome_id,
+        )
+    )
+
+    conn.commit()
+    conn.close()
+
+    return True
+
+
+def process_signal_outcomes_event(
+    mint,
+    event,
+):
+    if not mint:
+        return
+
+    v_sol = float(
+        event.get("vSolInBondingCurve")
+        or 0
+    )
+
+    v_tokens = float(
+        event.get("vTokensInBondingCurve")
+        or 0
+    )
+
+    if v_tokens > 0:
+        current_price = v_sol / v_tokens
+    else:
+        return
+
+    now = time.time()
+
+    conn = db()
+
+    rows = conn.execute(
+        """
+        SELECT
+    id,
+    signal_ts,
+    price_10s,
+    price_30s,
+    price_1m,
+    price_5m,
+    price_15m
+FROM signal_outcomes
+WHERE mint = ?
+AND (
+    price_10s IS NULL
+    OR price_30s IS NULL
+    OR price_1m IS NULL
+    OR price_5m IS NULL
+    OR price_15m IS NULL
+)
+        """,
+        (mint,)
+    ).fetchall()
+
+    conn.close()
+
+    for row in rows:
+        outcome_id = int(row[0])
+        signal_ts = float(row[1] or 0)
+        price_10s = row[2]
+        price_30s = row[3]
+        price_1m = row[4]
+        price_5m = row[5]
+        price_15m = row[6]
+        elapsed = now - signal_ts
+
+        if elapsed >= 10 and price_10s is None:
+            update_signal_outcome_10s(
+                outcome_id=outcome_id,
+                current_price=current_price
+            )
+
+        if elapsed >= 30 and price_30s is None:
+            update_signal_outcome_30s(
+                outcome_id=outcome_id,
+                current_price=current_price
+            )
+
+        if elapsed >= 60 and price_1m is None:
+            update_signal_outcome_1m(
+                outcome_id=outcome_id,
+                current_price=current_price
+            )
+
+        if elapsed >= 300 and price_5m is None:
+            update_signal_outcome_5m(
+                outcome_id=outcome_id,
+                current_price=current_price
+            )
+
+        if elapsed >= 900 and price_15m is None:
+            update_signal_outcome_15m(
+            outcome_id=outcome_id,
+            current_price=current_price
+    )
+
+        cleanup_finished_outcome_token(mint) 
+            
+
+
+
+def cleanup_finished_outcome_token(mint):
+    if not mint:
+        return
+
+    conn = db()
+
+    unfinished = conn.execute(
+        """
+        SELECT COUNT(*)
+        FROM signal_outcomes
+        WHERE mint = ?
+        AND (
+            price_10s IS NULL
+            OR price_30s IS NULL
+            OR price_1m IS NULL
+            OR price_5m IS NULL
+            OR price_15m IS NULL
+        )
+        """,
+        (mint,)
+    ).fetchone()[0]
+
+    open_paper = conn.execute(
+        """
+        SELECT COUNT(*)
+        FROM paper_positions
+        WHERE mint = ?
+        AND status = 'open'
+        """,
+        (mint,)
+    ).fetchone()[0]
+
+    conn.close()
+
+    if unfinished == 0 and open_paper == 0:
+        TRACKED_TOKENS.discard(mint)
+        TOKENS_TO_UNSUBSCRIBE.add(mint)
+
+        print(
+            f"[TRACKER] Token finalizado: {mint}"
+        )   
 
 def simulate_execution(
     mint,
@@ -1816,12 +2395,13 @@ def trader_for(wallet):
 # =========================================================
 
 def score_trader(trader):
+    if trader in OBSERVE_TRADERS:
+        return 10
 
     return TRADER_QUALITY.get(
         trader,
         15
     )
-
 
 # =========================================================
 # SCORE: MARKET CAP
@@ -2200,7 +2780,8 @@ def decision_from_score(score):
 def evaluate_buy(
     trader,
     event,
-    source="live"
+    source="live",
+    price_at_signal=0.0
 ):
 
     mint = (
@@ -2334,10 +2915,10 @@ def evaluate_buy(
 
     conn = db()
 
-
     try:
+        signal_ts = time.time()
 
-        conn.execute(
+        cursor = conn.execute(
             """
             INSERT INTO evaluations(
 
@@ -2378,7 +2959,7 @@ def evaluate_buy(
             (
                 signature,
 
-                time.time(),
+                signal_ts,
 
                 trader,
 
@@ -2406,12 +2987,23 @@ def evaluate_buy(
             )
         )
 
+        signal_id = cursor.lastrowid
+
         conn.commit()
 
+        create_signal_outcome(
+            signal_id=signal_id,
+            mint=mint,
+            trader=trader,
+            signal_ts=signal_ts,
+            price_at_signal=price_at_signal
+        )
+
+        if mint and not mint.startswith("DEMO"):
+            TRACKED_TOKENS.add(mint)
+
     except sqlite3.IntegrityError:
-
         pass
-
 
     conn.close()
 
@@ -2916,6 +3508,21 @@ def save_trade(
         or 0
     )
 
+    v_sol = float(
+        event.get("vSolInBondingCurve")
+        or 0
+    )
+
+    v_tokens = float(
+        event.get("vTokensInBondingCurve")
+        or 0
+    )
+
+    if v_tokens > 0:
+        price_at_signal = v_sol / v_tokens
+    else:
+        price_at_signal = 0.0
+
 
     new_token_balance = float(
         event.get("newTokenBalance")
@@ -3017,11 +3624,14 @@ def save_trade(
     )
 
     if is_buy or is_create_with_buy:
+
         evaluate_buy(
             trader,
             event,
-            source
+            source,
+            price_at_signal
         )
+    
 
     # Actualizar cualquier posición paper
     # abierta en este token.
@@ -3063,6 +3673,8 @@ async def stream():
                 uri,
                 ping_interval=20
             ) as websocket:
+                
+                last_stream_message_ts = time.time()
 
                 # Cada reconexión empieza
                 # con suscripciones limpias.
@@ -3181,20 +3793,34 @@ async def stream():
                     # Esperamos como máximo 1 segundo.
                     # Así podemos seguir comprobando
                     # nuevas posiciones aunque no lleguen trades.
-
                     try:
-
                         raw = await asyncio.wait_for(
                             websocket.recv(),
                             timeout=1.0
                         )
 
                     except asyncio.TimeoutError:
+                        inactivity = (
+                            time.time()
+                            - last_stream_message_ts
+                        )
+
+                        if inactivity >= STREAM_INACTIVITY_TIMEOUT:
+                            print(
+                                f"[STREAM WATCHDOG] "
+                                f"Sin eventos por {int(inactivity)}s. "
+                                f"Reconectando..."
+                            )
+
+                            raise RuntimeError(
+                                "STREAM_INACTIVITY_TIMEOUT"
+                            )
 
                         continue
 
-
-                    event = json.loads(raw)
+                    else:
+                        last_stream_message_ts = time.time()
+                        event = json.loads(raw)
 
                     if "message" in event:
                         print(
@@ -3203,9 +3829,10 @@ async def stream():
                         )
                         continue
 
-                                        # =========================================================
+                    # =========================================================
                     # PROTECCIÓN CONTRA EVENTOS DUPLICADOS
                     # =========================================================
+
                     signature = event.get("signature")
 
                     if signature:
@@ -3230,7 +3857,6 @@ async def stream():
                         if len(SEEN_SIGNATURES) > 5000:
                             SEEN_SIGNATURES.clear()
 
-
                     wallet = (
                         event.get("traderPublicKey")
                         or event.get("user")
@@ -3242,23 +3868,6 @@ async def stream():
                         event.get("mint")
                         or ""
                     )
-
-                    
-
-
-                    wallet = (
-                        event.get("traderPublicKey")
-                        or event.get("user")
-                        or event.get("wallet")
-                        or ""
-                    )
-
-
-                    mint = (
-                        event.get("mint")
-                        or ""
-                    )
-
 
                     is_watched_wallet = (
                         wallet in WATCHED.values()
@@ -3306,6 +3915,11 @@ async def stream():
                             f"{mint}: "
                             f"{event}"
                         )
+
+                        process_signal_outcomes_event(
+    mint=mint,
+    event=event
+)
 
                         save_token_history(
                             mint=mint,
@@ -3381,7 +3995,6 @@ async def stream():
 
 @app.on_event("startup")
 async def startup():
-
     global KILL_SWITCH
 
     KILL_SWITCH = get_persistent_kill_switch()
@@ -3392,11 +4005,10 @@ async def startup():
 
     migrate_database()
 
-    # Recuperar tokens de posiciones paper abiertas
-
     conn = db()
 
-    rows = conn.execute(
+    # Recuperar tokens de posiciones paper abiertas
+    paper_rows = conn.execute(
         """
         SELECT mint
         FROM paper_positions
@@ -3404,22 +4016,50 @@ async def startup():
         """
     ).fetchall()
 
+    # Recuperar outcomes incompletos recientes
+    outcome_rows = conn.execute(
+        """
+        SELECT DISTINCT mint
+        FROM signal_outcomes
+        WHERE mint IS NOT NULL
+        AND mint != ''
+        AND price_at_signal > 0
+        AND (
+            price_10s IS NULL
+            OR price_30s IS NULL
+            OR price_1m IS NULL
+            OR price_5m IS NULL
+            OR price_15m IS NULL
+        )
+        AND signal_ts >= ?
+        """,
+        (
+            time.time() - 900,
+        )
+    ).fetchall()
+
     conn.close()
 
-    for row in rows:
+    for row in paper_rows:
         mint = row[0]
 
         if mint and not mint.startswith("DEMO"):
             TRACKED_TOKENS.add(mint)
+
+    for row in outcome_rows:
+        mint = row[0]
+
+        if mint and not mint.startswith("DEMO"):
+            TRACKED_TOKENS.add(mint)
+
     print(
         f"[TRACKER] {len(TRACKED_TOKENS)} "
-        f"tokens abiertos recuperados"
+        f"tokens recuperados"
     )
 
     asyncio.create_task(
         stream()
     )
-
 # =========================================================
 # AUTENTICACIÓN
 # =========================================================
