@@ -3510,16 +3510,18 @@ def evaluate_buy(
     #
     # Seguimos SIN ejecutar dinero real.
 
-    if decision == "COPY":
+    if (
+    decision == "COPY"
+    and trader not in OBSERVE_TRADERS
+):
 
         open_paper_position(
-            mint=mint,
-            trader=trader,
-            market_cap=market_cap,
-            score=score,
-            decision=decision
-        )
-
+        mint=mint,
+        trader=trader,
+        market_cap=market_cap,
+        score=score,
+        decision=decision
+    )
 
     return {
         "score": score,
