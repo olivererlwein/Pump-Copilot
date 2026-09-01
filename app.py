@@ -333,6 +333,8 @@ CREATE TABLE IF NOT EXISTS signal_outcomes(
     tp50_ts REAL,
     sl10_ts REAL,
                  
+    status TEXT DEFAULT 'active',             
+                 
 
     created_ts REAL NOT NULL,
     updated_ts REAL NOT NULL
@@ -1237,22 +1239,59 @@ AND (
             current_price=current_price
     )
 
-        cleanup_finished_outcome_token(mint) 
-            
+        cleanup_finished_outcome_token(mint)
 
 
-
-def cleanup_finished_outcome_token(mint):
+def complete_finished_signal_outcomes(mint):
     if not mint:
-        return
+        return 0
 
     conn = db()
 
-    unfinished = conn.execute(
+    cursor = conn.execute(
         """
-        SELECT COUNT(*)
-        FROM signal_outcomes
+        UPDATE signal_outcomes
+        SET
+            status = 'completed',
+            updated_ts = ?
         WHERE mint = ?
+        AND status = 'active'
+        AND price_10s IS NOT NULL
+        AND price_30s IS NOT NULL
+        AND price_1m IS NOT NULL
+        AND price_5m IS NOT NULL
+        AND price_15m IS NOT NULL
+        """,
+        (
+            time.time(),
+            mint,
+        )
+    )
+
+    conn.commit()
+    affected = cursor.rowcount
+    conn.close()
+
+    return affected
+
+
+def expire_old_signal_outcomes(mint):
+    if not mint:
+        return 0
+
+    cutoff = time.time() - 1200
+
+    conn = db()
+
+    cursor = conn.execute(
+        """
+        UPDATE signal_outcomes
+        SET
+            status = 'expired',
+            updated_ts = ?
+        WHERE mint = ?
+        AND status = 'active'
+        AND signal_ts < ?
         AND (
             price_10s IS NULL
             OR price_30s IS NULL
@@ -1261,8 +1300,53 @@ def cleanup_finished_outcome_token(mint):
             OR price_15m IS NULL
         )
         """,
-        (mint,)
-    ).fetchone()[0]
+        (
+            time.time(),
+            mint,
+            cutoff,
+        )
+    )
+
+    conn.commit()
+    affected = cursor.rowcount
+    conn.close()
+
+    return affected 
+            
+
+
+
+def cleanup_finished_outcome_token(mint):
+    if not mint:
+        return
+
+    expire_old_signal_outcomes(mint)
+    complete_finished_signal_outcomes(mint)
+
+    conn = db()
+
+    active_cutoff = time.time() - 1200
+
+    unfinished = conn.execute(
+    """
+    SELECT COUNT(*)
+    FROM signal_outcomes
+    WHERE mint = ?
+    AND signal_ts >= ?
+    AND status = 'active'
+    AND (
+        price_10s IS NULL
+        OR price_30s IS NULL
+        OR price_1m IS NULL
+        OR price_5m IS NULL
+        OR price_15m IS NULL
+    )
+    """,
+    (
+        mint,
+        active_cutoff,
+    )
+).fetchone()[0]
 
     open_paper = conn.execute(
         """
@@ -2394,7 +2478,11 @@ def migrate_database():
 
         "sl10_ts":
             "ALTER TABLE signal_outcomes "
-            "ADD COLUMN sl10_ts REAL"
+            "ADD COLUMN sl10_ts REAL",
+
+        "status":
+        "ALTER TABLE signal_outcomes "
+        "ADD COLUMN status TEXT DEFAULT 'active'"    
     }
 
     for column, sql in outcome_migrations.items():
@@ -2608,6 +2696,7 @@ def get_trader_copyability_stats(trader):
 
         WHERE trader = ?
         AND price_at_signal > 0
+AND status != 'expired'
         """,
         (trader,)
     ).fetchone()
@@ -2679,6 +2768,7 @@ def get_trader_hit_stats(trader):
 
         WHERE trader = ?
         AND price_at_signal > 0
+        AND status != 'expired'
         """,
         (trader,)
     ).fetchone()
@@ -2789,6 +2879,7 @@ def get_trader_first_hit_stats(trader):
         FROM signal_outcomes
         WHERE trader = ?
         AND price_at_signal > 0
+        AND status != 'expired'
         AND (
             tp25_ts IS NOT NULL
             OR sl10_ts IS NOT NULL
