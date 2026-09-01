@@ -104,6 +104,7 @@ OBSERVE_TRADERS = {
 TRACKED_TOKENS = set()
 SUBSCRIBED_TOKENS = set()
 TOKENS_TO_UNSUBSCRIBE = set()
+LAST_TOKEN_PRICE = {}
 
 # Evita procesar dos veces la misma transacción de PumpPortal
 KILL_SWITCH = False
@@ -1186,6 +1187,11 @@ def process_signal_outcomes_event(
 
     now = time.time()
 
+    LAST_TOKEN_PRICE[mint] = {
+    "price": float(current_price),
+    "ts": now,
+}
+
     conn = db()
 
     rows = conn.execute(
@@ -1258,6 +1264,142 @@ AND (
     )
 
         cleanup_finished_outcome_token(mint)
+
+async def signal_outcome_checkpoint_worker():
+    while True:
+        try:
+            now = time.time()
+
+            conn = db()
+
+            rows = conn.execute(
+                """
+                SELECT
+                    id,
+                    mint,
+                    signal_ts,
+                    price_10s,
+                    price_30s,
+                    price_1m,
+                    price_5m,
+                    price_15m
+
+                FROM signal_outcomes
+
+                WHERE status = 'active'
+                AND signal_ts >= ?
+                AND (
+                    price_10s IS NULL
+                    OR price_30s IS NULL
+                    OR price_1m IS NULL
+                    OR price_5m IS NULL
+                    OR price_15m IS NULL
+                )
+                """,
+                (now - 1200,)
+            ).fetchall()
+
+            conn.close()
+
+            touched_mints = set()
+
+            for row in rows:
+                outcome_id = int(row[0])
+                mint = str(row[1] or "")
+                signal_ts = float(row[2] or 0)
+
+                price_10s = row[3]
+                price_30s = row[4]
+                price_1m = row[5]
+                price_5m = row[6]
+                price_15m = row[7]
+
+                if not mint or signal_ts <= 0:
+                    continue
+
+                cached = LAST_TOKEN_PRICE.get(mint)
+
+                if not cached:
+                    continue
+
+                current_price = float(
+                    cached.get("price") or 0
+                )
+
+                price_ts = float(
+                    cached.get("ts") or 0
+                )
+
+                if current_price <= 0:
+                    continue
+
+                # Nunca usar un precio observado antes de la señal.
+                if price_ts < signal_ts:
+                    continue
+
+                elapsed = now - signal_ts
+
+                # Solo rellenamos cerca del checkpoint esperado.
+                # Así evitamos reconstruir datos históricos tarde
+                # con un precio que no corresponde a ese momento.
+
+                if (
+                    price_10s is None
+                    and 10 <= elapsed <= 15
+                ):
+                    update_signal_outcome_10s(
+                        outcome_id=outcome_id,
+                        current_price=current_price,
+                    )
+
+                if (
+                    price_30s is None
+                    and 30 <= elapsed <= 40
+                ):
+                    update_signal_outcome_30s(
+                        outcome_id=outcome_id,
+                        current_price=current_price,
+                    )
+
+                if (
+                    price_1m is None
+                    and 60 <= elapsed <= 75
+                ):
+                    update_signal_outcome_1m(
+                        outcome_id=outcome_id,
+                        current_price=current_price,
+                    )
+
+                if (
+                    price_5m is None
+                    and 300 <= elapsed <= 330
+                ):
+                    update_signal_outcome_5m(
+                        outcome_id=outcome_id,
+                        current_price=current_price,
+                    )
+
+                if (
+                    price_15m is None
+                    and 900 <= elapsed <= 960
+                ):
+                    update_signal_outcome_15m(
+                        outcome_id=outcome_id,
+                        current_price=current_price,
+                    )
+
+                touched_mints.add(mint)
+
+            for mint in touched_mints:
+                cleanup_finished_outcome_token(mint)
+
+        except Exception as exc:
+            print(
+                "[CHECKPOINT WORKER ERROR]",
+                repr(exc)
+            )
+
+        await asyncio.sleep(2)        
 
 
 def complete_finished_signal_outcomes(mint):
@@ -5313,6 +5455,10 @@ async def startup():
 
     asyncio.create_task(
         stream()
+    )
+
+    asyncio.create_task(
+    signal_outcome_checkpoint_worker()
     )
 # =========================================================
 # AUTENTICACIÓN
