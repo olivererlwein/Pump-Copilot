@@ -312,6 +312,12 @@ CREATE TABLE IF NOT EXISTS signal_outcomes(
     price_1m REAL,
     price_5m REAL,
     price_15m REAL,
+                 
+    observed_10s_ts REAL,
+    observed_30s_ts REAL,
+    observed_1m_ts REAL,
+    observed_5m_ts REAL,
+    observed_15m_ts REAL,
 
     max_price REAL,
     min_price REAL,
@@ -710,8 +716,9 @@ def update_signal_outcome_10s(
         """
         UPDATE signal_outcomes
         SET
-            price_10s=?,
-            return_10s=?,
+        price_10s=?,
+        return_10s=?,
+        observed_10s_ts=?,
             max_price=CASE
                 WHEN max_price IS NULL OR ? > max_price
                 THEN ?
@@ -728,6 +735,7 @@ def update_signal_outcome_10s(
         (
             float(current_price),
             return_10s,
+            now,
             float(current_price),
             float(current_price),
             float(current_price),
@@ -781,6 +789,7 @@ def update_signal_outcome_30s(
         SET
             price_30s=?,
             return_30s=?,
+            observed_30s_ts=?,
             max_price=CASE
                 WHEN max_price IS NULL OR ? > max_price
                 THEN ?
@@ -797,6 +806,7 @@ def update_signal_outcome_30s(
         (
             float(current_price),
             return_30s,
+            now,
             float(current_price),
             float(current_price),
             float(current_price),
@@ -849,6 +859,7 @@ def update_signal_outcome_1m(
         SET
             price_1m=?,
             return_1m=?,
+            observed_1m_ts=?,
             max_price=CASE
                 WHEN max_price IS NULL OR ? > max_price
                 THEN ?
@@ -865,6 +876,7 @@ def update_signal_outcome_1m(
         (
             float(current_price),
             return_1m,
+            now,
             float(current_price),
             float(current_price),
             float(current_price),
@@ -917,6 +929,7 @@ def update_signal_outcome_5m(
         SET
             price_5m=?,
             return_5m=?,
+            observed_5m_ts=?,
             max_price=CASE
                 WHEN max_price IS NULL OR ? > max_price
                 THEN ?
@@ -933,6 +946,7 @@ def update_signal_outcome_5m(
         (
             float(current_price),
             return_5m,
+            now,
             float(current_price),
             float(current_price),
             float(current_price),
@@ -985,6 +999,7 @@ def update_signal_outcome_15m(
         SET
             price_15m=?,
             return_15m=?,
+            observed_15m_ts=?,
             max_price=CASE
                 WHEN max_price IS NULL OR ? > max_price
                 THEN ?
@@ -1001,6 +1016,7 @@ def update_signal_outcome_15m(
         (
             float(current_price),
             return_15m,
+            now,
             float(current_price),
             float(current_price),
             float(current_price),
@@ -2482,8 +2498,28 @@ def migrate_database():
 
         "status":
         "ALTER TABLE signal_outcomes "
-        "ADD COLUMN status TEXT DEFAULT 'active'"    
-    }
+        "ADD COLUMN status TEXT DEFAULT 'active'",
+
+        "observed_10s_ts":
+        "ALTER TABLE signal_outcomes "
+        "ADD COLUMN observed_10s_ts REAL",
+
+        "observed_30s_ts":
+        "ALTER TABLE signal_outcomes "
+        "ADD COLUMN observed_30s_ts REAL",
+
+        "observed_1m_ts":
+        "ALTER TABLE signal_outcomes "
+        "ADD COLUMN observed_1m_ts REAL",
+
+        "observed_5m_ts":
+        "ALTER TABLE signal_outcomes "
+        "ADD COLUMN observed_5m_ts REAL",
+
+        "observed_15m_ts":
+        "ALTER TABLE signal_outcomes "
+        "ADD COLUMN observed_15m_ts REAL",
+        }
 
     for column, sql in outcome_migrations.items():
 
@@ -2868,6 +2904,276 @@ def get_signal_first_hit(outcome_id):
         ),
     }
 
+def get_signal_checkpoint_lags(outcome_id):
+    conn = db()
+
+    row = conn.execute(
+        """
+        SELECT
+            signal_ts,
+            observed_10s_ts,
+            observed_30s_ts,
+            observed_1m_ts,
+            observed_5m_ts,
+            observed_15m_ts
+        FROM signal_outcomes
+        WHERE id = ?
+        LIMIT 1
+        """,
+        (outcome_id,)
+    ).fetchone()
+
+    conn.close()
+
+    if not row:
+        return None
+
+    signal_ts = float(row[0] or 0)
+
+    targets = {
+        "10s": (row[1], 10),
+        "30s": (row[2], 30),
+        "1m": (row[3], 60),
+        "5m": (row[4], 300),
+        "15m": (row[5], 900),
+    }
+
+    result = {}
+
+    for name, (observed_ts, target_seconds) in targets.items():
+
+        if observed_ts is None:
+            result[name] = None
+            continue
+
+        observed_elapsed = (
+            float(observed_ts)
+            - signal_ts
+        )
+
+        lag = (
+            observed_elapsed
+            - target_seconds
+        )
+
+        result[name] = {
+            "observed_elapsed": round(
+                observed_elapsed,
+                2
+            ),
+            "lag_seconds": round(
+                lag,
+                2
+            ),
+        }
+
+    return result
+
+def get_signal_checkpoint_quality(outcome_id):
+    lags = get_signal_checkpoint_lags(
+        outcome_id
+    )
+
+    if lags is None:
+        return None
+
+    max_lag_allowed = {
+        "10s": 5,
+        "30s": 10,
+        "1m": 15,
+        "5m": 30,
+        "15m": 60,
+    }
+
+    result = {}
+
+    for checkpoint, data in lags.items():
+
+        if data is None:
+            result[checkpoint] = {
+                "available": False,
+                "reliable": False,
+                "lag_seconds": None,
+            }
+            continue
+
+        lag = float(
+            data["lag_seconds"]
+        )
+
+        reliable = (
+            lag
+            <= max_lag_allowed[checkpoint]
+        )
+
+        result[checkpoint] = {
+            "available": True,
+            "reliable": reliable,
+            "lag_seconds": round(
+                lag,
+                2
+            ),
+        }
+
+    return result
+
+
+def get_trader_reliable_samples(trader):
+    conn = db()
+
+    row = conn.execute(
+        """
+        SELECT
+            SUM(
+                CASE
+                    WHEN observed_10s_ts IS NOT NULL
+                    AND observed_10s_ts - signal_ts <= 15
+                    THEN 1
+                    ELSE 0
+                END
+            ),
+
+            SUM(
+                CASE
+                    WHEN observed_30s_ts IS NOT NULL
+                    AND observed_30s_ts - signal_ts <= 40
+                    THEN 1
+                    ELSE 0
+                END
+            ),
+
+            SUM(
+                CASE
+                    WHEN observed_1m_ts IS NOT NULL
+                    AND observed_1m_ts - signal_ts <= 75
+                    THEN 1
+                    ELSE 0
+                END
+            ),
+
+            SUM(
+                CASE
+                    WHEN observed_5m_ts IS NOT NULL
+                    AND observed_5m_ts - signal_ts <= 330
+                    THEN 1
+                    ELSE 0
+                END
+            ),
+
+            SUM(
+                CASE
+                    WHEN observed_15m_ts IS NOT NULL
+                    AND observed_15m_ts - signal_ts <= 960
+                    THEN 1
+                    ELSE 0
+                END
+            )
+
+        FROM signal_outcomes
+
+        WHERE trader = ?
+        AND price_at_signal > 0
+        AND status != 'expired'
+        """,
+        (trader,)
+    ).fetchone()
+
+    conn.close()
+
+    return {
+        "trader": trader,
+        "reliable_10s": int(row[0] or 0),
+        "reliable_30s": int(row[1] or 0),
+        "reliable_1m": int(row[2] or 0),
+        "reliable_5m": int(row[3] or 0),
+        "reliable_15m": int(row[4] or 0),
+    }
+
+
+def get_trader_reliable_returns(trader):
+    conn = db()
+
+    row = conn.execute(
+        """
+        SELECT
+            AVG(
+                CASE
+                    WHEN observed_10s_ts IS NOT NULL
+                    AND observed_10s_ts - signal_ts <= 15
+                    THEN return_10s
+                END
+            ),
+
+            AVG(
+                CASE
+                    WHEN observed_30s_ts IS NOT NULL
+                    AND observed_30s_ts - signal_ts <= 40
+                    THEN return_30s
+                END
+            ),
+
+            AVG(
+                CASE
+                    WHEN observed_1m_ts IS NOT NULL
+                    AND observed_1m_ts - signal_ts <= 75
+                    THEN return_1m
+                END
+            ),
+
+            AVG(
+                CASE
+                    WHEN observed_5m_ts IS NOT NULL
+                    AND observed_5m_ts - signal_ts <= 330
+                    THEN return_5m
+                END
+            ),
+
+            AVG(
+                CASE
+                    WHEN observed_15m_ts IS NOT NULL
+                    AND observed_15m_ts - signal_ts <= 960
+                    THEN return_15m
+                END
+            ),
+
+            AVG(
+                CASE
+                    WHEN observed_5m_ts IS NOT NULL
+                    AND observed_5m_ts - signal_ts <= 330
+                    AND return_5m IS NOT NULL
+                    THEN CASE
+                        WHEN return_5m > 0 THEN 1.0
+                        ELSE 0.0
+                    END
+                END
+            )
+
+        FROM signal_outcomes
+
+        WHERE trader = ?
+        AND price_at_signal > 0
+        AND status != 'expired'
+        """,
+        (trader,)
+    ).fetchone()
+
+    conn.close()
+
+    return {
+        "trader": trader,
+        "avg_return_10s": round(float(row[0] or 0), 2),
+        "avg_return_30s": round(float(row[1] or 0), 2),
+        "avg_return_1m": round(float(row[2] or 0), 2),
+        "avg_return_5m": round(float(row[3] or 0), 2),
+        "avg_return_15m": round(float(row[4] or 0), 2),
+        "positive_5m_pct": round(
+            float(row[5] or 0) * 100,
+            2
+        ),
+    }
+
+    
+
 def get_trader_first_hit_stats(trader):
     conn = db()
 
@@ -2932,7 +3238,14 @@ def calculate_copyability_score(trader):
     stats = get_trader_copyability_stats(trader)
 
     signals = stats["signals"]
-    samples_5m = stats["samples_5m"]
+    reliable = get_trader_reliable_samples(
+    trader
+)
+    reliable_returns = get_trader_reliable_returns(
+    trader
+)
+
+    samples_5m = reliable["reliable_5m"]
 
     if signals == 0:
         return {
@@ -2947,8 +3260,8 @@ def calculate_copyability_score(trader):
         1.0
     )
 
-    positive_5m = stats["positive_5m_pct"]
-    avg_5m = stats["avg_return_5m"]
+    positive_5m = reliable_returns["positive_5m_pct"]
+    avg_5m = reliable_returns["avg_return_5m"]
 
     performance_score = 0.0
 
@@ -2979,6 +3292,8 @@ def calculate_copyability_score(trader):
             2
         ),
         "stats": stats,
+        "reliable_samples": reliable,
+        "reliable_returns": reliable_returns,
     }
 
 # =========================================================
