@@ -2497,33 +2497,61 @@ def migrate_database():
             "ADD COLUMN sl10_ts REAL",
 
         "status":
-        "ALTER TABLE signal_outcomes "
-        "ADD COLUMN status TEXT DEFAULT 'active'",
+            "ALTER TABLE signal_outcomes "
+            "ADD COLUMN status TEXT DEFAULT 'active'",
 
         "observed_10s_ts":
-        "ALTER TABLE signal_outcomes "
-        "ADD COLUMN observed_10s_ts REAL",
+            "ALTER TABLE signal_outcomes "
+            "ADD COLUMN observed_10s_ts REAL",
 
         "observed_30s_ts":
-        "ALTER TABLE signal_outcomes "
-        "ADD COLUMN observed_30s_ts REAL",
+            "ALTER TABLE signal_outcomes "
+            "ADD COLUMN observed_30s_ts REAL",
 
         "observed_1m_ts":
-        "ALTER TABLE signal_outcomes "
-        "ADD COLUMN observed_1m_ts REAL",
+            "ALTER TABLE signal_outcomes "
+            "ADD COLUMN observed_1m_ts REAL",
 
         "observed_5m_ts":
-        "ALTER TABLE signal_outcomes "
-        "ADD COLUMN observed_5m_ts REAL",
+            "ALTER TABLE signal_outcomes "
+            "ADD COLUMN observed_5m_ts REAL",
 
         "observed_15m_ts":
-        "ALTER TABLE signal_outcomes "
-        "ADD COLUMN observed_15m_ts REAL",
-        }
+            "ALTER TABLE signal_outcomes "
+            "ADD COLUMN observed_15m_ts REAL",
+    }
 
     for column, sql in outcome_migrations.items():
 
         if column not in existing_outcomes:
+
+            try:
+                conn.execute(sql)
+
+            except Exception:
+                pass
+
+
+    existing_evaluations = [
+        row[1]
+        for row in conn.execute(
+            "PRAGMA table_info(evaluations)"
+        ).fetchall()
+    ]
+
+    evaluation_migrations = {
+        "market_cap":
+            "ALTER TABLE evaluations "
+            "ADD COLUMN market_cap REAL DEFAULT 0",
+
+        "sol_amount":
+            "ALTER TABLE evaluations "
+            "ADD COLUMN sol_amount REAL DEFAULT 0",
+    }
+
+    for column, sql in evaluation_migrations.items():
+
+        if column not in existing_evaluations:
 
             try:
                 conn.execute(sql)
@@ -3296,6 +3324,81 @@ def calculate_copyability_score(trader):
         "reliable_returns": reliable_returns,
     }
 
+def get_training_dataset_rows():
+    conn = db()
+
+    rows = conn.execute(
+        """
+        SELECT
+            e.id,
+            e.trader,
+            e.trader_score,
+            e.timing_score,
+            e.size_score,
+            e.token_score,
+            e.consensus_score,
+            e.market_score,
+            e.score,
+            e.market_cap,
+            e.sol_amount,
+
+            o.tp25_ts,
+            o.sl10_ts,
+            o.status
+
+        FROM evaluations e
+
+        JOIN signal_outcomes o
+            ON o.signal_id = e.id
+
+        WHERE o.price_at_signal > 0
+        AND o.status = 'completed'
+        AND e.market_cap > 0
+        AND e.sol_amount > 0
+
+        ORDER BY e.ts ASC
+        """
+    ).fetchall()
+
+    conn.close()
+
+    dataset = []
+
+    for row in rows:
+        tp25_ts = row[11]
+        sl10_ts = row[12]
+
+        target = 0
+
+        if tp25_ts is not None:
+            if (
+                sl10_ts is None
+                or float(tp25_ts) < float(sl10_ts)
+            ):
+                target = 1
+
+        dataset.append(
+            {
+                "signal_id": int(row[0]),
+                "trader": str(row[1] or "unknown"),
+
+                "trader_score": int(row[2] or 0),
+                "timing_score": int(row[3] or 0),
+                "size_score": int(row[4] or 0),
+                "token_score": int(row[5] or 0),
+                "consensus_score": int(row[6] or 0),
+                "market_score": int(row[7] or 0),
+
+                "score_total": int(row[8] or 0),
+                "market_cap": float(row[9] or 0),
+                "sol_amount": float(row[10] or 0),
+
+                "target_tp25_before_sl10": target,
+            }
+        )
+
+    return dataset
+
 # =========================================================
 # SCORE: MARKET CAP
 # =========================================================
@@ -3841,12 +3944,16 @@ def evaluate_buy(
 
                 market_score,
 
+                market_cap,
+                
+                sol_amount,
+
                 reasons
 
             )
 
             VALUES(
-                ?,?,?,?,?,?,?,?,?,?,?,?,?,?
+                ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
             )
             """,
             (
@@ -3875,6 +3982,10 @@ def evaluate_buy(
                 consensus_score,
 
                 market_score,
+
+                market_cap,
+
+                sol_amount,
 
                 json.dumps(reasons)
             )
