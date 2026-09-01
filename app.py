@@ -128,6 +128,8 @@ MAX_EXECUTION_RETRIES = 2
 
 STREAM_INACTIVITY_TIMEOUT = 120
 
+DATA_VERSION = 1
+
 SEEN_SIGNATURES = set()
 FORCE_STREAM_ERROR = False
 
@@ -2547,6 +2549,10 @@ def migrate_database():
         "sol_amount":
             "ALTER TABLE evaluations "
             "ADD COLUMN sol_amount REAL DEFAULT 0",
+
+        "data_version":
+            "ALTER TABLE evaluations "
+            "ADD COLUMN data_version INTEGER DEFAULT 0",    
     }
 
     for column, sql in evaluation_migrations.items():
@@ -3332,6 +3338,8 @@ def get_training_dataset_rows():
         SELECT
             e.id,
             e.trader,
+            e.ts,
+            e.mint,
             e.trader_score,
             e.timing_score,
             e.size_score,
@@ -3342,6 +3350,7 @@ def get_training_dataset_rows():
             e.market_cap,
             e.sol_amount,
 
+            o.price_at_signal,
             o.tp25_ts,
             o.sl10_ts,
             o.status
@@ -3355,18 +3364,50 @@ def get_training_dataset_rows():
         AND o.status = 'completed'
         AND e.market_cap > 0
         AND e.sol_amount > 0
+        AND e.data_version = ?
 
         ORDER BY e.ts ASC
-        """
-    ).fetchall()
+        """,
+        (DATA_VERSION,)
+        ).fetchall()
 
     conn.close()
 
     dataset = []
 
     for row in rows:
-        tp25_ts = row[11]
-        sl10_ts = row[12]
+        signal_id = int(row[0])
+        trader = str(row[1] or "unknown")
+        signal_ts = float(row[2] or 0)
+        mint = str(row[3] or "")
+
+        trader_score = int(row[4] or 0)
+        timing_score = int(row[5] or 0)
+        size_score = int(row[6] or 0)
+        token_score = int(row[7] or 0)
+        consensus_score = int(row[8] or 0)
+        market_score = int(row[9] or 0)
+
+        score_total = int(row[10] or 0)
+        market_cap = float(row[11] or 0)
+        sol_amount = float(row[12] or 0)
+
+        price_at_signal = float(row[13] or 0)
+        tp25_ts = row[14]
+        sl10_ts = row[15]
+
+        if market_cap > 0:
+            buy_size_pct_mc = (
+                sol_amount
+                / market_cap
+            ) * 100
+        else:
+            buy_size_pct_mc = 0.0
+
+        consensus_trader_count = get_consensus_trader_count(
+            mint,
+            signal_ts
+        )
 
         target = 0
 
@@ -3379,19 +3420,28 @@ def get_training_dataset_rows():
 
         dataset.append(
             {
-                "signal_id": int(row[0]),
-                "trader": str(row[1] or "unknown"),
+                "signal_id": signal_id,
+                "trader": trader,
 
-                "trader_score": int(row[2] or 0),
-                "timing_score": int(row[3] or 0),
-                "size_score": int(row[4] or 0),
-                "token_score": int(row[5] or 0),
-                "consensus_score": int(row[6] or 0),
-                "market_score": int(row[7] or 0),
+                "trader_score": trader_score,
+                "timing_score": timing_score,
+                "size_score": size_score,
+                "token_score": token_score,
+                "consensus_score": consensus_score,
+                "market_score": market_score,
 
-                "score_total": int(row[8] or 0),
-                "market_cap": float(row[9] or 0),
-                "sol_amount": float(row[10] or 0),
+                "score_total": score_total,
+                "market_cap": market_cap,
+                "sol_amount": sol_amount,
+                "price_at_signal": price_at_signal,
+                                "buy_size_pct_mc": round(
+                    buy_size_pct_mc,
+                    4
+                ),
+
+
+
+                "consensus_trader_count": consensus_trader_count,
 
                 "target_tp25_before_sl10": target,
             }
@@ -3622,6 +3672,47 @@ def score_consensus(
 
     # 3+
     return 10
+
+
+def get_consensus_trader_count(
+    mint,
+    signal_ts
+):
+    cutoff = (
+        float(signal_ts)
+        - WINDOW
+    )
+
+    conn = db()
+
+    row = conn.execute(
+        """
+        SELECT COUNT(
+            DISTINCT trader
+        )
+
+        FROM trades
+
+        WHERE mint = ?
+        AND ts >= ?
+        AND ts <= ?
+        AND (
+            side LIKE '%buy%'
+            OR side = 'create'
+        )
+        """,
+        (
+            mint,
+            cutoff,
+            float(signal_ts),
+        )
+    ).fetchone()
+
+    conn.close()
+
+    return int(
+        row[0] or 0
+    )
 
 
 # =========================================================
@@ -3948,12 +4039,14 @@ def evaluate_buy(
                 
                 sol_amount,
 
+                data_version,
+
                 reasons
 
             )
 
             VALUES(
-                ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+                ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
             )
             """,
             (
@@ -3987,6 +4080,7 @@ def evaluate_buy(
 
                 sol_amount,
 
+                DATA_VERSION,
                 json.dumps(reasons)
             )
         )
@@ -5054,7 +5148,7 @@ async def startup():
         AND signal_ts >= ?
         """,
         (
-            time.time() - 900,
+            time.time() - 1200,
         )
     ).fetchall()
 
