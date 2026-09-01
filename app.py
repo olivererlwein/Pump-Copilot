@@ -3449,6 +3449,139 @@ def get_training_dataset_rows():
 
     return dataset
 
+def get_training_dataset_stats():
+    conn = db()
+
+    row = conn.execute(
+        """
+        SELECT
+            COUNT(*) AS total,
+
+            SUM(
+                CASE
+                    WHEN o.status = 'active'
+                    THEN 1
+                    ELSE 0
+                END
+            ),
+
+            SUM(
+                CASE
+                    WHEN o.status = 'completed'
+                    THEN 1
+                    ELSE 0
+                END
+            ),
+
+            SUM(
+                CASE
+                    WHEN o.status = 'expired'
+                    THEN 1
+                    ELSE 0
+                END
+            ),
+
+            SUM(
+                CASE
+                    WHEN o.status = 'completed'
+                    AND o.tp25_ts IS NOT NULL
+                    AND (
+                        o.sl10_ts IS NULL
+                        OR o.tp25_ts < o.sl10_ts
+                    )
+                    THEN 1
+                    ELSE 0
+                END
+            ),
+
+            SUM(
+                CASE
+                    WHEN o.status = 'completed'
+                    AND (
+                        o.tp25_ts IS NULL
+                        OR (
+                            o.sl10_ts IS NOT NULL
+                            AND o.sl10_ts <= o.tp25_ts
+                        )
+                    )
+                    THEN 1
+                    ELSE 0
+                END
+            ),
+
+            SUM(
+                CASE
+                    WHEN o.price_10s IS NOT NULL
+                    THEN 1
+                    ELSE 0
+                END
+            ),
+
+            SUM(
+                CASE
+                    WHEN o.price_30s IS NOT NULL
+                    THEN 1
+                    ELSE 0
+                END
+            ),
+
+            SUM(
+                CASE
+                    WHEN o.price_1m IS NOT NULL
+                    THEN 1
+                    ELSE 0
+                END
+            ),
+
+            SUM(
+                CASE
+                    WHEN o.price_5m IS NOT NULL
+                    THEN 1
+                    ELSE 0
+                END
+            ),
+
+            SUM(
+                CASE
+                    WHEN o.price_15m IS NOT NULL
+                    THEN 1
+                    ELSE 0
+                END
+            )
+
+        FROM evaluations e
+
+        JOIN signal_outcomes o
+            ON o.signal_id = e.id
+
+        WHERE e.data_version = ?
+        AND e.market_cap > 0
+        AND e.sol_amount > 0
+        AND o.price_at_signal > 0
+        """,
+        (DATA_VERSION,)
+    ).fetchone()
+
+    conn.close()
+
+    return {
+        "data_version": DATA_VERSION,
+
+        "total": int(row[0] or 0),
+        "active": int(row[1] or 0),
+        "completed": int(row[2] or 0),
+        "expired": int(row[3] or 0),
+
+        "target_1": int(row[4] or 0),
+        "target_0": int(row[5] or 0),
+
+        "checkpoint_10s": int(row[6] or 0),
+        "checkpoint_30s": int(row[7] or 0),
+        "checkpoint_1m": int(row[8] or 0),
+        "checkpoint_5m": int(row[9] or 0),
+        "checkpoint_15m": int(row[10] or 0),
+    }
+
 # =========================================================
 # SCORE: MARKET CAP
 # =========================================================
@@ -5906,6 +6039,10 @@ def trader_stats(
     conn.close()
 
     return result
+
+@app.get("/api/training-stats")
+def api_training_stats():
+    return get_training_dataset_stats()
 
 
 # =========================================================
