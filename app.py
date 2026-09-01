@@ -4587,6 +4587,20 @@ async def startup():
 
     conn = db()
 
+    stale_rows = conn.execute(
+        """
+        SELECT DISTINCT mint
+        FROM signal_outcomes
+        WHERE status = 'active'
+        AND signal_ts < ?
+        AND mint IS NOT NULL
+        AND mint != ''
+        """,
+        (
+            time.time() - 1200,
+        )
+    ).fetchall()
+
     # Recuperar tokens de posiciones paper abiertas
     paper_rows = conn.execute(
         """
@@ -4619,6 +4633,13 @@ async def startup():
     ).fetchall()
 
     conn.close()
+
+    for row in stale_rows:
+        mint = row[0]
+
+        if mint:
+            expire_old_signal_outcomes(mint)
+            complete_finished_signal_outcomes(mint)
 
     for row in paper_rows:
         mint = row[0]
