@@ -6723,6 +6723,21 @@ def trader_stats(
         ).fetchone()[0]
 
 
+        last_event_ts = conn.execute(
+            """
+            SELECT MAX(ts)
+            FROM trades
+            WHERE trader = ?
+            """,
+            (name,),
+        ).fetchone()[0]
+
+        event_age_seconds = (
+            max(0.0, time.time() - float(last_event_ts))
+            if last_event_ts is not None
+            else None
+        )
+
         result.append(
             {
 
@@ -6740,6 +6755,22 @@ def trader_stats(
 
                 "events":
                     buys + sells,
+
+                "last_event_ts":
+                    last_event_ts,
+
+                "event_age_seconds":
+                    (
+                        round(event_age_seconds, 3)
+                        if event_age_seconds is not None
+                        else None
+                    ),
+
+                "active_last_24h":
+                    (
+                        event_age_seconds is not None
+                        and event_age_seconds <= 86400
+                    ),
 
                 "evaluations":
                     evaluations_count,
