@@ -3551,6 +3551,12 @@ def get_training_dataset_rows():
             signal_ts
         )
 
+        consensus_trader_count_30s = get_consensus_trader_count_window(
+            mint,
+            signal_ts,
+            30
+        )
+
         target = 0
 
         if tp25_ts is not None:
@@ -3584,6 +3590,7 @@ def get_training_dataset_rows():
 
 
                 "consensus_trader_count": consensus_trader_count,
+                "consensus_trader_count_30s": consensus_trader_count_30s,
 
                 "target_tp25_before_sl10": target,
             }
@@ -3956,6 +3963,48 @@ def get_consensus_trader_count(
     cutoff = (
         float(signal_ts)
         - WINDOW
+    )
+
+    conn = db()
+
+    row = conn.execute(
+        """
+        SELECT COUNT(
+            DISTINCT trader
+        )
+
+        FROM trades
+
+        WHERE mint = ?
+        AND ts >= ?
+        AND ts <= ?
+        AND (
+            side LIKE '%buy%'
+            OR side = 'create'
+        )
+        """,
+        (
+            mint,
+            cutoff,
+            float(signal_ts),
+        )
+    ).fetchone()
+
+    conn.close()
+
+    return int(
+        row[0] or 0
+    )
+
+
+def get_consensus_trader_count_window(
+    mint,
+    signal_ts,
+    window_seconds=30
+):
+    cutoff = (
+        float(signal_ts)
+        - float(window_seconds)
     )
 
     conn = db()
