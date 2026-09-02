@@ -1337,6 +1337,11 @@ async def signal_outcome_checkpoint_worker():
                 if price_ts < signal_ts:
                     continue
 
+                price_age = now - price_ts
+
+                if price_age < 0 or price_age > 5:
+                    continue
+
                 elapsed = now - signal_ts
 
                 # Solo rellenamos cerca del checkpoint esperado.
