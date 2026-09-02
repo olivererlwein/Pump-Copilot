@@ -144,7 +144,18 @@ FORCE_STREAM_ERROR = False
 
 def db():
 
-    conn = sqlite3.connect(DB)
+    conn = sqlite3.connect(
+        DB,
+        timeout=30.0,
+    )
+
+    conn.execute(
+        "PRAGMA busy_timeout = 30000"
+    )
+
+    conn.execute(
+        "PRAGMA synchronous = NORMAL"
+    )
 
     conn.execute(
         """
@@ -2502,6 +2513,10 @@ def risk_check(
 def migrate_database():
 
     conn = db()
+
+    conn.execute(
+        "PRAGMA journal_mode = WAL"
+    )
 
     existing = [
         row[1]
