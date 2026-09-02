@@ -6066,6 +6066,9 @@ def status(
         "live_stream_configured":
             bool(API_KEY),
 
+        "stream_connected":
+            bool(STREAM_CONNECTED),
+
         "paper_buy_usd":
             PAPER_BUY_USD,
 
