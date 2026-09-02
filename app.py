@@ -3950,6 +3950,129 @@ def get_training_expired_preview(
     }
 
 
+def get_training_checkpoint_freshness():
+    conn = db()
+
+    rows = conn.execute(
+        """
+        SELECT
+            o.id,
+            o.signal_id,
+            o.mint,
+            o.trader,
+
+            o.observed_10s_ts - (
+                SELECT MAX(h.ts)
+                FROM token_history h
+                WHERE h.mint = o.mint
+                AND h.ts >= o.signal_ts
+                AND h.ts <= o.observed_10s_ts
+            ),
+
+            o.observed_30s_ts - (
+                SELECT MAX(h.ts)
+                FROM token_history h
+                WHERE h.mint = o.mint
+                AND h.ts >= o.signal_ts
+                AND h.ts <= o.observed_30s_ts
+            ),
+
+            o.observed_1m_ts - (
+                SELECT MAX(h.ts)
+                FROM token_history h
+                WHERE h.mint = o.mint
+                AND h.ts >= o.signal_ts
+                AND h.ts <= o.observed_1m_ts
+            ),
+
+            o.observed_5m_ts - (
+                SELECT MAX(h.ts)
+                FROM token_history h
+                WHERE h.mint = o.mint
+                AND h.ts >= o.signal_ts
+                AND h.ts <= o.observed_5m_ts
+            ),
+
+            o.observed_15m_ts - (
+                SELECT MAX(h.ts)
+                FROM token_history h
+                WHERE h.mint = o.mint
+                AND h.ts >= o.signal_ts
+                AND h.ts <= o.observed_15m_ts
+            )
+
+        FROM signal_outcomes o
+
+        JOIN evaluations e
+            ON e.id = o.signal_id
+
+        WHERE e.data_version = ?
+        AND o.status = 'completed'
+
+        ORDER BY o.id DESC
+        """,
+        (DATA_VERSION,)
+    ).fetchall()
+
+    conn.close()
+
+    result = []
+
+    for row in rows:
+        ages = [
+            (
+                round(float(value), 3)
+                if value is not None
+                else None
+            )
+            for value in row[4:9]
+        ]
+
+        valid_ages = [
+            value
+            for value in ages
+            if value is not None
+        ]
+
+        max_age = (
+            max(valid_ages)
+            if valid_ages
+            else None
+        )
+
+        stale = (
+            len(valid_ages) != 5
+            or (
+                max_age is not None
+                and max_age > 5
+            )
+        )
+
+        result.append(
+            {
+                "id": int(row[0]),
+                "signal_id": int(row[1]),
+                "mint": str(row[2] or ""),
+                "trader": str(row[3] or "unknown"),
+                "age_10s": ages[0],
+                "age_30s": ages[1],
+                "age_1m": ages[2],
+                "age_5m": ages[3],
+                "age_15m": ages[4],
+                "max_age_seconds": max_age,
+                "stale": stale,
+            }
+        )
+
+    return {
+        "data_version": DATA_VERSION,
+        "completed": len(result),
+        "stale_count": sum(
+            1 for item in result if item["stale"]
+        ),
+        "rows": result,
+    }
+
 def get_trader_recent_buy_count(
     trader,
     signal_ts,
@@ -6566,6 +6689,10 @@ def api_training_stats():
 def api_training_stats_by_trader():
     return get_training_stats_by_trader()
 
+
+@app.get("/api/training-checkpoint-freshness")
+def api_training_checkpoint_freshness():
+    return get_training_checkpoint_freshness()
 
 @app.get("/api/training-expired-preview")
 def api_training_expired_preview(
