@@ -3551,15 +3551,32 @@ def get_training_dataset_rows():
             signal_ts
         )
 
-        consensus_trader_count_30s = get_consensus_trader_count_window(
-            mint,
-            signal_ts,
-            30
+        consensus_trader_count_30s = (
+            get_consensus_trader_count_window(
+                mint,
+                signal_ts,
+                window_seconds=30
+            )
         )
 
         token_age_seconds = get_token_age_seconds(
             mint,
             signal_ts
+        )
+
+        trader_previous_buy_gap_seconds = (
+            get_trader_previous_buy_gap_seconds(
+                trader,
+                signal_ts
+            )
+        )
+
+        trader_recent_buy_count_60s = (
+            get_trader_recent_buy_count(
+                trader,
+                signal_ts,
+                window_seconds=60
+            )
         )
 
         target = 0
@@ -3592,11 +3609,32 @@ def get_training_dataset_rows():
                     4
                 ),
 
+                "token_age_seconds": (
+                    round(token_age_seconds, 3)
+                    if token_age_seconds is not None
+                    else None
+                ),
+
+                "trader_previous_buy_gap_seconds": (
+                    round(
+                        trader_previous_buy_gap_seconds,
+                        3
+                    )
+                    if trader_previous_buy_gap_seconds is not None
+                    else None
+                ),
+
+                "trader_recent_buy_count_60s": (
+                    trader_recent_buy_count_60s
+                ),
+
+                "consensus_trader_count_30s": (
+                    consensus_trader_count_30s
+                ),
+
 
 
                 "consensus_trader_count": consensus_trader_count,
-                "consensus_trader_count_30s": consensus_trader_count_30s,
-                "token_age_seconds": token_age_seconds,
 
                 "target_tp25_before_sl10": target,
             }
@@ -3736,6 +3774,35 @@ def get_training_dataset_stats():
         "checkpoint_5m": int(row[9] or 0),
         "checkpoint_15m": int(row[10] or 0),
     }
+
+def get_trader_recent_buy_count(
+    trader,
+    signal_ts,
+    window_seconds=60
+):
+    cutoff = float(signal_ts) - float(window_seconds)
+
+    conn = db()
+
+    row = conn.execute(
+        """
+        SELECT COUNT(*)
+        FROM trades
+        WHERE trader = ?
+        AND ts >= ?
+        AND ts < ?
+        AND side LIKE '%buy%'
+        """,
+        (
+            trader,
+            cutoff,
+            float(signal_ts),
+        )
+    ).fetchone()
+
+    conn.close()
+
+    return int(row[0] or 0)
 
 # =========================================================
 # SCORE: MARKET CAP
@@ -4002,7 +4069,6 @@ def get_consensus_trader_count(
         row[0] or 0
     )
 
-
 def get_consensus_trader_count_window(
     mint,
     signal_ts,
@@ -4044,7 +4110,6 @@ def get_consensus_trader_count_window(
         row[0] or 0
     )
 
-
 def get_token_age_seconds(
     mint,
     signal_ts
@@ -4054,9 +4119,7 @@ def get_token_age_seconds(
     row = conn.execute(
         """
         SELECT MIN(ts)
-
         FROM trades
-
         WHERE mint = ?
         AND side = 'create'
         AND ts <= ?
@@ -4069,23 +4132,58 @@ def get_token_age_seconds(
 
     conn.close()
 
-    create_ts = row[0] if row else None
+    if not row:
+        return None
+
+    create_ts = row[0]
 
     if create_ts is None:
         return None
 
-    age_seconds = (
-        float(signal_ts)
-        - float(create_ts)
-    )
+    age = float(signal_ts) - float(create_ts)
 
-    return max(
-        0.0,
-        round(
-            age_seconds,
-            3
+    if age < 0:
+        return None
+
+    return age
+
+
+def get_trader_previous_buy_gap_seconds(
+    trader,
+    signal_ts
+):
+    conn = db()
+
+    row = conn.execute(
+        """
+        SELECT MAX(ts)
+        FROM trades
+        WHERE trader = ?
+        AND ts < ?
+        AND side LIKE '%buy%'
+        """,
+        (
+            trader,
+            float(signal_ts),
         )
-    )
+    ).fetchone()
+
+    conn.close()
+
+    if not row:
+        return None
+
+    previous_ts = row[0]
+
+    if previous_ts is None:
+        return None
+
+    gap = float(signal_ts) - float(previous_ts)
+
+    if gap < 0:
+        return None
+
+    return gap
 
 
 # =========================================================
