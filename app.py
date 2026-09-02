@@ -6216,9 +6216,11 @@ def evaluations(
 
             market_score,
 
-            reasons
+            reasons,
 
-        FROM evaluations
+            data_version
+
+    FROM evaluations
 
         ORDER BY id DESC
 
@@ -6279,8 +6281,10 @@ def evaluations(
             "reasons":
                 json.loads(
                     r[12]
-                )
+                ),
 
+        "data_version":
+            int(r[13] or 0)
         }
 
         for r in rows
