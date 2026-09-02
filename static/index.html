@@ -30,6 +30,7 @@
     }
 
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    [hidden]{display:none!important}
     html{background:var(--bg)}
     body{
       margin:0;
@@ -92,6 +93,10 @@
     .status.online .dot{
       background:var(--green);
       box-shadow:0 0 0 4px rgba(97,233,174,.08),0 0 14px rgba(97,233,174,.36);
+    }
+    .status.warning .dot{
+      background:var(--amber);
+      box-shadow:0 0 0 4px rgba(247,201,95,.08);
     }
 
     .page{display:none;animation:fadeIn .18s ease-out}
@@ -618,13 +623,13 @@
     </div>
   </header>
 
-  <div id="login" class="card">
+  <form id="login" class="card" onsubmit="saveToken(); return false;">
     <div class="eyebrow">Acceso privado</div>
     <h2>Entrá a Pump Copilot</h2>
     <p>Usá tu APP_TOKEN. Queda guardado solamente en este dispositivo.</p>
-    <input id="token" type="password" placeholder="APP_TOKEN" autocomplete="off">
-    <button class="primary" onclick="saveToken()">Entrar</button>
-  </div>
+    <input id="token" type="password" placeholder="APP_TOKEN" aria-label="APP_TOKEN" autocomplete="off">
+    <button class="primary" type="submit">Entrar</button>
+  </form>
 
   <main id="app" hidden>
 
@@ -1928,9 +1933,28 @@ async function refresh(){
     LAST_TRADES=trades;
     recordMarketHistory(paper);
 
-    const live=Boolean(statusData.live_stream_configured);
-    document.getElementById("status").textContent=live?"online":"demo";
-    document.getElementById("statusChip").classList.toggle("online",live);
+    const configured=Boolean(statusData.live_stream_configured);
+    const connected=Boolean(statusData.stream_connected);
+    const rawMessageAge=statusData.stream_message_age_seconds;
+    const messageAge=rawMessageAge===null
+      ? null
+      : Number(rawMessageAge);
+    const statusChip=document.getElementById("statusChip");
+
+    let statusLabel="sin configurar";
+
+    if(configured){
+      statusLabel=connected?"en vivo":"reconectando";
+    }
+
+    document.getElementById("status").textContent=statusLabel;
+    statusChip.classList.toggle("online",configured&&connected);
+    statusChip.classList.toggle("warning",configured&&!connected);
+
+    statusChip.title=messageAge!==null
+      && Number.isFinite(messageAge)
+      ? `Último mensaje hace ${Math.round(messageAge)}s`
+      : "Sin mensajes recientes";
 
     renderHome(paper,signals);
     renderSignals(signals);
@@ -1943,6 +1967,7 @@ async function refresh(){
     document.getElementById("bottomNav").hidden=true;
     document.getElementById("status").textContent="offline";
     document.getElementById("statusChip").classList.remove("online");
+    document.getElementById("statusChip").classList.remove("warning");
     console.error(err);
   }
 }
