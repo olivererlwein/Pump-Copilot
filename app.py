@@ -105,6 +105,7 @@ TRACKED_TOKENS = set()
 SUBSCRIBED_TOKENS = set()
 TOKENS_TO_UNSUBSCRIBE = set()
 LAST_TOKEN_PRICE = {}
+LAST_STREAM_MESSAGE_TS = 0.0
 STREAM_CONNECTED = False
 
 # Evita procesar dos veces la misma transacción de PumpPortal
@@ -5526,6 +5527,7 @@ async def stream():
 
     global FORCE_STREAM_ERROR
     global STREAM_CONNECTED
+    global LAST_STREAM_MESSAGE_TS
 
     if not API_KEY:
 
@@ -5698,6 +5700,9 @@ async def stream():
 
                     else:
                         last_stream_message_ts = time.time()
+                        LAST_STREAM_MESSAGE_TS = (
+                            last_stream_message_ts
+                        )
                         event = json.loads(raw)
 
                     if "message" in event:
@@ -6054,6 +6059,17 @@ def status(
     auth(x_app_token)
 
 
+    stream_message_age_seconds = None
+
+    if LAST_STREAM_MESSAGE_TS > 0:
+        stream_message_age_seconds = round(
+            max(
+                0.0,
+                time.time() - LAST_STREAM_MESSAGE_TS,
+            ),
+            3,
+        )
+
     return {
 
         "ok":
@@ -6070,6 +6086,16 @@ def status(
 
         "stream_connected":
             bool(STREAM_CONNECTED),
+
+        "stream_last_message_ts":
+            (
+                LAST_STREAM_MESSAGE_TS
+                if LAST_STREAM_MESSAGE_TS > 0
+                else None
+            ),
+
+        "stream_message_age_seconds":
+            stream_message_age_seconds,
 
         "paper_buy_usd":
             PAPER_BUY_USD,
