@@ -6218,7 +6218,34 @@ def evaluations(
 
             reasons,
 
-            data_version
+            data_version,
+
+            id,
+
+            market_cap,
+
+            sol_amount,
+
+            (
+                SELECT o.id
+                FROM signal_outcomes o
+                WHERE o.signal_id = evaluations.id
+                LIMIT 1
+            ),
+
+            (
+                SELECT o.price_at_signal
+                FROM signal_outcomes o
+                WHERE o.signal_id = evaluations.id
+                LIMIT 1
+            ),
+
+            (
+                SELECT o.status
+                FROM signal_outcomes o
+                WHERE o.signal_id = evaluations.id
+                LIMIT 1
+            )
 
     FROM evaluations
 
@@ -6284,7 +6311,21 @@ def evaluations(
                 ),
 
         "data_version":
-            int(r[13] or 0)
+            int(r[13] or 0),
+
+        "evaluation_id": int(r[14] or 0),
+
+        "market_cap": r[15],
+
+        "sol_amount": r[16],
+
+        "outcome_id": (
+            int(r[17]) if r[17] is not None else None
+        ),
+
+        "price_at_signal": r[18],
+
+        "outcome_status": r[19]
         }
 
         for r in rows
