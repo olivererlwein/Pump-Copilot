@@ -131,6 +131,7 @@ MAX_EXECUTION_RETRIES = 2
 STREAM_INACTIVITY_TIMEOUT = 120
 
 DATA_VERSION = 2
+PUMP_TOKEN_SUPPLY = 1_000_000_000.0
 
 SEEN_SIGNATURES = set()
 FORCE_STREAM_ERROR = False
@@ -5387,8 +5388,12 @@ def save_trade(
         or 0
     )
 
-    if v_tokens > 0:
+    if v_sol > 0 and v_tokens > 0:
         price_at_signal = v_sol / v_tokens
+    elif market_cap > 0:
+        price_at_signal = (
+            market_cap / PUMP_TOKEN_SUPPLY
+        )
     else:
         price_at_signal = 0.0
 
