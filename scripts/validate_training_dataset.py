@@ -60,6 +60,16 @@ def main():
         for feature in model_features
     }
 
+    nullable_features = set(
+        schema.get("nullable_features", [])
+    )
+
+    unexpected_null_counts = {
+        feature: count
+        for feature, count in null_counts.items()
+        if count > 0 and feature not in nullable_features
+    }
+
     targets = Counter(row.get(target) for row in rows)
     traders = Counter(row.get("trader") for row in rows)
     unique_mints = len({
@@ -98,7 +108,7 @@ def main():
         not missing_columns
         and not duplicate_signal_ids
         and invalid_targets == 0
-        and not any(null_counts.values())
+        and not unexpected_null_counts
         and int(payload.get("count") or 0) == len(rows)
         and int(payload.get("data_version") or 0)
         == int(schema["data_version"])
@@ -120,6 +130,7 @@ def main():
             if value > 0
         },
         "invalid_targets": invalid_targets,
+        "unexpected_null_features": unexpected_null_counts,
         "structural_valid": structural_valid,
         "ready_for_training": structural_valid and not blockers,
         "readiness_blockers": blockers,

@@ -26,6 +26,11 @@
     "consensus_trader_count_30s",
     "consensus_trader_count"
   ],
+  "nullable_features": [
+    "token_age_seconds",
+    "trader_previous_buy_gap_seconds"
+  ],
+  "missing_value_strategy": "median_with_indicator",
   "target": "target_tp25_before_sl10",
   "time_column": "signal_ts",
   "split_group": "mint",
