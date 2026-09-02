@@ -1433,7 +1433,7 @@ def complete_finished_signal_outcomes(mint):
             status = 'completed',
             updated_ts = ?
         WHERE mint = ?
-        AND status = 'active'
+        AND status IN ('active', 'expired')
         AND price_10s IS NOT NULL
         AND price_30s IS NOT NULL
         AND price_1m IS NOT NULL
@@ -1444,6 +1444,32 @@ def complete_finished_signal_outcomes(mint):
             time.time(),
             mint,
         )
+    )
+
+    conn.commit()
+    affected = cursor.rowcount
+    conn.close()
+
+    return affected
+
+
+def reconcile_finished_signal_outcomes():
+    conn = db()
+
+    cursor = conn.execute(
+        """
+        UPDATE signal_outcomes
+        SET
+            status = 'completed',
+            updated_ts = ?
+        WHERE status IN ('active', 'expired')
+        AND price_10s IS NOT NULL
+        AND price_30s IS NOT NULL
+        AND price_1m IS NOT NULL
+        AND price_5m IS NOT NULL
+        AND price_15m IS NOT NULL
+        """,
+        (time.time(),)
     )
 
     conn.commit()
@@ -1498,8 +1524,8 @@ def cleanup_finished_outcome_token(mint):
     if not mint:
         return
 
-    expire_old_signal_outcomes(mint)
     complete_finished_signal_outcomes(mint)
+    expire_old_signal_outcomes(mint)
 
     conn = db()
 
@@ -5903,6 +5929,7 @@ async def startup():
     )
 
     migrate_database()
+    reconcile_finished_signal_outcomes()
 
     conn = db()
 
@@ -5957,8 +5984,8 @@ async def startup():
         mint = row[0]
 
         if mint:
-            expire_old_signal_outcomes(mint)
             complete_finished_signal_outcomes(mint)
+            expire_old_signal_outcomes(mint)
 
     for row in paper_rows:
         mint = row[0]
