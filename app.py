@@ -3557,6 +3557,11 @@ def get_training_dataset_rows():
             30
         )
 
+        token_age_seconds = get_token_age_seconds(
+            mint,
+            signal_ts
+        )
+
         target = 0
 
         if tp25_ts is not None:
@@ -3591,6 +3596,7 @@ def get_training_dataset_rows():
 
                 "consensus_trader_count": consensus_trader_count,
                 "consensus_trader_count_30s": consensus_trader_count_30s,
+                "token_age_seconds": token_age_seconds,
 
                 "target_tp25_before_sl10": target,
             }
@@ -4036,6 +4042,49 @@ def get_consensus_trader_count_window(
 
     return int(
         row[0] or 0
+    )
+
+
+def get_token_age_seconds(
+    mint,
+    signal_ts
+):
+    conn = db()
+
+    row = conn.execute(
+        """
+        SELECT MIN(ts)
+
+        FROM trades
+
+        WHERE mint = ?
+        AND side = 'create'
+        AND ts <= ?
+        """,
+        (
+            mint,
+            float(signal_ts),
+        )
+    ).fetchone()
+
+    conn.close()
+
+    create_ts = row[0] if row else None
+
+    if create_ts is None:
+        return None
+
+    age_seconds = (
+        float(signal_ts)
+        - float(create_ts)
+    )
+
+    return max(
+        0.0,
+        round(
+            age_seconds,
+            3
+        )
     )
 
 
