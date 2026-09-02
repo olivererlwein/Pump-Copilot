@@ -6387,6 +6387,27 @@ def api_training_stats():
     return get_training_dataset_stats()
 
 
+@app.get("/api/training-dataset-preview")
+def api_training_dataset_preview(
+    limit: int = 20
+):
+    rows = get_training_dataset_rows()
+
+    safe_limit = max(
+        1,
+        min(
+            int(limit or 20),
+            100
+        )
+    )
+
+    return {
+        "data_version": DATA_VERSION,
+        "count": len(rows),
+        "rows": rows[:safe_limit],
+    }
+
+
 # =========================================================
 # DEMO V3
 # =========================================================
