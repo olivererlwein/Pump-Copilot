@@ -105,6 +105,7 @@ TRACKED_TOKENS = set()
 SUBSCRIBED_TOKENS = set()
 TOKENS_TO_UNSUBSCRIBE = set()
 LAST_TOKEN_PRICE = {}
+STREAM_CONNECTED = False
 
 # Evita procesar dos veces la misma transacción de PumpPortal
 KILL_SWITCH = False
@@ -1270,6 +1271,10 @@ async def signal_outcome_checkpoint_worker():
         try:
             now = time.time()
 
+            if not STREAM_CONNECTED:
+                await asyncio.sleep(2)
+                continue
+
             conn = db()
 
             rows = conn.execute(
@@ -1335,11 +1340,6 @@ async def signal_outcome_checkpoint_worker():
 
                 # Nunca usar un precio observado antes de la señal.
                 if price_ts < signal_ts:
-                    continue
-
-                price_age = now - price_ts
-
-                if price_age < 0 or price_age > 5:
                     continue
 
                 elapsed = now - signal_ts
@@ -5518,6 +5518,7 @@ def save_trade(
 async def stream():
 
     global FORCE_STREAM_ERROR
+    global STREAM_CONNECTED
 
     if not API_KEY:
 
@@ -5543,6 +5544,7 @@ async def stream():
                 ping_interval=20
             ) as websocket:
                 
+                STREAM_CONNECTED = True
                 last_stream_message_ts = time.time()
 
                 # Cada reconexión empieza
@@ -5849,6 +5851,7 @@ async def stream():
 
 
         except Exception as ex:
+            STREAM_CONNECTED = False
 
             print(
                 "[STREAM ERROR]",
