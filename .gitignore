@@ -4,3 +4,4 @@ __pycache__/
 .env
 pumpcopilot.db
 exports/
+models/
