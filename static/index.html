@@ -1356,33 +1356,54 @@ function renderTrades(list){
 
 function renderTraders(list){
   const el=document.getElementById("traderList");
+
   if(!list.length){
     el.innerHTML=`<div class="card empty"><div class="empty-mark">◎</div>No hay datos todavía.</div>`;
     return;
   }
 
-  el.innerHTML=list.map((t,i)=>`
-    <div class="card trader-card">
-      <div class="between">
-        <div style="display:flex;align-items:center;gap:10px;min-width:0;">
-          <div class="rank">${i+1}</div>
-          <div style="min-width:0;">
-            <div class="token-title">@${esc(t.name)}</div>
-            <div class="mint" style="margin-top:3px;" title="${esc(t.wallet)}">${esc(shortMint(t.wallet))}</div>
+  const sorted=[...list].sort((a,b)=>{
+    const activityDifference=
+      Number(Boolean(b.active_last_24h))-
+      Number(Boolean(a.active_last_24h));
+
+    return activityDifference||
+      Number(b.last_event_ts||0)-
+      Number(a.last_event_ts||0);
+  });
+
+  el.innerHTML=sorted.map((t,i)=>{
+    const active=Boolean(t.active_last_24h);
+    const lastEvent=Number(t.last_event_ts||0);
+    const lastEventLabel=lastEvent>0?ago(lastEvent):"sin eventos";
+
+    return `
+      <div class="card trader-card">
+        <div class="between">
+          <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+            <div class="rank">${i+1}</div>
+            <div style="min-width:0;">
+              <div class="token-title">@${esc(t.name)}</div>
+              <div class="mint" style="margin-top:3px;" title="${esc(t.wallet)}">${esc(shortMint(t.wallet))}</div>
+            </div>
           </div>
+          <span class="pill ${active?"open":"watch"}">
+            ${active?"ACTIVO 24H":"SIN ACTIVIDAD"}
+          </span>
         </div>
-        <span class="pill open">TRACKED</span>
-      </div>
 
-      <div class="pos-grid">
-        <div class="mini"><span>Eventos</span><b>${Number(t.events||0)}</b></div>
-        <div class="mini"><span>Compras</span><b class="positive">${Number(t.buys||0)}</b></div>
-        <div class="mini"><span>Ventas</span><b class="negative">${Number(t.sells||0)}</b></div>
+        <div class="pos-grid">
+          <div class="mini"><span>Eventos</span><b>${Number(t.events||0)}</b></div>
+          <div class="mini"><span>Compras</span><b class="positive">${Number(t.buys||0)}</b></div>
+          <div class="mini"><span>Ventas</span><b class="negative">${Number(t.sells||0)}</b></div>
+          <div class="mini"><span>Evaluaciones</span><b>${Number(t.evaluations||0)}</b></div>
+          <div class="mini"><span>Último evento</span><b>${esc(lastEventLabel)}</b></div>
+          <div class="mini"><span>Calidad</span><b>${Number(t.quality||0)}</b></div>
+        </div>
       </div>
-    </div>
-  `).join("");
+    `;
+  }).join("");
 }
-
 function renderHome(paper,signals){
   const open=paper.filter(p=>String(p.status||"open").toLowerCase()==="open");
   const closed=paper.filter(p=>String(p.status||"").toLowerCase()==="closed");
