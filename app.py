@@ -4040,7 +4040,7 @@ def get_training_checkpoint_freshness():
             else None
         )
 
-        stale = (
+        source_older_than_5s = (
             len(valid_ages) != 5
             or (
                 max_age is not None
@@ -4060,15 +4060,15 @@ def get_training_checkpoint_freshness():
                 "age_5m": ages[3],
                 "age_15m": ages[4],
                 "max_age_seconds": max_age,
-                "stale": stale,
+                "source_older_than_5s": source_older_than_5s,
             }
         )
 
     return {
         "data_version": DATA_VERSION,
         "completed": len(result),
-        "stale_count": sum(
-            1 for item in result if item["stale"]
+        "source_older_than_5s_count": sum(
+            1 for item in result if item["source_older_than_5s"]
         ),
         "rows": result,
     }
