@@ -3597,6 +3597,8 @@ def get_training_dataset_rows():
         dataset.append(
             {
                 "signal_id": signal_id,
+                "signal_ts": signal_ts,
+                "mint": mint,
                 "trader": trader,
 
                 "trader_score": trader_score,
@@ -3610,7 +3612,7 @@ def get_training_dataset_rows():
                 "market_cap": market_cap,
                 "sol_amount": sol_amount,
                 "price_at_signal": price_at_signal,
-                                "buy_size_pct_mc": round(
+                "buy_size_pct_mc": round(
                     buy_size_pct_mc,
                     4
                 ),
