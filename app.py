@@ -6761,6 +6761,24 @@ def api_training_expired_preview(
     )
 
 
+@app.get("/api/training-dataset")
+def api_training_dataset(
+    x_app_token: str = Header(default=""),
+    limit: int = 5000,
+):
+    auth(x_app_token)
+
+    rows = get_training_dataset_rows()
+    safe_limit = max(1, min(int(limit or 5000), 5000))
+
+    return {
+        "data_version": DATA_VERSION,
+        "count": len(rows),
+        "returned": min(len(rows), safe_limit),
+        "rows": rows[:safe_limit],
+    }
+
+
 @app.get("/api/training-dataset-preview")
 def api_training_dataset_preview(
     limit: int = 20
