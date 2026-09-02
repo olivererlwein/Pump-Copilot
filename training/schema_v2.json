@@ -1,0 +1,38 @@
+{
+  "data_version": 2,
+  "metadata_columns": [
+    "signal_id",
+    "signal_ts",
+    "mint"
+  ],
+  "categorical_features": [
+    "trader"
+  ],
+  "numeric_features": [
+    "trader_score",
+    "timing_score",
+    "size_score",
+    "token_score",
+    "consensus_score",
+    "market_score",
+    "score_total",
+    "market_cap",
+    "sol_amount",
+    "price_at_signal",
+    "buy_size_pct_mc",
+    "token_age_seconds",
+    "trader_previous_buy_gap_seconds",
+    "trader_recent_buy_count_60s",
+    "consensus_trader_count_30s",
+    "consensus_trader_count"
+  ],
+  "target": "target_tp25_before_sl10",
+  "time_column": "signal_ts",
+  "split_group": "mint",
+  "readiness": {
+    "minimum_completed_rows": 300,
+    "minimum_target_0": 60,
+    "minimum_target_1": 60,
+    "minimum_unique_traders": 3
+  }
+}
