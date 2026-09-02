@@ -3775,6 +3775,104 @@ def get_training_dataset_stats():
         "checkpoint_15m": int(row[10] or 0),
     }
 
+
+def get_training_stats_by_trader():
+    conn = db()
+
+    rows = conn.execute(
+        """
+        SELECT
+            e.trader,
+
+            COUNT(*) AS total,
+
+            SUM(
+                CASE
+                    WHEN o.status = 'active'
+                    THEN 1
+                    ELSE 0
+                END
+            ),
+
+            SUM(
+                CASE
+                    WHEN o.status = 'completed'
+                    THEN 1
+                    ELSE 0
+                END
+            ),
+
+            SUM(
+                CASE
+                    WHEN o.status = 'expired'
+                    THEN 1
+                    ELSE 0
+                END
+            ),
+
+            SUM(
+                CASE
+                    WHEN o.status = 'completed'
+                    AND o.tp25_ts IS NOT NULL
+                    AND (
+                        o.sl10_ts IS NULL
+                        OR o.tp25_ts < o.sl10_ts
+                    )
+                    THEN 1
+                    ELSE 0
+                END
+            ),
+
+            SUM(
+                CASE
+                    WHEN o.status = 'completed'
+                    AND (
+                        o.tp25_ts IS NULL
+                        OR (
+                            o.sl10_ts IS NOT NULL
+                            AND o.sl10_ts <= o.tp25_ts
+                        )
+                    )
+                    THEN 1
+                    ELSE 0
+                END
+            )
+
+        FROM evaluations e
+
+        JOIN signal_outcomes o
+            ON o.signal_id = e.id
+
+        WHERE e.data_version = ?
+        AND e.market_cap > 0
+        AND e.sol_amount > 0
+        AND o.price_at_signal > 0
+
+        GROUP BY e.trader
+        ORDER BY total DESC
+        """,
+        (DATA_VERSION,)
+    ).fetchall()
+
+    conn.close()
+
+    return {
+        "data_version": DATA_VERSION,
+        "traders": [
+            {
+                "trader": str(row[0] or "unknown"),
+                "total": int(row[1] or 0),
+                "active": int(row[2] or 0),
+                "completed": int(row[3] or 0),
+                "expired": int(row[4] or 0),
+                "target_1": int(row[5] or 0),
+                "target_0": int(row[6] or 0),
+            }
+            for row in rows
+        ],
+    }
+
+
 def get_trader_recent_buy_count(
     trader,
     signal_ts,
@@ -6385,6 +6483,11 @@ def trader_stats(
 @app.get("/api/training-stats")
 def api_training_stats():
     return get_training_dataset_stats()
+
+
+@app.get("/api/training-stats-by-trader")
+def api_training_stats_by_trader():
+    return get_training_stats_by_trader()
 
 
 @app.get("/api/training-dataset-preview")
