@@ -3873,6 +3873,78 @@ def get_training_stats_by_trader():
     }
 
 
+def get_training_expired_preview(
+    limit=20
+):
+    conn = db()
+
+    rows = conn.execute(
+        """
+        SELECT
+            o.id,
+            o.signal_id,
+            o.mint,
+            o.trader,
+            o.signal_ts,
+            o.price_10s,
+            o.price_30s,
+            o.price_1m,
+            o.price_5m,
+            o.price_15m,
+            o.observed_10s_ts,
+            o.observed_30s_ts,
+            o.observed_1m_ts,
+            o.observed_5m_ts,
+            o.observed_15m_ts
+
+        FROM signal_outcomes o
+
+        JOIN evaluations e
+            ON e.id = o.signal_id
+
+        WHERE e.data_version = ?
+        AND o.status = 'expired'
+        AND e.market_cap > 0
+        AND e.sol_amount > 0
+        AND o.price_at_signal > 0
+
+        ORDER BY o.id DESC
+        LIMIT ?
+        """,
+        (
+            DATA_VERSION,
+            int(limit or 20),
+        )
+    ).fetchall()
+
+    conn.close()
+
+    return {
+        "data_version": DATA_VERSION,
+        "count": len(rows),
+        "rows": [
+            {
+                "id": int(row[0] or 0),
+                "signal_id": int(row[1] or 0),
+                "mint": str(row[2] or ""),
+                "trader": str(row[3] or "unknown"),
+                "signal_ts": float(row[4] or 0),
+                "has_10s": row[5] is not None,
+                "has_30s": row[6] is not None,
+                "has_1m": row[7] is not None,
+                "has_5m": row[8] is not None,
+                "has_15m": row[9] is not None,
+                "observed_10s_ts": row[10],
+                "observed_30s_ts": row[11],
+                "observed_1m_ts": row[12],
+                "observed_5m_ts": row[13],
+                "observed_15m_ts": row[14],
+            }
+            for row in rows
+        ],
+    }
+
+
 def get_trader_recent_buy_count(
     trader,
     signal_ts,
@@ -6488,6 +6560,15 @@ def api_training_stats():
 @app.get("/api/training-stats-by-trader")
 def api_training_stats_by_trader():
     return get_training_stats_by_trader()
+
+
+@app.get("/api/training-expired-preview")
+def api_training_expired_preview(
+    limit: int = 20
+):
+    return get_training_expired_preview(
+        limit
+    )
 
 
 @app.get("/api/training-dataset-preview")
