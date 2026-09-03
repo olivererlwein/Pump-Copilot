@@ -196,6 +196,20 @@
     .score{font-size:30px;line-height:.95;font-weight:950;letter-spacing:-.045em;text-align:right}
     .score small{display:block;margin-top:4px;color:var(--muted);font-size:8px;letter-spacing:.08em}
     .mint{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;color:#9cafaa;word-break:break-all}
+    .signal-facts{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:0;
+      margin-top:12px;
+      padding:10px 0;
+      border-top:1px solid var(--border);
+      border-bottom:1px solid var(--border);
+    }
+    .signal-fact{min-width:0;padding:0 10px;border-right:1px solid var(--border)}
+    .signal-fact:first-child{padding-left:0}
+    .signal-fact:last-child{padding-right:0;border-right:0}
+    .signal-fact span{display:block;margin-bottom:4px;color:var(--muted);font-size:8px;text-transform:uppercase}
+    .signal-fact b{display:block;overflow:hidden;font-size:11px;text-overflow:ellipsis;white-space:nowrap}
     .reasons{display:grid;gap:6px;margin-top:11px}
     .reason{display:flex;gap:7px;color:#9caaa7;font-size:11px;line-height:1.35}
     .reason::before{content:"•";color:#5d706b}
@@ -687,7 +701,7 @@
     .system-strip{
       position:relative;
       display:grid;
-      grid-template-columns:1.25fr 1fr .7fr;
+      grid-template-columns:1.1fr .8fr 1fr 1fr;
       margin:0 0 12px;
       padding:11px 0 14px;
       border-top:1px solid var(--border);
@@ -727,6 +741,10 @@
       white-space:nowrap;
     }
 
+    .system-metric b.healthy{color:var(--green)}
+    .system-metric b.degraded{color:var(--amber)}
+    .system-metric b.offline{color:var(--red)}
+
     .system-progress{
       position:absolute;
       right:0;
@@ -743,6 +761,59 @@
       height:100%;
       background:var(--blue);
       transition:width .25s ease;
+    }
+
+    .control-bar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      margin:0 0 10px;
+    }
+
+    .segment{
+      display:flex;
+      min-width:0;
+      padding:3px;
+      border:1px solid var(--border);
+      background:var(--surface);
+    }
+
+    .segment button{
+      min-height:31px;
+      padding:6px 10px;
+      border:0;
+      border-radius:4px;
+      background:transparent;
+      color:var(--muted);
+      font:inherit;
+      font-size:9px;
+      font-weight:800;
+      cursor:pointer;
+    }
+
+    .segment button.active{
+      background:rgba(255,255,255,.075);
+      color:var(--text);
+    }
+
+    .filter-select{
+      min-width:0;
+      min-height:39px;
+      padding:0 30px 0 10px;
+      border:1px solid var(--border);
+      border-radius:4px;
+      background:var(--surface);
+      color:var(--text);
+      font:inherit;
+      font-size:10px;
+      font-weight:750;
+    }
+
+    .list-count{
+      color:var(--muted);
+      font-size:9px;
+      white-space:nowrap;
     }
 
     .card{
@@ -971,6 +1042,22 @@
       .system-metric b{
         font-size:11px;
       }
+
+      .system-strip{
+        grid-template-columns:repeat(2,1fr);
+        row-gap:12px;
+      }
+
+      .system-metric:nth-child(2){border-right:0}
+      .system-metric:nth-child(3){padding-left:0}
+
+      .control-bar{
+        align-items:stretch;
+        flex-direction:column;
+      }
+
+      .segment{display:grid;grid-template-columns:repeat(3,1fr)}
+      .filter-select{width:100%}
     }
 
     @media(prefers-reduced-motion:reduce){
@@ -1025,12 +1112,16 @@
           <b id="streamReadout">Comprobando</b>
         </div>
         <div class="system-metric">
-          <span>Dataset</span>
-          <b id="datasetReadout">0 / 300</b>
+          <span>Latencia</span>
+          <b id="latencyReadout">—</b>
         </div>
         <div class="system-metric">
-          <span>En curso</span>
-          <b id="activeReadout">0</b>
+          <span>Última señal</span>
+          <b id="signalReadout">—</b>
+        </div>
+        <div class="system-metric">
+          <span>Dataset</span>
+          <b id="datasetReadout">0 / 300</b>
         </div>
         <div class="system-progress" aria-hidden="true">
           <span id="datasetProgress"></span>
@@ -1044,7 +1135,7 @@
             <div id="heroPnl" class="hero-pnl">$0.00</div>
             <div id="heroSub" class="hero-sub">0 posiciones abiertas</div>
           </div>
-          <span class="mode">PAPER</span>
+          <span class="mode">SIMULACIÓN · PAPER</span>
         </div>
 
         <div id="summaryGrid" class="summary-grid"></div>
@@ -1067,6 +1158,17 @@
         <h2>Señales</h2>
         <p>Decisiones del agente: COPY, WATCH o SKIP.</p>
       </div>
+      <div class="control-bar" aria-label="Filtros de señales">
+        <div id="signalDecisionFilter" class="segment">
+          <button class="active" type="button" data-filter="all" onclick="setSignalDecisionFilter('all')">TODAS</button>
+          <button type="button" data-filter="watch" onclick="setSignalDecisionFilter('watch')">WATCH</button>
+          <button type="button" data-filter="skip" onclick="setSignalDecisionFilter('skip')">SKIP</button>
+        </div>
+        <select id="signalTraderFilter" class="filter-select" aria-label="Filtrar señales por trader" onchange="setSignalTraderFilter(this.value)">
+          <option value="all">Todos los traders</option>
+        </select>
+      </div>
+      <div id="signalCount" class="list-count"></div>
       <div id="signalList"></div>
     </section>
 
@@ -1083,6 +1185,17 @@
         <h2>Actividad</h2>
         <p>Compras y ventas detectadas en las wallets vigiladas.</p>
       </div>
+      <div class="control-bar" aria-label="Filtros de actividad">
+        <div id="tradeSideFilter" class="segment">
+          <button class="active" type="button" data-filter="all" onclick="setTradeSideFilter('all')">TODO</button>
+          <button type="button" data-filter="buy" onclick="setTradeSideFilter('buy')">COMPRAS</button>
+          <button type="button" data-filter="sell" onclick="setTradeSideFilter('sell')">VENTAS</button>
+        </div>
+        <select id="tradeTraderFilter" class="filter-select" aria-label="Filtrar actividad por trader" onchange="setTradeTraderFilter(this.value)">
+          <option value="all">Todos los traders</option>
+        </select>
+      </div>
+      <div id="tradeCount" class="list-count"></div>
       <div id="tradeList"></div>
     </section>
 
@@ -1142,6 +1255,10 @@ let LAST_PAPER = [];
 let LAST_SIGNALS = [];
 let LAST_TRADES = [];
 let DETAIL_TIMEFRAME = "all";
+let SIGNAL_DECISION_FILTER = "all";
+let SIGNAL_TRADER_FILTER = "all";
+let TRADE_SIDE_FILTER = "all";
+let TRADE_TRADER_FILTER = "all";
 
 function esc(v){
   return String(v ?? "")
@@ -1170,6 +1287,44 @@ function ago(ts){
   if(sec < 3600) return `${Math.floor(sec/60)}m`;
   if(sec < 86400) return `${Math.floor(sec/3600)}h`;
   return `${Math.floor(sec/86400)}d`;
+}
+
+function setSegmentState(id,value){
+  document.querySelectorAll(`#${id} button`).forEach(button=>{
+    button.classList.toggle("active",button.dataset.filter===value);
+  });
+}
+
+function setSignalDecisionFilter(value){
+  SIGNAL_DECISION_FILTER=value;
+  setSegmentState("signalDecisionFilter",value);
+  renderSignals(LAST_SIGNALS);
+}
+
+function setSignalTraderFilter(value){
+  SIGNAL_TRADER_FILTER=value;
+  renderSignals(LAST_SIGNALS);
+}
+
+function setTradeSideFilter(value){
+  TRADE_SIDE_FILTER=value;
+  setSegmentState("tradeSideFilter",value);
+  renderTrades(LAST_TRADES);
+}
+
+function setTradeTraderFilter(value){
+  TRADE_TRADER_FILTER=value;
+  renderTrades(LAST_TRADES);
+}
+
+function updateTraderFilter(id,items,currentValue){
+  const select=document.getElementById(id);
+  const names=[...new Set(items.map(item=>String(item.trader||"unknown")))].sort();
+  select.innerHTML=`<option value="all">Todos los traders</option>${names.map(name=>
+    `<option value="${esc(name)}">@${esc(name)}</option>`
+  ).join("")}`;
+  select.value=names.includes(currentValue)?currentValue:"all";
+  return select.value;
 }
 
 function saveToken(){
@@ -1287,6 +1442,16 @@ function signalCard(s){
   const dclass=d==="COPY"?"copy":d==="SKIP"?"skip":"watch";
   const textclass=d==="COPY"?"positive":d==="SKIP"?"negative":"warning";
   const reasons=Array.isArray(s.reasons)?s.reasons:[];
+  const marketCap=Number(s.market_cap||0);
+  const solAmount=Number(s.sol_amount||0);
+  const outcomeKey=String(s.outcome_status||"pending").toLowerCase();
+  const outcomeLabels={
+    active:"EN CURSO",
+    completed:"COMPLETADO",
+    expired:"INCOMPLETO",
+    pending:"PENDIENTE"
+  };
+  const outcome=outcomeLabels[outcomeKey]||outcomeKey.toUpperCase();
 
   return `
     <div class="card signal-card ${dclass}">
@@ -1307,6 +1472,12 @@ function signalCard(s){
 
       <div class="mint" style="margin-top:10px;" title="${esc(s.mint)}">${esc(shortMint(s.mint))}</div>
 
+      <div class="signal-facts">
+        <div class="signal-fact"><span>Market cap</span><b>${marketCap>0?`${marketCap.toFixed(2)} SOL`:"—"}</b></div>
+        <div class="signal-fact"><span>Tamaño</span><b>${solAmount>0?`${solAmount.toFixed(3)} SOL`:"—"}</b></div>
+        <div class="signal-fact"><span>Resultado</span><b>${esc(outcome)}</b></div>
+      </div>
+
       ${reasons.length?`
         <div class="reasons">
           ${reasons.map(r=>`<div class="reason">${esc(r)}</div>`).join("")}
@@ -1324,19 +1495,34 @@ function renderPaper(list){
 
 function renderSignals(list){
   const el=document.getElementById("signalList");
-  el.innerHTML=list.length?list.map(signalCard).join(""):`
-    <div class="card empty"><div class="empty-mark">◎</div>Esperando decisiones del agente.</div>
+  const filtered=list.filter(signal=>{
+    const decision=String(signal.decision||"").toLowerCase();
+    const trader=String(signal.trader||"unknown");
+    return (SIGNAL_DECISION_FILTER==="all"||decision===SIGNAL_DECISION_FILTER)
+      && (SIGNAL_TRADER_FILTER==="all"||trader===SIGNAL_TRADER_FILTER);
+  });
+  document.getElementById("signalCount").textContent=`${filtered.length} de ${list.length} señales`;
+  el.innerHTML=filtered.length?filtered.map(signalCard).join(""):`
+    <div class="card empty"><div class="empty-mark">◎</div>No hay señales con estos filtros.</div>
   `;
 }
 
 function renderTrades(list){
   const el=document.getElementById("tradeList");
-  if(!list.length){
-    el.innerHTML=`<div class="card empty"><div class="empty-mark">↕</div>Esperando operaciones…</div>`;
+  const filtered=list.filter(trade=>{
+    const side=String(trade.side||"").toLowerCase();
+    const normalizedSide=side.includes("buy")||side==="create"?"buy":"sell";
+    const trader=String(trade.trader||"unknown");
+    return (TRADE_SIDE_FILTER==="all"||normalizedSide===TRADE_SIDE_FILTER)
+      && (TRADE_TRADER_FILTER==="all"||trader===TRADE_TRADER_FILTER);
+  });
+  document.getElementById("tradeCount").textContent=`${filtered.length} de ${list.length} eventos`;
+  if(!filtered.length){
+    el.innerHTML=`<div class="card empty"><div class="empty-mark">↕</div>No hay actividad con estos filtros.</div>`;
     return;
   }
 
-  el.innerHTML=list.map(t=>{
+  el.innerHTML=filtered.map(t=>{
     const side=String(t.side||"").toLowerCase();
     const buy=side.includes("buy")||side==="create";
     return `
@@ -2350,6 +2536,16 @@ async function refresh(){
     LAST_PAPER=paper;
     LAST_SIGNALS=signals;
     LAST_TRADES=trades;
+    SIGNAL_TRADER_FILTER=updateTraderFilter(
+      "signalTraderFilter",
+      signals,
+      SIGNAL_TRADER_FILTER
+    );
+    TRADE_TRADER_FILTER=updateTraderFilter(
+      "tradeTraderFilter",
+      trades,
+      TRADE_TRADER_FILTER
+    );
     recordMarketHistory(paper);
 
     const configured=Boolean(statusData.live_stream_configured);
@@ -2378,11 +2574,28 @@ async function refresh(){
     const completedRows=Number(trainingStats.completed||0);
     const activeRows=Number(trainingStats.active||0);
     const trainingGoal=300;
+    const streamReadout=document.getElementById("streamReadout");
+    const latencyReadout=document.getElementById("latencyReadout");
+    const signalReadout=document.getElementById("signalReadout");
 
-    document.getElementById("streamReadout").textContent=statusLabel;
+    streamReadout.textContent=statusLabel;
+    streamReadout.className=connected?"healthy":configured?"degraded":"offline";
+    latencyReadout.textContent=messageAge!==null&&Number.isFinite(messageAge)
+      ? `${Math.round(messageAge)}s`
+      : "—";
+    latencyReadout.className=messageAge===null||!Number.isFinite(messageAge)
+      ? "offline"
+      : messageAge<=10
+        ? "healthy"
+        : messageAge<=120
+          ? "degraded"
+          : "offline";
+    signalReadout.textContent=signals.length?ago(signals[0].ts):"sin señales";
+    signalReadout.className=signals.length?"":"degraded";
     document.getElementById("datasetReadout").textContent=
       `${completedRows} / ${trainingGoal}`;
-    document.getElementById("activeReadout").textContent=activeRows;
+    document.getElementById("datasetReadout").title=
+      `${activeRows} resultados en curso`;
     document.getElementById("datasetProgress").style.width=
       `${Math.min(100,(completedRows/trainingGoal)*100)}%`;
 
@@ -2418,22 +2631,9 @@ document.addEventListener("touchend",e=>{
 
 
 if(TOKEN) refresh();
-setInterval(()=>{ 
-document.addEventListener("gesturestart",e=>e.preventDefault(),{passive:false});
-document.addEventListener("gesturechange",e=>e.preventDefault(),{passive:false});
-document.addEventListener("gestureend",e=>e.preventDefault(),{passive:false});
-
-let lastTouchEnd=0;
-document.addEventListener("touchend",e=>{
-  const now=Date.now();
-  if(now-lastTouchEnd<=300){
-    e.preventDefault();
-  }
-  lastTouchEnd=now;
-},{passive:false});
-
-
-if(TOKEN) refresh(); },5000);
+setInterval(()=>{
+  if(TOKEN) refresh();
+},5000);
 </script>
 
 </body>

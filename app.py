@@ -6441,7 +6441,20 @@ def signals(
 
             decision,
 
-            reasons
+            reasons,
+
+            market_cap,
+
+            sol_amount,
+
+            data_version,
+
+            (
+                SELECT o.status
+                FROM signal_outcomes o
+                WHERE o.signal_id = evaluations.id
+                LIMIT 1
+            )
 
         FROM evaluations
 
@@ -6480,7 +6493,19 @@ def signals(
             "reasons":
                 json.loads(
                     r[6]
-                )
+                ),
+
+            "market_cap":
+                r[7],
+
+            "sol_amount":
+                r[8],
+
+            "data_version":
+                int(r[9] or 0),
+
+            "outcome_status":
+                r[10]
 
         }
 
