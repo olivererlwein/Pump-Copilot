@@ -7,6 +7,7 @@ import random
 import uuid
 
 from pathlib import Path
+from urllib.request import Request, urlopen
 
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.staticfiles import StaticFiles
@@ -34,6 +35,11 @@ API_KEY = os.getenv(
 APP_TOKEN = os.getenv(
     "APP_TOKEN",
     "change-this-long-random-token"
+)
+
+DISCORD_ALERT_WEBHOOK_URL = os.getenv(
+    "DISCORD_ALERT_WEBHOOK_URL",
+    ""
 )
 
 WATCHED = json.loads(
@@ -106,7 +112,11 @@ SUBSCRIBED_TOKENS = set()
 TOKENS_TO_UNSUBSCRIBE = set()
 LAST_TOKEN_PRICE = {}
 LAST_STREAM_MESSAGE_TS = 0.0
+LAST_STREAM_EVENT_TS = 0.0
 STREAM_CONNECTED = False
+STREAM_LAST_ERROR = ""
+STREAM_ALERT_ACTIVE = False
+STREAM_FAILURE_STARTED_TS = 0.0
 
 # Evita procesar dos veces la misma transacción de PumpPortal
 KILL_SWITCH = False
@@ -5564,11 +5574,117 @@ def save_trade(
 # STREAM REAL PUMPPORTAL
 # =========================================================
 
+PUMPPORTAL_ERROR_HINTS = (
+    "error",
+    "failed",
+    "invalid",
+    "unauthorized",
+    "forbidden",
+    "funded",
+    "balance",
+    "rate limit",
+    "banned",
+    "only available",
+)
+
+
+def is_pumpportal_error_message(message):
+    normalized = str(message or "").strip().lower()
+
+    return any(
+        hint in normalized
+        for hint in PUMPPORTAL_ERROR_HINTS
+    )
+
+
+def post_discord_alert(message):
+    if not DISCORD_ALERT_WEBHOOK_URL:
+        return False
+
+    body = json.dumps(
+        {"content": str(message)[:1900]}
+    ).encode("utf-8")
+
+    request = Request(
+        DISCORD_ALERT_WEBHOOK_URL,
+        data=body,
+        headers={
+            "Content-Type": "application/json",
+            "User-Agent": "Pump-Copilot/1.0",
+        },
+        method="POST",
+    )
+
+    with urlopen(request, timeout=10) as response:
+        return 200 <= response.status < 300
+
+
+async def send_discord_alert(message):
+    try:
+        sent = await asyncio.to_thread(
+            post_discord_alert,
+            message,
+        )
+
+        if sent:
+            print("[ALERT] Discord notification sent")
+
+    except Exception as ex:
+        print("[ALERT ERROR]", repr(ex))
+
+
+async def mark_stream_problem(reason, immediate=False):
+    global STREAM_CONNECTED
+    global STREAM_LAST_ERROR
+    global STREAM_ALERT_ACTIVE
+    global STREAM_FAILURE_STARTED_TS
+
+    now = time.time()
+    STREAM_CONNECTED = False
+    STREAM_LAST_ERROR = str(reason or "Unknown stream error")[:500]
+
+    if STREAM_FAILURE_STARTED_TS <= 0:
+        STREAM_FAILURE_STARTED_TS = now
+
+    failure_age = now - STREAM_FAILURE_STARTED_TS
+
+    if (
+        DISCORD_ALERT_WEBHOOK_URL
+        and not STREAM_ALERT_ACTIVE
+        and (immediate or failure_age >= 180)
+    ):
+        STREAM_ALERT_ACTIVE = True
+        await send_discord_alert(
+            "Pump Copilot: PumpPortal stopped delivering data.\n"
+            f"Reason: {STREAM_LAST_ERROR}\n"
+            "Railway will continue reconnecting automatically."
+        )
+
+
+async def mark_stream_recovered():
+    global STREAM_CONNECTED
+    global STREAM_LAST_ERROR
+    global STREAM_ALERT_ACTIVE
+    global STREAM_FAILURE_STARTED_TS
+
+    was_alerting = STREAM_ALERT_ACTIVE
+
+    STREAM_CONNECTED = True
+    STREAM_LAST_ERROR = ""
+    STREAM_ALERT_ACTIVE = False
+    STREAM_FAILURE_STARTED_TS = 0.0
+
+    if DISCORD_ALERT_WEBHOOK_URL and was_alerting:
+        await send_discord_alert(
+            "Pump Copilot: PumpPortal data connection recovered."
+        )
+
 async def stream():
 
     global FORCE_STREAM_ERROR
     global STREAM_CONNECTED
     global LAST_STREAM_MESSAGE_TS
+    global LAST_STREAM_EVENT_TS
 
     if not API_KEY:
 
@@ -5594,7 +5710,10 @@ async def stream():
                 ping_interval=20
             ) as websocket:
                 
-                STREAM_CONNECTED = True
+                # The socket opening is not proof that PumpPortal
+                # accepted the subscriptions. A confirmation or a
+                # real event marks the data stream as connected.
+                STREAM_CONNECTED = False
                 last_stream_message_ts = time.time()
 
                 # Cada reconexión empieza
@@ -5747,11 +5866,31 @@ async def stream():
                         event = json.loads(raw)
 
                     if "message" in event:
+                        provider_message = str(
+                            event["message"] or ""
+                        )
+
                         print(
                             "[PUMPPORTAL]",
-                            event["message"]
+                            provider_message
                         )
+
+                        if is_pumpportal_error_message(
+                            provider_message
+                        ):
+                            await mark_stream_problem(
+                                provider_message,
+                                immediate=True,
+                            )
+                            raise RuntimeError(
+                                "PUMPPORTAL_SUBSCRIPTION_REJECTED"
+                            )
+
+                        await mark_stream_recovered()
                         continue
+
+                    LAST_STREAM_EVENT_TS = time.time()
+                    await mark_stream_recovered()
 
                     # =========================================================
                     # PROTECCIÓN CONTRA EVENTOS DUPLICADOS
@@ -5905,6 +6044,14 @@ async def stream():
 
         except Exception as ex:
             STREAM_CONNECTED = False
+
+            error_text = str(ex or ex.__class__.__name__)
+
+            if error_text not in (
+                "STREAM_INACTIVITY_TIMEOUT",
+                "PUMPPORTAL_SUBSCRIPTION_REJECTED",
+            ):
+                await mark_stream_problem(error_text)
 
             print(
                 "[STREAM ERROR]",
@@ -6138,6 +6285,19 @@ def status(
 
         "stream_message_age_seconds":
             stream_message_age_seconds,
+
+        "stream_last_event_ts":
+            (
+                LAST_STREAM_EVENT_TS
+                if LAST_STREAM_EVENT_TS > 0
+                else None
+            ),
+
+        "stream_last_error":
+            (STREAM_LAST_ERROR or None),
+
+        "stream_alert_active":
+            bool(STREAM_ALERT_ACTIVE),
 
         "paper_buy_usd":
             PAPER_BUY_USD,
