@@ -42,6 +42,33 @@ DISCORD_ALERT_WEBHOOK_URL = os.getenv(
     ""
 )
 
+PUMPPORTAL_WALLET_ADDRESS = os.getenv(
+    "PUMPPORTAL_WALLET_ADDRESS",
+    "nXKa9jR8rPvoAAr4c82awiznLDFjSqyG9zk6ivBMcP6"
+)
+
+PUMPPORTAL_LOW_BALANCE_SOL = float(
+    os.getenv(
+        "PUMPPORTAL_LOW_BALANCE_SOL",
+        "0.025"
+    )
+)
+
+PUMPPORTAL_BALANCE_CHECK_SECONDS = max(
+    60,
+    int(
+        os.getenv(
+            "PUMPPORTAL_BALANCE_CHECK_SECONDS",
+            "300"
+        )
+    )
+)
+
+SOLANA_RPC_URL = os.getenv(
+    "SOLANA_RPC_URL",
+    "https://api.mainnet-beta.solana.com"
+)
+
 WATCHED = json.loads(
     os.getenv(
         "WATCHED_WALLETS",
@@ -118,6 +145,10 @@ STREAM_CONNECTED = False
 STREAM_LAST_ERROR = ""
 STREAM_ALERT_ACTIVE = False
 STREAM_FAILURE_STARTED_TS = 0.0
+PUMPPORTAL_WALLET_BALANCE_SOL = None
+PUMPPORTAL_BALANCE_CHECKED_TS = 0.0
+PUMPPORTAL_BALANCE_LAST_ERROR = ""
+PUMPPORTAL_BALANCE_ALERT_ACTIVE = False
 
 # Evita procesar dos veces la misma transacción de PumpPortal
 KILL_SWITCH = False
@@ -5634,6 +5665,91 @@ async def send_discord_alert(message):
         print("[ALERT ERROR]", repr(ex))
 
 
+def fetch_solana_balance_sol(wallet_address):
+    body = json.dumps(
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "getBalance",
+            "params": [
+                wallet_address,
+                {"commitment": "confirmed"},
+            ],
+        }
+    ).encode("utf-8")
+
+    request = Request(
+        SOLANA_RPC_URL,
+        data=body,
+        headers={
+            "Content-Type": "application/json",
+            "User-Agent": "Pump-Copilot/1.0",
+        },
+        method="POST",
+    )
+
+    with urlopen(request, timeout=15) as response:
+        payload = json.load(response)
+
+    if payload.get("error"):
+        raise RuntimeError(str(payload["error"]))
+
+    lamports = payload.get("result", {}).get("value")
+
+    if lamports is None:
+        raise RuntimeError("Solana RPC response has no balance")
+
+    return float(lamports) / 1_000_000_000
+
+
+async def record_pumpportal_wallet_balance(balance_sol):
+    global PUMPPORTAL_WALLET_BALANCE_SOL
+    global PUMPPORTAL_BALANCE_CHECKED_TS
+    global PUMPPORTAL_BALANCE_LAST_ERROR
+    global PUMPPORTAL_BALANCE_ALERT_ACTIVE
+
+    balance_sol = float(balance_sol)
+    was_low = PUMPPORTAL_BALANCE_ALERT_ACTIVE
+    is_low = balance_sol < PUMPPORTAL_LOW_BALANCE_SOL
+
+    PUMPPORTAL_WALLET_BALANCE_SOL = balance_sol
+    PUMPPORTAL_BALANCE_CHECKED_TS = time.time()
+    PUMPPORTAL_BALANCE_LAST_ERROR = ""
+    PUMPPORTAL_BALANCE_ALERT_ACTIVE = is_low
+
+    if is_low and not was_low:
+        await send_discord_alert(
+            "Pump Copilot: PumpPortal wallet balance is low.\n"
+            f"Balance: {balance_sol:.6f} SOL\n"
+            f"Warning threshold: {PUMPPORTAL_LOW_BALANCE_SOL:.6f} SOL\n"
+            "Top up the API wallet before data collection stops."
+        )
+    elif not is_low and was_low:
+        await send_discord_alert(
+            "Pump Copilot: PumpPortal wallet balance recovered.\n"
+            f"Balance: {balance_sol:.6f} SOL"
+        )
+
+
+async def pumpportal_balance_monitor():
+    global PUMPPORTAL_BALANCE_CHECKED_TS
+    global PUMPPORTAL_BALANCE_LAST_ERROR
+
+    while True:
+        try:
+            balance_sol = await asyncio.to_thread(
+                fetch_solana_balance_sol,
+                PUMPPORTAL_WALLET_ADDRESS,
+            )
+            await record_pumpportal_wallet_balance(balance_sol)
+        except Exception as ex:
+            PUMPPORTAL_BALANCE_CHECKED_TS = time.time()
+            PUMPPORTAL_BALANCE_LAST_ERROR = str(ex)[:500]
+            print("[BALANCE MONITOR ERROR]", repr(ex))
+
+        await asyncio.sleep(PUMPPORTAL_BALANCE_CHECK_SECONDS)
+
+
 async def mark_stream_problem(reason, immediate=False):
     global STREAM_CONNECTED
     global STREAM_LAST_ERROR
@@ -6161,6 +6277,10 @@ async def startup():
     )
 
     asyncio.create_task(
+        pumpportal_balance_monitor()
+    )
+
+    asyncio.create_task(
     signal_outcome_checkpoint_worker()
     )
 # =========================================================
@@ -6306,6 +6426,25 @@ def status(
 
         "stream_alert_active":
             bool(STREAM_ALERT_ACTIVE),
+
+        "pumpportal_wallet_balance_sol":
+            PUMPPORTAL_WALLET_BALANCE_SOL,
+
+        "pumpportal_balance_checked_ts":
+            (
+                PUMPPORTAL_BALANCE_CHECKED_TS
+                if PUMPPORTAL_BALANCE_CHECKED_TS > 0
+                else None
+            ),
+
+        "pumpportal_low_balance_threshold_sol":
+            PUMPPORTAL_LOW_BALANCE_SOL,
+
+        "pumpportal_low_balance":
+            bool(PUMPPORTAL_BALANCE_ALERT_ACTIVE),
+
+        "pumpportal_balance_last_error":
+            (PUMPPORTAL_BALANCE_LAST_ERROR or None),
 
         "paper_buy_usd":
             PAPER_BUY_USD,
