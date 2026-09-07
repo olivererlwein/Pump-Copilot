@@ -113,6 +113,7 @@ TOKENS_TO_UNSUBSCRIBE = set()
 LAST_TOKEN_PRICE = {}
 LAST_STREAM_MESSAGE_TS = 0.0
 LAST_STREAM_EVENT_TS = 0.0
+LAST_PUMPPORTAL_MESSAGE = ""
 STREAM_CONNECTED = False
 STREAM_LAST_ERROR = ""
 STREAM_ALERT_ACTIVE = False
@@ -5685,6 +5686,7 @@ async def stream():
     global STREAM_CONNECTED
     global LAST_STREAM_MESSAGE_TS
     global LAST_STREAM_EVENT_TS
+    global LAST_PUMPPORTAL_MESSAGE
 
     if not API_KEY:
 
@@ -5868,6 +5870,9 @@ async def stream():
                     if "message" in event:
                         provider_message = str(
                             event["message"] or ""
+                        )
+                        LAST_PUMPPORTAL_MESSAGE = (
+                            provider_message[:500]
                         )
 
                         print(
@@ -6295,6 +6300,9 @@ def status(
 
         "stream_last_error":
             (STREAM_LAST_ERROR or None),
+
+        "stream_provider_message":
+            (LAST_PUMPPORTAL_MESSAGE or None),
 
         "stream_alert_active":
             bool(STREAM_ALERT_ACTIVE),
