@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#07100f">
+  <meta name="theme-color" content="#0b0b0d">
+  <link rel="icon" href="data:,">
   <link rel="manifest" href="/static/manifest.webmanifest">
   <title>Pump Copilot</title>
 
@@ -1152,18 +1153,24 @@
       }
     }
 </style>
+  <link rel="stylesheet" href="/static/app-v6.css">
 </head>
 
 <body>
 <div class="app-shell">
 
   <header>
-    <div class="brand">
+    <div class="brand mobile-brand">
       <div class="logo">PC</div>
       <div class="brand-copy">
         <div class="eyebrow">Private Beta</div>
         <h1>Pump Copilot</h1>
       </div>
+    </div>
+
+    <div class="desktop-header-title">
+      <span>Operations workspace</span>
+      <b>Live Desk</b>
     </div>
 
     <div id="statusChip" class="status">
@@ -1210,8 +1217,6 @@
         </div>
       </div>
 
-      <section id="shadowPanel" class="shadow-card" aria-label="Estado del modelo shadow"></section>
-
       <div class="card hero">
         <div class="between">
           <div>
@@ -1225,17 +1230,19 @@
         <div id="summaryGrid" class="summary-grid"></div>
       </div>
 
-      <div class="section-head">
+      <div class="section-head signal-section-head">
         <h3>Última señal</h3>
         <span>agente</span>
       </div>
       <div id="homeSignal"></div>
 
-      <div class="section-head">
+      <div class="section-head positions-section-head">
         <h3>Posiciones abiertas</h3>
         <span id="openCaption">0 abiertas</span>
       </div>
       <div id="homePositions"></div>
+
+      <section id="shadowPanel" class="shadow-card" aria-label="Estado del modelo shadow"></section>
     </section>
     <section id="signalsPage" class="page">
       <div class="page-heading">
@@ -1295,6 +1302,14 @@
 </div>
 
 <nav id="bottomNav" hidden>
+  <div class="nav-brand" aria-hidden="true">
+    <div class="logo">PC</div>
+    <div>
+      <span>Private Beta</span>
+      <b>Pump Copilot</b>
+    </div>
+  </div>
+  <div class="nav-label">Workspace</div>
   <button id="navHome" class="active" onclick="showPage('home')">
     <svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10.5V20h13v-9.5"/></svg>
     Inicio
@@ -1315,6 +1330,10 @@
     <svg viewBox="0 0 24 24"><circle cx="8" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M2.5 20c.7-4 3-6 5.5-6s4.8 2 5.5 6"/><path d="M14 15c3.4-.4 5.8 1.2 7 4"/></svg>
     Traders
   </button>
+  <div class="nav-foot" aria-hidden="true">
+    <span class="nav-foot-dot"></span>
+    <div><b>Paper mode</b><small>Capital protegido</small></div>
+  </div>
 </nav>
 
   <div id="tokenDetail" class="detail-overlay" aria-hidden="true">
@@ -1459,7 +1478,7 @@ function positionCard(p){
   const action=String(p.last_action||"HOLD").toUpperCase();
 
   return `
-    <div class="card position-card" onclick="openTokenDetail('${esc(p.mint)}')">
+    <div class="card position-card" role="button" tabindex="0" onclick="openTokenDetail('${esc(p.mint)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openTokenDetail('${esc(p.mint)}')}">
       <div class="position-top">
         <div>
           <div class="token-title">@${esc(p.origin_trader||"unknown")}</div>
@@ -1548,7 +1567,7 @@ function signalCard(s){
           </div>
           <div class="decision ${textclass}" style="margin-top:11px;">${esc(d)}</div>
         </div>
-        <div class="score">
+        <div class="score" style="--score:${Math.max(0,Math.min(100,Number(s.score||0)))}">
           ${Number(s.score||0)}
           <small>/ 100</small>
         </div>
