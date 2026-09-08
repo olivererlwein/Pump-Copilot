@@ -39,5 +39,9 @@
     "minimum_target_0": 60,
     "minimum_target_1": 60,
     "minimum_unique_traders": 3
+  },
+  "deployment_readiness": {
+    "minimum_holdout_target_0": 10,
+    "minimum_holdout_target_1": 10
   }
 }

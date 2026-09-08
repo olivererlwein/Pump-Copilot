@@ -40,7 +40,7 @@
       "file_type": "code",
       "norm_label": "shadowartifacttests",
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L162"
+      "source_location": "L216"
     },
     {
       "id": "tests_test_training_pipeline_temporalgroupsplittests",
@@ -53,7 +53,7 @@
       "file_type": "code",
       "norm_label": "temporalgroupsplittests",
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L73"
+      "source_location": "L80"
     },
     {
       "id": "tests_test_training_pipeline_thresholdselectiontests",
@@ -66,7 +66,7 @@
       "file_type": "code",
       "norm_label": "thresholdselectiontests",
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L140"
+      "source_location": "L147"
     },
     {
       "id": "tests_test_training_pipeline_trainingdatasetvalidationtests",
@@ -79,7 +79,20 @@
       "file_type": "code",
       "norm_label": "trainingdatasetvalidationtests",
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L42"
+      "source_location": "L49"
+    },
+    {
+      "id": "tests_test_training_pipeline_trainingdiagnosticstests",
+      "label": "TrainingDiagnosticsTests",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 0,
+      "community_name": "test_training_pipeline.py",
+      "file_type": "code",
+      "norm_label": "trainingdiagnosticstests",
+      "source_file": "tests/test_training_pipeline.py",
+      "source_location": "L169"
     },
     {
       "id": "tests_test_stream_monitoring_pumpportalbalancetests",
@@ -168,7 +181,7 @@
       "file_type": "code",
       "norm_label": "build_matrix()",
       "source_file": "scripts/train_baseline_model.py",
-      "source_location": "L260"
+      "source_location": "L320"
     },
     {
       "id": "scripts_train_baseline_model_build_pipeline",
@@ -180,7 +193,7 @@
       "file_type": "code",
       "norm_label": "build_pipeline()",
       "source_file": "scripts/train_baseline_model.py",
-      "source_location": "L279"
+      "source_location": "L339"
     },
     {
       "id": "scripts_train_baseline_model_build_shadow_artifact",
@@ -192,7 +205,7 @@
       "file_type": "code",
       "norm_label": "build_shadow_artifact()",
       "source_file": "scripts/train_baseline_model.py",
-      "source_location": "L425"
+      "source_location": "L485"
     },
     {
       "id": "scripts_train_baseline_model_classification_metrics",
@@ -204,7 +217,19 @@
       "file_type": "code",
       "norm_label": "classification_metrics()",
       "source_file": "scripts/train_baseline_model.py",
-      "source_location": "L327"
+      "source_location": "L387"
+    },
+    {
+      "id": "scripts_train_baseline_model_get_deployment_blockers",
+      "label": "get_deployment_blockers()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 0,
+      "community_name": "test_training_pipeline.py",
+      "file_type": "code",
+      "norm_label": "get_deployment_blockers()",
+      "source_file": "scripts/train_baseline_model.py",
+      "source_location": "L101"
     },
     {
       "id": "scripts_train_baseline_model_get_readiness_blockers",
@@ -240,7 +265,7 @@
       "file_type": "code",
       "norm_label": "main()",
       "source_file": "scripts/train_baseline_model.py",
-      "source_location": "L497"
+      "source_location": "L557"
     },
     {
       "id": "scripts_train_baseline_model_metrics_by_trader",
@@ -252,7 +277,7 @@
       "file_type": "code",
       "norm_label": "metrics_by_trader()",
       "source_file": "scripts/train_baseline_model.py",
-      "source_location": "L401"
+      "source_location": "L461"
     },
     {
       "id": "scripts_train_baseline_model_select_threshold",
@@ -264,7 +289,19 @@
       "file_type": "code",
       "norm_label": "select_threshold()",
       "source_file": "scripts/train_baseline_model.py",
-      "source_location": "L362"
+      "source_location": "L422"
+    },
+    {
+      "id": "scripts_train_baseline_model_summarize_partition",
+      "label": "summarize_partition()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 0,
+      "community_name": "test_training_pipeline.py",
+      "file_type": "code",
+      "norm_label": "summarize_partition()",
+      "source_file": "scripts/train_baseline_model.py",
+      "source_location": "L59"
     },
     {
       "id": "scripts_train_baseline_model_temporal_group_split",
@@ -276,7 +313,7 @@
       "file_type": "code",
       "norm_label": "temporal_group_split()",
       "source_file": "scripts/train_baseline_model.py",
-      "source_location": "L125"
+      "source_location": "L185"
     },
     {
       "id": "scripts_train_baseline_model_temporal_group_validation_folds",
@@ -288,7 +325,19 @@
       "file_type": "code",
       "norm_label": "temporal_group_validation_folds()",
       "source_file": "scripts/train_baseline_model.py",
-      "source_location": "L177"
+      "source_location": "L237"
+    },
+    {
+      "id": "scripts_train_baseline_model_temporal_window_report",
+      "label": "temporal_window_report()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 0,
+      "community_name": "test_training_pipeline.py",
+      "file_type": "code",
+      "norm_label": "temporal_window_report()",
+      "source_file": "scripts/train_baseline_model.py",
+      "source_location": "L79"
     },
     {
       "id": "scripts_train_baseline_model_validate_dataset",
@@ -300,7 +349,7 @@
       "file_type": "code",
       "norm_label": "validate_dataset()",
       "source_file": "scripts/train_baseline_model.py",
-      "source_location": "L59"
+      "source_location": "L119"
     },
     {
       "id": "shadow_model_shadowlogisticmodel_from_path",
@@ -372,7 +421,7 @@
       "file_type": "code",
       "norm_label": "make_row()",
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L31"
+      "source_location": "L38"
     },
     {
       "id": "tests_test_training_pipeline_make_schema",
@@ -384,7 +433,7 @@
       "file_type": "code",
       "norm_label": "make_schema()",
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L18"
+      "source_location": "L21"
     },
     {
       "id": "tests_test_training_pipeline_shadowartifacttests_test_stdlib_shadow_probability_matches_sklearn",
@@ -396,7 +445,7 @@
       "file_type": "code",
       "norm_label": ".test_stdlib_shadow_probability_matches_sklearn()",
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L163"
+      "source_location": "L217"
     },
     {
       "id": "tests_test_training_pipeline_temporalgroupsplittests_test_purges_early_rows_from_groups_in_test_window",
@@ -408,7 +457,7 @@
       "file_type": "code",
       "norm_label": ".test_purges_early_rows_from_groups_in_test_window()",
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L74"
+      "source_location": "L81"
     },
     {
       "id": "tests_test_training_pipeline_temporalgroupsplittests_test_walk_forward_folds_are_temporal_and_group_disjoint",
@@ -420,7 +469,7 @@
       "file_type": "code",
       "norm_label": ".test_walk_forward_folds_are_temporal_and_group_disjoint()",
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L110"
+      "source_location": "L117"
     },
     {
       "id": "tests_test_training_pipeline_thresholdselectiontests_test_one_class_metrics_mark_rank_metrics_unavailable",
@@ -432,7 +481,7 @@
       "file_type": "code",
       "norm_label": ".test_one_class_metrics_mark_rank_metrics_unavailable()",
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L149"
+      "source_location": "L156"
     },
     {
       "id": "tests_test_training_pipeline_thresholdselectiontests_test_prefers_precision_weighted_threshold",
@@ -444,7 +493,7 @@
       "file_type": "code",
       "norm_label": ".test_prefers_precision_weighted_threshold()",
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L141"
+      "source_location": "L148"
     },
     {
       "id": "tests_test_training_pipeline_trainingdatasetvalidationtests_test_allows_declared_nullable_feature",
@@ -456,7 +505,7 @@
       "file_type": "code",
       "norm_label": ".test_allows_declared_nullable_feature()",
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L43"
+      "source_location": "L50"
     },
     {
       "id": "tests_test_training_pipeline_trainingdatasetvalidationtests_test_rejects_unexpected_null_feature",
@@ -468,7 +517,43 @@
       "file_type": "code",
       "norm_label": ".test_rejects_unexpected_null_feature()",
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L61"
+      "source_location": "L68"
+    },
+    {
+      "id": "tests_test_training_pipeline_trainingdiagnosticstests_test_blocks_deployment_with_too_few_holdout_positives",
+      "label": ".test_blocks_deployment_with_too_few_holdout_positives()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 0,
+      "community_name": "test_training_pipeline.py",
+      "file_type": "code",
+      "norm_label": ".test_blocks_deployment_with_too_few_holdout_positives()",
+      "source_file": "tests/test_training_pipeline.py",
+      "source_location": "L191"
+    },
+    {
+      "id": "tests_test_training_pipeline_trainingdiagnosticstests_test_partition_summary_counts_targets_and_groups",
+      "label": ".test_partition_summary_counts_targets_and_groups()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 0,
+      "community_name": "test_training_pipeline.py",
+      "file_type": "code",
+      "norm_label": ".test_partition_summary_counts_targets_and_groups()",
+      "source_file": "tests/test_training_pipeline.py",
+      "source_location": "L201"
+    },
+    {
+      "id": "tests_test_training_pipeline_trainingdiagnosticstests_test_reports_temporal_target_and_trader_drift",
+      "label": ".test_reports_temporal_target_and_trader_drift()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 0,
+      "community_name": "test_training_pipeline.py",
+      "file_type": "code",
+      "norm_label": ".test_reports_temporal_target_and_trader_drift()",
+      "source_file": "tests/test_training_pipeline.py",
+      "source_location": "L170"
     },
     {
       "id": "app_can_retry_execution",
@@ -865,6 +950,18 @@
       "norm_label": "auth()",
       "source_file": "app.py",
       "source_location": "L6649"
+    },
+    {
+      "id": "app_count_open_positions",
+      "label": "count_open_positions()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "count_open_positions()",
+      "source_file": "app.py",
+      "source_location": "L628"
     },
     {
       "id": "app_demo",
@@ -1419,28 +1516,16 @@
       "source_location": "L6940"
     },
     {
-      "id": "app_get_execution_latency",
-      "label": "get_execution_latency()",
+      "id": "app_get_daily_realized_pnl",
+      "label": "get_daily_realized_pnl()",
       "_callable": true,
       "_origin": "ast",
       "community": 2,
       "community_name": "app.py",
       "file_type": "code",
-      "norm_label": "get_execution_latency()",
+      "norm_label": "get_daily_realized_pnl()",
       "source_file": "app.py",
-      "source_location": "L2432"
-    },
-    {
-      "id": "app_get_shadow_predictions",
-      "label": "get_shadow_predictions()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 2,
-      "community_name": "app.py",
-      "file_type": "code",
-      "norm_label": "get_shadow_predictions()",
-      "source_file": "app.py",
-      "source_location": "L3826"
+      "source_location": "L651"
     },
     {
       "id": "app_get_shadow_stats",
@@ -1515,6 +1600,18 @@
       "source_location": "L9813"
     },
     {
+      "id": "app_open_paper_position",
+      "label": "open_paper_position()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "open_paper_position()",
+      "source_file": "app.py",
+      "source_location": "L5366"
+    },
+    {
       "id": "app_paper",
       "label": "paper()",
       "_callable": true,
@@ -1563,6 +1660,30 @@
       "source_location": "L6666"
     },
     {
+      "id": "app_risk_check",
+      "label": "risk_check()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "risk_check()",
+      "source_file": "app.py",
+      "source_location": "L2548"
+    },
+    {
+      "id": "app_save_position_event",
+      "label": "save_position_event()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "save_position_event()",
+      "source_file": "app.py",
+      "source_location": "L2927"
+    },
+    {
       "id": "app_set_kill_switch",
       "label": "set_kill_switch()",
       "_callable": true,
@@ -1573,18 +1694,6 @@
       "norm_label": "set_kill_switch()",
       "source_file": "app.py",
       "source_location": "L8094"
-    },
-    {
-      "id": "app_set_persistent_kill_switch",
-      "label": "set_persistent_kill_switch()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 2,
-      "community_name": "app.py",
-      "file_type": "code",
-      "norm_label": "set_persistent_kill_switch()",
-      "source_file": "app.py",
-      "source_location": "L6698"
     },
     {
       "id": "app_signals",
@@ -1659,6 +1768,30 @@
       "source_location": "L5501"
     },
     {
+      "id": "app_validate_liquidity",
+      "label": "validate_liquidity()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "validate_liquidity()",
+      "source_file": "app.py",
+      "source_location": "L719"
+    },
+    {
+      "id": "app_validate_slippage",
+      "label": "validate_slippage()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "validate_slippage()",
+      "source_file": "app.py",
+      "source_location": "L697"
+    },
+    {
       "id": "app_api_training_dataset_preview",
       "label": "api_training_dataset_preview()",
       "_callable": true,
@@ -1717,18 +1850,6 @@
       "norm_label": "complete_finished_signal_outcomes()",
       "source_file": "app.py",
       "source_location": "L1504"
-    },
-    {
-      "id": "app_count_open_positions",
-      "label": "count_open_positions()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 4,
-      "community_name": "db",
-      "file_type": "code",
-      "norm_label": "count_open_positions()",
-      "source_file": "app.py",
-      "source_location": "L628"
     },
     {
       "id": "app_create_signal_outcome",
@@ -1791,18 +1912,6 @@
       "source_location": "L1563"
     },
     {
-      "id": "app_fetch_solana_balance_sol",
-      "label": "fetch_solana_balance_sol()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 4,
-      "community_name": "db",
-      "file_type": "code",
-      "norm_label": "fetch_solana_balance_sol()",
-      "source_file": "app.py",
-      "source_location": "L6030"
-    },
-    {
       "id": "app_get_consensus_trader_count",
       "label": "get_consensus_trader_count()",
       "_callable": true,
@@ -1827,16 +1936,16 @@
       "source_location": "L4800"
     },
     {
-      "id": "app_get_daily_realized_pnl",
-      "label": "get_daily_realized_pnl()",
+      "id": "app_get_execution_latency",
+      "label": "get_execution_latency()",
       "_callable": true,
       "_origin": "ast",
       "community": 4,
       "community_name": "db",
       "file_type": "code",
-      "norm_label": "get_daily_realized_pnl()",
+      "norm_label": "get_execution_latency()",
       "source_file": "app.py",
-      "source_location": "L651"
+      "source_location": "L2432"
     },
     {
       "id": "app_get_persistent_kill_switch",
@@ -1849,6 +1958,18 @@
       "norm_label": "get_persistent_kill_switch()",
       "source_file": "app.py",
       "source_location": "L6674"
+    },
+    {
+      "id": "app_get_shadow_predictions",
+      "label": "get_shadow_predictions()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "db",
+      "file_type": "code",
+      "norm_label": "get_shadow_predictions()",
+      "source_file": "app.py",
+      "source_location": "L3826"
     },
     {
       "id": "app_get_signal_checkpoint_lags",
@@ -2019,18 +2140,6 @@
       "source_location": "L3804"
     },
     {
-      "id": "app_open_paper_position",
-      "label": "open_paper_position()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 4,
-      "community_name": "db",
-      "file_type": "code",
-      "norm_label": "open_paper_position()",
-      "source_file": "app.py",
-      "source_location": "L5366"
-    },
-    {
       "id": "app_process_signal_outcomes_event",
       "label": "process_signal_outcomes_event()",
       "_callable": true,
@@ -2041,18 +2150,6 @@
       "norm_label": "process_signal_outcomes_event()",
       "source_file": "app.py",
       "source_location": "L1261"
-    },
-    {
-      "id": "app_pumpportal_balance_monitor",
-      "label": "pumpportal_balance_monitor()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 4,
-      "community_name": "db",
-      "file_type": "code",
-      "norm_label": "pumpportal_balance_monitor()",
-      "source_file": "app.py",
-      "source_location": "L6096"
     },
     {
       "id": "app_reconcile_finished_signal_outcomes",
@@ -2067,18 +2164,6 @@
       "source_location": "L1537"
     },
     {
-      "id": "app_record_pumpportal_wallet_balance",
-      "label": "record_pumpportal_wallet_balance()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 4,
-      "community_name": "db",
-      "file_type": "code",
-      "norm_label": "record_pumpportal_wallet_balance()",
-      "source_file": "app.py",
-      "source_location": "L6067"
-    },
-    {
       "id": "app_record_shadow_prediction",
       "label": "record_shadow_prediction()",
       "_callable": true,
@@ -2089,30 +2174,6 @@
       "norm_label": "record_shadow_prediction()",
       "source_file": "app.py",
       "source_location": "L3757"
-    },
-    {
-      "id": "app_risk_check",
-      "label": "risk_check()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 4,
-      "community_name": "db",
-      "file_type": "code",
-      "norm_label": "risk_check()",
-      "source_file": "app.py",
-      "source_location": "L2548"
-    },
-    {
-      "id": "app_save_position_event",
-      "label": "save_position_event()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 4,
-      "community_name": "db",
-      "file_type": "code",
-      "norm_label": "save_position_event()",
-      "source_file": "app.py",
-      "source_location": "L2927"
     },
     {
       "id": "app_score_consensus",
@@ -2185,6 +2246,18 @@
       "norm_label": "score_trader()",
       "source_file": "app.py",
       "source_location": "L2996"
+    },
+    {
+      "id": "app_set_persistent_kill_switch",
+      "label": "set_persistent_kill_switch()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "db",
+      "file_type": "code",
+      "norm_label": "set_persistent_kill_switch()",
+      "source_file": "app.py",
+      "source_location": "L6698"
     },
     {
       "id": "app_signal_outcome_checkpoint_worker",
@@ -2281,30 +2354,6 @@
       "norm_label": "update_signal_outcome_extremes()",
       "source_file": "app.py",
       "source_location": "L1132"
-    },
-    {
-      "id": "app_validate_liquidity",
-      "label": "validate_liquidity()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 4,
-      "community_name": "db",
-      "file_type": "code",
-      "norm_label": "validate_liquidity()",
-      "source_file": "app.py",
-      "source_location": "L719"
-    },
-    {
-      "id": "app_validate_slippage",
-      "label": "validate_slippage()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 4,
-      "community_name": "db",
-      "file_type": "code",
-      "norm_label": "validate_slippage()",
-      "source_file": "app.py",
-      "source_location": "L697"
     },
     {
       "id": "tests_test_stream_monitoring_pumpportalbalancetests_setup",
@@ -2451,6 +2500,18 @@
       "source_location": "L48"
     },
     {
+      "id": "app_fetch_solana_balance_sol",
+      "label": "fetch_solana_balance_sol()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 7,
+      "community_name": "stream",
+      "file_type": "code",
+      "norm_label": "fetch_solana_balance_sol()",
+      "source_file": "app.py",
+      "source_location": "L6030"
+    },
+    {
       "id": "app_is_pumpportal_error_message",
       "label": "is_pumpportal_error_message()",
       "_callable": true,
@@ -2509,6 +2570,30 @@
       "norm_label": "post_discord_alert()",
       "source_file": "app.py",
       "source_location": "L5994"
+    },
+    {
+      "id": "app_pumpportal_balance_monitor",
+      "label": "pumpportal_balance_monitor()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 7,
+      "community_name": "stream",
+      "file_type": "code",
+      "norm_label": "pumpportal_balance_monitor()",
+      "source_file": "app.py",
+      "source_location": "L6096"
+    },
+    {
+      "id": "app_record_pumpportal_wallet_balance",
+      "label": "record_pumpportal_wallet_balance()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 7,
+      "community_name": "stream",
+      "file_type": "code",
+      "norm_label": "record_pumpportal_wallet_balance()",
+      "source_file": "app.py",
+      "source_location": "L6067"
     },
     {
       "id": "app_save_token_history",
@@ -8221,7 +8306,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/train_baseline_model.py",
-      "source_location": "L523",
+      "source_location": "L583",
       "weight": 1.0
     },
     {
@@ -8233,7 +8318,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/train_baseline_model.py",
-      "source_location": "L525",
+      "source_location": "L585",
       "weight": 1.0
     },
     {
@@ -8245,7 +8330,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/train_baseline_model.py",
-      "source_location": "L526",
+      "source_location": "L586",
       "weight": 1.0
     },
     {
@@ -8257,7 +8342,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/train_baseline_model.py",
-      "source_location": "L540",
+      "source_location": "L600",
       "weight": 1.0
     },
     {
@@ -8269,7 +8354,19 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/train_baseline_model.py",
-      "source_location": "L545",
+      "source_location": "L605",
+      "weight": 1.0
+    },
+    {
+      "source": "scripts_train_baseline_model_main",
+      "target": "scripts_train_baseline_model_get_deployment_blockers",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "scripts/train_baseline_model.py",
+      "source_location": "L610",
       "weight": 1.0
     },
     {
@@ -8281,7 +8378,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/train_baseline_model.py",
-      "source_location": "L557",
+      "source_location": "L618",
       "weight": 1.0
     },
     {
@@ -8293,7 +8390,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/train_baseline_model.py",
-      "source_location": "L574",
+      "source_location": "L635",
       "weight": 1.0
     },
     {
@@ -8305,7 +8402,31 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/train_baseline_model.py",
-      "source_location": "L594",
+      "source_location": "L655",
+      "weight": 1.0
+    },
+    {
+      "source": "scripts_train_baseline_model_main",
+      "target": "scripts_train_baseline_model_summarize_partition",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "scripts/train_baseline_model.py",
+      "source_location": "L692",
+      "weight": 1.0
+    },
+    {
+      "source": "scripts_train_baseline_model_main",
+      "target": "scripts_train_baseline_model_temporal_window_report",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "scripts/train_baseline_model.py",
+      "source_location": "L695",
       "weight": 1.0
     },
     {
@@ -8317,7 +8438,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/train_baseline_model.py",
-      "source_location": "L635",
+      "source_location": "L704",
       "weight": 1.0
     },
     {
@@ -8329,7 +8450,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/train_baseline_model.py",
-      "source_location": "L651",
+      "source_location": "L720",
       "weight": 1.0
     },
     {
@@ -8341,7 +8462,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/train_baseline_model.py",
-      "source_location": "L684",
+      "source_location": "L761",
       "weight": 1.0
     },
     {
@@ -8353,7 +8474,19 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/train_baseline_model.py",
-      "source_location": "L415",
+      "source_location": "L475",
+      "weight": 1.0
+    },
+    {
+      "source": "scripts_train_baseline_model_temporal_window_report",
+      "target": "scripts_train_baseline_model_summarize_partition",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "scripts/train_baseline_model.py",
+      "source_location": "L95",
       "weight": 1.0
     },
     {
@@ -8425,7 +8558,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L164",
+      "source_location": "L218",
       "weight": 1.0
     },
     {
@@ -8437,7 +8570,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L166",
+      "source_location": "L220",
       "weight": 1.0
     },
     {
@@ -8449,7 +8582,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L175",
+      "source_location": "L229",
       "weight": 1.0
     },
     {
@@ -8461,7 +8594,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L177",
+      "source_location": "L231",
       "weight": 1.0
     },
     {
@@ -8473,7 +8606,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L179",
+      "source_location": "L233",
       "weight": 1.0
     },
     {
@@ -8485,19 +8618,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L186",
-      "weight": 1.0
-    },
-    {
-      "source": "tests_test_training_pipeline_temporalgroupsplittests_test_purges_early_rows_from_groups_in_test_window",
-      "target": "tests_test_training_pipeline_make_row",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L89",
+      "source_location": "L240",
       "weight": 1.0
     },
     {
@@ -8509,7 +8630,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L93",
+      "source_location": "L100",
       "weight": 1.0
     },
     {
@@ -8521,7 +8642,19 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L95",
+      "source_location": "L102",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_training_pipeline_temporalgroupsplittests_test_purges_early_rows_from_groups_in_test_window",
+      "target": "tests_test_training_pipeline_make_row",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "tests/test_training_pipeline.py",
+      "source_location": "L96",
       "weight": 1.0
     },
     {
@@ -8533,7 +8666,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L112",
+      "source_location": "L119",
       "weight": 1.0
     },
     {
@@ -8545,7 +8678,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L120",
+      "source_location": "L127",
       "weight": 1.0
     },
     {
@@ -8557,7 +8690,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L122",
+      "source_location": "L129",
       "weight": 1.0
     },
     {
@@ -8569,7 +8702,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L150",
+      "source_location": "L157",
       "weight": 1.0
     },
     {
@@ -8581,7 +8714,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L145",
+      "source_location": "L152",
       "weight": 1.0
     },
     {
@@ -8593,7 +8726,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L45",
+      "source_location": "L52",
       "weight": 1.0
     },
     {
@@ -8605,7 +8738,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L54",
+      "source_location": "L61",
       "weight": 1.0
     },
     {
@@ -8617,7 +8750,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L56",
+      "source_location": "L63",
       "weight": 1.0
     },
     {
@@ -8629,7 +8762,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L62",
+      "source_location": "L69",
       "weight": 1.0
     },
     {
@@ -8641,7 +8774,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L70",
+      "source_location": "L77",
       "weight": 1.0
     },
     {
@@ -8653,7 +8786,115 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L70",
+      "source_location": "L77",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_training_pipeline_trainingdiagnosticstests_test_blocks_deployment_with_too_few_holdout_positives",
+      "target": "tests_test_training_pipeline_make_row",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "tests/test_training_pipeline.py",
+      "source_location": "L193",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_training_pipeline_trainingdiagnosticstests_test_blocks_deployment_with_too_few_holdout_positives",
+      "target": "scripts_train_baseline_model_get_deployment_blockers",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "tests/test_training_pipeline.py",
+      "source_location": "L197",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_training_pipeline_trainingdiagnosticstests_test_blocks_deployment_with_too_few_holdout_positives",
+      "target": "tests_test_training_pipeline_make_schema",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "tests/test_training_pipeline.py",
+      "source_location": "L197",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_training_pipeline_trainingdiagnosticstests_test_partition_summary_counts_targets_and_groups",
+      "target": "tests_test_training_pipeline_make_row",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "tests/test_training_pipeline.py",
+      "source_location": "L203",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_training_pipeline_trainingdiagnosticstests_test_partition_summary_counts_targets_and_groups",
+      "target": "scripts_train_baseline_model_summarize_partition",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "tests/test_training_pipeline.py",
+      "source_location": "L208",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_training_pipeline_trainingdiagnosticstests_test_partition_summary_counts_targets_and_groups",
+      "target": "tests_test_training_pipeline_make_schema",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "tests/test_training_pipeline.py",
+      "source_location": "L208",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_training_pipeline_trainingdiagnosticstests_test_reports_temporal_target_and_trader_drift",
+      "target": "tests_test_training_pipeline_make_row",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "tests/test_training_pipeline.py",
+      "source_location": "L172",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_training_pipeline_trainingdiagnosticstests_test_reports_temporal_target_and_trader_drift",
+      "target": "scripts_train_baseline_model_temporal_window_report",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "tests/test_training_pipeline.py",
+      "source_location": "L178",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_training_pipeline_trainingdiagnosticstests_test_reports_temporal_target_and_trader_drift",
+      "target": "tests_test_training_pipeline_make_schema",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "tests/test_training_pipeline.py",
+      "source_location": "L180",
       "weight": 1.0
     },
     {
@@ -9630,7 +9871,31 @@
     },
     {
       "source": "tests_test_training_pipeline",
+      "target": "scripts_train_baseline_model_get_deployment_blockers",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "tests/test_training_pipeline.py",
+      "source_location": "L6",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_training_pipeline",
       "target": "scripts_train_baseline_model_select_threshold",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "tests/test_training_pipeline.py",
+      "source_location": "L6",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_training_pipeline",
+      "target": "scripts_train_baseline_model_summarize_partition",
       "relation": "imports",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -9655,6 +9920,18 @@
     {
       "source": "tests_test_training_pipeline",
       "target": "scripts_train_baseline_model_temporal_group_validation_folds",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "tests/test_training_pipeline.py",
+      "source_location": "L6",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_training_pipeline",
+      "target": "scripts_train_baseline_model_temporal_window_report",
       "relation": "imports",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -12288,13 +12565,35 @@
     },
     {
       "source": "scripts_train_baseline_model",
+      "target": "scripts_train_baseline_model_get_deployment_blockers",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "scripts/train_baseline_model.py",
+      "source_location": "L101",
+      "weight": 1.0
+    },
+    {
+      "source": "scripts_train_baseline_model",
+      "target": "scripts_train_baseline_model_validate_dataset",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "scripts/train_baseline_model.py",
+      "source_location": "L119",
+      "weight": 1.0
+    },
+    {
+      "source": "scripts_train_baseline_model",
       "target": "scripts_train_baseline_model_temporal_group_split",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/train_baseline_model.py",
-      "source_location": "L125",
+      "source_location": "L185",
       "weight": 1.0
     },
     {
@@ -12305,29 +12604,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/train_baseline_model.py",
-      "source_location": "L177",
-      "weight": 1.0
-    },
-    {
-      "source": "scripts_train_baseline_model",
-      "target": "scripts_train_baseline_model_build_matrix",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "scripts/train_baseline_model.py",
-      "source_location": "L260",
-      "weight": 1.0
-    },
-    {
-      "source": "scripts_train_baseline_model",
-      "target": "scripts_train_baseline_model_build_pipeline",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "scripts/train_baseline_model.py",
-      "source_location": "L279",
+      "source_location": "L237",
       "weight": 1.0
     },
     {
@@ -12343,13 +12620,24 @@
     },
     {
       "source": "scripts_train_baseline_model",
-      "target": "scripts_train_baseline_model_classification_metrics",
+      "target": "scripts_train_baseline_model_build_matrix",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/train_baseline_model.py",
-      "source_location": "L327",
+      "source_location": "L320",
+      "weight": 1.0
+    },
+    {
+      "source": "scripts_train_baseline_model",
+      "target": "scripts_train_baseline_model_build_pipeline",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "scripts/train_baseline_model.py",
+      "source_location": "L339",
       "weight": 1.0
     },
     {
@@ -12365,13 +12653,24 @@
     },
     {
       "source": "scripts_train_baseline_model",
+      "target": "scripts_train_baseline_model_classification_metrics",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "scripts/train_baseline_model.py",
+      "source_location": "L387",
+      "weight": 1.0
+    },
+    {
+      "source": "scripts_train_baseline_model",
       "target": "scripts_train_baseline_model_select_threshold",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/train_baseline_model.py",
-      "source_location": "L362",
+      "source_location": "L422",
       "weight": 1.0
     },
     {
@@ -12382,7 +12681,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/train_baseline_model.py",
-      "source_location": "L401",
+      "source_location": "L461",
       "weight": 1.0
     },
     {
@@ -12393,7 +12692,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/train_baseline_model.py",
-      "source_location": "L425",
+      "source_location": "L485",
       "weight": 1.0
     },
     {
@@ -12404,18 +12703,29 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/train_baseline_model.py",
-      "source_location": "L497",
+      "source_location": "L557",
       "weight": 1.0
     },
     {
       "source": "scripts_train_baseline_model",
-      "target": "scripts_train_baseline_model_validate_dataset",
+      "target": "scripts_train_baseline_model_summarize_partition",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/train_baseline_model.py",
       "source_location": "L59",
+      "weight": 1.0
+    },
+    {
+      "source": "scripts_train_baseline_model",
+      "target": "scripts_train_baseline_model_temporal_window_report",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "scripts/train_baseline_model.py",
+      "source_location": "L79",
       "weight": 1.0
     },
     {
@@ -12525,18 +12835,18 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L140",
+      "source_location": "L147",
       "weight": 1.0
     },
     {
       "source": "tests_test_training_pipeline",
-      "target": "tests_test_training_pipeline_shadowartifacttests",
+      "target": "tests_test_training_pipeline_trainingdiagnosticstests",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L162",
+      "source_location": "L169",
       "weight": 1.0
     },
     {
@@ -12547,7 +12857,18 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L18",
+      "source_location": "L21",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_training_pipeline",
+      "target": "tests_test_training_pipeline_shadowartifacttests",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tests/test_training_pipeline.py",
+      "source_location": "L216",
       "weight": 1.0
     },
     {
@@ -12558,7 +12879,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L31",
+      "source_location": "L38",
       "weight": 1.0
     },
     {
@@ -12569,7 +12890,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L42",
+      "source_location": "L49",
       "weight": 1.0
     },
     {
@@ -12580,7 +12901,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L73",
+      "source_location": "L80",
       "weight": 1.0
     },
     {
@@ -12866,7 +13187,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L163",
+      "source_location": "L217",
       "weight": 1.0
     },
     {
@@ -12877,7 +13198,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L110",
+      "source_location": "L117",
       "weight": 1.0
     },
     {
@@ -12888,7 +13209,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L74",
+      "source_location": "L81",
       "weight": 1.0
     },
     {
@@ -12899,7 +13220,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L141",
+      "source_location": "L148",
       "weight": 1.0
     },
     {
@@ -12910,7 +13231,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L149",
+      "source_location": "L156",
       "weight": 1.0
     },
     {
@@ -12921,7 +13242,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L43",
+      "source_location": "L50",
       "weight": 1.0
     },
     {
@@ -12932,7 +13253,40 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L61",
+      "source_location": "L68",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_training_pipeline_trainingdiagnosticstests",
+      "target": "tests_test_training_pipeline_trainingdiagnosticstests_test_reports_temporal_target_and_trader_drift",
+      "relation": "method",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tests/test_training_pipeline.py",
+      "source_location": "L170",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_training_pipeline_trainingdiagnosticstests",
+      "target": "tests_test_training_pipeline_trainingdiagnosticstests_test_blocks_deployment_with_too_few_holdout_positives",
+      "relation": "method",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tests/test_training_pipeline.py",
+      "source_location": "L191",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_training_pipeline_trainingdiagnosticstests",
+      "target": "tests_test_training_pipeline_trainingdiagnosticstests_test_partition_summary_counts_targets_and_groups",
+      "relation": "method",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tests/test_training_pipeline.py",
+      "source_location": "L201",
       "weight": 1.0
     },
     {
@@ -12980,7 +13334,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "scripts/train_baseline_model.py",
-      "source_location": "L160",
+      "source_location": "L220",
       "weight": 1.0
     },
     {
@@ -12992,7 +13346,19 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "scripts/train_baseline_model.py",
-      "source_location": "L184",
+      "source_location": "L244",
+      "weight": 1.0
+    },
+    {
+      "source": "scripts_train_baseline_model_temporal_window_report",
+      "target": "valueerror",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "context": "call",
+      "source_file": "scripts/train_baseline_model.py",
+      "source_location": "L81",
       "weight": 1.0
     },
     {
@@ -13004,7 +13370,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "scripts/train_baseline_model.py",
-      "source_location": "L73",
+      "source_location": "L133",
       "weight": 1.0
     },
     {
@@ -13026,10 +13392,10 @@
       "confidence": "INFERRED",
       "confidence_score": 0.95,
       "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L186",
+      "source_location": "L240",
       "weight": 0.8
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "912ebccadee0ff132fa441d9d4b492cc3eb0e873"
+  "built_at_commit": "6ce34ec275ffd874eb91303db3d45bd97bdf6461"
 }

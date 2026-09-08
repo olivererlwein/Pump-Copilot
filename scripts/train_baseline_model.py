@@ -56,6 +56,66 @@ def get_readiness_blockers(rows, schema):
     return blockers
 
 
+def summarize_partition(rows, schema):
+    target = schema["target"]
+    time_column = schema["time_column"]
+    group_column = schema["split_group"]
+    targets = Counter(int(row[target]) for row in rows)
+    traders = Counter(row["trader"] for row in rows)
+    timestamps = [float(row[time_column]) for row in rows]
+
+    return {
+        "rows": len(rows),
+        "target_0": targets[0],
+        "target_1": targets[1],
+        "positive_rate": round(targets[1] / len(rows), 6),
+        "unique_groups": len({row[group_column] for row in rows}),
+        "traders": dict(traders.most_common()),
+        "start_ts": min(timestamps),
+        "end_ts": max(timestamps),
+    }
+
+
+def temporal_window_report(rows, schema, window_count=5):
+    if window_count < 1:
+        raise ValueError("window_count must be at least 1")
+    if not rows:
+        return []
+
+    time_column = schema["time_column"]
+    ordered = sorted(rows, key=lambda row: float(row[time_column]))
+    actual_window_count = min(window_count, len(ordered))
+    windows = []
+
+    for index in range(actual_window_count):
+        start = index * len(ordered) // actual_window_count
+        end = (index + 1) * len(ordered) // actual_window_count
+        windows.append({
+            "window": index + 1,
+            **summarize_partition(ordered[start:end], schema),
+        })
+
+    return windows
+
+
+def get_deployment_blockers(test_rows, schema):
+    target = schema["target"]
+    targets = Counter(int(row[target]) for row in test_rows)
+    readiness = schema.get("deployment_readiness", {})
+    minimum_target_0 = int(readiness.get("minimum_holdout_target_0", 10))
+    minimum_target_1 = int(readiness.get("minimum_holdout_target_1", 10))
+    blockers = []
+
+    for name, actual, required in (
+        ("holdout_target_0", targets[0], minimum_target_0),
+        ("holdout_target_1", targets[1], minimum_target_1),
+    ):
+        if actual < required:
+            blockers.append(f"{name} {actual}/{required}")
+
+    return blockers
+
+
 def validate_dataset(payload, schema):
     rows = payload.get("rows", [])
     categorical = schema["categorical_features"]
@@ -547,6 +607,7 @@ def main():
     target = schema["target"]
     train_targets = np.asarray([row[target] for row in train_rows])
     test_targets = np.asarray([row[target] for row in test_rows])
+    deployment_blockers = get_deployment_blockers(test_rows, schema)
 
     fold_reports = []
     tuning_rows = []
@@ -627,6 +688,14 @@ def main():
         "test_min_ts": min(row["signal_ts"] for row in test_rows),
         "train_targets": dict(Counter(map(int, train_targets))),
         "test_targets": dict(Counter(map(int, test_targets))),
+        "distribution": {
+            "all": summarize_partition(rows, schema),
+            "train": summarize_partition(train_rows, schema),
+            "test": summarize_partition(test_rows, schema),
+            "temporal_windows": temporal_window_report(rows, schema),
+        },
+        "deployment_ready": not deployment_blockers,
+        "deployment_blockers": deployment_blockers,
         "selected_threshold": selected_threshold,
         "threshold_tuning": {
             "method": "walk_forward_fbeta_0_5",
@@ -659,10 +728,18 @@ def main():
             dummy_predictions,
             dummy_probabilities,
         ),
-        "saved": not args.no_save,
+        "saved": False,
     }
 
+    if deployment_blockers and not args.no_save:
+        print(json.dumps(report, indent=2, ensure_ascii=True))
+        raise SystemExit(
+            "Model not saved because holdout support is insufficient: "
+            + ", ".join(deployment_blockers)
+        )
+
     if not args.no_save:
+        report["saved"] = True
         full_matrix, _ = build_matrix(rows, schema)
         full_targets = np.asarray([row[target] for row in rows])
         deployment_pipeline = build_pipeline(schema)

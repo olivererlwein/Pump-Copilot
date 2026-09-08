@@ -1,16 +1,16 @@
-# Graph Report - pump fun  (2026-09-07)
+# Graph Report - pump fun  (2026-09-08)
 
 ## Corpus Check
-- 26 files · ~34,021 words
+- 26 files · ~34,368 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 319 nodes · 788 edges · 24 communities (17 shown, 6 thin omitted)
-- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 8 edges (avg confidence: 0.88)
+- 326 nodes · 812 edges · 24 communities (17 shown, 6 thin omitted)
+- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 9 edges (avg confidence: 0.87)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `912ebcca`
+- Built from commit: `6ce34ec2`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -45,11 +45,11 @@
 3. `require_debug_mode()` - 54 edges
 4. `simulate_execution()` - 16 edges
 5. `update_execution_order()` - 15 edges
-6. `update_paper_position()` - 14 edges
-7. `create_execution_order()` - 13 edges
-8. `evaluate_buy()` - 13 edges
-9. `open_paper_position()` - 12 edges
-10. `startup()` - 12 edges
+6. `main()` - 15 edges
+7. `update_paper_position()` - 14 edges
+8. `create_execution_order()` - 13 edges
+9. `evaluate_buy()` - 13 edges
+10. `open_paper_position()` - 12 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `load_shadow_model()` --uses--> `ShadowLogisticModel`  [INFERRED]
@@ -63,8 +63,8 @@
 ## Communities (24 total, 6 thin omitted)
 
 ### Community 0 - "test_training_pipeline.py"
-Cohesion: 0.13
-Nodes (22): load_shadow_model(), build_matrix(), build_pipeline(), build_shadow_artifact(), classification_metrics(), get_readiness_blockers(), load_json(), main() (+14 more)
+Cohesion: 0.12
+Nodes (26): load_shadow_model(), build_matrix(), build_pipeline(), build_shadow_artifact(), classification_metrics(), get_deployment_blockers(), get_readiness_blockers(), load_json() (+18 more)
 
 ### Community 1 - "simulate_execution"
 Cohesion: 0.20
@@ -72,15 +72,15 @@ Nodes (22): can_retry_execution(), check_execution_timeout(), create_execution_o
 
 ### Community 2 - "app.py"
 Cohesion: 0.09
-Nodes (76): api_shadow_predictions(), api_shadow_stats(), api_training_checkpoint_freshness(), api_training_dataset(), api_training_expired_preview(), api_training_stats(), api_training_stats_by_trader(), auth() (+68 more)
+Nodes (80): api_shadow_predictions(), api_shadow_stats(), api_training_checkpoint_freshness(), api_training_dataset(), api_training_expired_preview(), api_training_stats(), api_training_stats_by_trader(), auth() (+72 more)
 
 ### Community 3 - "What You Must Do When Invoked"
 Cohesion: 0.08
 Nodes (24): For /graphify add and --watch, For /graphify query, For the commit hook and native CLAUDE.md integration, For --update and --cluster-only, /graphify, Honesty Rules, Interpreter guard for subcommands, Part A - Structural extraction for code files (+16 more)
 
 ### Community 4 - "db"
-Cohesion: 0.06
-Nodes (55): api_training_dataset_preview(), build_model_features(), calculate_copyability_score(), cleanup_finished_outcome_token(), complete_finished_signal_outcomes(), count_open_positions(), create_signal_outcome(), db() (+47 more)
+Cohesion: 0.07
+Nodes (48): api_training_dataset_preview(), build_model_features(), calculate_copyability_score(), cleanup_finished_outcome_token(), complete_finished_signal_outcomes(), create_signal_outcome(), db(), decision_from_score() (+40 more)
 
 ### Community 5 - "graphify reference: extra exports and benchmark"
 Cohesion: 0.22
@@ -91,8 +91,8 @@ Cohesion: 0.12
 Nodes (3): PumpPortalBalanceTests, PumpPortalMessageTests, StreamStateTests
 
 ### Community 7 - "stream"
-Cohesion: 0.24
-Nodes (10): is_pumpportal_error_message(), mark_signature_processed(), mark_stream_problem(), mark_stream_recovered(), post_discord_alert(), save_token_history(), save_trade(), send_discord_alert() (+2 more)
+Cohesion: 0.18
+Nodes (13): fetch_solana_balance_sol(), is_pumpportal_error_message(), mark_signature_processed(), mark_stream_problem(), mark_stream_recovered(), post_discord_alert(), pumpportal_balance_monitor(), record_pumpportal_wallet_balance() (+5 more)
 
 ### Community 8 - "graphify reference: query, path, explain"
 Cohesion: 0.33
@@ -148,16 +148,16 @@ Nodes (3): For --cluster-only, For --update (incremental re-extraction), graphif
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `ShadowLogisticModel` connect `test_training_pipeline.py` to `app.py`?**
-  _High betweenness centrality (0.077) - this node is a cross-community bridge._
+  _High betweenness centrality (0.087) - this node is a cross-community bridge._
 - **Why does `db()` connect `db` to `simulate_execution`, `app.py`, `stream`?**
-  _High betweenness centrality (0.034) - this node is a cross-community bridge._
+  _High betweenness centrality (0.033) - this node is a cross-community bridge._
 - **What connects `Usage`, `What graphify is for`, `Step 0 - GitHub repos and multi-path merge (only if a URL or several paths)` to the rest of the system?**
   _57 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `test_training_pipeline.py` be split into smaller, more focused modules?**
-  _Cohesion score 0.12912912912912913 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.11627906976744186 - nodes in this community are weakly interconnected._
 - **Should `app.py` be split into smaller, more focused modules?**
-  _Cohesion score 0.08749145591250855 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.08518518518518518 - nodes in this community are weakly interconnected._
 - **Should `What You Must Do When Invoked` be split into smaller, more focused modules?**
   _Cohesion score 0.08 - nodes in this community are weakly interconnected._
 - **Should `db` be split into smaller, more focused modules?**
-  _Cohesion score 0.06060606060606061 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.06826241134751773 - nodes in this community are weakly interconnected._

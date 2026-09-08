@@ -8,9 +8,12 @@ from scripts.train_baseline_model import (
     build_pipeline,
     build_shadow_artifact,
     classification_metrics,
+    get_deployment_blockers,
     select_threshold,
+    summarize_partition,
     temporal_group_split,
     temporal_group_validation_folds,
+    temporal_window_report,
     validate_dataset,
 )
 
@@ -25,6 +28,10 @@ def make_schema(nullable=None):
         "target": "target",
         "time_column": "signal_ts",
         "split_group": "mint",
+        "deployment_readiness": {
+            "minimum_holdout_target_0": 2,
+            "minimum_holdout_target_1": 2,
+        },
     }
 
 
@@ -157,6 +164,53 @@ class ThresholdSelectionTests(unittest.TestCase):
         self.assertIsNone(metrics["roc_auc"])
         self.assertIsNone(metrics["average_precision"])
         self.assertEqual(metrics["confusion_matrix"], [[1, 1], [0, 0]])
+
+
+class TrainingDiagnosticsTests(unittest.TestCase):
+    def test_reports_temporal_target_and_trader_drift(self):
+        rows = [
+            make_row(index, f"mint-{index}", int(index >= 5))
+            for index in range(10)
+        ]
+        for index, row in enumerate(rows):
+            row["trader"] = "early" if index < 5 else "late"
+
+        windows = temporal_window_report(
+            rows,
+            make_schema(),
+            window_count=2,
+        )
+
+        self.assertEqual(sum(window["rows"] for window in windows), 10)
+        self.assertEqual(windows[0]["positive_rate"], 0.0)
+        self.assertEqual(windows[1]["positive_rate"], 1.0)
+        self.assertEqual(windows[0]["traders"], {"early": 5})
+        self.assertEqual(windows[1]["traders"], {"late": 5})
+        self.assertLess(windows[0]["end_ts"], windows[1]["start_ts"])
+
+    def test_blocks_deployment_with_too_few_holdout_positives(self):
+        rows = [
+            make_row(index, f"mint-{index}", target)
+            for index, target in enumerate([0, 0, 0, 1])
+        ]
+
+        blockers = get_deployment_blockers(rows, make_schema())
+
+        self.assertEqual(blockers, ["holdout_target_1 1/2"])
+
+    def test_partition_summary_counts_targets_and_groups(self):
+        rows = [
+            make_row(0, "mint-a", 0),
+            make_row(1, "mint-b", 1),
+            make_row(2, "mint-b", 1),
+        ]
+
+        summary = summarize_partition(rows, make_schema())
+
+        self.assertEqual(summary["rows"], 3)
+        self.assertEqual(summary["target_0"], 1)
+        self.assertEqual(summary["target_1"], 2)
+        self.assertEqual(summary["unique_groups"], 2)
 
 
 class ShadowArtifactTests(unittest.TestCase):
