@@ -16,6 +16,7 @@ from sklearn.metrics import (
     average_precision_score,
     balanced_accuracy_score,
     confusion_matrix,
+    fbeta_score,
     f1_score,
     precision_score,
     recall_score,
@@ -172,6 +173,89 @@ def temporal_group_split(rows, schema, test_fraction):
     return train_rows, test_rows, purged_rows, cutoff_ts
 
 
+def temporal_group_validation_folds(
+    rows,
+    schema,
+    fold_count=3,
+    min_train_fraction=0.4,
+):
+    if fold_count < 2:
+        raise ValueError("fold_count must be at least 2")
+
+    time_column = schema["time_column"]
+    group_column = schema["split_group"]
+    target = schema["target"]
+    ordered = sorted(rows, key=lambda row: float(row[time_column]))
+    first_validation = max(1, int(len(ordered) * min_train_fraction))
+    boundaries = np.linspace(
+        first_validation,
+        len(ordered),
+        fold_count + 1,
+        dtype=int,
+    )
+    folds = []
+
+    for start_index, end_index in zip(boundaries[:-1], boundaries[1:]):
+        if start_index >= len(ordered) or end_index <= start_index:
+            continue
+
+        start_ts = float(ordered[start_index][time_column])
+        end_ts = (
+            float(ordered[end_index][time_column])
+            if end_index < len(ordered)
+            else math.inf
+        )
+        validation_rows = [
+            row
+            for row in ordered
+            if start_ts <= float(row[time_column]) < end_ts
+        ]
+        validation_groups = {
+            row[group_column] for row in validation_rows
+        }
+        train_candidates = [
+            row
+            for row in ordered
+            if float(row[time_column]) < start_ts
+        ]
+        train_rows = [
+            row
+            for row in train_candidates
+            if row[group_column] not in validation_groups
+        ]
+        purged_rows = [
+            row
+            for row in train_candidates
+            if row[group_column] in validation_groups
+        ]
+
+        if not train_rows or not validation_rows:
+            continue
+        if {row[target] for row in train_rows} != {0, 1}:
+            continue
+        if {row[target] for row in validation_rows} != {0, 1}:
+            continue
+
+        train_groups = {row[group_column] for row in train_rows}
+        if train_groups & validation_groups:
+            raise ValueError("A fold group appears in both partitions")
+
+        folds.append({
+            "train_rows": train_rows,
+            "validation_rows": validation_rows,
+            "purged_rows": purged_rows,
+            "start_ts": start_ts,
+            "end_ts": None if math.isinf(end_ts) else end_ts,
+        })
+
+    if len(folds) < 2:
+        raise ValueError(
+            "Temporal validation produced fewer than two usable folds"
+        )
+
+    return folds
+
+
 def build_matrix(rows, schema):
     categorical = schema["categorical_features"]
     numeric = schema["numeric_features"]
@@ -240,9 +324,12 @@ def build_pipeline(schema):
 
 
 def classification_metrics(targets, predictions, probabilities):
+    classes = set(map(int, targets))
     return {
-        "balanced_accuracy": round(
-            balanced_accuracy_score(targets, predictions), 6
+        "balanced_accuracy": (
+            round(balanced_accuracy_score(targets, predictions), 6)
+            if classes == {0, 1}
+            else None
         ),
         "precision": round(
             precision_score(targets, predictions, zero_division=0), 6
@@ -253,9 +340,15 @@ def classification_metrics(targets, predictions, probabilities):
         "f1": round(
             f1_score(targets, predictions, zero_division=0), 6
         ),
-        "roc_auc": round(roc_auc_score(targets, probabilities), 6),
-        "average_precision": round(
-            average_precision_score(targets, probabilities), 6
+        "roc_auc": (
+            round(roc_auc_score(targets, probabilities), 6)
+            if classes == {0, 1}
+            else None
+        ),
+        "average_precision": (
+            round(average_precision_score(targets, probabilities), 6)
+            if classes == {0, 1}
+            else None
         ),
         "confusion_matrix": confusion_matrix(
             targets,
@@ -263,6 +356,69 @@ def classification_metrics(targets, predictions, probabilities):
             labels=[0, 1],
         ).tolist(),
     }
+
+
+def select_threshold(targets, probabilities):
+    best = None
+
+    for threshold in np.linspace(0.05, 0.95, 181):
+        predictions = (probabilities >= threshold).astype(int)
+        candidate = {
+            "threshold": float(threshold),
+            "fbeta_0_5": float(
+                fbeta_score(
+                    targets,
+                    predictions,
+                    beta=0.5,
+                    zero_division=0,
+                )
+            ),
+            "precision": float(
+                precision_score(targets, predictions, zero_division=0)
+            ),
+            "balanced_accuracy": float(
+                balanced_accuracy_score(targets, predictions)
+            ),
+            "recall": float(
+                recall_score(targets, predictions, zero_division=0)
+            ),
+        }
+        rank = (
+            candidate["fbeta_0_5"],
+            candidate["precision"],
+            candidate["balanced_accuracy"],
+            candidate["recall"],
+            candidate["threshold"],
+        )
+
+        if best is None or rank > best[0]:
+            best = (rank, candidate)
+
+    return round(best[1]["threshold"], 6)
+
+
+def metrics_by_trader(rows, target, predictions, probabilities):
+    grouped = {}
+
+    for index, row in enumerate(rows):
+        grouped.setdefault(row["trader"], []).append(index)
+
+    result = {}
+    for trader, indexes in sorted(grouped.items()):
+        trader_targets = np.asarray([rows[i][target] for i in indexes])
+        trader_predictions = np.asarray([predictions[i] for i in indexes])
+        trader_probabilities = np.asarray([probabilities[i] for i in indexes])
+        result[trader] = {
+            "rows": len(indexes),
+            "targets": dict(Counter(map(int, trader_targets))),
+            **classification_metrics(
+                trader_targets,
+                trader_predictions,
+                trader_probabilities,
+            ),
+        }
+
+    return result
 
 
 def main():
@@ -315,10 +471,62 @@ def main():
     train_targets = np.asarray([row[target] for row in train_rows])
     test_targets = np.asarray([row[target] for row in test_rows])
 
+    fold_reports = []
+    tuning_rows = []
+    tuning_targets = []
+    tuning_probabilities = []
+
+    for fold_number, fold in enumerate(
+        temporal_group_validation_folds(train_rows, schema),
+        start=1,
+    ):
+        fold_train_matrix, _ = build_matrix(
+            fold["train_rows"],
+            schema,
+        )
+        fold_validation_matrix, _ = build_matrix(
+            fold["validation_rows"],
+            schema,
+        )
+        fold_train_targets = np.asarray([
+            row[target] for row in fold["train_rows"]
+        ])
+        fold_validation_targets = np.asarray([
+            row[target] for row in fold["validation_rows"]
+        ])
+        fold_pipeline = build_pipeline(schema)
+        fold_pipeline.fit(fold_train_matrix, fold_train_targets)
+        fold_probabilities = fold_pipeline.predict_proba(
+            fold_validation_matrix
+        )[:, 1]
+
+        tuning_rows.extend(fold["validation_rows"])
+        tuning_targets.extend(fold_validation_targets)
+        tuning_probabilities.extend(fold_probabilities)
+        fold_reports.append({
+            "fold": fold_number,
+            "train_rows": len(fold["train_rows"]),
+            "validation_rows": len(fold["validation_rows"]),
+            "purged_rows": len(fold["purged_rows"]),
+            "start_ts": fold["start_ts"],
+            "end_ts": fold["end_ts"],
+        })
+
+    tuning_targets = np.asarray(tuning_targets)
+    tuning_probabilities = np.asarray(tuning_probabilities)
+    selected_threshold = select_threshold(
+        tuning_targets,
+        tuning_probabilities,
+    )
+    tuning_predictions = (
+        tuning_probabilities >= selected_threshold
+    ).astype(int)
+
     pipeline = build_pipeline(schema)
     pipeline.fit(train_matrix, train_targets)
     probabilities = pipeline.predict_proba(test_matrix)[:, 1]
-    predictions = (probabilities >= 0.5).astype(int)
+    predictions = (probabilities >= selected_threshold).astype(int)
+    default_predictions = (probabilities >= 0.5).astype(int)
 
     dummy = DummyClassifier(strategy="prior")
     dummy.fit(train_matrix, train_targets)
@@ -342,8 +550,30 @@ def main():
         "test_min_ts": min(row["signal_ts"] for row in test_rows),
         "train_targets": dict(Counter(map(int, train_targets))),
         "test_targets": dict(Counter(map(int, test_targets))),
+        "selected_threshold": selected_threshold,
+        "threshold_tuning": {
+            "method": "walk_forward_fbeta_0_5",
+            "rows": len(tuning_rows),
+            "folds": fold_reports,
+            "metrics": classification_metrics(
+                tuning_targets,
+                tuning_predictions,
+                tuning_probabilities,
+            ),
+        },
         "model_metrics": classification_metrics(
             test_targets,
+            predictions,
+            probabilities,
+        ),
+        "model_metrics_at_0_5": classification_metrics(
+            test_targets,
+            default_predictions,
+            probabilities,
+        ),
+        "metrics_by_trader": metrics_by_trader(
+            test_rows,
+            target,
             predictions,
             probabilities,
         ),
@@ -356,13 +586,18 @@ def main():
     }
 
     if not args.no_save:
+        full_matrix, _ = build_matrix(rows, schema)
+        full_targets = np.asarray([row[target] for row in rows])
+        deployment_pipeline = build_pipeline(schema)
+        deployment_pipeline.fit(full_matrix, full_targets)
         output_path = Path(args.output)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         joblib.dump({
-            "pipeline": pipeline,
+            "pipeline": deployment_pipeline,
             "schema": schema,
             "feature_columns": feature_columns,
-            "threshold": 0.5,
+            "threshold": selected_threshold,
+            "fit_rows": len(rows),
             "trained_at": datetime.now(timezone.utc).isoformat(),
             "sklearn_version": sklearn.__version__,
             "report": report,
