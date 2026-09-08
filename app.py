@@ -6530,11 +6530,7 @@ async def stream():
 
             error_text = str(ex or ex.__class__.__name__)
 
-            if error_text not in (
-                "STREAM_INACTIVITY_TIMEOUT",
-                "PUMPPORTAL_SUBSCRIPTION_REJECTED",
-            ):
-                await mark_stream_problem(error_text)
+            await mark_stream_problem(error_text)
 
             print(
                 "[STREAM ERROR]",

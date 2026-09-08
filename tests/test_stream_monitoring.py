@@ -59,6 +59,26 @@ class StreamStateTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(app.STREAM_CONNECTED)
         self.assertEqual(app.STREAM_LAST_ERROR, "")
 
+    async def test_inactivity_alert_is_sent_once_after_threshold(self):
+        app.DISCORD_ALERT_WEBHOOK_URL = "https://discord.test/webhook"
+
+        with patch.object(
+            app,
+            "send_discord_alert",
+            new=AsyncMock(),
+        ) as send_alert, patch.object(
+            app.time,
+            "time",
+            side_effect=[1000.0, 1181.0, 1362.0],
+        ):
+            await app.mark_stream_problem("STREAM_INACTIVITY_TIMEOUT")
+            await app.mark_stream_problem("STREAM_INACTIVITY_TIMEOUT")
+            await app.mark_stream_problem("STREAM_INACTIVITY_TIMEOUT")
+
+        self.assertFalse(app.STREAM_CONNECTED)
+        self.assertTrue(app.STREAM_ALERT_ACTIVE)
+        self.assertEqual(send_alert.await_count, 1)
+
 
 class PumpPortalBalanceTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):

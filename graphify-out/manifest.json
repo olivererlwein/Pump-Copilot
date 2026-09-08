@@ -6,10 +6,10 @@
     "semantic_hash": "5ebef3dd159986e465ab65e4014107ec"
   },
   "app.py": {
-    "mtime": 1788830272.3887727,
-    "seen": 1788834658.8527305,
-    "ast_hash": "0f22d4d29e6d5a8e2719d5ab8605fef5",
-    "semantic_hash": "0f22d4d29e6d5a8e2719d5ab8605fef5"
+    "mtime": 1788835961.952209,
+    "seen": 1788835983.3760636,
+    "ast_hash": "28280af9affec56c07bc82e8b33b3501",
+    "semantic_hash": ""
   },
   "models/baseline_v2_shadow.json": {
     "mtime": 1788830200.023959,
@@ -48,10 +48,10 @@
     "semantic_hash": "b70f68bb25b2a097e38c0948bbb44fd3"
   },
   "tests/test_stream_monitoring.py": {
-    "mtime": 1788810737.1184716,
-    "seen": 1788834658.8527467,
-    "ast_hash": "13ef771977558a5bc884fb90482c68d7",
-    "semantic_hash": "13ef771977558a5bc884fb90482c68d7"
+    "mtime": 1788835961.954204,
+    "seen": 1788835983.3760777,
+    "ast_hash": "f75e3ace31a8abf2c222dfd1e727f14e",
+    "semantic_hash": ""
   },
   "tests/test_training_pipeline.py": {
     "mtime": 1788830135.7525291,
@@ -64,5 +64,113 @@
     "seen": 1788834658.8527503,
     "ast_hash": "c5691d9dbc03dc918e558fba14f8091b",
     "semantic_hash": "c5691d9dbc03dc918e558fba14f8091b"
+  },
+  ".codex/skills/graphify/SKILL.md": {
+    "mtime": 1788834572.4996145,
+    "seen": 1788835983.3760822,
+    "ast_hash": "212b55d95333d84e14262f8ec83faa2b",
+    "semantic_hash": ""
+  },
+  ".codex/skills/graphify/references/add-watch.md": {
+    "mtime": 1788834551.4494784,
+    "seen": 1788835983.3760836,
+    "ast_hash": "d59d027fe449f06aa03905a01184e779",
+    "semantic_hash": ""
+  },
+  ".codex/skills/graphify/references/exports.md": {
+    "mtime": 1788834551.4504766,
+    "seen": 1788835983.376085,
+    "ast_hash": "9da2a2152e60a22f07f05fed5158f287",
+    "semantic_hash": ""
+  },
+  ".codex/skills/graphify/references/extraction-spec.md": {
+    "mtime": 1788834551.451477,
+    "seen": 1788835983.3760862,
+    "ast_hash": "bf895ec4d4e40f5f66f7d31c2a9bd4a7",
+    "semantic_hash": ""
+  },
+  ".codex/skills/graphify/references/github-and-merge.md": {
+    "mtime": 1788834551.4534757,
+    "seen": 1788835983.376087,
+    "ast_hash": "cde13df085e4c492aeb7ba298a996d0d",
+    "semantic_hash": ""
+  },
+  ".codex/skills/graphify/references/hooks.md": {
+    "mtime": 1788834551.4544759,
+    "seen": 1788835983.376088,
+    "ast_hash": "3f545db6ce646650bb9de588f5512a27",
+    "semantic_hash": ""
+  },
+  ".codex/skills/graphify/references/query.md": {
+    "mtime": 1788834551.4564757,
+    "seen": 1788835983.3760886,
+    "ast_hash": "3c46f8ad006874260614ed8657d02307",
+    "semantic_hash": ""
+  },
+  ".codex/skills/graphify/references/transcribe.md": {
+    "mtime": 1788834551.458001,
+    "seen": 1788835983.3760896,
+    "ast_hash": "67b6a5fa6c0974e18f60db9f8932fbd8",
+    "semantic_hash": ""
+  },
+  ".codex/skills/graphify/references/update.md": {
+    "mtime": 1788834551.459002,
+    "seen": 1788835983.3760905,
+    "ast_hash": "9378bd03d56baaf78bd738ab3848f142",
+    "semantic_hash": ""
+  },
+  "AGENTS.md": {
+    "mtime": 1788834572.5036156,
+    "seen": 1788835983.3760915,
+    "ast_hash": "21ceb6533048be51308e69e7b74a35cf",
+    "semantic_hash": ""
+  },
+  "README.md": {
+    "mtime": 1787801872.674408,
+    "seen": 1788835983.3760922,
+    "ast_hash": "d1eddd6449edfac0e177adafda8d363f",
+    "semantic_hash": ""
+  },
+  "graphify-out/memory/query_20260908_023304_43fe12f6_cu\u00e1l_es_el_flujo_completo_desde_que_recibimos_inf.md": {
+    "mtime": 1788834784.3755896,
+    "seen": 1788835983.3760948,
+    "ast_hash": "113dc18a80003eae26174ea4030a57a9",
+    "semantic_hash": ""
+  },
+  "graphify-out/memory/query_20260908_023304_e9835550_qu\u00e9_componentes_participan_en_paper_trading.md": {
+    "mtime": 1788834784.8142262,
+    "seen": 1788835983.376096,
+    "ast_hash": "82dd4007368feb723bdaddd0e7341ac7",
+    "semantic_hash": ""
+  },
+  "graphify-out/memory/query_20260908_023305_ce11886b_d\u00f3nde_deber\u00edamos_integrar_binance_sin_acoplarlo_d.md": {
+    "mtime": 1788834785.6170466,
+    "seen": 1788835983.3760974,
+    "ast_hash": "0588f36b571b7f7cf40e625e78225bca",
+    "semantic_hash": ""
+  },
+  "graphify-out/memory/query_20260908_023305_f791f404_qu\u00e9_archivos_o_m\u00f3dulos_ser\u00edan_afectados_si_modifi.md": {
+    "mtime": 1788834785.2587793,
+    "seen": 1788835983.3760989,
+    "ast_hash": "1a38d3fb17ce72396b4abfd65ed4fdad",
+    "semantic_hash": ""
+  },
+  "requirements-training.txt": {
+    "mtime": 1788391499.8353693,
+    "seen": 1788835983.3760996,
+    "ast_hash": "41cfa03adfbfe38c2f98fa4b8f4a2ea8",
+    "semantic_hash": ""
+  },
+  "requirements.txt": {
+    "mtime": 1787595917.2844205,
+    "seen": 1788835983.3761005,
+    "ast_hash": "a586414fa160363f720a8a579d157d21",
+    "semantic_hash": ""
+  },
+  "static/index.html": {
+    "mtime": 1788833551.7814856,
+    "seen": 1788835983.3761015,
+    "ast_hash": "8e09d0a5f346783d6b384c6cbd13dcbd",
+    "semantic_hash": ""
   }
 }
