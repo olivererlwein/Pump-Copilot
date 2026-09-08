@@ -8,6 +8,10 @@
   <meta name="theme-color" content="#0b0b0d">
   <link rel="icon" href="data:,">
   <link rel="manifest" href="/static/manifest.webmanifest">
+  <script>
+    document.documentElement.dataset.theme=localStorage.getItem("pump_theme")
+      ||(matchMedia("(prefers-color-scheme: light)").matches?"light":"dark");
+  </script>
   <title>Pump Copilot</title>
 
   <style>
@@ -1173,9 +1177,14 @@
       <b>Live Desk</b>
     </div>
 
-    <div id="statusChip" class="status">
-      <span class="dot"></span>
-      <span id="status">offline</span>
+    <div class="header-actions">
+      <div id="statusChip" class="status">
+        <span class="dot"></span>
+        <span id="status">offline</span>
+      </div>
+      <button id="themeToggle" class="theme-toggle" type="button" onclick="toggleTheme()" aria-label="Cambiar apariencia" title="Cambiar apariencia">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9c-5 2-10-3-9-9Z"/></svg>
+      </button>
     </div>
   </header>
 
@@ -1362,6 +1371,31 @@ let SIGNAL_DECISION_FILTER = "all";
 let SIGNAL_TRADER_FILTER = "all";
 let TRADE_SIDE_FILTER = "all";
 let TRADE_TRADER_FILTER = "all";
+
+function syncThemeControl(){
+  const light=document.documentElement.dataset.theme==="light";
+  const button=document.getElementById("themeToggle");
+  const themeColor=document.querySelector('meta[name="theme-color"]');
+  if(themeColor) themeColor.content=light?"#f5f5f7":"#0b0b0d";
+  if(!button) return;
+  button.classList.toggle("light",light);
+  button.title=light?"Usar apariencia oscura":"Usar apariencia clara";
+  button.setAttribute("aria-label",button.title);
+}
+
+function toggleTheme(){
+  const next=document.documentElement.dataset.theme==="light"?"dark":"light";
+  document.documentElement.dataset.theme=next;
+  localStorage.setItem("pump_theme",next);
+  syncThemeControl();
+}
+
+const systemTheme=matchMedia("(prefers-color-scheme: light)");
+systemTheme.addEventListener?.("change",event=>{
+  if(localStorage.getItem("pump_theme")) return;
+  document.documentElement.dataset.theme=event.matches?"light":"dark";
+  syncThemeControl();
+});
 
 function esc(v){
   return String(v ?? "")
@@ -2772,6 +2806,7 @@ document.addEventListener("touchend",e=>{
 },{passive:false});
 
 
+syncThemeControl();
 if(TOKEN) refresh();
 setInterval(()=>{
   if(TOKEN) refresh();
