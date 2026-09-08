@@ -1,0 +1,68 @@
+{
+  ".codex/hooks.json": {
+    "mtime": 1788834572.504615,
+    "seen": 1788834658.8527236,
+    "ast_hash": "5ebef3dd159986e465ab65e4014107ec",
+    "semantic_hash": "5ebef3dd159986e465ab65e4014107ec"
+  },
+  "app.py": {
+    "mtime": 1788830272.3887727,
+    "seen": 1788834658.8527305,
+    "ast_hash": "0f22d4d29e6d5a8e2719d5ab8605fef5",
+    "semantic_hash": "0f22d4d29e6d5a8e2719d5ab8605fef5"
+  },
+  "models/baseline_v2_shadow.json": {
+    "mtime": 1788830200.023959,
+    "seen": 1788834658.8527336,
+    "ast_hash": "e1699bf2b733fd503cb866a0418bc4b5",
+    "semantic_hash": "e1699bf2b733fd503cb866a0418bc4b5"
+  },
+  "scripts/export_training_dataset.py": {
+    "mtime": 1788371461.7128506,
+    "seen": 1788834658.8527372,
+    "ast_hash": "1aae7bdc8a38ac93a9f890b314972c02",
+    "semantic_hash": "1aae7bdc8a38ac93a9f890b314972c02"
+  },
+  "scripts/train_baseline_model.py": {
+    "mtime": 1788830135.747529,
+    "seen": 1788834658.852739,
+    "ast_hash": "c952ba90439d51873b9a393d57dd4ef5",
+    "semantic_hash": "c952ba90439d51873b9a393d57dd4ef5"
+  },
+  "scripts/validate_training_dataset.py": {
+    "mtime": 1788375805.715408,
+    "seen": 1788834658.8527405,
+    "ast_hash": "ba4747b022459bfcd74d23914fbea2f8",
+    "semantic_hash": "ba4747b022459bfcd74d23914fbea2f8"
+  },
+  "shadow_model.py": {
+    "mtime": 1788829544.7624025,
+    "seen": 1788834658.852744,
+    "ast_hash": "94d1d9c0e8a98f2599b35d7753e8d767",
+    "semantic_hash": "94d1d9c0e8a98f2599b35d7753e8d767"
+  },
+  "tests/test_shadow_mode.py": {
+    "mtime": 1788830166.4307308,
+    "seen": 1788834658.8527458,
+    "ast_hash": "b70f68bb25b2a097e38c0948bbb44fd3",
+    "semantic_hash": "b70f68bb25b2a097e38c0948bbb44fd3"
+  },
+  "tests/test_stream_monitoring.py": {
+    "mtime": 1788810737.1184716,
+    "seen": 1788834658.8527467,
+    "ast_hash": "13ef771977558a5bc884fb90482c68d7",
+    "semantic_hash": "13ef771977558a5bc884fb90482c68d7"
+  },
+  "tests/test_training_pipeline.py": {
+    "mtime": 1788830135.7525291,
+    "seen": 1788834658.8527493,
+    "ast_hash": "0d80749745f351ee60e0ba91d21a11d2",
+    "semantic_hash": "0d80749745f351ee60e0ba91d21a11d2"
+  },
+  "training/schema_v2.json": {
+    "mtime": 1788375805.7144108,
+    "seen": 1788834658.8527503,
+    "ast_hash": "c5691d9dbc03dc918e558fba14f8091b",
+    "semantic_hash": "c5691d9dbc03dc918e558fba14f8091b"
+  }
+}
