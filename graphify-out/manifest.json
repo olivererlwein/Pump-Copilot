@@ -24,9 +24,9 @@
     "semantic_hash": "1aae7bdc8a38ac93a9f890b314972c02"
   },
   "scripts/train_baseline_model.py": {
-    "mtime": 1788868714.3851001,
-    "seen": 1788868827.003895,
-    "ast_hash": "bdfb50939b83b290543a9e6a371bd240",
+    "mtime": 1788899639.3759968,
+    "seen": 1788899690.6575985,
+    "ast_hash": "5819068721a24b26f8e375f565ad7190",
     "semantic_hash": ""
   },
   "scripts/validate_training_dataset.py": {
@@ -54,15 +54,15 @@
     "semantic_hash": ""
   },
   "tests/test_training_pipeline.py": {
-    "mtime": 1788868714.3871036,
-    "seen": 1788868827.0039024,
-    "ast_hash": "4d695648d3f878f7ac16c0b5560fe2b3",
+    "mtime": 1788899569.3880231,
+    "seen": 1788899690.6576083,
+    "ast_hash": "3503f9d25c9c7c3d84375b26ae93199a",
     "semantic_hash": ""
   },
   "training/schema_v2.json": {
-    "mtime": 1788868714.3851001,
-    "seen": 1788868827.0039034,
-    "ast_hash": "0621a81fae5daf85ebb66441d0568ffc",
+    "mtime": 1788899639.3769948,
+    "seen": 1788899690.6576097,
+    "ast_hash": "5906cde8d29ca022f6ec1f492e953024",
     "semantic_hash": ""
   },
   ".codex/skills/graphify/SKILL.md": {
@@ -171,6 +171,12 @@
     "mtime": 1788833551.7814856,
     "seen": 1788835983.3761015,
     "ast_hash": "8e09d0a5f346783d6b384c6cbd13dcbd",
+    "semantic_hash": ""
+  },
+  "graphify-out/memory/query_20260908_120214_b041fd8c_sigamos.md": {
+    "mtime": 1788868934.1403189,
+    "seen": 1788899690.657638,
+    "ast_hash": "41309f312f5a3e38630b0325e054b87b",
     "semantic_hash": ""
   }
 }

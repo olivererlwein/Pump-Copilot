@@ -1,16 +1,16 @@
 # Graph Report - pump fun  (2026-09-08)
 
 ## Corpus Check
-- 26 files · ~34,368 words
+- 27 files · ~34,680 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 326 nodes · 812 edges · 24 communities (17 shown, 6 thin omitted)
+- 333 nodes · 824 edges · 25 communities (18 shown, 6 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 9 edges (avg confidence: 0.87)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `6ce34ec2`
+- Built from commit: `299c973f`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -38,6 +38,7 @@
 - graphify reference: transcribe video and audio
 - AGENTS.md
 - extraction-spec.md
+- Q: sigamos
 
 ## God Nodes (most connected - your core abstractions)
 1. `db()` - 86 edges
@@ -60,10 +61,10 @@
 ## Import Cycles
 - None detected.
 
-## Communities (24 total, 6 thin omitted)
+## Communities (25 total, 6 thin omitted)
 
 ### Community 0 - "test_training_pipeline.py"
-Cohesion: 0.12
+Cohesion: 0.11
 Nodes (26): load_shadow_model(), build_matrix(), build_pipeline(), build_shadow_artifact(), classification_metrics(), get_deployment_blockers(), get_readiness_blockers(), load_json() (+18 more)
 
 ### Community 1 - "simulate_execution"
@@ -71,8 +72,8 @@ Cohesion: 0.20
 Nodes (22): can_retry_execution(), check_execution_timeout(), create_execution_order(), create_execution_order_idempotent(), demo_controlled_retry(), demo_execution_timeout(), demo_idempotency_sent(), demo_idempotency_sent_failed() (+14 more)
 
 ### Community 2 - "app.py"
-Cohesion: 0.09
-Nodes (80): api_shadow_predictions(), api_shadow_stats(), api_training_checkpoint_freshness(), api_training_dataset(), api_training_expired_preview(), api_training_stats(), api_training_stats_by_trader(), auth() (+72 more)
+Cohesion: 0.08
+Nodes (81): api_shadow_predictions(), api_shadow_stats(), api_training_checkpoint_freshness(), api_training_dataset(), api_training_expired_preview(), api_training_stats(), api_training_stats_by_trader(), auth() (+73 more)
 
 ### Community 3 - "What You Must Do When Invoked"
 Cohesion: 0.08
@@ -80,7 +81,7 @@ Nodes (24): For /graphify add and --watch, For /graphify query, For the commit h
 
 ### Community 4 - "db"
 Cohesion: 0.07
-Nodes (48): api_training_dataset_preview(), build_model_features(), calculate_copyability_score(), cleanup_finished_outcome_token(), complete_finished_signal_outcomes(), create_signal_outcome(), db(), decision_from_score() (+40 more)
+Nodes (47): api_training_dataset_preview(), build_model_features(), calculate_copyability_score(), cleanup_finished_outcome_token(), complete_finished_signal_outcomes(), create_signal_outcome(), db(), decision_from_score() (+39 more)
 
 ### Community 5 - "graphify reference: extra exports and benchmark"
 Cohesion: 0.22
@@ -130,34 +131,38 @@ Nodes (3): For git commit hook, For native CLAUDE.md integration, graphify refer
 Cohesion: 0.50
 Nodes (3): For --cluster-only, For --update (incremental re-extraction), graphify reference: incremental update and cluster-only
 
+### Community 24 - "Q: sigamos"
+Cohesion: 0.40
+Nodes (4): Answer, Outcome, Q: sigamos, Source Nodes
+
 ## Knowledge Gaps
-- **57 isolated node(s):** `Usage`, `What graphify is for`, `Step 0 - GitHub repos and multi-path merge (only if a URL or several paths)`, `Step 1 - Ensure graphify is installed`, `Step 2 - Detect files` (+52 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 93 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **60 isolated node(s):** `Usage`, `What graphify is for`, `Step 0 - GitHub repos and multi-path merge (only if a URL or several paths)`, `Step 1 - Ensure graphify is installed`, `Step 2 - Detect files` (+55 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 97 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
 - **6 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Work-memory lessons
 
 **Preferred sources** — corroborated by past sessions; start here.
-- `evaluate_buy()` (4× useful, score=3.999986605) _(code changed — re-verify)_
-- `open_paper_position()` (2× useful, score=1.999993409) _(code changed — re-verify)_
-- `save_trade()` (2× useful, score=1.999993292) _(code changed — re-verify)_
-- `stream()` (2× useful, score=1.999993292) _(code changed — re-verify)_
-- `decision_from_score()` (2× useful, score=1.999993196) _(code changed — re-verify)_
+- `evaluate_buy()` (4× useful, score=3.962370786)
+- `open_paper_position()` (2× useful, score=1.981185498)
+- `save_trade()` (2× useful, score=1.981185382)
+- `stream()` (2× useful, score=1.981185382)
+- `decision_from_score()` (2× useful, score=1.981185287)
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `ShadowLogisticModel` connect `test_training_pipeline.py` to `app.py`?**
-  _High betweenness centrality (0.087) - this node is a cross-community bridge._
+  _High betweenness centrality (0.088) - this node is a cross-community bridge._
 - **Why does `db()` connect `db` to `simulate_execution`, `app.py`, `stream`?**
-  _High betweenness centrality (0.033) - this node is a cross-community bridge._
+  _High betweenness centrality (0.031) - this node is a cross-community bridge._
 - **What connects `Usage`, `What graphify is for`, `Step 0 - GitHub repos and multi-path merge (only if a URL or several paths)` to the rest of the system?**
-  _57 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _60 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `test_training_pipeline.py` be split into smaller, more focused modules?**
-  _Cohesion score 0.11627906976744186 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.11400966183574879 - nodes in this community are weakly interconnected._
 - **Should `app.py` be split into smaller, more focused modules?**
-  _Cohesion score 0.08518518518518518 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.08370972598614874 - nodes in this community are weakly interconnected._
 - **Should `What You Must Do When Invoked` be split into smaller, more focused modules?**
   _Cohesion score 0.08 - nodes in this community are weakly interconnected._
 - **Should `db` be split into smaller, more focused modules?**
-  _Cohesion score 0.06826241134751773 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.07030527289546716 - nodes in this community are weakly interconnected._

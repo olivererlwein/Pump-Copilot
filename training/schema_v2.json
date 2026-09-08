@@ -42,6 +42,9 @@
   },
   "deployment_readiness": {
     "minimum_holdout_target_0": 10,
-    "minimum_holdout_target_1": 10
+    "minimum_holdout_target_1": 10,
+    "minimum_holdout_target_0_groups": 5,
+    "minimum_holdout_target_1_groups": 5,
+    "maximum_holdout_group_share": 0.25
   }
 }

@@ -63,13 +63,27 @@ def summarize_partition(rows, schema):
     targets = Counter(int(row[target]) for row in rows)
     traders = Counter(row["trader"] for row in rows)
     timestamps = [float(row[time_column]) for row in rows]
+    groups = Counter(row[group_column] for row in rows)
+    target_groups = {
+        value: {
+            row[group_column]
+            for row in rows
+            if int(row[target]) == value
+        }
+        for value in (0, 1)
+    }
+    largest_group_rows = max(groups.values())
 
     return {
         "rows": len(rows),
         "target_0": targets[0],
         "target_1": targets[1],
         "positive_rate": round(targets[1] / len(rows), 6),
-        "unique_groups": len({row[group_column] for row in rows}),
+        "unique_groups": len(groups),
+        "target_0_groups": len(target_groups[0]),
+        "target_1_groups": len(target_groups[1]),
+        "largest_group_rows": largest_group_rows,
+        "largest_group_share": round(largest_group_rows / len(rows), 6),
         "traders": dict(traders.most_common()),
         "start_ts": min(timestamps),
         "end_ts": max(timestamps),
@@ -100,10 +114,29 @@ def temporal_window_report(rows, schema, window_count=5):
 
 def get_deployment_blockers(test_rows, schema):
     target = schema["target"]
+    group_column = schema["split_group"]
     targets = Counter(int(row[target]) for row in test_rows)
+    target_groups = {
+        value: {
+            row[group_column]
+            for row in test_rows
+            if int(row[target]) == value
+        }
+        for value in (0, 1)
+    }
+    groups = Counter(row[group_column] for row in test_rows)
     readiness = schema.get("deployment_readiness", {})
     minimum_target_0 = int(readiness.get("minimum_holdout_target_0", 10))
     minimum_target_1 = int(readiness.get("minimum_holdout_target_1", 10))
+    minimum_target_0_groups = int(
+        readiness.get("minimum_holdout_target_0_groups", 5)
+    )
+    minimum_target_1_groups = int(
+        readiness.get("minimum_holdout_target_1_groups", 5)
+    )
+    maximum_group_share = float(
+        readiness.get("maximum_holdout_group_share", 0.25)
+    )
     blockers = []
 
     for name, actual, required in (
@@ -112,6 +145,32 @@ def get_deployment_blockers(test_rows, schema):
     ):
         if actual < required:
             blockers.append(f"{name} {actual}/{required}")
+
+    for name, actual, required in (
+        (
+            "holdout_target_0_groups",
+            len(target_groups[0]),
+            minimum_target_0_groups,
+        ),
+        (
+            "holdout_target_1_groups",
+            len(target_groups[1]),
+            minimum_target_1_groups,
+        ),
+    ):
+        if actual < required:
+            blockers.append(f"{name} {actual}/{required}")
+
+    largest_group_share = (
+        max(groups.values()) / len(test_rows)
+        if test_rows
+        else 0.0
+    )
+    if largest_group_share > maximum_group_share:
+        blockers.append(
+            "holdout_largest_group_share "
+            f"{largest_group_share:.3f}/{maximum_group_share:.3f}"
+        )
 
     return blockers
 

@@ -31,6 +31,9 @@ def make_schema(nullable=None):
         "deployment_readiness": {
             "minimum_holdout_target_0": 2,
             "minimum_holdout_target_1": 2,
+            "minimum_holdout_target_0_groups": 2,
+            "minimum_holdout_target_1_groups": 2,
+            "maximum_holdout_group_share": 0.5,
         },
     }
 
@@ -196,7 +199,45 @@ class TrainingDiagnosticsTests(unittest.TestCase):
 
         blockers = get_deployment_blockers(rows, make_schema())
 
-        self.assertEqual(blockers, ["holdout_target_1 1/2"])
+        self.assertEqual(
+            blockers,
+            [
+                "holdout_target_1 1/2",
+                "holdout_target_1_groups 1/2",
+            ],
+        )
+
+    def test_blocks_deployment_when_one_group_dominates_holdout(self):
+        rows = [
+            make_row(index, "mint-dominant", index % 2)
+            for index in range(8)
+        ]
+        rows.extend([
+            make_row(8, "mint-negative", 0),
+            make_row(9, "mint-positive", 1),
+        ])
+
+        blockers = get_deployment_blockers(rows, make_schema())
+
+        self.assertEqual(blockers, ["holdout_largest_group_share 0.800/0.500"])
+
+    def test_blocks_deployment_with_too_few_independent_groups_per_class(self):
+        rows = [
+            make_row(0, "mint-negative", 0),
+            make_row(1, "mint-negative", 0),
+            make_row(2, "mint-positive", 1),
+            make_row(3, "mint-positive", 1),
+        ]
+
+        blockers = get_deployment_blockers(rows, make_schema())
+
+        self.assertEqual(
+            blockers,
+            [
+                "holdout_target_0_groups 1/2",
+                "holdout_target_1_groups 1/2",
+            ],
+        )
 
     def test_partition_summary_counts_targets_and_groups(self):
         rows = [
@@ -211,6 +252,10 @@ class TrainingDiagnosticsTests(unittest.TestCase):
         self.assertEqual(summary["target_0"], 1)
         self.assertEqual(summary["target_1"], 2)
         self.assertEqual(summary["unique_groups"], 2)
+        self.assertEqual(summary["target_0_groups"], 1)
+        self.assertEqual(summary["target_1_groups"], 1)
+        self.assertEqual(summary["largest_group_rows"], 2)
+        self.assertEqual(summary["largest_group_share"], 0.666667)
 
 
 class ShadowArtifactTests(unittest.TestCase):
