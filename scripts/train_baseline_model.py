@@ -1,4 +1,5 @@
 import argparse
+import hashlib
 import json
 import math
 from collections import Counter
@@ -421,6 +422,78 @@ def metrics_by_trader(rows, target, predictions, probabilities):
     return result
 
 
+def build_shadow_artifact(
+    pipeline,
+    schema,
+    threshold,
+    fit_rows,
+    trained_at,
+):
+    preprocessor = pipeline.named_steps["preprocess"]
+    classifier = pipeline.named_steps["classifier"]
+    categorical_pipeline = preprocessor.named_transformers_["categorical"]
+    numeric_pipeline = preprocessor.named_transformers_["numeric"]
+    categorical_imputer = categorical_pipeline.named_steps["imputer"]
+    encoder = categorical_pipeline.named_steps["encoder"]
+    numeric_imputer = numeric_pipeline.named_steps["imputer"]
+    scaler = numeric_pipeline.named_steps["scaler"]
+
+    categorical = []
+    for index, name in enumerate(schema["categorical_features"]):
+        categorical.append({
+            "name": name,
+            "impute_value": str(categorical_imputer.statistics_[index]),
+            "categories": [
+                str(value) for value in encoder.categories_[index]
+            ],
+        })
+
+    indicator = getattr(numeric_imputer, "indicator_", None)
+    indicator_indexes = (
+        [int(value) for value in indicator.features_]
+        if indicator is not None
+        else []
+    )
+    artifact = {
+        "format_version": 1,
+        "data_version": int(schema["data_version"]),
+        "model_type": "logistic_regression",
+        "trained_at": trained_at,
+        "fit_rows": int(fit_rows),
+        "threshold": float(threshold),
+        "categorical": categorical,
+        "numeric": {
+            "features": list(schema["numeric_features"]),
+            "medians": [
+                float(value) for value in numeric_imputer.statistics_
+            ],
+            "indicator_indexes": indicator_indexes,
+            "mean": [float(value) for value in scaler.mean_],
+            "scale": [float(value) for value in scaler.scale_],
+        },
+        "coefficients": [
+            float(value) for value in classifier.coef_[0]
+        ],
+        "intercept": float(classifier.intercept_[0]),
+    }
+    fingerprint_source = {
+        key: value
+        for key, value in artifact.items()
+        if key != "trained_at"
+    }
+    fingerprint = hashlib.sha256(
+        json.dumps(
+            fingerprint_source,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()[:12]
+    artifact["model_version"] = (
+        f"baseline-v{schema['data_version']}-{fingerprint}"
+    )
+    return artifact
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -434,6 +507,10 @@ def main():
     parser.add_argument(
         "--output",
         default="models/baseline_v2.joblib",
+    )
+    parser.add_argument(
+        "--shadow-output",
+        default="models/baseline_v2_shadow.json",
     )
     parser.add_argument("--test-fraction", type=float, default=0.2)
     parser.add_argument("--allow-not-ready", action="store_true")
@@ -590,6 +667,7 @@ def main():
         full_targets = np.asarray([row[target] for row in rows])
         deployment_pipeline = build_pipeline(schema)
         deployment_pipeline.fit(full_matrix, full_targets)
+        trained_at = datetime.now(timezone.utc).isoformat()
         output_path = Path(args.output)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         joblib.dump({
@@ -598,10 +676,28 @@ def main():
             "feature_columns": feature_columns,
             "threshold": selected_threshold,
             "fit_rows": len(rows),
-            "trained_at": datetime.now(timezone.utc).isoformat(),
+            "trained_at": trained_at,
             "sklearn_version": sklearn.__version__,
             "report": report,
         }, output_path)
+
+        shadow_artifact = build_shadow_artifact(
+            deployment_pipeline,
+            schema,
+            selected_threshold,
+            len(rows),
+            trained_at,
+        )
+        shadow_output_path = Path(args.shadow_output)
+        shadow_output_path.parent.mkdir(parents=True, exist_ok=True)
+        shadow_output_path.write_text(
+            json.dumps(
+                shadow_artifact,
+                indent=2,
+                ensure_ascii=True,
+            ) + "\n",
+            encoding="utf-8",
+        )
 
     print(json.dumps(report, indent=2, ensure_ascii=True))
 

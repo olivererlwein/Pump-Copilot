@@ -17,6 +17,8 @@ from dotenv import load_dotenv
 
 import websockets
 
+from shadow_model import ShadowLogisticModel
+
 
 # =========================================================
 # CONFIGURACIÓN
@@ -176,8 +178,22 @@ STREAM_INACTIVITY_TIMEOUT = 120
 DATA_VERSION = 2
 PUMP_TOKEN_SUPPLY = 1_000_000_000.0
 
+SHADOW_MODE_ENABLED = os.getenv(
+    "SHADOW_MODE_ENABLED",
+    "true"
+).lower() == "true"
+
+SHADOW_MODEL_PATH = Path(
+    os.getenv(
+        "SHADOW_MODEL_PATH",
+        str(BASE / "models" / "baseline_v2_shadow.json")
+    )
+)
+
 SEEN_SIGNATURES = set()
 FORCE_STREAM_ERROR = False
+SHADOW_MODEL = None
+SHADOW_MODEL_LAST_ERROR = ""
 
 
 # =========================================================
@@ -405,6 +421,29 @@ CREATE TABLE IF NOT EXISTS signal_outcomes(
     updated_ts REAL NOT NULL
 )
 """)
+
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS model_shadow_predictions(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            evaluation_id INTEGER NOT NULL UNIQUE,
+            created_ts REAL NOT NULL,
+            model_version TEXT NOT NULL,
+            data_version INTEGER NOT NULL,
+            probability REAL NOT NULL,
+            threshold REAL NOT NULL,
+            predicted_target INTEGER NOT NULL,
+            features_json TEXT NOT NULL
+        )
+        """
+    )
+
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_shadow_predictions_created_ts
+        ON model_shadow_predictions(created_ts)
+        """
+    )
 
 
     conn.execute(
@@ -3562,6 +3601,379 @@ def calculate_copyability_score(trader):
         "reliable_returns": reliable_returns,
     }
 
+def load_shadow_model():
+    global SHADOW_MODEL
+    global SHADOW_MODEL_LAST_ERROR
+
+    SHADOW_MODEL = None
+    SHADOW_MODEL_LAST_ERROR = ""
+
+    if not SHADOW_MODE_ENABLED:
+        return None
+
+    try:
+        model = ShadowLogisticModel.from_path(SHADOW_MODEL_PATH)
+        if model.data_version != DATA_VERSION:
+            raise ValueError(
+                "Shadow model data version does not match the app"
+            )
+        SHADOW_MODEL = model
+        print(
+            f"[SHADOW] Loaded {model.model_version} "
+            f"from {SHADOW_MODEL_PATH}"
+        )
+    except Exception as exc:
+        SHADOW_MODEL_LAST_ERROR = str(exc)
+        print(f"[SHADOW] Disabled: {exc}")
+
+    return SHADOW_MODEL
+
+
+def build_model_features(
+    trader,
+    mint,
+    signal_ts,
+    trader_score,
+    timing_score,
+    size_score,
+    token_score,
+    consensus_score,
+    market_score,
+    score_total,
+    market_cap,
+    sol_amount,
+    price_at_signal,
+    connection=None,
+):
+    buy_size_pct_mc = (
+        (float(sol_amount) / float(market_cap)) * 100
+        if float(market_cap or 0) > 0
+        else 0.0
+    )
+    signal_ts = float(signal_ts)
+    owns_connection = connection is None
+    conn = connection if connection is not None else db()
+    try:
+        create_ts = conn.execute(
+            """
+            SELECT MIN(ts)
+            FROM trades
+            WHERE mint = ?
+            AND side = 'create'
+            AND ts <= ?
+            """,
+            (mint, signal_ts),
+        ).fetchone()[0]
+        previous_buy_ts = conn.execute(
+            """
+            SELECT MAX(ts)
+            FROM trades
+            WHERE trader = ?
+            AND ts < ?
+            AND side LIKE '%buy%'
+            """,
+            (trader, signal_ts),
+        ).fetchone()[0]
+        recent_buy_count = conn.execute(
+            """
+            SELECT COUNT(*)
+            FROM trades
+            WHERE trader = ?
+            AND ts >= ?
+            AND ts < ?
+            AND side LIKE '%buy%'
+            """,
+            (trader, signal_ts - 60, signal_ts),
+        ).fetchone()[0]
+        consensus_30s = conn.execute(
+            """
+            SELECT COUNT(DISTINCT trader)
+            FROM trades
+            WHERE mint = ?
+            AND ts >= ?
+            AND ts <= ?
+            AND (side LIKE '%buy%' OR side = 'create')
+            """,
+            (mint, signal_ts - 30, signal_ts),
+        ).fetchone()[0]
+        consensus_window = conn.execute(
+            """
+            SELECT COUNT(DISTINCT trader)
+            FROM trades
+            WHERE mint = ?
+            AND ts >= ?
+            AND ts <= ?
+            AND (side LIKE '%buy%' OR side = 'create')
+            """,
+            (mint, signal_ts - WINDOW, signal_ts),
+        ).fetchone()[0]
+    finally:
+        if owns_connection:
+            conn.close()
+
+    token_age_seconds = (
+        signal_ts - float(create_ts)
+        if create_ts is not None and signal_ts >= float(create_ts)
+        else None
+    )
+    previous_gap = (
+        signal_ts - float(previous_buy_ts)
+        if (
+            previous_buy_ts is not None
+            and signal_ts >= float(previous_buy_ts)
+        )
+        else None
+    )
+
+    return {
+        "trader": str(trader or "unknown"),
+        "trader_score": int(trader_score or 0),
+        "timing_score": int(timing_score or 0),
+        "size_score": int(size_score or 0),
+        "token_score": int(token_score or 0),
+        "consensus_score": int(consensus_score or 0),
+        "market_score": int(market_score or 0),
+        "score_total": int(score_total or 0),
+        "market_cap": float(market_cap or 0),
+        "sol_amount": float(sol_amount or 0),
+        "price_at_signal": float(price_at_signal or 0),
+        "buy_size_pct_mc": round(buy_size_pct_mc, 4),
+        "token_age_seconds": (
+            round(token_age_seconds, 3)
+            if token_age_seconds is not None
+            else None
+        ),
+        "trader_previous_buy_gap_seconds": (
+            round(previous_gap, 3)
+            if previous_gap is not None
+            else None
+        ),
+        "trader_recent_buy_count_60s": int(recent_buy_count or 0),
+        "consensus_trader_count_30s": int(consensus_30s or 0),
+        "consensus_trader_count": int(consensus_window or 0),
+    }
+
+
+def record_shadow_prediction(evaluation_id, features):
+    global SHADOW_MODEL_LAST_ERROR
+
+    if not SHADOW_MODE_ENABLED or SHADOW_MODEL is None:
+        return None
+
+    conn = None
+    try:
+        prediction = SHADOW_MODEL.predict(features)
+        conn = db()
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO model_shadow_predictions(
+                evaluation_id,
+                created_ts,
+                model_version,
+                data_version,
+                probability,
+                threshold,
+                predicted_target,
+                features_json
+            )
+            VALUES(?,?,?,?,?,?,?,?)
+            """,
+            (
+                int(evaluation_id),
+                time.time(),
+                prediction["model_version"],
+                prediction["data_version"],
+                prediction["probability"],
+                prediction["threshold"],
+                prediction["predicted_target"],
+                json.dumps(features, sort_keys=True),
+            ),
+        )
+        conn.commit()
+        SHADOW_MODEL_LAST_ERROR = ""
+        return prediction
+    except Exception as exc:
+        SHADOW_MODEL_LAST_ERROR = str(exc)
+        print(f"[SHADOW] Prediction failed: {exc}")
+        return None
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+def observe_shadow_signal(
+    evaluation_id,
+    connection=None,
+    **feature_values,
+):
+    global SHADOW_MODEL_LAST_ERROR
+
+    if not SHADOW_MODE_ENABLED or SHADOW_MODEL is None:
+        return None
+
+    try:
+        features = build_model_features(
+            connection=connection,
+            **feature_values,
+        )
+        return record_shadow_prediction(evaluation_id, features)
+    except Exception as exc:
+        SHADOW_MODEL_LAST_ERROR = str(exc)
+        print(f"[SHADOW] Feature collection failed: {exc}")
+        return None
+
+
+def get_shadow_predictions(limit=100):
+    conn = db()
+    rows = conn.execute(
+        """
+        SELECT
+            p.evaluation_id,
+            p.created_ts,
+            p.model_version,
+            p.probability,
+            p.threshold,
+            p.predicted_target,
+            e.trader,
+            e.mint,
+            e.decision,
+            o.status,
+            CASE
+                WHEN o.status = 'completed' THEN
+                    CASE
+                        WHEN o.tp25_ts IS NOT NULL
+                        AND (
+                            o.sl10_ts IS NULL
+                            OR o.tp25_ts < o.sl10_ts
+                        )
+                        THEN 1
+                        ELSE 0
+                    END
+                ELSE NULL
+            END AS actual_target
+        FROM model_shadow_predictions p
+        JOIN evaluations e ON e.id = p.evaluation_id
+        LEFT JOIN signal_outcomes o ON o.signal_id = p.evaluation_id
+        ORDER BY p.id DESC
+        LIMIT ?
+        """,
+        (max(1, min(int(limit or 100), 1000)),),
+    ).fetchall()
+    conn.close()
+
+    return [
+        {
+            "evaluation_id": int(row[0]),
+            "created_ts": float(row[1]),
+            "model_version": str(row[2]),
+            "probability": round(float(row[3]), 6),
+            "threshold": float(row[4]),
+            "predicted_target": int(row[5]),
+            "trader": str(row[6] or "unknown"),
+            "mint": str(row[7] or ""),
+            "agent_decision": str(row[8] or ""),
+            "outcome_status": str(row[9] or "missing"),
+            "actual_target": (
+                int(row[10]) if row[10] is not None else None
+            ),
+        }
+        for row in rows
+    ]
+
+
+def get_shadow_stats():
+    conn = db()
+    raw_rows = conn.execute(
+        """
+        SELECT
+            p.model_version,
+            p.predicted_target,
+            CASE
+                WHEN o.status = 'completed' THEN
+                    CASE
+                        WHEN o.tp25_ts IS NOT NULL
+                        AND (
+                            o.sl10_ts IS NULL
+                            OR o.tp25_ts < o.sl10_ts
+                        )
+                        THEN 1
+                        ELSE 0
+                    END
+                ELSE NULL
+            END AS actual_target
+        FROM model_shadow_predictions p
+        LEFT JOIN signal_outcomes o ON o.signal_id = p.evaluation_id
+        ORDER BY p.id ASC
+        """
+    ).fetchall()
+    conn.close()
+
+    current_version = (
+        SHADOW_MODEL.model_version if SHADOW_MODEL is not None else None
+    )
+    version_counts = {}
+    rows = []
+    for model_version, predicted_target, actual_target in raw_rows:
+        model_version = str(model_version)
+        version_counts[model_version] = version_counts.get(model_version, 0) + 1
+        if current_version is None or model_version == current_version:
+            rows.append({
+                "predicted_target": int(predicted_target),
+                "actual_target": (
+                    int(actual_target) if actual_target is not None else None
+                ),
+            })
+
+    completed = [
+        row for row in rows if row["actual_target"] is not None
+    ]
+    true_positive = sum(
+        row["predicted_target"] == 1 and row["actual_target"] == 1
+        for row in completed
+    )
+    false_positive = sum(
+        row["predicted_target"] == 1 and row["actual_target"] == 0
+        for row in completed
+    )
+    true_negative = sum(
+        row["predicted_target"] == 0 and row["actual_target"] == 0
+        for row in completed
+    )
+    false_negative = sum(
+        row["predicted_target"] == 0 and row["actual_target"] == 1
+        for row in completed
+    )
+    predicted_positive = true_positive + false_positive
+    actual_positive = true_positive + false_negative
+
+    return {
+        "enabled": bool(SHADOW_MODE_ENABLED),
+        "model_loaded": SHADOW_MODEL is not None,
+        "model_version": (
+            SHADOW_MODEL.model_version if SHADOW_MODEL is not None else None
+        ),
+        "all_versions_total": len(raw_rows),
+        "version_counts": version_counts,
+        "total": len(rows),
+        "pending": len(rows) - len(completed),
+        "completed": len(completed),
+        "precision": (
+            round(true_positive / predicted_positive, 6)
+            if predicted_positive
+            else None
+        ),
+        "recall": (
+            round(true_positive / actual_positive, 6)
+            if actual_positive
+            else None
+        ),
+        "confusion_matrix": [
+            [true_negative, false_positive],
+            [false_negative, true_positive],
+        ],
+    }
+
+
 def get_training_dataset_rows():
     conn = db()
 
@@ -3628,45 +4040,20 @@ def get_training_dataset_rows():
         tp25_ts = row[14]
         sl10_ts = row[15]
 
-        if market_cap > 0:
-            buy_size_pct_mc = (
-                sol_amount
-                / market_cap
-            ) * 100
-        else:
-            buy_size_pct_mc = 0.0
-
-        consensus_trader_count = get_consensus_trader_count(
-            mint,
-            signal_ts
-        )
-
-        consensus_trader_count_30s = (
-            get_consensus_trader_count_window(
-                mint,
-                signal_ts,
-                window_seconds=30
-            )
-        )
-
-        token_age_seconds = get_token_age_seconds(
-            mint,
-            signal_ts
-        )
-
-        trader_previous_buy_gap_seconds = (
-            get_trader_previous_buy_gap_seconds(
-                trader,
-                signal_ts
-            )
-        )
-
-        trader_recent_buy_count_60s = (
-            get_trader_recent_buy_count(
-                trader,
-                signal_ts,
-                window_seconds=60
-            )
+        features = build_model_features(
+            trader=trader,
+            mint=mint,
+            signal_ts=signal_ts,
+            trader_score=trader_score,
+            timing_score=timing_score,
+            size_score=size_score,
+            token_score=token_score,
+            consensus_score=consensus_score,
+            market_score=market_score,
+            score_total=score_total,
+            market_cap=market_cap,
+            sol_amount=sol_amount,
+            price_at_signal=price_at_signal,
         )
 
         target = 0
@@ -3683,51 +4070,7 @@ def get_training_dataset_rows():
                 "signal_id": signal_id,
                 "signal_ts": signal_ts,
                 "mint": mint,
-                "trader": trader,
-
-                "trader_score": trader_score,
-                "timing_score": timing_score,
-                "size_score": size_score,
-                "token_score": token_score,
-                "consensus_score": consensus_score,
-                "market_score": market_score,
-
-                "score_total": score_total,
-                "market_cap": market_cap,
-                "sol_amount": sol_amount,
-                "price_at_signal": price_at_signal,
-                "buy_size_pct_mc": round(
-                    buy_size_pct_mc,
-                    4
-                ),
-
-                "token_age_seconds": (
-                    round(token_age_seconds, 3)
-                    if token_age_seconds is not None
-                    else None
-                ),
-
-                "trader_previous_buy_gap_seconds": (
-                    round(
-                        trader_previous_buy_gap_seconds,
-                        3
-                    )
-                    if trader_previous_buy_gap_seconds is not None
-                    else None
-                ),
-
-                "trader_recent_buy_count_60s": (
-                    trader_recent_buy_count_60s
-                ),
-
-                "consensus_trader_count_30s": (
-                    consensus_trader_count_30s
-                ),
-
-
-
-                "consensus_trader_count": consensus_trader_count,
-
+                **features,
                 "target_tp25_before_sl10": target,
             }
         )
@@ -4952,6 +5295,25 @@ def evaluate_buy(
             signal_ts=signal_ts,
             price_at_signal=price_at_signal
         )
+
+        if market_cap > 0 and sol_amount > 0 and price_at_signal > 0:
+            observe_shadow_signal(
+                evaluation_id=signal_id,
+                connection=conn,
+                trader=trader,
+                mint=mint,
+                signal_ts=signal_ts,
+                trader_score=trader_score,
+                timing_score=timing_score,
+                size_score=size_score,
+                token_score=token_score,
+                consensus_score=consensus_score,
+                market_score=market_score,
+                score_total=score,
+                market_cap=market_cap,
+                sol_amount=sol_amount,
+                price_at_signal=price_at_signal,
+            )
 
         if mint and not mint.startswith("DEMO"):
             TRACKED_TOKENS.add(mint)
@@ -6198,6 +6560,7 @@ async def startup():
 
     migrate_database()
     reconcile_finished_signal_outcomes()
+    load_shadow_model()
 
     conn = db()
 
@@ -6445,6 +6808,22 @@ def status(
 
         "pumpportal_balance_last_error":
             (PUMPPORTAL_BALANCE_LAST_ERROR or None),
+
+        "shadow_mode_enabled":
+            bool(SHADOW_MODE_ENABLED),
+
+        "shadow_model_loaded":
+            SHADOW_MODEL is not None,
+
+        "shadow_model_version":
+            (
+                SHADOW_MODEL.model_version
+                if SHADOW_MODEL is not None
+                else None
+            ),
+
+        "shadow_model_last_error":
+            (SHADOW_MODEL_LAST_ERROR or None),
 
         "paper_buy_usd":
             PAPER_BUY_USD,
@@ -7229,6 +7608,27 @@ def api_training_dataset_preview(
         "count": len(rows),
         "rows": rows[:safe_limit],
     }
+
+
+@app.get("/api/shadow-predictions")
+def api_shadow_predictions(
+    x_app_token: str = Header(default=""),
+    limit: int = 100,
+):
+    auth(x_app_token)
+    rows = get_shadow_predictions(limit=limit)
+    return {
+        "count": len(rows),
+        "rows": rows,
+    }
+
+
+@app.get("/api/shadow-stats")
+def api_shadow_stats(
+    x_app_token: str = Header(default=""),
+):
+    auth(x_app_token)
+    return get_shadow_stats()
 
 
 # =========================================================
