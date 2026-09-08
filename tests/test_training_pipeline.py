@@ -9,6 +9,7 @@ from scripts.train_baseline_model import (
     build_shadow_artifact,
     classification_metrics,
     get_deployment_blockers,
+    group_balanced_sample_weights,
     select_threshold,
     summarize_partition,
     temporal_group_split,
@@ -168,8 +169,32 @@ class ThresholdSelectionTests(unittest.TestCase):
         self.assertIsNone(metrics["average_precision"])
         self.assertEqual(metrics["confusion_matrix"], [[1, 1], [0, 0]])
 
+    def test_classification_metrics_honor_sample_weights(self):
+        metrics = classification_metrics(
+            np.asarray([1, 1, 0]),
+            np.asarray([1, 0, 1]),
+            np.asarray([0.9, 0.2, 0.8]),
+            sample_weight=np.asarray([1.0, 0.1, 0.1]),
+        )
+
+        self.assertEqual(metrics["precision"], 0.909091)
+        self.assertEqual(metrics["recall"], 0.909091)
+
 
 class TrainingDiagnosticsTests(unittest.TestCase):
+    def test_group_balanced_weights_give_each_mint_equal_total_weight(self):
+        rows = [
+            make_row(0, "mint-a", 0),
+            make_row(1, "mint-a", 1),
+            make_row(2, "mint-b", 1),
+        ]
+
+        weights = group_balanced_sample_weights(rows, make_schema())
+
+        self.assertAlmostEqual(float(weights.mean()), 1.0)
+        self.assertAlmostEqual(float(weights[0] + weights[1]), 1.5)
+        self.assertAlmostEqual(float(weights[2]), 1.5)
+
     def test_reports_temporal_target_and_trader_drift(self):
         rows = [
             make_row(index, f"mint-{index}", int(index >= 5))

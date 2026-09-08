@@ -395,6 +395,51 @@ def build_matrix(rows, schema):
     return np.asarray(matrix, dtype=object), columns
 
 
+def group_balanced_sample_weights(rows, schema):
+    group_column = schema["split_group"]
+    counts = Counter(row[group_column] for row in rows)
+    if not counts:
+        return np.asarray([], dtype=float)
+
+    weights = np.asarray(
+        [1.0 / counts[row[group_column]] for row in rows],
+        dtype=float,
+    )
+    return weights * (len(weights) / weights.sum())
+
+
+def strategy_sample_weights(rows, schema, sample_weighting):
+    if sample_weighting == "none":
+        return None
+    if sample_weighting == "inverse-group":
+        return group_balanced_sample_weights(rows, schema)
+    raise ValueError(f"Unknown sample weighting: {sample_weighting}")
+
+
+def fit_pipeline(
+    pipeline,
+    matrix,
+    targets,
+    rows,
+    schema,
+    sample_weighting,
+):
+    sample_weights = strategy_sample_weights(
+        rows,
+        schema,
+        sample_weighting,
+    )
+    if sample_weights is None:
+        pipeline.fit(matrix, targets)
+    else:
+        pipeline.fit(
+            matrix,
+            targets,
+            classifier__sample_weight=sample_weights,
+        )
+    return pipeline
+
+
 def build_pipeline(schema):
     categorical_count = len(schema["categorical_features"])
     numeric_count = len(schema["numeric_features"])
@@ -443,30 +488,74 @@ def build_pipeline(schema):
     )
 
 
-def classification_metrics(targets, predictions, probabilities):
+def classification_metrics(
+    targets,
+    predictions,
+    probabilities,
+    sample_weight=None,
+):
     classes = set(map(int, targets))
     return {
         "balanced_accuracy": (
-            round(balanced_accuracy_score(targets, predictions), 6)
+            round(
+                balanced_accuracy_score(
+                    targets,
+                    predictions,
+                    sample_weight=sample_weight,
+                ),
+                6,
+            )
             if classes == {0, 1}
             else None
         ),
         "precision": round(
-            precision_score(targets, predictions, zero_division=0), 6
+            precision_score(
+                targets,
+                predictions,
+                zero_division=0,
+                sample_weight=sample_weight,
+            ),
+            6,
         ),
         "recall": round(
-            recall_score(targets, predictions, zero_division=0), 6
+            recall_score(
+                targets,
+                predictions,
+                zero_division=0,
+                sample_weight=sample_weight,
+            ),
+            6,
         ),
         "f1": round(
-            f1_score(targets, predictions, zero_division=0), 6
+            f1_score(
+                targets,
+                predictions,
+                zero_division=0,
+                sample_weight=sample_weight,
+            ),
+            6,
         ),
         "roc_auc": (
-            round(roc_auc_score(targets, probabilities), 6)
+            round(
+                roc_auc_score(
+                    targets,
+                    probabilities,
+                    sample_weight=sample_weight,
+                ),
+                6,
+            )
             if classes == {0, 1}
             else None
         ),
         "average_precision": (
-            round(average_precision_score(targets, probabilities), 6)
+            round(
+                average_precision_score(
+                    targets,
+                    probabilities,
+                    sample_weight=sample_weight,
+                ),
+                6,
+            )
             if classes == {0, 1}
             else None
         ),
@@ -474,11 +563,12 @@ def classification_metrics(targets, predictions, probabilities):
             targets,
             predictions,
             labels=[0, 1],
+            sample_weight=sample_weight,
         ).tolist(),
     }
 
 
-def select_threshold(targets, probabilities):
+def select_threshold(targets, probabilities, sample_weight=None):
     best = None
 
     for threshold in np.linspace(0.05, 0.95, 181):
@@ -491,16 +581,31 @@ def select_threshold(targets, probabilities):
                     predictions,
                     beta=0.5,
                     zero_division=0,
+                    sample_weight=sample_weight,
                 )
             ),
             "precision": float(
-                precision_score(targets, predictions, zero_division=0)
+                precision_score(
+                    targets,
+                    predictions,
+                    zero_division=0,
+                    sample_weight=sample_weight,
+                )
             ),
             "balanced_accuracy": float(
-                balanced_accuracy_score(targets, predictions)
+                balanced_accuracy_score(
+                    targets,
+                    predictions,
+                    sample_weight=sample_weight,
+                )
             ),
             "recall": float(
-                recall_score(targets, predictions, zero_division=0)
+                recall_score(
+                    targets,
+                    predictions,
+                    zero_division=0,
+                    sample_weight=sample_weight,
+                )
             ),
         }
         rank = (
@@ -632,6 +737,11 @@ def main():
         default="models/baseline_v2_shadow.json",
     )
     parser.add_argument("--test-fraction", type=float, default=0.2)
+    parser.add_argument(
+        "--sample-weighting",
+        choices=("none", "inverse-group"),
+        default="none",
+    )
     parser.add_argument("--allow-not-ready", action="store_true")
     parser.add_argument("--no-save", action="store_true")
     args = parser.parse_args()
@@ -691,8 +801,14 @@ def main():
         fold_validation_targets = np.asarray([
             row[target] for row in fold["validation_rows"]
         ])
-        fold_pipeline = build_pipeline(schema)
-        fold_pipeline.fit(fold_train_matrix, fold_train_targets)
+        fold_pipeline = fit_pipeline(
+            build_pipeline(schema),
+            fold_train_matrix,
+            fold_train_targets,
+            fold["train_rows"],
+            schema,
+            args.sample_weighting,
+        )
         fold_probabilities = fold_pipeline.predict_proba(
             fold_validation_matrix
         )[:, 1]
@@ -711,19 +827,32 @@ def main():
 
     tuning_targets = np.asarray(tuning_targets)
     tuning_probabilities = np.asarray(tuning_probabilities)
+    tuning_sample_weights = strategy_sample_weights(
+        tuning_rows,
+        schema,
+        args.sample_weighting,
+    )
     selected_threshold = select_threshold(
         tuning_targets,
         tuning_probabilities,
+        sample_weight=tuning_sample_weights,
     )
     tuning_predictions = (
         tuning_probabilities >= selected_threshold
     ).astype(int)
 
-    pipeline = build_pipeline(schema)
-    pipeline.fit(train_matrix, train_targets)
+    pipeline = fit_pipeline(
+        build_pipeline(schema),
+        train_matrix,
+        train_targets,
+        train_rows,
+        schema,
+        args.sample_weighting,
+    )
     probabilities = pipeline.predict_proba(test_matrix)[:, 1]
     predictions = (probabilities >= selected_threshold).astype(int)
     default_predictions = (probabilities >= 0.5).astype(int)
+    test_group_weights = group_balanced_sample_weights(test_rows, schema)
 
     dummy = DummyClassifier(strategy="prior")
     dummy.fit(train_matrix, train_targets)
@@ -755,6 +884,7 @@ def main():
         },
         "deployment_ready": not deployment_blockers,
         "deployment_blockers": deployment_blockers,
+        "sample_weighting": args.sample_weighting,
         "selected_threshold": selected_threshold,
         "threshold_tuning": {
             "method": "walk_forward_fbeta_0_5",
@@ -764,6 +894,15 @@ def main():
                 tuning_targets,
                 tuning_predictions,
                 tuning_probabilities,
+            ),
+            "group_balanced_metrics": classification_metrics(
+                tuning_targets,
+                tuning_predictions,
+                tuning_probabilities,
+                sample_weight=group_balanced_sample_weights(
+                    tuning_rows,
+                    schema,
+                ),
             ),
         },
         "model_metrics": classification_metrics(
@@ -775,6 +914,12 @@ def main():
             test_targets,
             default_predictions,
             probabilities,
+        ),
+        "model_group_balanced_metrics": classification_metrics(
+            test_targets,
+            predictions,
+            probabilities,
+            sample_weight=test_group_weights,
         ),
         "metrics_by_trader": metrics_by_trader(
             test_rows,
@@ -801,8 +946,14 @@ def main():
         report["saved"] = True
         full_matrix, _ = build_matrix(rows, schema)
         full_targets = np.asarray([row[target] for row in rows])
-        deployment_pipeline = build_pipeline(schema)
-        deployment_pipeline.fit(full_matrix, full_targets)
+        deployment_pipeline = fit_pipeline(
+            build_pipeline(schema),
+            full_matrix,
+            full_targets,
+            rows,
+            schema,
+            args.sample_weighting,
+        )
         trained_at = datetime.now(timezone.utc).isoformat()
         output_path = Path(args.output)
         output_path.parent.mkdir(parents=True, exist_ok=True)
