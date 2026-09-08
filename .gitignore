@@ -7,3 +7,9 @@ pumpcopilot.db-*
 exports/
 models/*
 !models/baseline_v2_shadow.json
+
+# Graphify local caches, query memory, and rebuild sidecars
+graphify-out/cache/
+graphify-out/memory/
+graphify-out/.graphify_*
+graphify-out/.vocab.txt
