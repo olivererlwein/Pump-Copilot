@@ -191,6 +191,27 @@ class ExecutionAdapterTests(unittest.TestCase):
         self.assertEqual(payload["skipPreflight"], "false")
         self.assertNotIn("api_key", payload)
 
+    def test_builds_safe_pumpportal_percentage_sell_payload(self):
+        payload = app.build_pumpportal_lightning_sell_payload(
+            mint="So11111111111111111111111111111111111111112",
+            wallet_percentage=100 / 3,
+        )
+
+        self.assertEqual(payload["action"], "sell")
+        self.assertEqual(payload["amount"], "33.333333333%")
+        self.assertEqual(payload["denominatedInSol"], "false")
+        self.assertEqual(payload["skipPreflight"], "false")
+
+    def test_rejects_unsafe_sell_percentages(self):
+        for percentage in (None, "invalid", 0, -1, 101, math.nan, math.inf):
+            with self.subTest(percentage=percentage), self.assertRaises(
+                ValueError
+            ):
+                app.build_pumpportal_lightning_sell_payload(
+                    mint="So11111111111111111111111111111111111111112",
+                    wallet_percentage=percentage,
+                )
+
     def test_rejects_stale_price_and_unsafe_trade_values(self):
         valid = {
             "mint": "So11111111111111111111111111111111111111112",

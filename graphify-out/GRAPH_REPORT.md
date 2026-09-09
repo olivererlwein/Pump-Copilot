@@ -1,26 +1,26 @@
 # Graph Report - pump fun  (2026-09-09)
 
 ## Corpus Check
-- 34 files · ~40,106 words
+- 34 files · ~40,278 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 412 nodes · 1009 edges · 25 communities (19 shown, 5 thin omitted)
-- Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 17 edges (avg confidence: 0.86)
+- 415 nodes · 1013 edges · 25 communities (19 shown, 5 thin omitted)
+- Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 18 edges (avg confidence: 0.86)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `84a0b3d1`
+- Built from commit: `81d934b2`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - test_training_pipeline.py
 - What You Must Do When Invoked
-- db
+- app.py
 - graphify reference: extra exports and benchmark
 - test_stream_monitoring.py
-- app.py
+- auth
 - graphify reference: query, path, explain
 - ShadowPredictionTests
 - Q: ¿Cuál es el flujo completo desde que recibimos información de un token/trader hasta que se genera una señal?
@@ -45,9 +45,9 @@
 2. `auth()` - 68 edges
 3. `require_debug_mode()` - 54 edges
 4. `main()` - 18 edges
-5. `simulate_execution()` - 16 edges
-6. `update_execution_order()` - 16 edges
-7. `ExecutionAdapterTests` - 15 edges
+5. `ExecutionAdapterTests` - 17 edges
+6. `simulate_execution()` - 16 edges
+7. `update_execution_order()` - 16 edges
 8. `update_paper_position()` - 14 edges
 9. `create_execution_order()` - 13 edges
 10. `evaluate_buy()` - 13 edges
@@ -71,15 +71,15 @@
 
 ### Community 0 - "test_training_pipeline.py"
 Cohesion: 0.08
-Nodes (39): build_pumpportal_lightning_buy_payload(), fetch_sol_usd_quote(), load_shadow_model(), prepare_pumpportal_lightning_buy(), main(), schema_without_features(), evaluate_strategy(), main() (+31 more)
+Nodes (37): build_pumpportal_lightning_sell_payload(), load_shadow_model(), main(), schema_without_features(), evaluate_strategy(), main(), simulate_payoff(), build_matrix() (+29 more)
 
 ### Community 3 - "What You Must Do When Invoked"
 Cohesion: 0.08
 Nodes (24): For /graphify add and --watch, For /graphify query, For the commit hook and native CLAUDE.md integration, For --update and --cluster-only, /graphify, Honesty Rules, Interpreter guard for subcommands, Part A - Structural extraction for code files (+16 more)
 
-### Community 4 - "db"
-Cohesion: 0.05
-Nodes (65): assess_shadow_challenger(), build_model_features(), calculate_copyability_score(), cleanup_finished_outcome_token(), compare_shadow_models(), complete_finished_signal_outcomes(), create_signal_outcome(), db() (+57 more)
+### Community 4 - "app.py"
+Cohesion: 0.06
+Nodes (88): api_live_execution_readiness(), api_shadow_stats(), api_training_checkpoint_freshness(), api_training_dataset_preview(), api_training_expired_preview(), api_training_stats(), api_training_stats_by_trader(), assess_shadow_challenger() (+80 more)
 
 ### Community 5 - "graphify reference: extra exports and benchmark"
 Cohesion: 0.22
@@ -89,9 +89,9 @@ Nodes (8): graphify reference: extra exports and benchmark, Step 6b - Wiki (only
 Cohesion: 0.10
 Nodes (4): PumpPortalBalanceTests, PumpPortalMessageTests, ShadowReviewAlertTests, StreamStateTests
 
-### Community 7 - "app.py"
+### Community 7 - "auth"
 Cohesion: 0.08
-Nodes (86): api_live_execution_readiness(), api_shadow_predictions(), api_shadow_stats(), api_training_checkpoint_freshness(), api_training_dataset(), api_training_dataset_preview(), api_training_expired_preview(), api_training_stats() (+78 more)
+Nodes (70): api_shadow_predictions(), api_training_dataset(), auth(), can_retry_execution(), count_open_positions(), demo(), demo_can_retry(), demo_cannot_retry_risk() (+62 more)
 
 ### Community 8 - "graphify reference: query, path, explain"
 Cohesion: 0.33
@@ -138,8 +138,8 @@ Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: sigamos, Source Nodes
 
 ### Community 25 - "simulate_execution"
-Cohesion: 0.15
-Nodes (28): can_retry_execution(), create_execution_order(), create_execution_order_idempotent(), demo_controlled_retry(), demo_idempotency_sent(), demo_idempotency_sent_failed(), demo_pending_reconciliation(), demo_retry_function() (+20 more)
+Cohesion: 0.16
+Nodes (24): build_pumpportal_lightning_buy_payload(), check_execution_timeout(), create_execution_order(), create_execution_order_idempotent(), demo_controlled_retry(), demo_execution_timeout(), demo_idempotency_sent(), demo_idempotency_sent_failed() (+16 more)
 
 ### Community 27 - "ExecutionAdapterTests"
 Cohesion: 0.09
@@ -147,7 +147,7 @@ Nodes (4): ExecutionAdapterTests, LiveTradingGuardTests, NumericRiskValidationTe
 
 ## Knowledge Gaps
 - **60 isolated node(s):** `Usage`, `What graphify is for`, `Step 0 - GitHub repos and multi-path merge (only if a URL or several paths)`, `Step 1 - Ensure graphify is installed`, `Step 2 - Detect files` (+55 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 123 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 125 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
 - **5 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Work-memory lessons
@@ -163,16 +163,16 @@ Nodes (4): ExecutionAdapterTests, LiveTradingGuardTests, NumericRiskValidationTe
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `ShadowLogisticModel` connect `test_training_pipeline.py` to `app.py`?**
-  _High betweenness centrality (0.082) - this node is a cross-community bridge._
+  _High betweenness centrality (0.081) - this node is a cross-community bridge._
 - **What connects `Usage`, `What graphify is for`, `Step 0 - GitHub repos and multi-path merge (only if a URL or several paths)` to the rest of the system?**
   _60 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `test_training_pipeline.py` be split into smaller, more focused modules?**
-  _Cohesion score 0.07981220657276995 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.08322981366459627 - nodes in this community are weakly interconnected._
 - **Should `What You Must Do When Invoked` be split into smaller, more focused modules?**
   _Cohesion score 0.08 - nodes in this community are weakly interconnected._
-- **Should `db` be split into smaller, more focused modules?**
-  _Cohesion score 0.05096153846153846 - nodes in this community are weakly interconnected._
+- **Should `app.py` be split into smaller, more focused modules?**
+  _Cohesion score 0.055669050051072526 - nodes in this community are weakly interconnected._
 - **Should `test_stream_monitoring.py` be split into smaller, more focused modules?**
   _Cohesion score 0.1 - nodes in this community are weakly interconnected._
-- **Should `app.py` be split into smaller, more focused modules?**
-  _Cohesion score 0.07805399625768511 - nodes in this community are weakly interconnected._
+- **Should `auth` be split into smaller, more focused modules?**
+  _Cohesion score 0.08074534161490683 - nodes in this community are weakly interconnected._

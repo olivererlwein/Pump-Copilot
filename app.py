@@ -1964,6 +1964,61 @@ def build_pumpportal_lightning_buy_payload(
     }
 
 
+def build_pumpportal_lightning_sell_payload(
+    mint,
+    wallet_percentage,
+    slippage_pct=MAX_SLIPPAGE_PCT,
+    priority_fee_sol=0.00005,
+    pool="auto",
+):
+    mint = str(mint or "").strip()
+    base58 = set(
+        "123456789ABCDEFGHJKLMNPQRSTUVWXYZ"
+        "abcdefghijkmnopqrstuvwxyz"
+    )
+    if not 32 <= len(mint) <= 44 or any(
+        character not in base58
+        for character in mint
+    ):
+        raise ValueError("INVALID_SOLANA_MINT")
+
+    try:
+        wallet_percentage = float(wallet_percentage)
+        slippage_pct = float(slippage_pct)
+        priority_fee_sol = float(priority_fee_sol)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("INVALID_TRADE_NUMBER") from exc
+
+    if not all(math.isfinite(value) for value in (
+        wallet_percentage,
+        slippage_pct,
+        priority_fee_sol,
+    )):
+        raise ValueError("INVALID_TRADE_NUMBER")
+    if not 0 < wallet_percentage <= 100:
+        raise ValueError("INVALID_SELL_PERCENTAGE")
+    if slippage_pct <= 0 or slippage_pct > MAX_SLIPPAGE_PCT:
+        raise ValueError("INVALID_SLIPPAGE")
+    if not 0 <= priority_fee_sol <= MAX_PRIORITY_FEE_SOL:
+        raise ValueError("INVALID_PRIORITY_FEE")
+
+    pool = str(pool or "").strip().lower()
+    if pool not in PUMPPORTAL_ALLOWED_POOLS:
+        raise ValueError("INVALID_PUMPPORTAL_POOL")
+
+    percentage_text = f"{wallet_percentage:.9f}".rstrip("0").rstrip(".")
+    return {
+        "action": "sell",
+        "mint": mint,
+        "amount": f"{percentage_text}%",
+        "denominatedInSol": "false",
+        "slippage": slippage_pct,
+        "priorityFee": priority_fee_sol,
+        "pool": pool,
+        "skipPreflight": "false",
+    }
+
+
 def normalize_solana_signature(signature):
     signature = str(signature or "").strip()
     base58 = set(
