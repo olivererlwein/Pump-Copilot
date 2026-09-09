@@ -209,6 +209,42 @@ class ExecutionAdapterTests(unittest.TestCase):
         self.assertFalse(prepared["submitted"])
         self.assertEqual(prepared["payload"]["amount"], 0.025)
 
+    def test_live_submission_stays_blocked_by_default(self):
+        with patch.object(app, "urlopen") as urlopen:
+            result = app.submit_pumpportal_lightning_trade(
+                {"action": "buy"},
+            )
+
+        self.assertFalse(result["ok"])
+        self.assertEqual(
+            result["reason"],
+            "LIVE_TRADING_DISABLED",
+        )
+        urlopen.assert_not_called()
+
+    def test_live_submission_parses_simulated_pumpportal_response(self):
+        response = MagicMock()
+        response.read.return_value = b'{"signature":"tx-123"}'
+        response.__enter__.return_value = response
+
+        with patch.object(app, "LIVE_TRADING", True), patch.object(
+            app,
+            "LIVE_EXECUTION_IMPLEMENTED",
+            True,
+        ), patch.object(
+            app,
+            "urlopen",
+            return_value=response,
+        ) as urlopen:
+            result = app.submit_pumpportal_lightning_trade(
+                {"action": "buy"},
+                api_key="test-key",
+            )
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["signature"], "tx-123")
+        self.assertIn("api-key=test-key", urlopen.call_args.args[0].full_url)
+
 
 class PositionConcurrencyTests(unittest.TestCase):
     def test_only_one_simultaneous_position_is_opened_per_mode(self):

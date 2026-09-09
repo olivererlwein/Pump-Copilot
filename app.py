@@ -2003,6 +2003,63 @@ def prepare_pumpportal_lightning_buy(
     }
 
 
+def submit_pumpportal_lightning_trade(
+    payload,
+    api_key=None,
+    timeout_seconds=5
+):
+    try:
+        require_live_trading()
+    except HTTPException as exc:
+        return {
+            "ok": False,
+            "reason": exc.detail,
+        }
+
+    selected_api_key = str(api_key or API_KEY or "").strip()
+    if not selected_api_key:
+        return {
+            "ok": False,
+            "reason": "PUMPPORTAL_API_KEY_MISSING",
+        }
+
+    request = Request(
+        "https://pumpportal.fun/api/trade?api-key="
+        + selected_api_key,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "User-Agent": "Pump-Copilot/1.0",
+        },
+        method="POST",
+    )
+
+    try:
+        with urlopen(request, timeout=timeout_seconds) as response:
+            result = json.loads(response.read().decode("utf-8"))
+    except Exception:
+        return {
+            "ok": False,
+            "reason": "PUMPPORTAL_REQUEST_FAILED",
+        }
+
+    if not isinstance(result, dict):
+        return {
+            "ok": False,
+            "reason": "INVALID_PUMPPORTAL_RESPONSE",
+        }
+
+    signature = result.get("signature")
+    errors = result.get("errors") or result.get("error")
+    return {
+        "ok": bool(signature) and not errors,
+        "reason": "PUMPPORTAL_SUBMITTED" if signature else "PUMPPORTAL_REJECTED",
+        "signature": signature,
+        "errors": errors,
+    }
+
+
 def create_execution_order(
     mint,
     side,
