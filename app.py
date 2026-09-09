@@ -190,10 +190,19 @@ SHADOW_MODEL_PATH = Path(
     )
 )
 
+SHADOW_CHALLENGER_MODEL_PATH = Path(
+    os.getenv(
+        "SHADOW_CHALLENGER_MODEL_PATH",
+        str(BASE / "models" / "baseline_v2_challenger_shadow.json")
+    )
+)
+
 SEEN_SIGNATURES = set()
 FORCE_STREAM_ERROR = False
 SHADOW_MODEL = None
 SHADOW_MODEL_LAST_ERROR = ""
+SHADOW_CHALLENGER_MODEL = None
+SHADOW_CHALLENGER_LAST_ERROR = ""
 
 
 # =========================================================
@@ -426,14 +435,15 @@ CREATE TABLE IF NOT EXISTS signal_outcomes(
         """
         CREATE TABLE IF NOT EXISTS model_shadow_predictions(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            evaluation_id INTEGER NOT NULL UNIQUE,
+            evaluation_id INTEGER NOT NULL,
             created_ts REAL NOT NULL,
             model_version TEXT NOT NULL,
             data_version INTEGER NOT NULL,
             probability REAL NOT NULL,
             threshold REAL NOT NULL,
             predicted_target INTEGER NOT NULL,
-            features_json TEXT NOT NULL
+            features_json TEXT NOT NULL,
+            UNIQUE(evaluation_id, model_version)
         )
         """
     )
@@ -2617,6 +2627,81 @@ def risk_check(
 # MIGRACIÓN DE LA BD VIEJA
 # =========================================================
 
+def migrate_shadow_predictions_for_multiple_models(conn):
+    indexes = conn.execute(
+        "PRAGMA index_list(model_shadow_predictions)"
+    ).fetchall()
+    unique_indexes = [row[1] for row in indexes if int(row[2]) == 1]
+    unique_columns = [
+        [
+            column[2]
+            for column in conn.execute(
+                f'PRAGMA index_info("{index_name}")'
+            ).fetchall()
+        ]
+        for index_name in unique_indexes
+    ]
+
+    if ["evaluation_id", "model_version"] in unique_columns:
+        return False
+
+    conn.execute("DROP TABLE IF EXISTS model_shadow_predictions_v2")
+    conn.execute(
+        """
+        CREATE TABLE model_shadow_predictions_v2(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            evaluation_id INTEGER NOT NULL,
+            created_ts REAL NOT NULL,
+            model_version TEXT NOT NULL,
+            data_version INTEGER NOT NULL,
+            probability REAL NOT NULL,
+            threshold REAL NOT NULL,
+            predicted_target INTEGER NOT NULL,
+            features_json TEXT NOT NULL,
+            UNIQUE(evaluation_id, model_version)
+        )
+        """
+    )
+    conn.execute(
+        """
+        INSERT OR IGNORE INTO model_shadow_predictions_v2(
+            id,
+            evaluation_id,
+            created_ts,
+            model_version,
+            data_version,
+            probability,
+            threshold,
+            predicted_target,
+            features_json
+        )
+        SELECT
+            id,
+            evaluation_id,
+            created_ts,
+            model_version,
+            data_version,
+            probability,
+            threshold,
+            predicted_target,
+            features_json
+        FROM model_shadow_predictions
+        """
+    )
+    conn.execute("DROP TABLE model_shadow_predictions")
+    conn.execute(
+        "ALTER TABLE model_shadow_predictions_v2 "
+        "RENAME TO model_shadow_predictions"
+    )
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_shadow_predictions_created_ts
+        ON model_shadow_predictions(created_ts)
+        """
+    )
+    return True
+
+
 def migrate_database():
 
     conn = db()
@@ -2624,6 +2709,8 @@ def migrate_database():
     conn.execute(
         "PRAGMA journal_mode = WAL"
     )
+
+    migrate_shadow_predictions_for_multiple_models(conn)
 
     existing = [
         row[1]
@@ -3604,9 +3691,13 @@ def calculate_copyability_score(trader):
 def load_shadow_model():
     global SHADOW_MODEL
     global SHADOW_MODEL_LAST_ERROR
+    global SHADOW_CHALLENGER_MODEL
+    global SHADOW_CHALLENGER_LAST_ERROR
 
     SHADOW_MODEL = None
     SHADOW_MODEL_LAST_ERROR = ""
+    SHADOW_CHALLENGER_MODEL = None
+    SHADOW_CHALLENGER_LAST_ERROR = ""
 
     if not SHADOW_MODE_ENABLED:
         return None
@@ -3625,6 +3716,32 @@ def load_shadow_model():
     except Exception as exc:
         SHADOW_MODEL_LAST_ERROR = str(exc)
         print(f"[SHADOW] Disabled: {exc}")
+
+    if SHADOW_CHALLENGER_MODEL_PATH.exists():
+        try:
+            challenger = ShadowLogisticModel.from_path(
+                SHADOW_CHALLENGER_MODEL_PATH
+            )
+            if challenger.data_version != DATA_VERSION:
+                raise ValueError(
+                    "Shadow challenger data version does not match the app"
+                )
+            if (
+                SHADOW_MODEL is not None
+                and challenger.model_version == SHADOW_MODEL.model_version
+            ):
+                raise ValueError(
+                    "Shadow challenger must have a different model version"
+                )
+            SHADOW_CHALLENGER_MODEL = challenger
+            print(
+                f"[SHADOW] Loaded challenger "
+                f"{challenger.model_version} "
+                f"from {SHADOW_CHALLENGER_MODEL_PATH}"
+            )
+        except Exception as exc:
+            SHADOW_CHALLENGER_LAST_ERROR = str(exc)
+            print(f"[SHADOW] Challenger disabled: {exc}")
 
     return SHADOW_MODEL
 
@@ -3756,49 +3873,67 @@ def build_model_features(
 
 def record_shadow_prediction(evaluation_id, features):
     global SHADOW_MODEL_LAST_ERROR
+    global SHADOW_CHALLENGER_LAST_ERROR
 
     if not SHADOW_MODE_ENABLED or SHADOW_MODEL is None:
         return None
 
-    conn = None
-    try:
-        prediction = SHADOW_MODEL.predict(features)
-        conn = db()
-        conn.execute(
-            """
-            INSERT OR IGNORE INTO model_shadow_predictions(
-                evaluation_id,
-                created_ts,
-                model_version,
-                data_version,
-                probability,
-                threshold,
-                predicted_target,
-                features_json
+    incumbent_prediction = None
+    models = (
+        ("incumbent", SHADOW_MODEL),
+        ("challenger", SHADOW_CHALLENGER_MODEL),
+    )
+
+    for role, model in models:
+        if model is None:
+            continue
+
+        conn = None
+        try:
+            prediction = model.predict(features)
+            conn = db()
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO model_shadow_predictions(
+                    evaluation_id,
+                    created_ts,
+                    model_version,
+                    data_version,
+                    probability,
+                    threshold,
+                    predicted_target,
+                    features_json
+                )
+                VALUES(?,?,?,?,?,?,?,?)
+                """,
+                (
+                    int(evaluation_id),
+                    time.time(),
+                    prediction["model_version"],
+                    prediction["data_version"],
+                    prediction["probability"],
+                    prediction["threshold"],
+                    prediction["predicted_target"],
+                    json.dumps(features, sort_keys=True),
+                ),
             )
-            VALUES(?,?,?,?,?,?,?,?)
-            """,
-            (
-                int(evaluation_id),
-                time.time(),
-                prediction["model_version"],
-                prediction["data_version"],
-                prediction["probability"],
-                prediction["threshold"],
-                prediction["predicted_target"],
-                json.dumps(features, sort_keys=True),
-            ),
-        )
-        conn.commit()
-        SHADOW_MODEL_LAST_ERROR = ""
-        return prediction
-    except Exception as exc:
-        SHADOW_MODEL_LAST_ERROR = str(exc)
-        print(f"[SHADOW] Prediction failed: {exc}")
-        return None
-    finally:
-        if conn is not None:
-            conn.close()
+            conn.commit()
+            if role == "incumbent":
+                SHADOW_MODEL_LAST_ERROR = ""
+                incumbent_prediction = prediction
+            else:
+                SHADOW_CHALLENGER_LAST_ERROR = ""
+        except Exception as exc:
+            if role == "incumbent":
+                SHADOW_MODEL_LAST_ERROR = str(exc)
+            else:
+                SHADOW_CHALLENGER_LAST_ERROR = str(exc)
+            print(f"[SHADOW] {role.title()} prediction failed: {exc}")
+        finally:
+            if conn is not None:
+                conn.close()
+
+    return incumbent_prediction
 
 
 def observe_shadow_signal(
@@ -3881,6 +4016,50 @@ def get_shadow_predictions(limit=100):
     ]
 
 
+def summarize_shadow_predictions(rows):
+    completed = [
+        row for row in rows if row["actual_target"] is not None
+    ]
+    true_positive = sum(
+        row["predicted_target"] == 1 and row["actual_target"] == 1
+        for row in completed
+    )
+    false_positive = sum(
+        row["predicted_target"] == 1 and row["actual_target"] == 0
+        for row in completed
+    )
+    true_negative = sum(
+        row["predicted_target"] == 0 and row["actual_target"] == 0
+        for row in completed
+    )
+    false_negative = sum(
+        row["predicted_target"] == 0 and row["actual_target"] == 1
+        for row in completed
+    )
+    predicted_positive = true_positive + false_positive
+    actual_positive = true_positive + false_negative
+
+    return {
+        "total": len(rows),
+        "pending": len(rows) - len(completed),
+        "completed": len(completed),
+        "precision": (
+            round(true_positive / predicted_positive, 6)
+            if predicted_positive
+            else None
+        ),
+        "recall": (
+            round(true_positive / actual_positive, 6)
+            if actual_positive
+            else None
+        ),
+        "confusion_matrix": [
+            [true_negative, false_positive],
+            [false_negative, true_positive],
+        ],
+    }
+
+
 def get_shadow_stats():
     conn = db()
     raw_rows = conn.execute(
@@ -3908,69 +4087,52 @@ def get_shadow_stats():
     ).fetchall()
     conn.close()
 
-    current_version = (
-        SHADOW_MODEL.model_version if SHADOW_MODEL is not None else None
+    current_version = getattr(SHADOW_MODEL, "model_version", None)
+    challenger_version = getattr(
+        SHADOW_CHALLENGER_MODEL,
+        "model_version",
+        None,
     )
-    version_counts = {}
-    rows = []
+    rows_by_version = {}
     for model_version, predicted_target, actual_target in raw_rows:
         model_version = str(model_version)
-        version_counts[model_version] = version_counts.get(model_version, 0) + 1
-        if current_version is None or model_version == current_version:
-            rows.append({
-                "predicted_target": int(predicted_target),
-                "actual_target": (
-                    int(actual_target) if actual_target is not None else None
-                ),
-            })
+        rows_by_version.setdefault(model_version, []).append({
+            "predicted_target": int(predicted_target),
+            "actual_target": (
+                int(actual_target) if actual_target is not None else None
+            ),
+        })
 
-    completed = [
-        row for row in rows if row["actual_target"] is not None
+    models = {
+        version: summarize_shadow_predictions(rows)
+        for version, rows in rows_by_version.items()
+    }
+    aggregate_rows = [
+        row
+        for rows in rows_by_version.values()
+        for row in rows
     ]
-    true_positive = sum(
-        row["predicted_target"] == 1 and row["actual_target"] == 1
-        for row in completed
+    current_metrics = models.get(
+        current_version,
+        summarize_shadow_predictions(aggregate_rows),
     )
-    false_positive = sum(
-        row["predicted_target"] == 1 and row["actual_target"] == 0
-        for row in completed
-    )
-    true_negative = sum(
-        row["predicted_target"] == 0 and row["actual_target"] == 0
-        for row in completed
-    )
-    false_negative = sum(
-        row["predicted_target"] == 0 and row["actual_target"] == 1
-        for row in completed
-    )
-    predicted_positive = true_positive + false_positive
-    actual_positive = true_positive + false_negative
 
     return {
         "enabled": bool(SHADOW_MODE_ENABLED),
         "model_loaded": SHADOW_MODEL is not None,
-        "model_version": (
-            SHADOW_MODEL.model_version if SHADOW_MODEL is not None else None
+        "model_version": current_version,
+        "challenger_model_loaded": SHADOW_CHALLENGER_MODEL is not None,
+        "challenger_model_version": challenger_version,
+        "challenger_model_last_error": (
+            SHADOW_CHALLENGER_LAST_ERROR or None
         ),
         "all_versions_total": len(raw_rows),
-        "version_counts": version_counts,
-        "total": len(rows),
-        "pending": len(rows) - len(completed),
-        "completed": len(completed),
-        "precision": (
-            round(true_positive / predicted_positive, 6)
-            if predicted_positive
-            else None
-        ),
-        "recall": (
-            round(true_positive / actual_positive, 6)
-            if actual_positive
-            else None
-        ),
-        "confusion_matrix": [
-            [true_negative, false_positive],
-            [false_negative, true_positive],
-        ],
+        "version_counts": {
+            version: metrics["total"]
+            for version, metrics in models.items()
+        },
+        "models": models,
+        **current_metrics,
     }
 
 
@@ -6820,6 +6982,19 @@ def status(
 
         "shadow_model_last_error":
             (SHADOW_MODEL_LAST_ERROR or None),
+
+        "shadow_challenger_model_loaded":
+            SHADOW_CHALLENGER_MODEL is not None,
+
+        "shadow_challenger_model_version":
+            (
+                SHADOW_CHALLENGER_MODEL.model_version
+                if SHADOW_CHALLENGER_MODEL is not None
+                else None
+            ),
+
+        "shadow_challenger_model_last_error":
+            (SHADOW_CHALLENGER_LAST_ERROR or None),
 
         "paper_buy_usd":
             PAPER_BUY_USD,

@@ -6,9 +6,9 @@
     "semantic_hash": "5ebef3dd159986e465ab65e4014107ec"
   },
   "app.py": {
-    "mtime": 1788835961.952209,
-    "seen": 1788835983.3760636,
-    "ast_hash": "28280af9affec56c07bc82e8b33b3501",
+    "mtime": 1788925500.0866044,
+    "seen": 1788925601.7767437,
+    "ast_hash": "ad44e7161ba9df983155f6af4928ad2b",
     "semantic_hash": ""
   },
   "models/baseline_v2_shadow.json": {
@@ -42,10 +42,10 @@
     "semantic_hash": "94d1d9c0e8a98f2599b35d7753e8d767"
   },
   "tests/test_shadow_mode.py": {
-    "mtime": 1788830166.4307308,
-    "seen": 1788834658.8527458,
-    "ast_hash": "b70f68bb25b2a097e38c0948bbb44fd3",
-    "semantic_hash": "b70f68bb25b2a097e38c0948bbb44fd3"
+    "mtime": 1788925640.8350236,
+    "seen": 1788925660.0021632,
+    "ast_hash": "d4173f6204b4322d9be73a6024e105fc",
+    "semantic_hash": ""
   },
   "tests/test_stream_monitoring.py": {
     "mtime": 1788835961.954204,
@@ -213,6 +213,12 @@
     "mtime": 1788924268.5519156,
     "seen": 1788924968.7481098,
     "ast_hash": "0d8d03de5d530717fcdba84553ad2dbc",
+    "semantic_hash": ""
+  },
+  "training/schema_v2_candidate.json": {
+    "mtime": 1788925519.6662436,
+    "seen": 1788925601.7768216,
+    "ast_hash": "8f506f7164d41c3147fa02cd4434d857",
     "semantic_hash": ""
   }
 }
