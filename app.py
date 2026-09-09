@@ -197,6 +197,11 @@ SHADOW_CHALLENGER_MODEL_PATH = Path(
     )
 )
 
+SHADOW_REVIEW_MIN_COMPLETED = max(
+    1,
+    int(os.getenv("SHADOW_REVIEW_MIN_COMPLETED", "100"))
+)
+
 SEEN_SIGNATURES = set()
 FORCE_STREAM_ERROR = False
 SHADOW_MODEL = None
@@ -1501,6 +1506,9 @@ async def signal_outcome_checkpoint_worker():
 
             for mint in touched_mints:
                 cleanup_finished_outcome_token(mint)
+
+            if touched_mints:
+                await maybe_send_shadow_review_alert()
 
         except Exception as exc:
             print(
@@ -4195,6 +4203,50 @@ def compare_shadow_models(
     }
 
 
+def assess_shadow_challenger(comparison):
+    completed = int((comparison or {}).get("completed") or 0)
+    precision_delta = (comparison or {}).get("precision_delta")
+    recall_delta = (comparison or {}).get("recall_delta")
+    ready = (
+        completed >= SHADOW_REVIEW_MIN_COMPLETED
+        and precision_delta is not None
+        and recall_delta is not None
+    )
+
+    leader = None
+    if ready:
+        if (
+            precision_delta >= 0
+            and recall_delta >= 0
+            and (precision_delta > 0 or recall_delta > 0)
+        ):
+            leader = "challenger"
+        elif (
+            precision_delta <= 0
+            and recall_delta <= 0
+            and (precision_delta < 0 or recall_delta < 0)
+        ):
+            leader = "incumbent"
+        else:
+            leader = "mixed"
+
+    blockers = []
+    if completed < SHADOW_REVIEW_MIN_COMPLETED:
+        blockers.append(
+            f"paired_completed "
+            f"{completed}/{SHADOW_REVIEW_MIN_COMPLETED}"
+        )
+    elif precision_delta is None or recall_delta is None:
+        blockers.append("paired_metrics_unavailable")
+
+    return {
+        "minimum_completed": SHADOW_REVIEW_MIN_COMPLETED,
+        "ready_for_review": ready,
+        "leader": leader,
+        "blockers": blockers,
+    }
+
+
 def get_shadow_stats():
     conn = db()
     raw_rows = conn.execute(
@@ -4259,6 +4311,12 @@ def get_shadow_stats():
         summarize_shadow_predictions(aggregate_rows),
     )
 
+    comparison = compare_shadow_models(
+        rows_by_version,
+        current_version,
+        challenger_version,
+    )
+
     return {
         "enabled": bool(SHADOW_MODE_ENABLED),
         "model_loaded": SHADOW_MODEL is not None,
@@ -4274,11 +4332,8 @@ def get_shadow_stats():
             for version, metrics in models.items()
         },
         "models": models,
-        "comparison": compare_shadow_models(
-            rows_by_version,
-            current_version,
-            challenger_version,
-        ),
+        "comparison": comparison,
+        "promotion_assessment": assess_shadow_challenger(comparison),
         **current_metrics,
     }
 
@@ -6332,8 +6387,83 @@ async def send_discord_alert(message):
         if sent:
             print("[ALERT] Discord notification sent")
 
+        return bool(sent)
+
     except Exception as ex:
         print("[ALERT ERROR]", repr(ex))
+        return False
+
+
+async def maybe_send_shadow_review_alert():
+    if not DISCORD_ALERT_WEBHOOK_URL:
+        return False
+
+    stats = get_shadow_stats()
+    assessment = stats["promotion_assessment"]
+    comparison = stats.get("comparison")
+    challenger_version = stats.get("challenger_model_version")
+
+    if (
+        not assessment["ready_for_review"]
+        or not comparison
+        or not challenger_version
+    ):
+        return False
+
+    state_key = (
+        f"SHADOW_REVIEW_ALERT:{challenger_version}:"
+        f"{assessment['minimum_completed']}"
+    )
+    conn = db()
+    already_sent = conn.execute(
+        "SELECT 1 FROM app_state WHERE key = ? LIMIT 1",
+        (state_key,),
+    ).fetchone()
+    conn.close()
+
+    if already_sent:
+        return False
+
+    incumbent = comparison["incumbent_metrics"]
+    challenger = comparison["challenger_metrics"]
+
+    def percent(value):
+        return (
+            f"{float(value) * 100:.1f}%"
+            if value is not None
+            else "n/a"
+        )
+
+    sent = await send_discord_alert(
+        "Pump Copilot: shadow comparison ready for review.\n"
+        f"Paired completed: {comparison['completed']}\n"
+        f"Leader: {assessment['leader']}\n"
+        f"Incumbent precision/recall: "
+        f"{percent(incumbent['precision'])} / "
+        f"{percent(incumbent['recall'])}\n"
+        f"Challenger precision/recall: "
+        f"{percent(challenger['precision'])} / "
+        f"{percent(challenger['recall'])}\n"
+        f"Exclusive correct: incumbent "
+        f"{comparison['incumbent_only_correct']}, challenger "
+        f"{comparison['challenger_only_correct']}\n"
+        "No model was promoted automatically."
+    )
+
+    if not sent:
+        return False
+
+    conn = db()
+    conn.execute(
+        """
+        INSERT OR IGNORE INTO app_state(key, value)
+        VALUES(?, ?)
+        """,
+        (state_key, str(time.time())),
+    )
+    conn.commit()
+    conn.close()
+    return True
 
 
 def fetch_solana_balance_sol(wallet_address):

@@ -1,4 +1,6 @@
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import app
@@ -121,6 +123,59 @@ class PumpPortalBalanceTests(unittest.IsolatedAsyncioTestCase):
             "recovered",
             send_alert.await_args.args[0],
         )
+
+
+class ShadowReviewAlertTests(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.original_db = app.DB
+        self.original_webhook = app.DISCORD_ALERT_WEBHOOK_URL
+        app.DB = Path(self.temp_dir.name) / "shadow-alert.db"
+        app.DISCORD_ALERT_WEBHOOK_URL = "https://discord.test/webhook"
+
+    def tearDown(self):
+        app.DB = self.original_db
+        app.DISCORD_ALERT_WEBHOOK_URL = self.original_webhook
+        self.temp_dir.cleanup()
+
+    async def test_sends_shadow_review_alert_once(self):
+        comparison = {
+            "completed": 100,
+            "incumbent_metrics": {
+                "precision": 0.7,
+                "recall": 0.5,
+            },
+            "challenger_metrics": {
+                "precision": 0.8,
+                "recall": 0.6,
+            },
+            "incumbent_only_correct": 5,
+            "challenger_only_correct": 9,
+        }
+        stats = {
+            "challenger_model_version": "candidate-v1",
+            "comparison": comparison,
+            "promotion_assessment": {
+                "minimum_completed": 100,
+                "ready_for_review": True,
+                "leader": "challenger",
+                "blockers": [],
+            },
+        }
+
+        with patch.object(
+            app,
+            "get_shadow_stats",
+            return_value=stats,
+        ), patch.object(
+            app,
+            "send_discord_alert",
+            new=AsyncMock(return_value=True),
+        ) as send_alert:
+            self.assertTrue(await app.maybe_send_shadow_review_alert())
+            self.assertFalse(await app.maybe_send_shadow_review_alert())
+
+        self.assertEqual(send_alert.await_count, 1)
 
 
 if __name__ == "__main__":

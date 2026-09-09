@@ -294,6 +294,22 @@ class ShadowPredictionTests(unittest.TestCase):
         self.assertEqual(comparison["challenger_only_correct"], 0)
         self.assertEqual(comparison["recall_delta"], -1.0)
 
+    def test_promotion_assessment_waits_and_reports_clear_leader(self):
+        comparison = {
+            "completed": 99,
+            "precision_delta": 0.05,
+            "recall_delta": 0.1,
+        }
+        waiting = app.assess_shadow_challenger(comparison)
+        self.assertFalse(waiting["ready_for_review"])
+        self.assertEqual(waiting["leader"], None)
+
+        comparison["completed"] = 100
+        ready = app.assess_shadow_challenger(comparison)
+        self.assertTrue(ready["ready_for_review"])
+        self.assertEqual(ready["leader"], "challenger")
+        self.assertEqual(ready["blockers"], [])
+
     def test_feature_failure_does_not_escape(self):
         with patch.object(
             app,
