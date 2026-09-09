@@ -417,8 +417,8 @@ class ExecutionAdapterTests(unittest.TestCase):
                 "fetch_solana_signature_status",
                 return_value={"failed": False, "finalized": True},
             ):
-                reconciled = app.reconcile_pumpportal_execution_order(
-                    first["order_id"]
+                reconciled = (
+                    app.reconcile_pending_pumpportal_execution_orders()[0]
                 )
 
             self.assertTrue(reconciled["ok"])

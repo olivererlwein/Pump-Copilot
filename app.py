@@ -195,6 +195,7 @@ MIN_LIQUIDITY_SOL = 10.0
 
 EXECUTION_TIMEOUT_SECONDS = 10
 MAX_EXECUTION_RETRIES = 2
+EXECUTION_RECONCILIATION_SECONDS = 5
 
 STREAM_INACTIVITY_TIMEOUT = 120
 
@@ -3038,6 +3039,39 @@ def reconcile_pumpportal_execution_order(order_id):
         "status": "PENDING_RECONCILIATION",
         "reason": "SOLANA_TRANSACTION_PENDING",
     }
+
+
+def reconcile_pending_pumpportal_execution_orders(limit=20):
+    conn = db()
+    rows = conn.execute(
+        """
+        SELECT id
+        FROM execution_orders
+        WHERE source = 'pumpportal_lightning'
+        AND status IN ('SENT', 'PENDING_RECONCILIATION')
+        AND external_signature IS NOT NULL
+        ORDER BY id ASC
+        LIMIT ?
+        """,
+        (max(1, min(int(limit), 100)),),
+    ).fetchall()
+    conn.close()
+    return [
+        reconcile_pumpportal_execution_order(row[0])
+        for row in rows
+    ]
+
+
+async def pumpportal_execution_reconciliation_worker():
+    while True:
+        try:
+            await asyncio.to_thread(
+                reconcile_pending_pumpportal_execution_orders
+            )
+        except Exception as ex:
+            print("[EXECUTION RECONCILIATION ERROR]", repr(ex))
+
+        await asyncio.sleep(EXECUTION_RECONCILIATION_SECONDS)
 
 def risk_check(
     mint,
@@ -7701,7 +7735,11 @@ async def startup():
     )
 
     asyncio.create_task(
-    signal_outcome_checkpoint_worker()
+        pumpportal_execution_reconciliation_worker()
+    )
+
+    asyncio.create_task(
+        signal_outcome_checkpoint_worker()
     )
 # =========================================================
 # AUTENTICACIÓN
