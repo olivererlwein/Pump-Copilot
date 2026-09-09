@@ -4613,6 +4613,43 @@ def get_shadow_stats():
     }
 
 
+def get_live_execution_readiness():
+    shadow_stats = get_shadow_stats()
+    assessment = shadow_stats["promotion_assessment"]
+    blockers = []
+
+    if not API_KEY:
+        blockers.append("PUMPPORTAL_API_KEY_MISSING")
+    if not STREAM_CONNECTED:
+        blockers.append("STREAM_DISCONNECTED")
+    if PUMPPORTAL_WALLET_BALANCE_SOL is None:
+        blockers.append("PUMPPORTAL_BALANCE_UNKNOWN")
+    elif PUMPPORTAL_WALLET_BALANCE_SOL < PUMPPORTAL_LOW_BALANCE_SOL:
+        blockers.append("PUMPPORTAL_BALANCE_LOW")
+    if not assessment["ready_for_review"]:
+        blockers.extend(assessment["blockers"])
+    elif assessment["leader"] != "challenger":
+        blockers.append("SHADOW_CHALLENGER_NOT_CLEAR_LEADER")
+    if KILL_SWITCH:
+        blockers.append("KILL_SWITCH_ACTIVE")
+    if not LIVE_EXECUTION_IMPLEMENTED:
+        blockers.append("LIVE_EXECUTION_NOT_IMPLEMENTED")
+    if not LIVE_TRADING:
+        blockers.append("LIVE_TRADING_DISABLED")
+
+    return {
+        "ready": not blockers,
+        "blockers": blockers,
+        "shadow_review": assessment,
+        "stream_connected": bool(STREAM_CONNECTED),
+        "pumpportal_wallet_balance_sol": PUMPPORTAL_WALLET_BALANCE_SOL,
+        "pumpportal_low_balance_threshold_sol": PUMPPORTAL_LOW_BALANCE_SOL,
+        "kill_switch": bool(KILL_SWITCH),
+        "live_execution_implemented": bool(LIVE_EXECUTION_IMPLEMENTED),
+        "live_trading_enabled": bool(LIVE_TRADING),
+    }
+
+
 def get_training_dataset_rows():
     conn = db()
 
@@ -8386,6 +8423,14 @@ def api_shadow_stats(
 ):
     auth(x_app_token)
     return get_shadow_stats()
+
+
+@app.get("/api/live-execution-readiness")
+def api_live_execution_readiness(
+    x_app_token: str = Header(default=""),
+):
+    auth(x_app_token)
+    return get_live_execution_readiness()
 
 
 # =========================================================

@@ -89,6 +89,49 @@ class LiveTradingGuardTests(unittest.TestCase):
         self.assertFalse(status["live_execution_implemented"])
         self.assertFalse(status["live_trading_active"])
 
+    def test_live_readiness_reports_every_remaining_guard(self):
+        shadow_stats = {
+            "promotion_assessment": {
+                "minimum_completed": 100,
+                "ready_for_review": False,
+                "leader": None,
+                "blockers": ["paired_completed 42/100"],
+            },
+        }
+
+        with patch.object(
+            app,
+            "get_shadow_stats",
+            return_value=shadow_stats,
+        ), patch.object(app, "API_KEY", "test-key"), patch.object(
+            app,
+            "STREAM_CONNECTED",
+            True,
+        ), patch.object(
+            app,
+            "PUMPPORTAL_WALLET_BALANCE_SOL",
+            0.05,
+        ), patch.object(
+            app,
+            "KILL_SWITCH",
+            False,
+        ), patch.object(
+            app,
+            "LIVE_EXECUTION_IMPLEMENTED",
+            False,
+        ), patch.object(app, "LIVE_TRADING", False):
+            readiness = app.get_live_execution_readiness()
+
+        self.assertFalse(readiness["ready"])
+        self.assertEqual(
+            readiness["blockers"],
+            [
+                "paired_completed 42/100",
+                "LIVE_EXECUTION_NOT_IMPLEMENTED",
+                "LIVE_TRADING_DISABLED",
+            ],
+        )
+
 
 class ExecutionAdapterTests(unittest.TestCase):
     def execution_args(self):
