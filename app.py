@@ -2,6 +2,7 @@ import os
 import json
 import time
 import asyncio
+import math
 import sqlite3
 import random
 import uuid
@@ -714,7 +715,18 @@ def validate_slippage(
     execution_price
 ):
 
-    if expected_price <= 0 or execution_price <= 0:
+    try:
+        expected_price = float(expected_price)
+        execution_price = float(execution_price)
+    except (TypeError, ValueError):
+        return False
+
+    if (
+        not math.isfinite(expected_price)
+        or not math.isfinite(execution_price)
+        or expected_price <= 0
+        or execution_price <= 0
+    ):
         return False
 
     slippage_pct = (
@@ -735,11 +747,15 @@ def validate_liquidity(
     liquidity_sol
 ):
 
-    liquidity_sol = float(
-        liquidity_sol or 0
-    )
+    try:
+        liquidity_sol = float(liquidity_sol)
+    except (TypeError, ValueError):
+        return False
 
-    if liquidity_sol < MIN_LIQUIDITY_SOL:
+    if (
+        not math.isfinite(liquidity_sol)
+        or liquidity_sol < MIN_LIQUIDITY_SOL
+    ):
         print(
             f"[RISK BLOCK] Liquidez {liquidity_sol:.2f} SOL "
             f"menor al mínimo {MIN_LIQUIDITY_SOL:.2f} SOL"
@@ -2288,7 +2304,8 @@ def can_retry_execution(order_id):
         "MAX_POSITION_USD",
         "MAX_DAILY_LOSS",
         "MAX_OPEN_POSITIONS",
-        "KILL_SWITCH"
+        "KILL_SWITCH",
+        "INVALID_AMOUNT_USD"
     ):
         return {
             "ok": False,
@@ -2576,6 +2593,17 @@ def risk_check(
         return {
             "ok": False,
             "reason": "KILL_SWITCH"
+        }
+
+    try:
+        amount_usd = float(amount_usd)
+    except (TypeError, ValueError):
+        amount_usd = 0.0
+
+    if not math.isfinite(amount_usd) or amount_usd <= 0:
+        return {
+            "ok": False,
+            "reason": "INVALID_AMOUNT_USD"
         }
 
     if amount_usd > MAX_POSITION_USD:
