@@ -784,6 +784,8 @@
       margin-bottom:12px;
     }
 
+    .shadow-head > div:first-child{min-width:0}
+
     .shadow-title{
       color:var(--text);
       font-size:12px;
@@ -791,10 +793,13 @@
     }
 
     .shadow-version{
+      overflow:hidden;
       margin-top:3px;
       color:var(--muted-2);
       font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
       font-size:9px;
+      text-overflow:ellipsis;
+      white-space:nowrap;
     }
 
     .shadow-state{
@@ -845,6 +850,27 @@
     }
 
     .shadow-matrix b{color:var(--text)}
+
+    .shadow-versus{
+      display:grid;
+      grid-template-columns:minmax(72px,1fr) repeat(3,minmax(0,1fr));
+      gap:6px 10px;
+      margin-top:12px;
+      padding-top:10px;
+      border-top:1px solid var(--border);
+      font-size:9px;
+    }
+
+    .shadow-versus span{color:var(--muted)}
+
+    .shadow-versus b{
+      overflow:hidden;
+      color:var(--text);
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+
+    .shadow-versus .positive{color:var(--green)}
 
     .control-bar{
       display:flex;
@@ -1765,31 +1791,49 @@ function renderShadowStats(stats){
   }
 
   const loaded=Boolean(stats.model_loaded);
-  const precision=stats.precision===null?"—":`${(Number(stats.precision)*100).toFixed(0)}%`;
-  const recall=stats.recall===null?"—":`${(Number(stats.recall)*100).toFixed(0)}%`;
-  const matrix=stats.confusion_matrix||[[0,0],[0,0]];
-  const version=String(stats.model_version||"sin modelo");
+  const challengerLoaded=Boolean(stats.challenger_model_loaded);
+  const comparison=stats.comparison||null;
+  const paired=Number(comparison?.total||0);
+  const completed=Number(comparison?.completed||0);
+  const pending=Number(comparison?.pending||0);
+  const agreement=comparison?.agreement_rate===null
+    ?"—"
+    :`${(Number(comparison?.agreement_rate||0)*100).toFixed(0)}%`;
+  const incumbent=comparison?.incumbent_metrics||{};
+  const challenger=comparison?.challenger_metrics||{};
+  const pct=value=>value===null||value===undefined
+    ?"—"
+    :`${(Number(value)*100).toFixed(0)}%`;
+  const incumbentVersion=String(stats.model_version||"sin modelo");
+  const challengerVersion=String(
+    stats.challenger_model_version||"sin candidato"
+  );
+  const state=!loaded
+    ?"sin modelo"
+    :!challengerLoaded
+      ?"sin candidato"
+      :paired
+        ?"evaluando"
+        :"esperando";
 
   el.innerHTML=`
     <div class="shadow-head">
       <div>
-        <div class="shadow-title">Modelo shadow</div>
-        <div class="shadow-version" title="${esc(version)}">${esc(version)}</div>
+        <div class="shadow-title">Competencia shadow</div>
+        <div class="shadow-version" title="${esc(incumbentVersion)} · ${esc(challengerVersion)}">${esc(incumbentVersion)} · ${esc(challengerVersion)}</div>
       </div>
-      <div class="shadow-state ${loaded?"ready":""}">${loaded?"activo":"sin modelo"}</div>
+      <div class="shadow-state ${loaded&&challengerLoaded?"ready":""}">${state}</div>
     </div>
     <div class="shadow-grid">
-      <div class="shadow-metric"><span>Predicciones</span><b>${Number(stats.total||0)}</b></div>
-      <div class="shadow-metric"><span>Pendientes</span><b>${Number(stats.pending||0)}</b></div>
-      <div class="shadow-metric"><span>Completadas</span><b>${Number(stats.completed||0)}</b></div>
-      <div class="shadow-metric"><span>Precisión</span><b>${precision}</b></div>
+      <div class="shadow-metric"><span>Compartidas</span><b>${paired}</b></div>
+      <div class="shadow-metric"><span>Pendientes</span><b>${pending}</b></div>
+      <div class="shadow-metric"><span>Completadas</span><b>${completed}</b></div>
+      <div class="shadow-metric"><span>Acuerdo</span><b>${agreement}</b></div>
     </div>
-    <div class="shadow-matrix">
-      <span>Recall <b>${recall}</b></span>
-      <span>TN <b>${Number(matrix[0]?.[0]||0)}</b></span>
-      <span>FP <b>${Number(matrix[0]?.[1]||0)}</b></span>
-      <span>FN <b>${Number(matrix[1]?.[0]||0)}</b></span>
-      <span>TP <b>${Number(matrix[1]?.[1]||0)}</b></span>
+    <div class="shadow-versus">
+      <span>Modelo</span><span>Precisión</span><span>Recall</span><span>Aciertos únicos</span>
+      <b>Actual</b><b>${pct(incumbent.precision)}</b><b>${pct(incumbent.recall)}</b><b>${Number(comparison?.incumbent_only_correct||0)}</b>
+      <b class="positive">Candidato</b><b>${pct(challenger.precision)}</b><b>${pct(challenger.recall)}</b><b>${Number(comparison?.challenger_only_correct||0)}</b>
     </div>
   `;
 }
