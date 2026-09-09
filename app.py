@@ -6827,6 +6827,75 @@ def fetch_solana_balance_sol(wallet_address):
     return float(lamports) / 1_000_000_000
 
 
+def fetch_solana_signature_status(signature, timeout_seconds=5):
+    signature = str(signature or "").strip()
+    base58 = set(
+        "123456789ABCDEFGHJKLMNPQRSTUVWXYZ"
+        "abcdefghijkmnopqrstuvwxyz"
+    )
+    if not 64 <= len(signature) <= 100 or any(
+        character not in base58
+        for character in signature
+    ):
+        raise ValueError("INVALID_SOLANA_SIGNATURE")
+
+    body = json.dumps({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "getSignatureStatuses",
+        "params": [
+            [signature],
+            {"searchTransactionHistory": True},
+        ],
+    }).encode("utf-8")
+    request = Request(
+        SOLANA_RPC_URL,
+        data=body,
+        headers={
+            "Content-Type": "application/json",
+            "User-Agent": "Pump-Copilot/1.0",
+        },
+        method="POST",
+    )
+
+    with urlopen(request, timeout=timeout_seconds) as response:
+        payload = json.loads(response.read().decode("utf-8"))
+
+    if payload.get("error"):
+        raise ValueError("SOLANA_RPC_ERROR")
+
+    try:
+        status = payload["result"]["value"][0]
+    except (KeyError, IndexError, TypeError) as exc:
+        raise ValueError("INVALID_SOLANA_RPC_RESPONSE") from exc
+
+    if status is None:
+        return {
+            "found": False,
+            "confirmed": False,
+            "finalized": False,
+            "failed": False,
+            "confirmation_status": None,
+            "slot": None,
+            "error": None,
+        }
+
+    confirmation_status = status.get("confirmationStatus")
+    error = status.get("err")
+    return {
+        "found": True,
+        "confirmed": (
+            error is None
+            and confirmation_status in ("confirmed", "finalized")
+        ),
+        "finalized": error is None and confirmation_status == "finalized",
+        "failed": error is not None,
+        "confirmation_status": confirmation_status,
+        "slot": status.get("slot"),
+        "error": error,
+    }
+
+
 async def record_pumpportal_wallet_balance(balance_sol):
     global PUMPPORTAL_WALLET_BALANCE_SOL
     global PUMPPORTAL_BALANCE_CHECKED_TS

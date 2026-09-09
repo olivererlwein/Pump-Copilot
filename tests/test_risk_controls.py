@@ -1,3 +1,4 @@
+import json
 import math
 import tempfile
 import threading
@@ -287,6 +288,62 @@ class ExecutionAdapterTests(unittest.TestCase):
         self.assertTrue(result["ok"])
         self.assertEqual(result["signature"], "tx-123")
         self.assertIn("api-key=test-key", urlopen.call_args.args[0].full_url)
+
+    def test_reads_solana_signature_confirmation_without_sending(self):
+        signature = "1" * 88
+        response = MagicMock()
+        response.read.return_value = (
+            b'{"result":{"value":[{"slot":123,"err":null,'
+            b'"confirmationStatus":"finalized"}]}}'
+        )
+        response.__enter__.return_value = response
+
+        with patch.object(app, "urlopen", return_value=response) as urlopen:
+            result = app.fetch_solana_signature_status(signature)
+
+        self.assertTrue(result["confirmed"])
+        self.assertTrue(result["finalized"])
+        self.assertFalse(result["failed"])
+        request = urlopen.call_args.args[0]
+        request_body = json.loads(request.data.decode("utf-8"))
+        self.assertEqual(request_body["method"], "getSignatureStatuses")
+        self.assertTrue(request_body["params"][1]["searchTransactionHistory"])
+
+    def test_classifies_pending_confirmed_and_failed_signatures(self):
+        cases = (
+            (None, (False, False, False)),
+            (
+                {"slot": 1, "err": None, "confirmationStatus": "processed"},
+                (True, False, False),
+            ),
+            (
+                {"slot": 2, "err": None, "confirmationStatus": "confirmed"},
+                (True, True, False),
+            ),
+            (
+                {"slot": 3, "err": {"InstructionError": [0, "Failed"]},
+                 "confirmationStatus": "confirmed"},
+                (True, False, True),
+            ),
+        )
+
+        for status, expected in cases:
+            response = MagicMock()
+            response.read.return_value = json.dumps({
+                "result": {"value": [status]},
+            }).encode("utf-8")
+            response.__enter__.return_value = response
+            with self.subTest(status=status), patch.object(
+                app,
+                "urlopen",
+                return_value=response,
+            ):
+                result = app.fetch_solana_signature_status("1" * 88)
+
+            self.assertEqual(
+                (result["found"], result["confirmed"], result["failed"]),
+                expected,
+            )
 
 
 class PositionConcurrencyTests(unittest.TestCase):
