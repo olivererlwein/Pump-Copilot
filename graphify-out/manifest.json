@@ -178,5 +178,17 @@
     "seen": 1788899690.657638,
     "ast_hash": "41309f312f5a3e38630b0325e054b87b",
     "semantic_hash": ""
+  },
+  "scripts/compare_model_economics.py": {
+    "mtime": 1788924050.28108,
+    "seen": 1788924070.4450798,
+    "ast_hash": "903b5e1e4f7be50859bd973d37202230",
+    "semantic_hash": ""
+  },
+  "tests/test_model_economics.py": {
+    "mtime": 1788900929.4114947,
+    "seen": 1788924070.4450886,
+    "ast_hash": "d6a61d3aaf2eecab5eb857d13650ba74",
+    "semantic_hash": ""
   }
 }
