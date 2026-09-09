@@ -133,6 +133,45 @@ class ExecutionAdapterTests(unittest.TestCase):
         )
         simulate.assert_not_called()
 
+    def test_builds_safe_pumpportal_lightning_buy_payload(self):
+        payload = app.build_pumpportal_lightning_buy_payload(
+            mint="So11111111111111111111111111111111111111112",
+            amount_usd=5.0,
+            sol_usd_price=200.0,
+            quote_ts=1000.0,
+            now_ts=1010.0,
+        )
+
+        self.assertEqual(payload["amount"], 0.025)
+        self.assertEqual(payload["denominatedInSol"], "true")
+        self.assertEqual(payload["skipPreflight"], "false")
+        self.assertNotIn("api_key", payload)
+
+    def test_rejects_stale_price_and_unsafe_trade_values(self):
+        valid = {
+            "mint": "So11111111111111111111111111111111111111112",
+            "amount_usd": 5.0,
+            "sol_usd_price": 200.0,
+            "quote_ts": 1000.0,
+            "now_ts": 1010.0,
+        }
+
+        invalid_cases = (
+            ({"now_ts": 1031.0}, "STALE_SOL_USD_PRICE"),
+            ({"amount_usd": 6.0}, "INVALID_AMOUNT_USD"),
+            ({"slippage_pct": 6.0}, "INVALID_SLIPPAGE"),
+            ({"priority_fee_sol": 0.01}, "INVALID_PRIORITY_FEE"),
+            ({"pool": "unknown"}, "INVALID_PUMPPORTAL_POOL"),
+        )
+
+        for changes, expected_error in invalid_cases:
+            with self.subTest(expected_error=expected_error):
+                arguments = {**valid, **changes}
+                with self.assertRaisesRegex(ValueError, expected_error):
+                    app.build_pumpportal_lightning_buy_payload(
+                        **arguments
+                    )
+
 
 class PositionConcurrencyTests(unittest.TestCase):
     def test_only_one_simultaneous_position_is_opened_per_mode(self):

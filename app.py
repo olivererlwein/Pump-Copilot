@@ -173,6 +173,18 @@ EXECUTION_PROVIDER = os.getenv(
     "simulation"
 ).strip().lower()
 
+PUMPPORTAL_ALLOWED_POOLS = {
+    "auto",
+    "pump",
+    "raydium",
+    "pump-amm",
+    "launchlab",
+    "raydium-cpmm",
+    "bonk",
+}
+SOL_PRICE_MAX_AGE_SECONDS = 30.0
+MAX_PRIORITY_FEE_SOL = 0.001
+
 MAX_POSITION_USD = 5.0
 MAX_DAILY_LOSS_USD = 5.0
 MAX_SLIPPAGE_PCT = 5.0
@@ -1867,6 +1879,74 @@ def execute_order(
     )
     result["provider"] = selected_provider
     return result
+
+
+def build_pumpportal_lightning_buy_payload(
+    mint,
+    amount_usd,
+    sol_usd_price,
+    quote_ts,
+    slippage_pct=MAX_SLIPPAGE_PCT,
+    priority_fee_sol=0.00005,
+    pool="auto",
+    now_ts=None
+):
+    mint = str(mint or "").strip()
+    base58 = set(
+        "123456789ABCDEFGHJKLMNPQRSTUVWXYZ"
+        "abcdefghijkmnopqrstuvwxyz"
+    )
+    if not 32 <= len(mint) <= 44 or any(
+        character not in base58
+        for character in mint
+    ):
+        raise ValueError("INVALID_SOLANA_MINT")
+
+    try:
+        amount_usd = float(amount_usd)
+        sol_usd_price = float(sol_usd_price)
+        quote_ts = float(quote_ts)
+        slippage_pct = float(slippage_pct)
+        priority_fee_sol = float(priority_fee_sol)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("INVALID_TRADE_NUMBER") from exc
+
+    numeric_values = (
+        amount_usd,
+        sol_usd_price,
+        quote_ts,
+        slippage_pct,
+        priority_fee_sol,
+    )
+    if not all(math.isfinite(value) for value in numeric_values):
+        raise ValueError("INVALID_TRADE_NUMBER")
+    if amount_usd <= 0 or amount_usd > MAX_POSITION_USD:
+        raise ValueError("INVALID_AMOUNT_USD")
+    if sol_usd_price <= 0:
+        raise ValueError("INVALID_SOL_USD_PRICE")
+
+    quote_age = float(now_ts or time.time()) - quote_ts
+    if quote_age < 0 or quote_age > SOL_PRICE_MAX_AGE_SECONDS:
+        raise ValueError("STALE_SOL_USD_PRICE")
+    if slippage_pct <= 0 or slippage_pct > MAX_SLIPPAGE_PCT:
+        raise ValueError("INVALID_SLIPPAGE")
+    if not 0 <= priority_fee_sol <= MAX_PRIORITY_FEE_SOL:
+        raise ValueError("INVALID_PRIORITY_FEE")
+
+    pool = str(pool or "").strip().lower()
+    if pool not in PUMPPORTAL_ALLOWED_POOLS:
+        raise ValueError("INVALID_PUMPPORTAL_POOL")
+
+    return {
+        "action": "buy",
+        "mint": mint,
+        "amount": round(amount_usd / sol_usd_price, 9),
+        "denominatedInSol": "true",
+        "slippage": slippage_pct,
+        "priorityFee": priority_fee_sol,
+        "pool": pool,
+        "skipPreflight": "false",
+    }
 
 
 def create_execution_order(
