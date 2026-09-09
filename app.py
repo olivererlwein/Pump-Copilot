@@ -166,6 +166,8 @@ LIVE_TRADING = os.getenv(
     "false"
 ).lower() == "true"
 
+LIVE_EXECUTION_IMPLEMENTED = False
+
 MAX_POSITION_USD = 5.0
 MAX_DAILY_LOSS_USD = 5.0
 MAX_SLIPPAGE_PCT = 5.0
@@ -642,10 +644,11 @@ def mark_signature_processed(
     return True
 
 def count_open_positions(
-    mode="paper"
+    mode="paper",
+    connection=None
 ):
 
-    conn = db()
+    conn = connection or db()
 
     row = conn.execute(
         """
@@ -659,13 +662,15 @@ def count_open_positions(
         )
     ).fetchone()
 
-    conn.close()
+    if connection is None:
+        conn.close()
 
     return int(row[0] or 0)
 
 
 def get_daily_realized_pnl(
-    mode="paper"
+    mode="paper",
+    connection=None
 ):
 
     now = time.localtime()
@@ -684,7 +689,7 @@ def get_daily_realized_pnl(
         )
     )
 
-    conn = db()
+    conn = connection or db()
 
     row = conn.execute(
         """
@@ -705,7 +710,8 @@ def get_daily_realized_pnl(
         )
     ).fetchone()
 
-    conn.close()
+    if connection is None:
+        conn.close()
 
     return float(row[0] or 0)
 
@@ -5780,90 +5786,102 @@ def open_paper_position(
         return
 
     conn = db()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
 
-    daily_pnl = get_daily_realized_pnl(
-    mode=mode
-)
-
-    if daily_pnl <= -MAX_DAILY_LOSS_USD:
-        print(
-            f"[RISK BLOCK] No se abre {mint}: "
-            f"pérdida diaria ${daily_pnl:.2f} "
-            f"alcanzó el límite "
-            f"-${MAX_DAILY_LOSS_USD:.2f}"
+        daily_pnl = get_daily_realized_pnl(
+            mode=mode,
+            connection=conn,
         )
-        return
 
-    if count_open_positions(mode=mode) >= 1:
-        print(
-            f"[RISK BLOCK] No se abre {mint}: "
-            f"ya existe una posición abierta"
+        if daily_pnl <= -MAX_DAILY_LOSS_USD:
+            print(
+                f"[RISK BLOCK] No se abre {mint}: "
+                f"pérdida diaria ${daily_pnl:.2f} "
+                f"alcanzó el límite "
+                f"-${MAX_DAILY_LOSS_USD:.2f}"
+            )
+            conn.rollback()
+            return
+
+        if count_open_positions(
+            mode=mode,
+            connection=conn,
+        ) >= 1:
+            print(
+                f"[RISK BLOCK] No se abre {mint}: "
+                f"ya existe una posición abierta"
+            )
+            conn.rollback()
+            return
+
+        exists = conn.execute(
+            """
+            SELECT id
+            FROM paper_positions
+            WHERE mint = ?
+            AND status = 'open'
+            AND mode = ?
+            """,
+            (mint, mode)
+        ).fetchone()
+
+        if exists:
+            conn.rollback()
+            return
+
+        conn.execute(
+            """
+            INSERT INTO paper_positions(
+                opened_ts,
+                mint,
+                trigger_traders,
+                entry_mc,
+                stake_usd,
+                status,
+                pnl_usd,
+                decision,
+                score,
+                origin_trader,
+                current_mc,
+                remaining_pct,
+                realized_pnl_usd,
+                unrealized_pnl_usd,
+                last_action,
+                tp_stage,
+                mode
+            )
+            VALUES(
+                ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+            )
+            """,
+            (
+                time.time(),
+                mint,
+                json.dumps([trader]),
+                market_cap,
+                PAPER_BUY_USD,
+                "open",
+                0,
+                decision,
+                score,
+                trader,
+                market_cap,
+                1.0,
+                0,
+                0,
+                "HOLD",
+                0,
+                mode
+            )
         )
-        return
 
-    exists = conn.execute(
-        """
-        SELECT id
-        FROM paper_positions
-        WHERE mint = ?
-        AND status = 'open'
-        """,
-        (mint,)
-    ).fetchone()
-
-    if exists:
-
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
         conn.close()
-        return
-
-    conn.execute(
-    """
-    INSERT INTO paper_positions(
-        opened_ts,
-        mint,
-        trigger_traders,
-        entry_mc,
-        stake_usd,
-        status,
-        pnl_usd,
-        decision,
-        score,
-        origin_trader,
-        current_mc,
-        remaining_pct,
-        realized_pnl_usd,
-        unrealized_pnl_usd,
-        last_action,
-        tp_stage,
-        mode
-    )
-    VALUES(
-        ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
-    )
-    """,
-    (
-        time.time(),
-        mint,
-        json.dumps([trader]),
-        market_cap,
-        PAPER_BUY_USD,
-        "open",
-        0,
-        decision,
-        score,
-        trader,
-        market_cap,
-        1.0,
-        0,
-        0,
-        "HOLD",
-        0,
-        mode
-    )
-)
-
-    conn.commit()
-    conn.close()
     
 
 
@@ -7137,6 +7155,12 @@ def require_live_trading():
             status_code=403,
             detail="LIVE_TRADING_DISABLED"
         )
+
+    if not LIVE_EXECUTION_IMPLEMENTED:
+        raise HTTPException(
+            status_code=501,
+            detail="LIVE_EXECUTION_NOT_IMPLEMENTED"
+        )
     
 def get_persistent_kill_switch():
 
@@ -7223,6 +7247,19 @@ def status(
 
         "live_stream_configured":
             bool(API_KEY),
+
+        "live_trading_requested":
+            bool(LIVE_TRADING),
+
+        "live_execution_implemented":
+            bool(LIVE_EXECUTION_IMPLEMENTED),
+
+        "live_trading_active":
+            bool(
+                LIVE_TRADING
+                and LIVE_EXECUTION_IMPLEMENTED
+                and not KILL_SWITCH
+            ),
 
         "stream_connected":
             bool(STREAM_CONNECTED),

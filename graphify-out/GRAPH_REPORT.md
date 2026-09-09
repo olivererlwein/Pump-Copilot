@@ -1,16 +1,16 @@
 # Graph Report - pump fun  (2026-09-09)
 
 ## Corpus Check
-- 34 files · ~38,060 words
+- 34 files · ~38,237 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 378 nodes · 938 edges · 29 communities (22 shown, 6 thin omitted)
+- 382 nodes · 942 edges · 29 communities (23 shown, 5 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 12 edges (avg confidence: 0.87)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `8056cb4b`
+- Built from commit: `6e8168b0`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -41,7 +41,7 @@
 - Q: sigamos
 - update_execution_order
 - app.py
-- NumericRiskValidationTests
+- test_risk_controls.py
 - reconcile_execution_order
 
 ## God Nodes (most connected - your core abstractions)
@@ -71,7 +71,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (29 total, 6 thin omitted)
+## Communities (29 total, 5 thin omitted)
 
 ### Community 0 - "test_training_pipeline.py"
 Cohesion: 0.09
@@ -157,14 +157,18 @@ Nodes (17): check_execution_timeout(), create_execution_order(), demo_execution_
 Cohesion: 0.13
 Nodes (27): api_training_checkpoint_freshness(), api_training_expired_preview(), api_training_stats(), api_training_stats_by_trader(), count_open_positions(), demo_daily_pnl(), demo_daily_pnl_isolation(), demo_exit_open() (+19 more)
 
+### Community 27 - "test_risk_controls.py"
+Cohesion: 0.22
+Nodes (3): LiveTradingGuardTests, NumericRiskValidationTests, PositionConcurrencyTests
+
 ### Community 29 - "reconcile_execution_order"
 Cohesion: 0.50
 Nodes (4): demo_reconcile_pending(), demo_reconcile_sent(), get_execution_order_status(), reconcile_execution_order()
 
 ## Knowledge Gaps
 - **60 isolated node(s):** `Usage`, `What graphify is for`, `Step 0 - GitHub repos and multi-path merge (only if a URL or several paths)`, `Step 1 - Ensure graphify is installed`, `Step 2 - Detect files` (+55 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 111 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **6 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 113 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **5 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Work-memory lessons
 

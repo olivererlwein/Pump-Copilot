@@ -121,17 +121,43 @@
       "source_location": "L184"
     },
     {
+      "id": "tests_test_risk_controls_livetradingguardtests",
+      "label": "LiveTradingGuardTests",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 27,
+      "community_name": "test_risk_controls.py",
+      "file_type": "code",
+      "norm_label": "livetradingguardtests",
+      "source_file": "tests/test_risk_controls.py",
+      "source_location": "L69"
+    },
+    {
       "id": "tests_test_risk_controls_numericriskvalidationtests",
       "label": "NumericRiskValidationTests",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
       "community": 27,
-      "community_name": "NumericRiskValidationTests",
+      "community_name": "test_risk_controls.py",
       "file_type": "code",
       "norm_label": "numericriskvalidationtests",
       "source_file": "tests/test_risk_controls.py",
-      "source_location": "L8"
+      "source_location": "L11"
+    },
+    {
+      "id": "tests_test_risk_controls_positionconcurrencytests",
+      "label": "PositionConcurrencyTests",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 27,
+      "community_name": "test_risk_controls.py",
+      "file_type": "code",
+      "norm_label": "positionconcurrencytests",
+      "source_file": "tests/test_risk_controls.py",
+      "source_location": "L93"
     },
     {
       "id": "tests_test_stream_monitoring_pumpportalbalancetests",
@@ -234,7 +260,7 @@
       "file_type": "code",
       "norm_label": "load_shadow_model()",
       "source_file": "app.py",
-      "source_location": "L3727"
+      "source_location": "L3733"
     },
     {
       "id": "scripts_analyze_feature_ablation_main",
@@ -858,7 +884,7 @@
       "file_type": "code",
       "norm_label": "assess_shadow_challenger()",
       "source_file": "app.py",
-      "source_location": "L4234"
+      "source_location": "L4240"
     },
     {
       "id": "app_compare_shadow_models",
@@ -870,7 +896,7 @@
       "file_type": "code",
       "norm_label": "compare_shadow_models()",
       "source_file": "app.py",
-      "source_location": "L4111"
+      "source_location": "L4117"
     },
     {
       "id": "app_fetch_solana_balance_sol",
@@ -882,7 +908,7 @@
       "file_type": "code",
       "norm_label": "fetch_solana_balance_sol()",
       "source_file": "app.py",
-      "source_location": "L6497"
+      "source_location": "L6515"
     },
     {
       "id": "app_get_shadow_stats",
@@ -894,7 +920,7 @@
       "file_type": "code",
       "norm_label": "get_shadow_stats()",
       "source_file": "app.py",
-      "source_location": "L4278"
+      "source_location": "L4284"
     },
     {
       "id": "app_mark_stream_problem",
@@ -906,7 +932,7 @@
       "file_type": "code",
       "norm_label": "mark_stream_problem()",
       "source_file": "app.py",
-      "source_location": "L6582"
+      "source_location": "L6600"
     },
     {
       "id": "app_mark_stream_recovered",
@@ -918,7 +944,7 @@
       "file_type": "code",
       "norm_label": "mark_stream_recovered()",
       "source_file": "app.py",
-      "source_location": "L6610"
+      "source_location": "L6628"
     },
     {
       "id": "app_maybe_send_shadow_review_alert",
@@ -930,7 +956,7 @@
       "file_type": "code",
       "norm_label": "maybe_send_shadow_review_alert()",
       "source_file": "app.py",
-      "source_location": "L6425"
+      "source_location": "L6443"
     },
     {
       "id": "app_post_discord_alert",
@@ -942,7 +968,7 @@
       "file_type": "code",
       "norm_label": "post_discord_alert()",
       "source_file": "app.py",
-      "source_location": "L6386"
+      "source_location": "L6404"
     },
     {
       "id": "app_pumpportal_balance_monitor",
@@ -954,7 +980,7 @@
       "file_type": "code",
       "norm_label": "pumpportal_balance_monitor()",
       "source_file": "app.py",
-      "source_location": "L6563"
+      "source_location": "L6581"
     },
     {
       "id": "app_record_pumpportal_wallet_balance",
@@ -966,7 +992,7 @@
       "file_type": "code",
       "norm_label": "record_pumpportal_wallet_balance()",
       "source_file": "app.py",
-      "source_location": "L6534"
+      "source_location": "L6552"
     },
     {
       "id": "app_send_discord_alert",
@@ -978,7 +1004,7 @@
       "file_type": "code",
       "norm_label": "send_discord_alert()",
       "source_file": "app.py",
-      "source_location": "L6408"
+      "source_location": "L6426"
     },
     {
       "id": "app_summarize_shadow_predictions",
@@ -990,7 +1016,7 @@
       "file_type": "code",
       "norm_label": "summarize_shadow_predictions()",
       "source_file": "app.py",
-      "source_location": "L4067"
+      "source_location": "L4073"
     },
     {
       "id": "scripts_validate_training_dataset_load_json",
@@ -1038,7 +1064,7 @@
       "file_type": "code",
       "norm_label": "api_shadow_predictions()",
       "source_file": "app.py",
-      "source_location": "L8090"
+      "source_location": "L8127"
     },
     {
       "id": "app_api_shadow_stats",
@@ -1050,7 +1076,7 @@
       "file_type": "code",
       "norm_label": "api_shadow_stats()",
       "source_file": "app.py",
-      "source_location": "L8103"
+      "source_location": "L8140"
     },
     {
       "id": "app_api_training_dataset",
@@ -1062,7 +1088,7 @@
       "file_type": "code",
       "norm_label": "api_training_dataset()",
       "source_file": "app.py",
-      "source_location": "L8051"
+      "source_location": "L8088"
     },
     {
       "id": "app_auth",
@@ -1074,7 +1100,7 @@
       "file_type": "code",
       "norm_label": "auth()",
       "source_file": "app.py",
-      "source_location": "L7116"
+      "source_location": "L7134"
     },
     {
       "id": "app_can_retry_execution",
@@ -1086,7 +1112,7 @@
       "file_type": "code",
       "norm_label": "can_retry_execution()",
       "source_file": "app.py",
-      "source_location": "L2262"
+      "source_location": "L2268"
     },
     {
       "id": "app_demo_can_retry",
@@ -1098,7 +1124,7 @@
       "file_type": "code",
       "norm_label": "demo_can_retry()",
       "source_file": "app.py",
-      "source_location": "L9265"
+      "source_location": "L9302"
     },
     {
       "id": "app_demo_cannot_retry_risk",
@@ -1110,7 +1136,7 @@
       "file_type": "code",
       "norm_label": "demo_cannot_retry_risk()",
       "source_file": "app.py",
-      "source_location": "L9282"
+      "source_location": "L9319"
     },
     {
       "id": "app_demo_concurrent_idempotency",
@@ -1122,7 +1148,7 @@
       "file_type": "code",
       "norm_label": "demo_concurrent_idempotency()",
       "source_file": "app.py",
-      "source_location": "L9737"
+      "source_location": "L9774"
     },
     {
       "id": "app_demo_controlled_retry",
@@ -1134,7 +1160,7 @@
       "file_type": "code",
       "norm_label": "demo_controlled_retry()",
       "source_file": "app.py",
-      "source_location": "L9358"
+      "source_location": "L9395"
     },
     {
       "id": "app_demo_execution_check",
@@ -1146,7 +1172,7 @@
       "file_type": "code",
       "norm_label": "demo_execution_check()",
       "source_file": "app.py",
-      "source_location": "L8656"
+      "source_location": "L8693"
     },
     {
       "id": "app_demo_execution_failure",
@@ -1158,7 +1184,7 @@
       "file_type": "code",
       "norm_label": "demo_execution_failure()",
       "source_file": "app.py",
-      "source_location": "L8867"
+      "source_location": "L8904"
     },
     {
       "id": "app_demo_idempotency_check",
@@ -1170,7 +1196,7 @@
       "file_type": "code",
       "norm_label": "demo_idempotency_check()",
       "source_file": "app.py",
-      "source_location": "L8887"
+      "source_location": "L8924"
     },
     {
       "id": "app_demo_idempotency_failed",
@@ -1182,7 +1208,7 @@
       "file_type": "code",
       "norm_label": "demo_idempotency_failed()",
       "source_file": "app.py",
-      "source_location": "L8921"
+      "source_location": "L8958"
     },
     {
       "id": "app_demo_idempotency_risk_blocked",
@@ -1194,7 +1220,7 @@
       "file_type": "code",
       "norm_label": "demo_idempotency_risk_blocked()",
       "source_file": "app.py",
-      "source_location": "L8957"
+      "source_location": "L8994"
     },
     {
       "id": "app_demo_mode_column",
@@ -1206,7 +1232,7 @@
       "file_type": "code",
       "norm_label": "demo_mode_column()",
       "source_file": "app.py",
-      "source_location": "L9811"
+      "source_location": "L9848"
     },
     {
       "id": "app_demo_mode_save",
@@ -1218,7 +1244,7 @@
       "file_type": "code",
       "norm_label": "demo_mode_save()",
       "source_file": "app.py",
-      "source_location": "L9840"
+      "source_location": "L9877"
     },
     {
       "id": "app_demo_restart_recovery",
@@ -1230,7 +1256,7 @@
       "file_type": "code",
       "norm_label": "demo_restart_recovery()",
       "source_file": "app.py",
-      "source_location": "L9693"
+      "source_location": "L9730"
     },
     {
       "id": "app_evaluations",
@@ -1242,7 +1268,7 @@
       "file_type": "code",
       "norm_label": "evaluations()",
       "source_file": "app.py",
-      "source_location": "L7420"
+      "source_location": "L7457"
     },
     {
       "id": "app_home",
@@ -1254,7 +1280,7 @@
       "file_type": "code",
       "norm_label": "home()",
       "source_file": "app.py",
-      "source_location": "L10293"
+      "source_location": "L10330"
     },
     {
       "id": "app_paper",
@@ -1266,7 +1292,7 @@
       "file_type": "code",
       "norm_label": "paper()",
       "source_file": "app.py",
-      "source_location": "L7683"
+      "source_location": "L7720"
     },
     {
       "id": "app_position_events",
@@ -1278,7 +1304,7 @@
       "file_type": "code",
       "norm_label": "position_events()",
       "source_file": "app.py",
-      "source_location": "L7819"
+      "source_location": "L7856"
     },
     {
       "id": "app_signals",
@@ -1290,7 +1316,7 @@
       "file_type": "code",
       "norm_label": "signals()",
       "source_file": "app.py",
-      "source_location": "L7580"
+      "source_location": "L7617"
     },
     {
       "id": "app_simulate_execution",
@@ -1302,7 +1328,7 @@
       "file_type": "code",
       "norm_label": "simulate_execution()",
       "source_file": "app.py",
-      "source_location": "L1690"
+      "source_location": "L1696"
     },
     {
       "id": "app_status",
@@ -1314,7 +1340,7 @@
       "file_type": "code",
       "norm_label": "status()",
       "source_file": "app.py",
-      "source_location": "L7195"
+      "source_location": "L7219"
     },
     {
       "id": "app_token_history",
@@ -1326,7 +1352,7 @@
       "file_type": "code",
       "norm_label": "token_history()",
       "source_file": "app.py",
-      "source_location": "L7755"
+      "source_location": "L7792"
     },
     {
       "id": "app_trader_stats",
@@ -1338,7 +1364,7 @@
       "file_type": "code",
       "norm_label": "trader_stats()",
       "source_file": "app.py",
-      "source_location": "L7880"
+      "source_location": "L7917"
     },
     {
       "id": "app_trades",
@@ -1350,7 +1376,7 @@
       "file_type": "code",
       "norm_label": "trades()",
       "source_file": "app.py",
-      "source_location": "L7317"
+      "source_location": "L7354"
     },
     {
       "id": "app_check_execution_timeout",
@@ -1362,7 +1388,7 @@
       "file_type": "code",
       "norm_label": "check_execution_timeout()",
       "source_file": "app.py",
-      "source_location": "L2177"
+      "source_location": "L2183"
     },
     {
       "id": "app_create_execution_order",
@@ -1374,7 +1400,7 @@
       "file_type": "code",
       "norm_label": "create_execution_order()",
       "source_file": "app.py",
-      "source_location": "L1816"
+      "source_location": "L1822"
     },
     {
       "id": "app_demo_execution_timeout",
@@ -1386,7 +1412,7 @@
       "file_type": "code",
       "norm_label": "demo_execution_timeout()",
       "source_file": "app.py",
-      "source_location": "L9134"
+      "source_location": "L9171"
     },
     {
       "id": "app_demo_idempotency_sent",
@@ -1398,7 +1424,7 @@
       "file_type": "code",
       "norm_label": "demo_idempotency_sent()",
       "source_file": "app.py",
-      "source_location": "L8994"
+      "source_location": "L9031"
     },
     {
       "id": "app_demo_idempotency_sent_failed",
@@ -1410,7 +1436,7 @@
       "file_type": "code",
       "norm_label": "demo_idempotency_sent_failed()",
       "source_file": "app.py",
-      "source_location": "L9071"
+      "source_location": "L9108"
     },
     {
       "id": "app_demo_pending_reconciliation",
@@ -1422,7 +1448,7 @@
       "file_type": "code",
       "norm_label": "demo_pending_reconciliation()",
       "source_file": "app.py",
-      "source_location": "L9190"
+      "source_location": "L9227"
     },
     {
       "id": "app_demo_retry_counter",
@@ -1434,7 +1460,7 @@
       "file_type": "code",
       "norm_label": "demo_retry_counter()",
       "source_file": "app.py",
-      "source_location": "L9329"
+      "source_location": "L9366"
     },
     {
       "id": "app_demo_retry_function",
@@ -1446,7 +1472,7 @@
       "file_type": "code",
       "norm_label": "demo_retry_function()",
       "source_file": "app.py",
-      "source_location": "L9501"
+      "source_location": "L9538"
     },
     {
       "id": "app_demo_retry_limit",
@@ -1458,7 +1484,7 @@
       "file_type": "code",
       "norm_label": "demo_retry_limit()",
       "source_file": "app.py",
-      "source_location": "L9552"
+      "source_location": "L9589"
     },
     {
       "id": "app_demo_retry_mode",
@@ -1470,7 +1496,7 @@
       "file_type": "code",
       "norm_label": "demo_retry_mode()",
       "source_file": "app.py",
-      "source_location": "L9887"
+      "source_location": "L9924"
     },
     {
       "id": "app_demo_retry_real_limit",
@@ -1482,7 +1508,7 @@
       "file_type": "code",
       "norm_label": "demo_retry_real_limit()",
       "source_file": "app.py",
-      "source_location": "L9609"
+      "source_location": "L9646"
     },
     {
       "id": "app_get_or_create_idempotency",
@@ -1494,7 +1520,7 @@
       "file_type": "code",
       "norm_label": "get_or_create_idempotency()",
       "source_file": "app.py",
-      "source_location": "L2077"
+      "source_location": "L2083"
     },
     {
       "id": "app_increment_execution_retry",
@@ -1506,7 +1532,7 @@
       "file_type": "code",
       "norm_label": "increment_execution_retry()",
       "source_file": "app.py",
-      "source_location": "L2324"
+      "source_location": "L2330"
     },
     {
       "id": "app_mark_order_pending_reconciliation",
@@ -1518,7 +1544,7 @@
       "file_type": "code",
       "norm_label": "mark_order_pending_reconciliation()",
       "source_file": "app.py",
-      "source_location": "L2226"
+      "source_location": "L2232"
     },
     {
       "id": "app_retry_execution_order",
@@ -1530,7 +1556,7 @@
       "file_type": "code",
       "norm_label": "retry_execution_order()",
       "source_file": "app.py",
-      "source_location": "L2386"
+      "source_location": "L2392"
     },
     {
       "id": "app_save_execution_order_event",
@@ -1542,7 +1568,7 @@
       "file_type": "code",
       "norm_label": "save_execution_order_event()",
       "source_file": "app.py",
-      "source_location": "L2045"
+      "source_location": "L2051"
     },
     {
       "id": "app_update_execution_order",
@@ -1554,7 +1580,7 @@
       "file_type": "code",
       "norm_label": "update_execution_order()",
       "source_file": "app.py",
-      "source_location": "L2009"
+      "source_location": "L2015"
     },
     {
       "id": "app_api_training_checkpoint_freshness",
@@ -1566,7 +1592,7 @@
       "file_type": "code",
       "norm_label": "api_training_checkpoint_freshness()",
       "source_file": "app.py",
-      "source_location": "L8038"
+      "source_location": "L8075"
     },
     {
       "id": "app_api_training_expired_preview",
@@ -1578,7 +1604,7 @@
       "file_type": "code",
       "norm_label": "api_training_expired_preview()",
       "source_file": "app.py",
-      "source_location": "L8042"
+      "source_location": "L8079"
     },
     {
       "id": "app_api_training_stats",
@@ -1590,7 +1616,7 @@
       "file_type": "code",
       "norm_label": "api_training_stats()",
       "source_file": "app.py",
-      "source_location": "L8028"
+      "source_location": "L8065"
     },
     {
       "id": "app_api_training_stats_by_trader",
@@ -1602,7 +1628,7 @@
       "file_type": "code",
       "norm_label": "api_training_stats_by_trader()",
       "source_file": "app.py",
-      "source_location": "L8033"
+      "source_location": "L8070"
     },
     {
       "id": "app_count_open_positions",
@@ -1614,7 +1640,7 @@
       "file_type": "code",
       "norm_label": "count_open_positions()",
       "source_file": "app.py",
-      "source_location": "L644"
+      "source_location": "L646"
     },
     {
       "id": "app_demo_daily_pnl",
@@ -1626,7 +1652,7 @@
       "file_type": "code",
       "norm_label": "demo_daily_pnl()",
       "source_file": "app.py",
-      "source_location": "L8557"
+      "source_location": "L8594"
     },
     {
       "id": "app_demo_daily_pnl_isolation",
@@ -1638,7 +1664,7 @@
       "file_type": "code",
       "norm_label": "demo_daily_pnl_isolation()",
       "source_file": "app.py",
-      "source_location": "L10093"
+      "source_location": "L10130"
     },
     {
       "id": "app_demo_exit_open",
@@ -1650,7 +1676,7 @@
       "file_type": "code",
       "norm_label": "demo_exit_open()",
       "source_file": "app.py",
-      "source_location": "L8294"
+      "source_location": "L8331"
     },
     {
       "id": "app_demo_liquidity_check",
@@ -1662,7 +1688,7 @@
       "file_type": "code",
       "norm_label": "demo_liquidity_check()",
       "source_file": "app.py",
-      "source_location": "L8632"
+      "source_location": "L8669"
     },
     {
       "id": "app_demo_live_guard",
@@ -1674,7 +1700,7 @@
       "file_type": "code",
       "norm_label": "demo_live_guard()",
       "source_file": "app.py",
-      "source_location": "L9796"
+      "source_location": "L9833"
     },
     {
       "id": "app_demo_live_position",
@@ -1686,7 +1712,7 @@
       "file_type": "code",
       "norm_label": "demo_live_position()",
       "source_file": "app.py",
-      "source_location": "L8455"
+      "source_location": "L8492"
     },
     {
       "id": "app_demo_mode_isolation",
@@ -1698,7 +1724,7 @@
       "file_type": "code",
       "norm_label": "demo_mode_isolation()",
       "source_file": "app.py",
-      "source_location": "L10032"
+      "source_location": "L10069"
     },
     {
       "id": "app_demo_paper_mode_save",
@@ -1710,7 +1736,7 @@
       "file_type": "code",
       "norm_label": "demo_paper_mode_save()",
       "source_file": "app.py",
-      "source_location": "L9981"
+      "source_location": "L10018"
     },
     {
       "id": "app_demo_partial_open",
@@ -1722,7 +1748,7 @@
       "file_type": "code",
       "norm_label": "demo_partial_open()",
       "source_file": "app.py",
-      "source_location": "L8346"
+      "source_location": "L8383"
     },
     {
       "id": "app_demo_risk_mode_isolation",
@@ -1734,7 +1760,7 @@
       "file_type": "code",
       "norm_label": "demo_risk_mode_isolation()",
       "source_file": "app.py",
-      "source_location": "L10229"
+      "source_location": "L10266"
     },
     {
       "id": "app_demo_slippage_check",
@@ -1746,7 +1772,7 @@
       "file_type": "code",
       "norm_label": "demo_slippage_check()",
       "source_file": "app.py",
-      "source_location": "L8606"
+      "source_location": "L8643"
     },
     {
       "id": "app_get_daily_realized_pnl",
@@ -1758,7 +1784,7 @@
       "file_type": "code",
       "norm_label": "get_daily_realized_pnl()",
       "source_file": "app.py",
-      "source_location": "L667"
+      "source_location": "L671"
     },
     {
       "id": "app_get_training_checkpoint_freshness",
@@ -1770,7 +1796,7 @@
       "file_type": "code",
       "norm_label": "get_training_checkpoint_freshness()",
       "source_file": "app.py",
-      "source_location": "L4775"
+      "source_location": "L4781"
     },
     {
       "id": "app_get_training_dataset_stats",
@@ -1782,7 +1808,7 @@
       "file_type": "code",
       "norm_label": "get_training_dataset_stats()",
       "source_file": "app.py",
-      "source_location": "L4472"
+      "source_location": "L4478"
     },
     {
       "id": "app_get_training_expired_preview",
@@ -1794,7 +1820,7 @@
       "file_type": "code",
       "norm_label": "get_training_expired_preview()",
       "source_file": "app.py",
-      "source_location": "L4703"
+      "source_location": "L4709"
     },
     {
       "id": "app_get_training_stats_by_trader",
@@ -1806,7 +1832,7 @@
       "file_type": "code",
       "norm_label": "get_training_stats_by_trader()",
       "source_file": "app.py",
-      "source_location": "L4606"
+      "source_location": "L4612"
     },
     {
       "id": "app_open_paper_position",
@@ -1818,7 +1844,7 @@
       "file_type": "code",
       "norm_label": "open_paper_position()",
       "source_file": "app.py",
-      "source_location": "L5758"
+      "source_location": "L5764"
     },
     {
       "id": "app_require_live_trading",
@@ -1830,7 +1856,7 @@
       "file_type": "code",
       "norm_label": "require_live_trading()",
       "source_file": "app.py",
-      "source_location": "L7133"
+      "source_location": "L7151"
     },
     {
       "id": "app_risk_check",
@@ -1842,7 +1868,7 @@
       "file_type": "code",
       "norm_label": "risk_check()",
       "source_file": "app.py",
-      "source_location": "L2583"
+      "source_location": "L2589"
     },
     {
       "id": "app_save_position_event",
@@ -1854,7 +1880,7 @@
       "file_type": "code",
       "norm_label": "save_position_event()",
       "source_file": "app.py",
-      "source_location": "L3050"
+      "source_location": "L3056"
     },
     {
       "id": "app_validate_liquidity",
@@ -1866,7 +1892,7 @@
       "file_type": "code",
       "norm_label": "validate_liquidity()",
       "source_file": "app.py",
-      "source_location": "L746"
+      "source_location": "L752"
     },
     {
       "id": "app_validate_slippage",
@@ -1878,7 +1904,19 @@
       "file_type": "code",
       "norm_label": "validate_slippage()",
       "source_file": "app.py",
-      "source_location": "L713"
+      "source_location": "L719"
+    },
+    {
+      "id": "tests_test_risk_controls_livetradingguardtests_test_live_execution_cannot_be_enabled_before_implementation",
+      "label": ".test_live_execution_cannot_be_enabled_before_implementation()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 27,
+      "community_name": "test_risk_controls.py",
+      "file_type": "code",
+      "norm_label": ".test_live_execution_cannot_be_enabled_before_implementation()",
+      "source_file": "tests/test_risk_controls.py",
+      "source_location": "L70"
     },
     {
       "id": "tests_test_risk_controls_numericriskvalidationtests_test_rejects_invalid_amount_before_database_checks",
@@ -1886,11 +1924,11 @@
       "_callable": true,
       "_origin": "ast",
       "community": 27,
-      "community_name": "NumericRiskValidationTests",
+      "community_name": "test_risk_controls.py",
       "file_type": "code",
       "norm_label": ".test_rejects_invalid_amount_before_database_checks()",
       "source_file": "tests/test_risk_controls.py",
-      "source_location": "L40"
+      "source_location": "L43"
     },
     {
       "id": "tests_test_risk_controls_numericriskvalidationtests_test_rejects_invalid_liquidity_inputs",
@@ -1898,11 +1936,11 @@
       "_callable": true,
       "_origin": "ast",
       "community": 27,
-      "community_name": "NumericRiskValidationTests",
+      "community_name": "test_risk_controls.py",
       "file_type": "code",
       "norm_label": ".test_rejects_invalid_liquidity_inputs()",
       "source_file": "tests/test_risk_controls.py",
-      "source_location": "L25"
+      "source_location": "L28"
     },
     {
       "id": "tests_test_risk_controls_numericriskvalidationtests_test_rejects_invalid_slippage_inputs",
@@ -1910,11 +1948,23 @@
       "_callable": true,
       "_origin": "ast",
       "community": 27,
-      "community_name": "NumericRiskValidationTests",
+      "community_name": "test_risk_controls.py",
       "file_type": "code",
       "norm_label": ".test_rejects_invalid_slippage_inputs()",
       "source_file": "tests/test_risk_controls.py",
-      "source_location": "L9"
+      "source_location": "L12"
+    },
+    {
+      "id": "tests_test_risk_controls_positionconcurrencytests_test_only_one_simultaneous_position_is_opened_per_mode",
+      "label": ".test_only_one_simultaneous_position_is_opened_per_mode()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 27,
+      "community_name": "test_risk_controls.py",
+      "file_type": "code",
+      "norm_label": ".test_only_one_simultaneous_position_is_opened_per_mode()",
+      "source_file": "tests/test_risk_controls.py",
+      "source_location": "L94"
     },
     {
       "id": "app_demo_reconcile_pending",
@@ -1926,7 +1976,7 @@
       "file_type": "code",
       "norm_label": "demo_reconcile_pending()",
       "source_file": "app.py",
-      "source_location": "L9246"
+      "source_location": "L9283"
     },
     {
       "id": "app_demo_reconcile_sent",
@@ -1938,7 +1988,7 @@
       "file_type": "code",
       "norm_label": "demo_reconcile_sent()",
       "source_file": "app.py",
-      "source_location": "L9051"
+      "source_location": "L9088"
     },
     {
       "id": "app_get_execution_order_status",
@@ -1950,7 +2000,7 @@
       "file_type": "code",
       "norm_label": "get_execution_order_status()",
       "source_file": "app.py",
-      "source_location": "L2140"
+      "source_location": "L2146"
     },
     {
       "id": "app_reconcile_execution_order",
@@ -1962,7 +2012,7 @@
       "file_type": "code",
       "norm_label": "reconcile_execution_order()",
       "source_file": "app.py",
-      "source_location": "L2535"
+      "source_location": "L2541"
     },
     {
       "id": "app_api_training_dataset_preview",
@@ -1974,7 +2024,7 @@
       "file_type": "code",
       "norm_label": "api_training_dataset_preview()",
       "source_file": "app.py",
-      "source_location": "L8069"
+      "source_location": "L8106"
     },
     {
       "id": "app_build_model_features",
@@ -1986,7 +2036,7 @@
       "file_type": "code",
       "norm_label": "build_model_features()",
       "source_file": "app.py",
-      "source_location": "L3797"
+      "source_location": "L3803"
     },
     {
       "id": "app_calculate_copyability_score",
@@ -1998,7 +2048,7 @@
       "file_type": "code",
       "norm_label": "calculate_copyability_score()",
       "source_file": "app.py",
-      "source_location": "L3665"
+      "source_location": "L3671"
     },
     {
       "id": "app_cleanup_finished_outcome_token",
@@ -2010,7 +2060,7 @@
       "file_type": "code",
       "norm_label": "cleanup_finished_outcome_token()",
       "source_file": "app.py",
-      "source_location": "L1638"
+      "source_location": "L1644"
     },
     {
       "id": "app_complete_finished_signal_outcomes",
@@ -2022,7 +2072,7 @@
       "file_type": "code",
       "norm_label": "complete_finished_signal_outcomes()",
       "source_file": "app.py",
-      "source_location": "L1538"
+      "source_location": "L1544"
     },
     {
       "id": "app_create_execution_order_idempotent",
@@ -2034,7 +2084,7 @@
       "file_type": "code",
       "norm_label": "create_execution_order_idempotent()",
       "source_file": "app.py",
-      "source_location": "L1886"
+      "source_location": "L1892"
     },
     {
       "id": "app_create_signal_outcome",
@@ -2046,7 +2096,7 @@
       "file_type": "code",
       "norm_label": "create_signal_outcome()",
       "source_file": "app.py",
-      "source_location": "L768"
+      "source_location": "L774"
     },
     {
       "id": "app_db",
@@ -2058,7 +2108,7 @@
       "file_type": "code",
       "norm_label": "db()",
       "source_file": "app.py",
-      "source_location": "L218"
+      "source_location": "L220"
     },
     {
       "id": "app_decision_from_score",
@@ -2070,7 +2120,7 @@
       "file_type": "code",
       "norm_label": "decision_from_score()",
       "source_file": "app.py",
-      "source_location": "L5439"
+      "source_location": "L5445"
     },
     {
       "id": "app_evaluate_buy",
@@ -2082,7 +2132,7 @@
       "file_type": "code",
       "norm_label": "evaluate_buy()",
       "source_file": "app.py",
-      "source_location": "L5458"
+      "source_location": "L5464"
     },
     {
       "id": "app_expire_old_signal_outcomes",
@@ -2094,7 +2144,7 @@
       "file_type": "code",
       "norm_label": "expire_old_signal_outcomes()",
       "source_file": "app.py",
-      "source_location": "L1597"
+      "source_location": "L1603"
     },
     {
       "id": "app_get_consensus_trader_count",
@@ -2106,7 +2156,7 @@
       "file_type": "code",
       "norm_label": "get_consensus_trader_count()",
       "source_file": "app.py",
-      "source_location": "L5152"
+      "source_location": "L5158"
     },
     {
       "id": "app_get_consensus_trader_count_window",
@@ -2118,7 +2168,7 @@
       "file_type": "code",
       "norm_label": "get_consensus_trader_count_window()",
       "source_file": "app.py",
-      "source_location": "L5192"
+      "source_location": "L5198"
     },
     {
       "id": "app_get_execution_latency",
@@ -2130,7 +2180,7 @@
       "file_type": "code",
       "norm_label": "get_execution_latency()",
       "source_file": "app.py",
-      "source_location": "L2467"
+      "source_location": "L2473"
     },
     {
       "id": "app_get_persistent_kill_switch",
@@ -2142,7 +2192,7 @@
       "file_type": "code",
       "norm_label": "get_persistent_kill_switch()",
       "source_file": "app.py",
-      "source_location": "L7141"
+      "source_location": "L7165"
     },
     {
       "id": "app_get_shadow_predictions",
@@ -2154,7 +2204,7 @@
       "file_type": "code",
       "norm_label": "get_shadow_predictions()",
       "source_file": "app.py",
-      "source_location": "L4009"
+      "source_location": "L4015"
     },
     {
       "id": "app_get_signal_checkpoint_lags",
@@ -2166,7 +2216,7 @@
       "file_type": "code",
       "norm_label": "get_signal_checkpoint_lags()",
       "source_file": "app.py",
-      "source_location": "L3335"
+      "source_location": "L3341"
     },
     {
       "id": "app_get_signal_checkpoint_quality",
@@ -2178,7 +2228,7 @@
       "file_type": "code",
       "norm_label": "get_signal_checkpoint_quality()",
       "source_file": "app.py",
-      "source_location": "L3400"
+      "source_location": "L3406"
     },
     {
       "id": "app_get_signal_first_hit",
@@ -2190,7 +2240,7 @@
       "file_type": "code",
       "norm_label": "get_signal_first_hit()",
       "source_file": "app.py",
-      "source_location": "L3271"
+      "source_location": "L3277"
     },
     {
       "id": "app_get_token_age_seconds",
@@ -2202,7 +2252,7 @@
       "file_type": "code",
       "norm_label": "get_token_age_seconds()",
       "source_file": "app.py",
-      "source_location": "L5233"
+      "source_location": "L5239"
     },
     {
       "id": "app_get_trader_copyability_stats",
@@ -2214,7 +2264,7 @@
       "file_type": "code",
       "norm_label": "get_trader_copyability_stats()",
       "source_file": "app.py",
-      "source_location": "L3128"
+      "source_location": "L3134"
     },
     {
       "id": "app_get_trader_first_hit_stats",
@@ -2226,7 +2276,7 @@
       "file_type": "code",
       "norm_label": "get_trader_first_hit_stats()",
       "source_file": "app.py",
-      "source_location": "L3605"
+      "source_location": "L3611"
     },
     {
       "id": "app_get_trader_hit_stats",
@@ -2238,7 +2288,7 @@
       "file_type": "code",
       "norm_label": "get_trader_hit_stats()",
       "source_file": "app.py",
-      "source_location": "L3196"
+      "source_location": "L3202"
     },
     {
       "id": "app_get_trader_previous_buy_gap_seconds",
@@ -2250,7 +2300,7 @@
       "file_type": "code",
       "norm_label": "get_trader_previous_buy_gap_seconds()",
       "source_file": "app.py",
-      "source_location": "L5271"
+      "source_location": "L5277"
     },
     {
       "id": "app_get_trader_recent_buy_count",
@@ -2262,7 +2312,7 @@
       "file_type": "code",
       "norm_label": "get_trader_recent_buy_count()",
       "source_file": "app.py",
-      "source_location": "L4898"
+      "source_location": "L4904"
     },
     {
       "id": "app_get_trader_reliable_returns",
@@ -2274,7 +2324,7 @@
       "file_type": "code",
       "norm_label": "get_trader_reliable_returns()",
       "source_file": "app.py",
-      "source_location": "L3521"
+      "source_location": "L3527"
     },
     {
       "id": "app_get_trader_reliable_samples",
@@ -2286,7 +2336,7 @@
       "file_type": "code",
       "norm_label": "get_trader_reliable_samples()",
       "source_file": "app.py",
-      "source_location": "L3449"
+      "source_location": "L3455"
     },
     {
       "id": "app_get_training_dataset_rows",
@@ -2298,7 +2348,7 @@
       "file_type": "code",
       "norm_label": "get_training_dataset_rows()",
       "source_file": "app.py",
-      "source_location": "L4369"
+      "source_location": "L4375"
     },
     {
       "id": "app_is_pumpportal_error_message",
@@ -2310,7 +2360,7 @@
       "file_type": "code",
       "norm_label": "is_pumpportal_error_message()",
       "source_file": "app.py",
-      "source_location": "L6377"
+      "source_location": "L6395"
     },
     {
       "id": "app_mark_signature_processed",
@@ -2322,7 +2372,7 @@
       "file_type": "code",
       "norm_label": "mark_signature_processed()",
       "source_file": "app.py",
-      "source_location": "L595"
+      "source_location": "L597"
     },
     {
       "id": "app_migrate_database",
@@ -2334,7 +2384,7 @@
       "file_type": "code",
       "norm_label": "migrate_database()",
       "source_file": "app.py",
-      "source_location": "L2741"
+      "source_location": "L2747"
     },
     {
       "id": "app_migrate_shadow_predictions_for_multiple_models",
@@ -2346,7 +2396,7 @@
       "file_type": "code",
       "norm_label": "migrate_shadow_predictions_for_multiple_models()",
       "source_file": "app.py",
-      "source_location": "L2666"
+      "source_location": "L2672"
     },
     {
       "id": "app_observe_shadow_signal",
@@ -2358,7 +2408,7 @@
       "file_type": "code",
       "norm_label": "observe_shadow_signal()",
       "source_file": "app.py",
-      "source_location": "L3987"
+      "source_location": "L3993"
     },
     {
       "id": "app_process_signal_outcomes_event",
@@ -2370,7 +2420,7 @@
       "file_type": "code",
       "norm_label": "process_signal_outcomes_event()",
       "source_file": "app.py",
-      "source_location": "L1292"
+      "source_location": "L1298"
     },
     {
       "id": "app_reconcile_finished_signal_outcomes",
@@ -2382,7 +2432,7 @@
       "file_type": "code",
       "norm_label": "reconcile_finished_signal_outcomes()",
       "source_file": "app.py",
-      "source_location": "L1571"
+      "source_location": "L1577"
     },
     {
       "id": "app_record_shadow_prediction",
@@ -2394,7 +2444,7 @@
       "file_type": "code",
       "norm_label": "record_shadow_prediction()",
       "source_file": "app.py",
-      "source_location": "L3922"
+      "source_location": "L3928"
     },
     {
       "id": "app_save_token_history",
@@ -2406,7 +2456,7 @@
       "file_type": "code",
       "norm_label": "save_token_history()",
       "source_file": "app.py",
-      "source_location": "L2974"
+      "source_location": "L2980"
     },
     {
       "id": "app_save_trade",
@@ -2418,7 +2468,7 @@
       "file_type": "code",
       "norm_label": "save_trade()",
       "source_file": "app.py",
-      "source_location": "L6176"
+      "source_location": "L6194"
     },
     {
       "id": "app_score_consensus",
@@ -2430,7 +2480,7 @@
       "file_type": "code",
       "norm_label": "score_consensus()",
       "source_file": "app.py",
-      "source_location": "L5093"
+      "source_location": "L5099"
     },
     {
       "id": "app_score_market_context",
@@ -2442,7 +2492,7 @@
       "file_type": "code",
       "norm_label": "score_market_context()",
       "source_file": "app.py",
-      "source_location": "L5312"
+      "source_location": "L5318"
     },
     {
       "id": "app_score_timing",
@@ -2454,7 +2504,7 @@
       "file_type": "code",
       "norm_label": "score_timing()",
       "source_file": "app.py",
-      "source_location": "L5007"
+      "source_location": "L5013"
     },
     {
       "id": "app_score_token_structure",
@@ -2466,7 +2516,7 @@
       "file_type": "code",
       "norm_label": "score_token_structure()",
       "source_file": "app.py",
-      "source_location": "L4931"
+      "source_location": "L4937"
     },
     {
       "id": "app_score_trade_size",
@@ -2478,7 +2528,7 @@
       "file_type": "code",
       "norm_label": "score_trade_size()",
       "source_file": "app.py",
-      "source_location": "L4971"
+      "source_location": "L4977"
     },
     {
       "id": "app_score_trader",
@@ -2490,7 +2540,7 @@
       "file_type": "code",
       "norm_label": "score_trader()",
       "source_file": "app.py",
-      "source_location": "L3119"
+      "source_location": "L3125"
     },
     {
       "id": "app_set_persistent_kill_switch",
@@ -2502,7 +2552,7 @@
       "file_type": "code",
       "norm_label": "set_persistent_kill_switch()",
       "source_file": "app.py",
-      "source_location": "L7165"
+      "source_location": "L7189"
     },
     {
       "id": "app_signal_outcome_checkpoint_worker",
@@ -2514,7 +2564,7 @@
       "file_type": "code",
       "norm_label": "signal_outcome_checkpoint_worker()",
       "source_file": "app.py",
-      "source_location": "L1394"
+      "source_location": "L1400"
     },
     {
       "id": "app_startup",
@@ -2526,7 +2576,7 @@
       "file_type": "code",
       "norm_label": "startup()",
       "source_file": "app.py",
-      "source_location": "L7015"
+      "source_location": "L7033"
     },
     {
       "id": "app_stream",
@@ -2538,7 +2588,7 @@
       "file_type": "code",
       "norm_label": "stream()",
       "source_file": "app.py",
-      "source_location": "L6628"
+      "source_location": "L6646"
     },
     {
       "id": "app_trader_for",
@@ -2550,7 +2600,7 @@
       "file_type": "code",
       "norm_label": "trader_for()",
       "source_file": "app.py",
-      "source_location": "L3098"
+      "source_location": "L3104"
     },
     {
       "id": "app_update_signal_outcome_10s",
@@ -2562,7 +2612,7 @@
       "file_type": "code",
       "norm_label": "update_signal_outcome_10s()",
       "source_file": "app.py",
-      "source_location": "L812"
+      "source_location": "L818"
     },
     {
       "id": "app_update_signal_outcome_15m",
@@ -2574,7 +2624,7 @@
       "file_type": "code",
       "norm_label": "update_signal_outcome_15m()",
       "source_file": "app.py",
-      "source_location": "L1093"
+      "source_location": "L1099"
     },
     {
       "id": "app_update_signal_outcome_1m",
@@ -2586,7 +2636,7 @@
       "file_type": "code",
       "norm_label": "update_signal_outcome_1m()",
       "source_file": "app.py",
-      "source_location": "L953"
+      "source_location": "L959"
     },
     {
       "id": "app_update_signal_outcome_30s",
@@ -2598,7 +2648,7 @@
       "file_type": "code",
       "norm_label": "update_signal_outcome_30s()",
       "source_file": "app.py",
-      "source_location": "L883"
+      "source_location": "L889"
     },
     {
       "id": "app_update_signal_outcome_5m",
@@ -2610,7 +2660,7 @@
       "file_type": "code",
       "norm_label": "update_signal_outcome_5m()",
       "source_file": "app.py",
-      "source_location": "L1023"
+      "source_location": "L1029"
     },
     {
       "id": "app_update_signal_outcome_extremes",
@@ -2622,7 +2672,7 @@
       "file_type": "code",
       "norm_label": "update_signal_outcome_extremes()",
       "source_file": "app.py",
-      "source_location": "L1163"
+      "source_location": "L1169"
     },
     {
       "id": "tests_test_stream_monitoring_pumpportalbalancetests_setup",
@@ -2814,7 +2864,7 @@
       "file_type": "code",
       "norm_label": "demo()",
       "source_file": "app.py",
-      "source_location": "L8115"
+      "source_location": "L8152"
     },
     {
       "id": "app_demo_close_old",
@@ -2826,7 +2876,7 @@
       "file_type": "code",
       "norm_label": "demo_close_old()",
       "source_file": "app.py",
-      "source_location": "L8768"
+      "source_location": "L8805"
     },
     {
       "id": "app_demo_duplicate_check",
@@ -2838,7 +2888,7 @@
       "file_type": "code",
       "norm_label": "demo_duplicate_check()",
       "source_file": "app.py",
-      "source_location": "L8482"
+      "source_location": "L8519"
     },
     {
       "id": "app_demo_execution_latency",
@@ -2850,7 +2900,7 @@
       "file_type": "code",
       "norm_label": "demo_execution_latency()",
       "source_file": "app.py",
-      "source_location": "L8854"
+      "source_location": "L8891"
     },
     {
       "id": "app_demo_execution_order_events",
@@ -2862,7 +2912,7 @@
       "file_type": "code",
       "norm_label": "demo_execution_order_events()",
       "source_file": "app.py",
-      "source_location": "L8813"
+      "source_location": "L8850"
     },
     {
       "id": "app_demo_execution_orders",
@@ -2874,7 +2924,7 @@
       "file_type": "code",
       "norm_label": "demo_execution_orders()",
       "source_file": "app.py",
-      "source_location": "L8696"
+      "source_location": "L8733"
     },
     {
       "id": "app_demo_exit_close",
@@ -2886,7 +2936,7 @@
       "file_type": "code",
       "norm_label": "demo_exit_close()",
       "source_file": "app.py",
-      "source_location": "L8321"
+      "source_location": "L8358"
     },
     {
       "id": "app_demo_invalid_event",
@@ -2898,7 +2948,7 @@
       "file_type": "code",
       "norm_label": "demo_invalid_event()",
       "source_file": "app.py",
-      "source_location": "L8509"
+      "source_location": "L8546"
     },
     {
       "id": "app_demo_paper_mode_column",
@@ -2910,7 +2960,7 @@
       "file_type": "code",
       "norm_label": "demo_paper_mode_column()",
       "source_file": "app.py",
-      "source_location": "L9952"
+      "source_location": "L9989"
     },
     {
       "id": "app_demo_parent_order_column",
@@ -2922,7 +2972,7 @@
       "file_type": "code",
       "norm_label": "demo_parent_order_column()",
       "source_file": "app.py",
-      "source_location": "L9431"
+      "source_location": "L9468"
     },
     {
       "id": "app_demo_parent_order_link",
@@ -2934,7 +2984,7 @@
       "file_type": "code",
       "norm_label": "demo_parent_order_link()",
       "source_file": "app.py",
-      "source_location": "L9460"
+      "source_location": "L9497"
     },
     {
       "id": "app_demo_partial_close",
@@ -2946,7 +2996,7 @@
       "file_type": "code",
       "norm_label": "demo_partial_close()",
       "source_file": "app.py",
-      "source_location": "L8743"
+      "source_location": "L8780"
     },
     {
       "id": "app_demo_partial_sell",
@@ -2958,7 +3008,7 @@
       "file_type": "code",
       "norm_label": "demo_partial_sell()",
       "source_file": "app.py",
-      "source_location": "L8373"
+      "source_location": "L8410"
     },
     {
       "id": "app_demo_profit",
@@ -2970,7 +3020,7 @@
       "file_type": "code",
       "norm_label": "demo_profit()",
       "source_file": "app.py",
-      "source_location": "L8398"
+      "source_location": "L8435"
     },
     {
       "id": "app_demo_retry_column",
@@ -2982,7 +3032,7 @@
       "file_type": "code",
       "norm_label": "demo_retry_column()",
       "source_file": "app.py",
-      "source_location": "L9300"
+      "source_location": "L9337"
     },
     {
       "id": "app_demo_stop",
@@ -2994,7 +3044,7 @@
       "file_type": "code",
       "norm_label": "demo_stop()",
       "source_file": "app.py",
-      "source_location": "L8266"
+      "source_location": "L8303"
     },
     {
       "id": "app_demo_stream_error",
@@ -3006,7 +3056,7 @@
       "file_type": "code",
       "norm_label": "demo_stream_error()",
       "source_file": "app.py",
-      "source_location": "L8539"
+      "source_location": "L8576"
     },
     {
       "id": "app_demo_tp1",
@@ -3018,7 +3068,7 @@
       "file_type": "code",
       "norm_label": "demo_tp1()",
       "source_file": "app.py",
-      "source_location": "L10262"
+      "source_location": "L10299"
     },
     {
       "id": "app_demo_tp2",
@@ -3030,7 +3080,7 @@
       "file_type": "code",
       "norm_label": "demo_tp2()",
       "source_file": "app.py",
-      "source_location": "L8210"
+      "source_location": "L8247"
     },
     {
       "id": "app_demo_tp3",
@@ -3042,7 +3092,7 @@
       "file_type": "code",
       "norm_label": "demo_tp3()",
       "source_file": "app.py",
-      "source_location": "L8238"
+      "source_location": "L8275"
     },
     {
       "id": "app_require_debug_mode",
@@ -3054,7 +3104,7 @@
       "file_type": "code",
       "norm_label": "require_debug_mode()",
       "source_file": "app.py",
-      "source_location": "L7125"
+      "source_location": "L7143"
     },
     {
       "id": "app_set_kill_switch",
@@ -3066,7 +3116,7 @@
       "file_type": "code",
       "norm_label": "set_kill_switch()",
       "source_file": "app.py",
-      "source_location": "L8574"
+      "source_location": "L8611"
     },
     {
       "id": "app_update_paper_position",
@@ -3078,7 +3128,7 @@
       "file_type": "code",
       "norm_label": "update_paper_position()",
       "source_file": "app.py",
-      "source_location": "L5893"
+      "source_location": "L5911"
     },
     {
       "id": "tests_test_shadow_mode_fakeshadowmodel_init",
@@ -4049,7 +4099,7 @@
       "label": "test_risk_controls.py",
       "_origin": "ast",
       "community": 27,
-      "community_name": "NumericRiskValidationTests",
+      "community_name": "test_risk_controls.py",
       "file_type": "code",
       "norm_label": "test_risk_controls.py",
       "source_file": "tests/test_risk_controls.py",
@@ -4594,7 +4644,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8094",
+      "source_location": "L8131",
       "weight": 1.0
     },
     {
@@ -4606,7 +4656,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8095",
+      "source_location": "L8132",
       "weight": 1.0
     },
     {
@@ -4618,7 +4668,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8106",
+      "source_location": "L8143",
       "weight": 1.0
     },
     {
@@ -4630,7 +4680,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8107",
+      "source_location": "L8144",
       "weight": 1.0
     },
     {
@@ -4642,7 +4692,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8039",
+      "source_location": "L8076",
       "weight": 1.0
     },
     {
@@ -4654,7 +4704,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8055",
+      "source_location": "L8092",
       "weight": 1.0
     },
     {
@@ -4666,7 +4716,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8057",
+      "source_location": "L8094",
       "weight": 1.0
     },
     {
@@ -4678,7 +4728,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8072",
+      "source_location": "L8109",
       "weight": 1.0
     },
     {
@@ -4690,7 +4740,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8045",
+      "source_location": "L8082",
       "weight": 1.0
     },
     {
@@ -4702,7 +4752,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8029",
+      "source_location": "L8066",
       "weight": 1.0
     },
     {
@@ -4714,7 +4764,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8034",
+      "source_location": "L8071",
       "weight": 1.0
     },
     {
@@ -4726,7 +4776,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L3820",
+      "source_location": "L3826",
       "weight": 1.0
     },
     {
@@ -4738,7 +4788,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L3666",
+      "source_location": "L3672",
       "weight": 1.0
     },
     {
@@ -4750,7 +4800,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L3669",
+      "source_location": "L3675",
       "weight": 1.0
     },
     {
@@ -4762,7 +4812,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L3672",
+      "source_location": "L3678",
       "weight": 1.0
     },
     {
@@ -4774,7 +4824,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L2264",
+      "source_location": "L2270",
       "weight": 1.0
     },
     {
@@ -4786,7 +4836,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L2179",
+      "source_location": "L2185",
       "weight": 1.0
     },
     {
@@ -4798,7 +4848,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L1642",
+      "source_location": "L1648",
       "weight": 1.0
     },
     {
@@ -4810,7 +4860,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L1643",
+      "source_location": "L1649",
       "weight": 1.0
     },
     {
@@ -4822,7 +4872,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L1645",
+      "source_location": "L1651",
       "weight": 1.0
     },
     {
@@ -4834,7 +4884,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L4154",
+      "source_location": "L4160",
       "weight": 1.0
     },
     {
@@ -4846,7 +4896,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L1542",
+      "source_location": "L1548",
       "weight": 1.0
     },
     {
@@ -4858,7 +4908,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L648",
+      "source_location": "L651",
       "weight": 1.0
     },
     {
@@ -4870,7 +4920,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L1830",
+      "source_location": "L1836",
       "weight": 1.0
     },
     {
@@ -4882,7 +4932,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L1878",
+      "source_location": "L1884",
       "weight": 1.0
     },
     {
@@ -4894,7 +4944,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L1899",
+      "source_location": "L1905",
       "weight": 1.0
     },
     {
@@ -4906,7 +4956,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L1990",
+      "source_location": "L1996",
       "weight": 1.0
     },
     {
@@ -4918,7 +4968,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L777",
+      "source_location": "L783",
       "weight": 1.0
     },
     {
@@ -4930,7 +4980,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8119",
+      "source_location": "L8156",
       "weight": 1.0
     },
     {
@@ -4942,7 +4992,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8120",
+      "source_location": "L8157",
       "weight": 1.0
     },
     {
@@ -4954,7 +5004,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8189",
+      "source_location": "L8226",
       "weight": 1.0
     },
     {
@@ -4966,7 +5016,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9269",
+      "source_location": "L9306",
       "weight": 1.0
     },
     {
@@ -4978,7 +5028,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9270",
+      "source_location": "L9307",
       "weight": 1.0
     },
     {
@@ -4990,7 +5040,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9272",
+      "source_location": "L9309",
       "weight": 1.0
     },
     {
@@ -5002,7 +5052,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9286",
+      "source_location": "L9323",
       "weight": 1.0
     },
     {
@@ -5014,7 +5064,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9287",
+      "source_location": "L9324",
       "weight": 1.0
     },
     {
@@ -5026,7 +5076,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9289",
+      "source_location": "L9326",
       "weight": 1.0
     },
     {
@@ -5038,7 +5088,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8772",
+      "source_location": "L8809",
       "weight": 1.0
     },
     {
@@ -5050,7 +5100,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8773",
+      "source_location": "L8810",
       "weight": 1.0
     },
     {
@@ -5062,7 +5112,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8775",
+      "source_location": "L8812",
       "weight": 1.0
     },
     {
@@ -5074,7 +5124,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9741",
+      "source_location": "L9778",
       "weight": 1.0
     },
     {
@@ -5086,7 +5136,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9742",
+      "source_location": "L9779",
       "weight": 1.0
     },
     {
@@ -5098,7 +5148,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9362",
+      "source_location": "L9399",
       "weight": 1.0
     },
     {
@@ -5110,7 +5160,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9364",
+      "source_location": "L9401",
       "weight": 1.0
     },
     {
@@ -5122,7 +5172,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9374",
+      "source_location": "L9411",
       "weight": 1.0
     },
     {
@@ -5134,7 +5184,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9392",
+      "source_location": "L9429",
       "weight": 1.0
     },
     {
@@ -5146,7 +5196,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9402",
+      "source_location": "L9439",
       "weight": 1.0
     },
     {
@@ -5158,7 +5208,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9412",
+      "source_location": "L9449",
       "weight": 1.0
     },
     {
@@ -5170,7 +5220,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8561",
+      "source_location": "L8598",
       "weight": 1.0
     },
     {
@@ -5182,7 +5232,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8562",
+      "source_location": "L8599",
       "weight": 1.0
     },
     {
@@ -5194,7 +5244,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8564",
+      "source_location": "L8601",
       "weight": 1.0
     },
     {
@@ -5206,7 +5256,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L10097",
+      "source_location": "L10134",
       "weight": 1.0
     },
     {
@@ -5218,7 +5268,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L10098",
+      "source_location": "L10135",
       "weight": 1.0
     },
     {
@@ -5230,7 +5280,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L10100",
+      "source_location": "L10137",
       "weight": 1.0
     },
     {
@@ -5242,7 +5292,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L10214",
+      "source_location": "L10251",
       "weight": 1.0
     },
     {
@@ -5254,7 +5304,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8486",
+      "source_location": "L8523",
       "weight": 1.0
     },
     {
@@ -5266,7 +5316,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8487",
+      "source_location": "L8524",
       "weight": 1.0
     },
     {
@@ -5278,7 +5328,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8491",
+      "source_location": "L8528",
       "weight": 1.0
     },
     {
@@ -5290,7 +5340,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8660",
+      "source_location": "L8697",
       "weight": 1.0
     },
     {
@@ -5302,7 +5352,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8661",
+      "source_location": "L8698",
       "weight": 1.0
     },
     {
@@ -5314,7 +5364,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8663",
+      "source_location": "L8700",
       "weight": 1.0
     },
     {
@@ -5326,7 +5376,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8871",
+      "source_location": "L8908",
       "weight": 1.0
     },
     {
@@ -5338,7 +5388,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8872",
+      "source_location": "L8909",
       "weight": 1.0
     },
     {
@@ -5350,7 +5400,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8874",
+      "source_location": "L8911",
       "weight": 1.0
     },
     {
@@ -5362,7 +5412,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8859",
+      "source_location": "L8896",
       "weight": 1.0
     },
     {
@@ -5374,7 +5424,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8860",
+      "source_location": "L8897",
       "weight": 1.0
     },
     {
@@ -5386,7 +5436,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8862",
+      "source_location": "L8899",
       "weight": 1.0
     },
     {
@@ -5398,7 +5448,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8818",
+      "source_location": "L8855",
       "weight": 1.0
     },
     {
@@ -5410,7 +5460,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8819",
+      "source_location": "L8856",
       "weight": 1.0
     },
     {
@@ -5422,7 +5472,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8821",
+      "source_location": "L8858",
       "weight": 1.0
     },
     {
@@ -5434,7 +5484,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8700",
+      "source_location": "L8737",
       "weight": 1.0
     },
     {
@@ -5446,7 +5496,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8701",
+      "source_location": "L8738",
       "weight": 1.0
     },
     {
@@ -5458,7 +5508,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8703",
+      "source_location": "L8740",
       "weight": 1.0
     },
     {
@@ -5470,7 +5520,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9138",
+      "source_location": "L9175",
       "weight": 1.0
     },
     {
@@ -5482,7 +5532,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9139",
+      "source_location": "L9176",
       "weight": 1.0
     },
     {
@@ -5494,7 +5544,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9141",
+      "source_location": "L9178",
       "weight": 1.0
     },
     {
@@ -5506,7 +5556,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9151",
+      "source_location": "L9188",
       "weight": 1.0
     },
     {
@@ -5518,7 +5568,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9163",
+      "source_location": "L9200",
       "weight": 1.0
     },
     {
@@ -5530,7 +5580,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9180",
+      "source_location": "L9217",
       "weight": 1.0
     },
     {
@@ -5542,7 +5592,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8325",
+      "source_location": "L8362",
       "weight": 1.0
     },
     {
@@ -5554,7 +5604,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8326",
+      "source_location": "L8363",
       "weight": 1.0
     },
     {
@@ -5566,7 +5616,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8330",
+      "source_location": "L8367",
       "weight": 1.0
     },
     {
@@ -5578,7 +5628,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8298",
+      "source_location": "L8335",
       "weight": 1.0
     },
     {
@@ -5590,7 +5640,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8299",
+      "source_location": "L8336",
       "weight": 1.0
     },
     {
@@ -5602,7 +5652,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8305",
+      "source_location": "L8342",
       "weight": 1.0
     },
     {
@@ -5614,7 +5664,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8891",
+      "source_location": "L8928",
       "weight": 1.0
     },
     {
@@ -5626,7 +5676,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8892",
+      "source_location": "L8929",
       "weight": 1.0
     },
     {
@@ -5638,60 +5688,12 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8896",
+      "source_location": "L8933",
       "weight": 1.0
     },
     {
       "source": "app_demo_idempotency_failed",
       "target": "app_auth",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "app.py",
-      "source_location": "L8925",
-      "weight": 1.0
-    },
-    {
-      "source": "app_demo_idempotency_failed",
-      "target": "app_require_debug_mode",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "app.py",
-      "source_location": "L8926",
-      "weight": 1.0
-    },
-    {
-      "source": "app_demo_idempotency_failed",
-      "target": "app_simulate_execution",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "app.py",
-      "source_location": "L8930",
-      "weight": 1.0
-    },
-    {
-      "source": "app_demo_idempotency_risk_blocked",
-      "target": "app_auth",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "app.py",
-      "source_location": "L8961",
-      "weight": 1.0
-    },
-    {
-      "source": "app_demo_idempotency_risk_blocked",
-      "target": "app_require_debug_mode",
       "relation": "calls",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -5702,7 +5704,19 @@
       "weight": 1.0
     },
     {
-      "source": "app_demo_idempotency_risk_blocked",
+      "source": "app_demo_idempotency_failed",
+      "target": "app_require_debug_mode",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "app.py",
+      "source_location": "L8963",
+      "weight": 1.0
+    },
+    {
+      "source": "app_demo_idempotency_failed",
       "target": "app_simulate_execution",
       "relation": "calls",
       "_origin": "ast",
@@ -5710,11 +5724,11 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8966",
+      "source_location": "L8967",
       "weight": 1.0
     },
     {
-      "source": "app_demo_idempotency_sent",
+      "source": "app_demo_idempotency_risk_blocked",
       "target": "app_auth",
       "relation": "calls",
       "_origin": "ast",
@@ -5726,7 +5740,7 @@
       "weight": 1.0
     },
     {
-      "source": "app_demo_idempotency_sent",
+      "source": "app_demo_idempotency_risk_blocked",
       "target": "app_require_debug_mode",
       "relation": "calls",
       "_origin": "ast",
@@ -5738,8 +5752,8 @@
       "weight": 1.0
     },
     {
-      "source": "app_demo_idempotency_sent",
-      "target": "app_get_or_create_idempotency",
+      "source": "app_demo_idempotency_risk_blocked",
+      "target": "app_simulate_execution",
       "relation": "calls",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -5751,6 +5765,42 @@
     },
     {
       "source": "app_demo_idempotency_sent",
+      "target": "app_auth",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "app.py",
+      "source_location": "L9035",
+      "weight": 1.0
+    },
+    {
+      "source": "app_demo_idempotency_sent",
+      "target": "app_require_debug_mode",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "app.py",
+      "source_location": "L9036",
+      "weight": 1.0
+    },
+    {
+      "source": "app_demo_idempotency_sent",
+      "target": "app_get_or_create_idempotency",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "app.py",
+      "source_location": "L9040",
+      "weight": 1.0
+    },
+    {
+      "source": "app_demo_idempotency_sent",
       "target": "app_create_execution_order",
       "relation": "calls",
       "_origin": "ast",
@@ -5758,7 +5808,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9007",
+      "source_location": "L9044",
       "weight": 1.0
     },
     {
@@ -5770,7 +5820,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9022",
+      "source_location": "L9059",
       "weight": 1.0
     },
     {
@@ -5782,7 +5832,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9034",
+      "source_location": "L9071",
       "weight": 1.0
     },
     {
@@ -5794,7 +5844,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9075",
+      "source_location": "L9112",
       "weight": 1.0
     },
     {
@@ -5806,7 +5856,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9076",
+      "source_location": "L9113",
       "weight": 1.0
     },
     {
@@ -5818,7 +5868,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9080",
+      "source_location": "L9117",
       "weight": 1.0
     },
     {
@@ -5830,7 +5880,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9084",
+      "source_location": "L9121",
       "weight": 1.0
     },
     {
@@ -5842,7 +5892,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9099",
+      "source_location": "L9136",
       "weight": 1.0
     },
     {
@@ -5854,7 +5904,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9111",
+      "source_location": "L9148",
       "weight": 1.0
     },
     {
@@ -5866,7 +5916,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9117",
+      "source_location": "L9154",
       "weight": 1.0
     },
     {
@@ -5878,7 +5928,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8513",
+      "source_location": "L8550",
       "weight": 1.0
     },
     {
@@ -5890,7 +5940,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8514",
+      "source_location": "L8551",
       "weight": 1.0
     },
     {
@@ -5902,7 +5952,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8518",
+      "source_location": "L8555",
       "weight": 1.0
     },
     {
@@ -5914,7 +5964,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8636",
+      "source_location": "L8673",
       "weight": 1.0
     },
     {
@@ -5926,7 +5976,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8637",
+      "source_location": "L8674",
       "weight": 1.0
     },
     {
@@ -5938,7 +5988,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8639",
+      "source_location": "L8676",
       "weight": 1.0
     },
     {
@@ -5950,7 +6000,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9800",
+      "source_location": "L9837",
       "weight": 1.0
     },
     {
@@ -5962,7 +6012,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9801",
+      "source_location": "L9838",
       "weight": 1.0
     },
     {
@@ -5974,7 +6024,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9802",
+      "source_location": "L9839",
       "weight": 1.0
     },
     {
@@ -5986,7 +6036,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8459",
+      "source_location": "L8496",
       "weight": 1.0
     },
     {
@@ -5998,7 +6048,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8460",
+      "source_location": "L8497",
       "weight": 1.0
     },
     {
@@ -6010,7 +6060,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8466",
+      "source_location": "L8503",
       "weight": 1.0
     },
     {
@@ -6022,7 +6072,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9815",
+      "source_location": "L9852",
       "weight": 1.0
     },
     {
@@ -6034,7 +6084,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9816",
+      "source_location": "L9853",
       "weight": 1.0
     },
     {
@@ -6046,7 +6096,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9818",
+      "source_location": "L9855",
       "weight": 1.0
     },
     {
@@ -6058,7 +6108,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L10036",
+      "source_location": "L10073",
       "weight": 1.0
     },
     {
@@ -6070,7 +6120,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L10037",
+      "source_location": "L10074",
       "weight": 1.0
     },
     {
@@ -6082,7 +6132,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L10042",
+      "source_location": "L10079",
       "weight": 1.0
     },
     {
@@ -6094,7 +6144,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L10060",
+      "source_location": "L10097",
       "weight": 1.0
     },
     {
@@ -6106,7 +6156,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9844",
+      "source_location": "L9881",
       "weight": 1.0
     },
     {
@@ -6118,7 +6168,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9845",
+      "source_location": "L9882",
       "weight": 1.0
     },
     {
@@ -6130,7 +6180,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9847",
+      "source_location": "L9884",
       "weight": 1.0
     },
     {
@@ -6142,7 +6192,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9860",
+      "source_location": "L9897",
       "weight": 1.0
     },
     {
@@ -6154,7 +6204,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9956",
+      "source_location": "L9993",
       "weight": 1.0
     },
     {
@@ -6166,7 +6216,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9957",
+      "source_location": "L9994",
       "weight": 1.0
     },
     {
@@ -6178,7 +6228,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9959",
+      "source_location": "L9996",
       "weight": 1.0
     },
     {
@@ -6190,7 +6240,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9985",
+      "source_location": "L10022",
       "weight": 1.0
     },
     {
@@ -6202,7 +6252,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9986",
+      "source_location": "L10023",
       "weight": 1.0
     },
     {
@@ -6214,7 +6264,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9990",
+      "source_location": "L10027",
       "weight": 1.0
     },
     {
@@ -6226,7 +6276,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9999",
+      "source_location": "L10036",
       "weight": 1.0
     },
     {
@@ -6238,7 +6288,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9435",
+      "source_location": "L9472",
       "weight": 1.0
     },
     {
@@ -6250,7 +6300,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9436",
+      "source_location": "L9473",
       "weight": 1.0
     },
     {
@@ -6262,7 +6312,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9438",
+      "source_location": "L9475",
       "weight": 1.0
     },
     {
@@ -6274,7 +6324,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9464",
+      "source_location": "L9501",
       "weight": 1.0
     },
     {
@@ -6286,7 +6336,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9465",
+      "source_location": "L9502",
       "weight": 1.0
     },
     {
@@ -6298,7 +6348,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9467",
+      "source_location": "L9504",
       "weight": 1.0
     },
     {
@@ -6310,7 +6360,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8747",
+      "source_location": "L8784",
       "weight": 1.0
     },
     {
@@ -6322,7 +6372,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8748",
+      "source_location": "L8785",
       "weight": 1.0
     },
     {
@@ -6334,7 +6384,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8752",
+      "source_location": "L8789",
       "weight": 1.0
     },
     {
@@ -6346,7 +6396,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8350",
+      "source_location": "L8387",
       "weight": 1.0
     },
     {
@@ -6358,7 +6408,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8351",
+      "source_location": "L8388",
       "weight": 1.0
     },
     {
@@ -6370,7 +6420,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8357",
+      "source_location": "L8394",
       "weight": 1.0
     },
     {
@@ -6382,7 +6432,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8377",
+      "source_location": "L8414",
       "weight": 1.0
     },
     {
@@ -6394,7 +6444,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8378",
+      "source_location": "L8415",
       "weight": 1.0
     },
     {
@@ -6406,7 +6456,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8382",
+      "source_location": "L8419",
       "weight": 1.0
     },
     {
@@ -6418,7 +6468,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9194",
+      "source_location": "L9231",
       "weight": 1.0
     },
     {
@@ -6430,7 +6480,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9195",
+      "source_location": "L9232",
       "weight": 1.0
     },
     {
@@ -6442,7 +6492,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9197",
+      "source_location": "L9234",
       "weight": 1.0
     },
     {
@@ -6454,7 +6504,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9207",
+      "source_location": "L9244",
       "weight": 1.0
     },
     {
@@ -6466,7 +6516,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9219",
+      "source_location": "L9256",
       "weight": 1.0
     },
     {
@@ -6478,7 +6528,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9236",
+      "source_location": "L9273",
       "weight": 1.0
     },
     {
@@ -6490,7 +6540,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8402",
+      "source_location": "L8439",
       "weight": 1.0
     },
     {
@@ -6502,7 +6552,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8403",
+      "source_location": "L8440",
       "weight": 1.0
     },
     {
@@ -6514,7 +6564,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8405",
+      "source_location": "L8442",
       "weight": 1.0
     },
     {
@@ -6526,7 +6576,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8438",
+      "source_location": "L8475",
       "weight": 1.0
     },
     {
@@ -6538,7 +6588,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9250",
+      "source_location": "L9287",
       "weight": 1.0
     },
     {
@@ -6550,7 +6600,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9251",
+      "source_location": "L9288",
       "weight": 1.0
     },
     {
@@ -6562,7 +6612,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9253",
+      "source_location": "L9290",
       "weight": 1.0
     },
     {
@@ -6574,7 +6624,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9055",
+      "source_location": "L9092",
       "weight": 1.0
     },
     {
@@ -6586,7 +6636,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9056",
+      "source_location": "L9093",
       "weight": 1.0
     },
     {
@@ -6598,7 +6648,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9058",
+      "source_location": "L9095",
       "weight": 1.0
     },
     {
@@ -6610,7 +6660,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9697",
+      "source_location": "L9734",
       "weight": 1.0
     },
     {
@@ -6622,7 +6672,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9698",
+      "source_location": "L9735",
       "weight": 1.0
     },
     {
@@ -6634,7 +6684,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9702",
+      "source_location": "L9739",
       "weight": 1.0
     },
     {
@@ -6646,7 +6696,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9304",
+      "source_location": "L9341",
       "weight": 1.0
     },
     {
@@ -6658,7 +6708,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9305",
+      "source_location": "L9342",
       "weight": 1.0
     },
     {
@@ -6670,7 +6720,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9307",
+      "source_location": "L9344",
       "weight": 1.0
     },
     {
@@ -6682,7 +6732,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9333",
+      "source_location": "L9370",
       "weight": 1.0
     },
     {
@@ -6694,7 +6744,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9334",
+      "source_location": "L9371",
       "weight": 1.0
     },
     {
@@ -6706,7 +6756,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9338",
+      "source_location": "L9375",
       "weight": 1.0
     },
     {
@@ -6718,7 +6768,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9505",
+      "source_location": "L9542",
       "weight": 1.0
     },
     {
@@ -6730,7 +6780,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9506",
+      "source_location": "L9543",
       "weight": 1.0
     },
     {
@@ -6742,7 +6792,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9508",
+      "source_location": "L9545",
       "weight": 1.0
     },
     {
@@ -6754,7 +6804,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9518",
+      "source_location": "L9555",
       "weight": 1.0
     },
     {
@@ -6766,7 +6816,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9536",
+      "source_location": "L9573",
       "weight": 1.0
     },
     {
@@ -6778,7 +6828,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9556",
+      "source_location": "L9593",
       "weight": 1.0
     },
     {
@@ -6790,7 +6840,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9557",
+      "source_location": "L9594",
       "weight": 1.0
     },
     {
@@ -6802,7 +6852,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9559",
+      "source_location": "L9596",
       "weight": 1.0
     },
     {
@@ -6814,7 +6864,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9569",
+      "source_location": "L9606",
       "weight": 1.0
     },
     {
@@ -6826,7 +6876,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9587",
+      "source_location": "L9624",
       "weight": 1.0
     },
     {
@@ -6838,7 +6888,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9891",
+      "source_location": "L9928",
       "weight": 1.0
     },
     {
@@ -6850,7 +6900,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9892",
+      "source_location": "L9929",
       "weight": 1.0
     },
     {
@@ -6862,7 +6912,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9894",
+      "source_location": "L9931",
       "weight": 1.0
     },
     {
@@ -6874,7 +6924,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9905",
+      "source_location": "L9942",
       "weight": 1.0
     },
     {
@@ -6886,7 +6936,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9911",
+      "source_location": "L9948",
       "weight": 1.0
     },
     {
@@ -6898,7 +6948,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9921",
+      "source_location": "L9958",
       "weight": 1.0
     },
     {
@@ -6910,7 +6960,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9613",
+      "source_location": "L9650",
       "weight": 1.0
     },
     {
@@ -6922,7 +6972,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9614",
+      "source_location": "L9651",
       "weight": 1.0
     },
     {
@@ -6934,7 +6984,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9616",
+      "source_location": "L9653",
       "weight": 1.0
     },
     {
@@ -6946,7 +6996,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9626",
+      "source_location": "L9663",
       "weight": 1.0
     },
     {
@@ -6958,7 +7008,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L9644",
+      "source_location": "L9681",
       "weight": 1.0
     },
     {
@@ -6970,7 +7020,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L10233",
+      "source_location": "L10270",
       "weight": 1.0
     },
     {
@@ -6982,7 +7032,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L10234",
+      "source_location": "L10271",
       "weight": 1.0
     },
     {
@@ -6994,7 +7044,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L10236",
+      "source_location": "L10273",
       "weight": 1.0
     },
     {
@@ -7006,7 +7056,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8610",
+      "source_location": "L8647",
       "weight": 1.0
     },
     {
@@ -7018,7 +7068,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8611",
+      "source_location": "L8648",
       "weight": 1.0
     },
     {
@@ -7030,7 +7080,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8613",
+      "source_location": "L8650",
       "weight": 1.0
     },
     {
@@ -7042,7 +7092,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8270",
+      "source_location": "L8307",
       "weight": 1.0
     },
     {
@@ -7054,7 +7104,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8271",
+      "source_location": "L8308",
       "weight": 1.0
     },
     {
@@ -7066,7 +7116,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8278",
+      "source_location": "L8315",
       "weight": 1.0
     },
     {
@@ -7078,7 +7128,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8545",
+      "source_location": "L8582",
       "weight": 1.0
     },
     {
@@ -7090,7 +7140,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8546",
+      "source_location": "L8583",
       "weight": 1.0
     },
     {
@@ -7102,7 +7152,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L10266",
+      "source_location": "L10303",
       "weight": 1.0
     },
     {
@@ -7114,7 +7164,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L10267",
+      "source_location": "L10304",
       "weight": 1.0
     },
     {
@@ -7126,7 +7176,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L10274",
+      "source_location": "L10311",
       "weight": 1.0
     },
     {
@@ -7138,7 +7188,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8214",
+      "source_location": "L8251",
       "weight": 1.0
     },
     {
@@ -7150,7 +7200,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8215",
+      "source_location": "L8252",
       "weight": 1.0
     },
     {
@@ -7162,7 +7212,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8222",
+      "source_location": "L8259",
       "weight": 1.0
     },
     {
@@ -7174,7 +7224,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8242",
+      "source_location": "L8279",
       "weight": 1.0
     },
     {
@@ -7186,7 +7236,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8243",
+      "source_location": "L8280",
       "weight": 1.0
     },
     {
@@ -7198,7 +7248,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8250",
+      "source_location": "L8287",
       "weight": 1.0
     },
     {
@@ -7210,7 +7260,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L5491",
+      "source_location": "L5497",
       "weight": 1.0
     },
     {
@@ -7222,7 +7272,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L5496",
+      "source_location": "L5502",
       "weight": 1.0
     },
     {
@@ -7234,7 +7284,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L5502",
+      "source_location": "L5508",
       "weight": 1.0
     },
     {
@@ -7246,7 +7296,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L5507",
+      "source_location": "L5513",
       "weight": 1.0
     },
     {
@@ -7258,7 +7308,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L5512",
+      "source_location": "L5518",
       "weight": 1.0
     },
     {
@@ -7270,7 +7320,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L5518",
+      "source_location": "L5524",
       "weight": 1.0
     },
     {
@@ -7282,7 +7332,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L5542",
+      "source_location": "L5548",
       "weight": 1.0
     },
     {
@@ -7294,7 +7344,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L5594",
+      "source_location": "L5600",
       "weight": 1.0
     },
     {
@@ -7306,7 +7356,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L5683",
+      "source_location": "L5689",
       "weight": 1.0
     },
     {
@@ -7318,7 +7368,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L5692",
+      "source_location": "L5698",
       "weight": 1.0
     },
     {
@@ -7330,7 +7380,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L5739",
+      "source_location": "L5745",
       "weight": 1.0
     },
     {
@@ -7342,7 +7392,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L7425",
+      "source_location": "L7462",
       "weight": 1.0
     },
     {
@@ -7354,7 +7404,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L7428",
+      "source_location": "L7465",
       "weight": 1.0
     },
     {
@@ -7366,7 +7416,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L1603",
+      "source_location": "L1609",
       "weight": 1.0
     },
     {
@@ -7378,7 +7428,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L5161",
+      "source_location": "L5167",
       "weight": 1.0
     },
     {
@@ -7390,7 +7440,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L5202",
+      "source_location": "L5208",
       "weight": 1.0
     },
     {
@@ -7402,7 +7452,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L687",
+      "source_location": "L692",
       "weight": 1.0
     },
     {
@@ -7414,7 +7464,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L2471",
+      "source_location": "L2477",
       "weight": 1.0
     },
     {
@@ -7426,7 +7476,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L2144",
+      "source_location": "L2150",
       "weight": 1.0
     },
     {
@@ -7438,7 +7488,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L2088",
+      "source_location": "L2094",
       "weight": 1.0
     },
     {
@@ -7450,7 +7500,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L7143",
+      "source_location": "L7167",
       "weight": 1.0
     },
     {
@@ -7462,7 +7512,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L4010",
+      "source_location": "L4016",
       "weight": 1.0
     },
     {
@@ -7474,7 +7524,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L4279",
+      "source_location": "L4285",
       "weight": 1.0
     },
     {
@@ -7486,7 +7536,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L4329",
+      "source_location": "L4335",
       "weight": 1.0
     },
     {
@@ -7498,7 +7548,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L4342",
+      "source_location": "L4348",
       "weight": 1.0
     },
     {
@@ -7510,7 +7560,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L4364",
+      "source_location": "L4370",
       "weight": 1.0
     },
     {
@@ -7522,7 +7572,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L3336",
+      "source_location": "L3342",
       "weight": 1.0
     },
     {
@@ -7534,7 +7584,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L3401",
+      "source_location": "L3407",
       "weight": 1.0
     },
     {
@@ -7546,7 +7596,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L3272",
+      "source_location": "L3278",
       "weight": 1.0
     },
     {
@@ -7558,7 +7608,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L5237",
+      "source_location": "L5243",
       "weight": 1.0
     },
     {
@@ -7570,7 +7620,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L3129",
+      "source_location": "L3135",
       "weight": 1.0
     },
     {
@@ -7582,7 +7632,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L3606",
+      "source_location": "L3612",
       "weight": 1.0
     },
     {
@@ -7594,7 +7644,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L3197",
+      "source_location": "L3203",
       "weight": 1.0
     },
     {
@@ -7606,7 +7656,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L5275",
+      "source_location": "L5281",
       "weight": 1.0
     },
     {
@@ -7618,7 +7668,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L4905",
+      "source_location": "L4911",
       "weight": 1.0
     },
     {
@@ -7630,7 +7680,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L3522",
+      "source_location": "L3528",
       "weight": 1.0
     },
     {
@@ -7642,7 +7692,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L3450",
+      "source_location": "L3456",
       "weight": 1.0
     },
     {
@@ -7654,7 +7704,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L4776",
+      "source_location": "L4782",
       "weight": 1.0
     },
     {
@@ -7666,7 +7716,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L4370",
+      "source_location": "L4376",
       "weight": 1.0
     },
     {
@@ -7678,7 +7728,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L4435",
+      "source_location": "L4441",
       "weight": 1.0
     },
     {
@@ -7690,7 +7740,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L4473",
+      "source_location": "L4479",
       "weight": 1.0
     },
     {
@@ -7702,7 +7752,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L4706",
+      "source_location": "L4712",
       "weight": 1.0
     },
     {
@@ -7714,7 +7764,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L4607",
+      "source_location": "L4613",
       "weight": 1.0
     },
     {
@@ -7726,7 +7776,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L2326",
+      "source_location": "L2332",
       "weight": 1.0
     },
     {
@@ -7738,7 +7788,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L3742",
+      "source_location": "L3748",
       "weight": 1.0
     },
     {
@@ -7750,7 +7800,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L2228",
+      "source_location": "L2234",
       "weight": 1.0
     },
     {
@@ -7762,7 +7812,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L2240",
+      "source_location": "L2246",
       "weight": 1.0
     },
     {
@@ -7774,7 +7824,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L2249",
+      "source_location": "L2255",
       "weight": 1.0
     },
     {
@@ -7786,7 +7836,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L603",
+      "source_location": "L605",
       "weight": 1.0
     },
     {
@@ -7798,7 +7848,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L6603",
+      "source_location": "L6621",
       "weight": 1.0
     },
     {
@@ -7810,7 +7860,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L6624",
+      "source_location": "L6642",
       "weight": 1.0
     },
     {
@@ -7822,7 +7872,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L6429",
+      "source_location": "L6447",
       "weight": 1.0
     },
     {
@@ -7834,7 +7884,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L6445",
+      "source_location": "L6463",
       "weight": 1.0
     },
     {
@@ -7846,7 +7896,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L6465",
+      "source_location": "L6483",
       "weight": 1.0
     },
     {
@@ -7858,7 +7908,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L2743",
+      "source_location": "L2749",
       "weight": 1.0
     },
     {
@@ -7870,7 +7920,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L2749",
+      "source_location": "L2755",
       "weight": 1.0
     },
     {
@@ -7882,7 +7932,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L3998",
+      "source_location": "L4004",
       "weight": 1.0
     },
     {
@@ -7894,7 +7944,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L4002",
+      "source_location": "L4008",
       "weight": 1.0
     },
     {
@@ -7906,7 +7956,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L5770",
+      "source_location": "L5776",
       "weight": 1.0
     },
     {
@@ -7918,7 +7968,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L5782",
+      "source_location": "L5788",
       "weight": 1.0
     },
     {
@@ -7930,7 +7980,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L5784",
+      "source_location": "L5792",
       "weight": 1.0
     },
     {
@@ -7942,7 +7992,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L5797",
+      "source_location": "L5807",
       "weight": 1.0
     },
     {
@@ -7954,7 +8004,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L5882",
+      "source_location": "L5900",
       "weight": 1.0
     },
     {
@@ -7966,7 +8016,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L7687",
+      "source_location": "L7724",
       "weight": 1.0
     },
     {
@@ -7978,7 +8028,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L7689",
+      "source_location": "L7726",
       "weight": 1.0
     },
     {
@@ -7990,7 +8040,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L7825",
+      "source_location": "L7862",
       "weight": 1.0
     },
     {
@@ -8002,7 +8052,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L7835",
+      "source_location": "L7872",
       "weight": 1.0
     },
     {
@@ -8014,7 +8064,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L1321",
+      "source_location": "L1327",
       "weight": 1.0
     },
     {
@@ -8026,24 +8076,12 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L1350",
+      "source_location": "L1356",
       "weight": 1.0
     },
     {
       "source": "app_process_signal_outcomes_event",
       "target": "app_update_signal_outcome_10s",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "app.py",
-      "source_location": "L1363",
-      "weight": 1.0
-    },
-    {
-      "source": "app_process_signal_outcomes_event",
-      "target": "app_update_signal_outcome_30s",
       "relation": "calls",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -8055,7 +8093,7 @@
     },
     {
       "source": "app_process_signal_outcomes_event",
-      "target": "app_update_signal_outcome_1m",
+      "target": "app_update_signal_outcome_30s",
       "relation": "calls",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -8067,7 +8105,7 @@
     },
     {
       "source": "app_process_signal_outcomes_event",
-      "target": "app_update_signal_outcome_5m",
+      "target": "app_update_signal_outcome_1m",
       "relation": "calls",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -8079,7 +8117,7 @@
     },
     {
       "source": "app_process_signal_outcomes_event",
-      "target": "app_update_signal_outcome_15m",
+      "target": "app_update_signal_outcome_5m",
       "relation": "calls",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -8091,6 +8129,18 @@
     },
     {
       "source": "app_process_signal_outcomes_event",
+      "target": "app_update_signal_outcome_15m",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "app.py",
+      "source_location": "L1393",
+      "weight": 1.0
+    },
+    {
+      "source": "app_process_signal_outcomes_event",
       "target": "app_cleanup_finished_outcome_token",
       "relation": "calls",
       "_origin": "ast",
@@ -8098,7 +8148,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L1392",
+      "source_location": "L1398",
       "weight": 1.0
     },
     {
@@ -8110,7 +8160,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L6573",
+      "source_location": "L6591",
       "weight": 1.0
     },
     {
@@ -8122,7 +8172,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L2552",
+      "source_location": "L2558",
       "weight": 1.0
     },
     {
@@ -8134,7 +8184,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L2570",
+      "source_location": "L2576",
       "weight": 1.0
     },
     {
@@ -8146,7 +8196,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L1572",
+      "source_location": "L1578",
       "weight": 1.0
     },
     {
@@ -8158,7 +8208,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L6550",
+      "source_location": "L6568",
       "weight": 1.0
     },
     {
@@ -8170,7 +8220,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L3942",
+      "source_location": "L3948",
       "weight": 1.0
     },
     {
@@ -8182,7 +8232,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L2395",
+      "source_location": "L2401",
       "weight": 1.0
     },
     {
@@ -8194,7 +8244,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L2405",
+      "source_location": "L2411",
       "weight": 1.0
     },
     {
@@ -8206,7 +8256,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L2415",
+      "source_location": "L2421",
       "weight": 1.0
     },
     {
@@ -8218,7 +8268,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L2448",
+      "source_location": "L2454",
       "weight": 1.0
     },
     {
@@ -8230,7 +8280,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L2615",
+      "source_location": "L2621",
       "weight": 1.0
     },
     {
@@ -8242,7 +8292,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L2630",
+      "source_location": "L2636",
       "weight": 1.0
     },
     {
@@ -8254,7 +8304,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L2641",
+      "source_location": "L2647",
       "weight": 1.0
     },
     {
@@ -8266,7 +8316,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L2649",
+      "source_location": "L2655",
       "weight": 1.0
     },
     {
@@ -8278,7 +8328,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L2051",
+      "source_location": "L2057",
       "weight": 1.0
     },
     {
@@ -8290,7 +8340,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L3062",
+      "source_location": "L3068",
       "weight": 1.0
     },
     {
@@ -8302,7 +8352,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L2993",
+      "source_location": "L2999",
       "weight": 1.0
     },
     {
@@ -8314,7 +8364,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L6253",
+      "source_location": "L6271",
       "weight": 1.0
     },
     {
@@ -8326,7 +8376,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L6321",
+      "source_location": "L6339",
       "weight": 1.0
     },
     {
@@ -8338,7 +8388,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L6342",
+      "source_location": "L6360",
       "weight": 1.0
     },
     {
@@ -8350,7 +8400,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L6352",
+      "source_location": "L6370",
       "weight": 1.0
     },
     {
@@ -8362,7 +8412,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L5105",
+      "source_location": "L5111",
       "weight": 1.0
     },
     {
@@ -8374,7 +8424,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L5314",
+      "source_location": "L5320",
       "weight": 1.0
     },
     {
@@ -8386,7 +8436,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L5012",
+      "source_location": "L5018",
       "weight": 1.0
     },
     {
@@ -8398,7 +8448,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8579",
+      "source_location": "L8616",
       "weight": 1.0
     },
     {
@@ -8410,7 +8460,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L8596",
+      "source_location": "L8633",
       "weight": 1.0
     },
     {
@@ -8422,7 +8472,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L7167",
+      "source_location": "L7191",
       "weight": 1.0
     },
     {
@@ -8434,7 +8484,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L1403",
+      "source_location": "L1409",
       "weight": 1.0
     },
     {
@@ -8446,7 +8496,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L1480",
+      "source_location": "L1486",
       "weight": 1.0
     },
     {
@@ -8458,7 +8508,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L1489",
+      "source_location": "L1495",
       "weight": 1.0
     },
     {
@@ -8470,7 +8520,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L1498",
+      "source_location": "L1504",
       "weight": 1.0
     },
     {
@@ -8482,7 +8532,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L1507",
+      "source_location": "L1513",
       "weight": 1.0
     },
     {
@@ -8494,7 +8544,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L1516",
+      "source_location": "L1522",
       "weight": 1.0
     },
     {
@@ -8506,7 +8556,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L1524",
+      "source_location": "L1530",
       "weight": 1.0
     },
     {
@@ -8518,7 +8568,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L1527",
+      "source_location": "L1533",
       "weight": 1.0
     },
     {
@@ -8530,7 +8580,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L7584",
+      "source_location": "L7621",
       "weight": 1.0
     },
     {
@@ -8542,7 +8592,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L7587",
+      "source_location": "L7624",
       "weight": 1.0
     },
     {
@@ -8554,7 +8604,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L1704",
+      "source_location": "L1710",
       "weight": 1.0
     },
     {
@@ -8566,7 +8616,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L1721",
+      "source_location": "L1727",
       "weight": 1.0
     },
     {
@@ -8578,7 +8628,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L1737",
+      "source_location": "L1743",
       "weight": 1.0
     },
     {
@@ -8590,7 +8640,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L1749",
+      "source_location": "L1755",
       "weight": 1.0
     },
     {
@@ -8602,7 +8652,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L1760",
+      "source_location": "L1766",
       "weight": 1.0
     },
     {
@@ -8614,7 +8664,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L7018",
+      "source_location": "L7036",
       "weight": 1.0
     },
     {
@@ -8626,7 +8676,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L7024",
+      "source_location": "L7042",
       "weight": 1.0
     },
     {
@@ -8638,7 +8688,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L7025",
+      "source_location": "L7043",
       "weight": 1.0
     },
     {
@@ -8650,7 +8700,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L7026",
+      "source_location": "L7044",
       "weight": 1.0
     },
     {
@@ -8662,7 +8712,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L7028",
+      "source_location": "L7046",
       "weight": 1.0
     },
     {
@@ -8674,7 +8724,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L7081",
+      "source_location": "L7099",
       "weight": 1.0
     },
     {
@@ -8686,7 +8736,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L7082",
+      "source_location": "L7100",
       "weight": 1.0
     },
     {
@@ -8698,7 +8748,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L7102",
+      "source_location": "L7120",
       "weight": 1.0
     },
     {
@@ -8710,7 +8760,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L7106",
+      "source_location": "L7124",
       "weight": 1.0
     },
     {
@@ -8722,7 +8772,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L7110",
+      "source_location": "L7128",
       "weight": 1.0
     },
     {
@@ -8734,7 +8784,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L7199",
+      "source_location": "L7223",
       "weight": 1.0
     },
     {
@@ -8746,7 +8796,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L6828",
+      "source_location": "L6846",
       "weight": 1.0
     },
     {
@@ -8758,7 +8808,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L6831",
+      "source_location": "L6849",
       "weight": 1.0
     },
     {
@@ -8770,7 +8820,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L6839",
+      "source_location": "L6857",
       "weight": 1.0
     },
     {
@@ -8782,7 +8832,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L6859",
+      "source_location": "L6877",
       "weight": 1.0
     },
     {
@@ -8794,7 +8844,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L6901",
+      "source_location": "L6919",
       "weight": 1.0
     },
     {
@@ -8806,7 +8856,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L6911",
+      "source_location": "L6929",
       "weight": 1.0
     },
     {
@@ -8818,7 +8868,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L6932",
+      "source_location": "L6950",
       "weight": 1.0
     },
     {
@@ -8830,7 +8880,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L6937",
+      "source_location": "L6955",
       "weight": 1.0
     },
     {
@@ -8842,7 +8892,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L6965",
+      "source_location": "L6983",
       "weight": 1.0
     },
     {
@@ -8854,7 +8904,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L7761",
+      "source_location": "L7798",
       "weight": 1.0
     },
     {
@@ -8866,7 +8916,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L7771",
+      "source_location": "L7808",
       "weight": 1.0
     },
     {
@@ -8878,7 +8928,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L7884",
+      "source_location": "L7921",
       "weight": 1.0
     },
     {
@@ -8890,7 +8940,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L7887",
+      "source_location": "L7924",
       "weight": 1.0
     },
     {
@@ -8902,7 +8952,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L7322",
+      "source_location": "L7359",
       "weight": 1.0
     },
     {
@@ -8914,7 +8964,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L7325",
+      "source_location": "L7362",
       "weight": 1.0
     },
     {
@@ -8926,7 +8976,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L2015",
+      "source_location": "L2021",
       "weight": 1.0
     },
     {
@@ -8938,7 +8988,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L2039",
+      "source_location": "L2045",
       "weight": 1.0
     },
     {
@@ -8950,7 +9000,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L5904",
+      "source_location": "L5922",
       "weight": 1.0
     },
     {
@@ -8962,7 +9012,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L6154",
+      "source_location": "L6172",
       "weight": 1.0
     },
     {
@@ -8974,7 +9024,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L816",
+      "source_location": "L822",
       "weight": 1.0
     },
     {
@@ -8986,7 +9036,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L1097",
+      "source_location": "L1103",
       "weight": 1.0
     },
     {
@@ -8998,7 +9048,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L957",
+      "source_location": "L963",
       "weight": 1.0
     },
     {
@@ -9010,7 +9060,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L887",
+      "source_location": "L893",
       "weight": 1.0
     },
     {
@@ -9022,7 +9072,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L1027",
+      "source_location": "L1033",
       "weight": 1.0
     },
     {
@@ -9034,7 +9084,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L1167",
+      "source_location": "L1173",
       "weight": 1.0
     },
     {
@@ -10174,7 +10224,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L8089",
+      "source_location": "L8126",
       "weight": 1.0
     },
     {
@@ -10186,7 +10236,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L8102",
+      "source_location": "L8139",
       "weight": 1.0
     },
     {
@@ -10198,7 +10248,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L8037",
+      "source_location": "L8074",
       "weight": 1.0
     },
     {
@@ -10210,7 +10260,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L8050",
+      "source_location": "L8087",
       "weight": 1.0
     },
     {
@@ -10222,7 +10272,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L8068",
+      "source_location": "L8105",
       "weight": 1.0
     },
     {
@@ -10234,7 +10284,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L8041",
+      "source_location": "L8078",
       "weight": 1.0
     },
     {
@@ -10246,7 +10296,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L8027",
+      "source_location": "L8064",
       "weight": 1.0
     },
     {
@@ -10258,7 +10308,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L8032",
+      "source_location": "L8069",
       "weight": 1.0
     },
     {
@@ -10270,7 +10320,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L8114",
+      "source_location": "L8151",
       "weight": 1.0
     },
     {
@@ -10282,7 +10332,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L9264",
+      "source_location": "L9301",
       "weight": 1.0
     },
     {
@@ -10294,7 +10344,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L9281",
+      "source_location": "L9318",
       "weight": 1.0
     },
     {
@@ -10306,7 +10356,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L8767",
+      "source_location": "L8804",
       "weight": 1.0
     },
     {
@@ -10318,7 +10368,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L9736",
+      "source_location": "L9773",
       "weight": 1.0
     },
     {
@@ -10330,7 +10380,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L9357",
+      "source_location": "L9394",
       "weight": 1.0
     },
     {
@@ -10342,7 +10392,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L8556",
+      "source_location": "L8593",
       "weight": 1.0
     },
     {
@@ -10354,7 +10404,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L10092",
+      "source_location": "L10129",
       "weight": 1.0
     },
     {
@@ -10366,7 +10416,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L8481",
+      "source_location": "L8518",
       "weight": 1.0
     },
     {
@@ -10378,7 +10428,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L8655",
+      "source_location": "L8692",
       "weight": 1.0
     },
     {
@@ -10390,7 +10440,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L8866",
+      "source_location": "L8903",
       "weight": 1.0
     },
     {
@@ -10402,7 +10452,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L8853",
+      "source_location": "L8890",
       "weight": 1.0
     },
     {
@@ -10414,7 +10464,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L8812",
+      "source_location": "L8849",
       "weight": 1.0
     },
     {
@@ -10426,7 +10476,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L8695",
+      "source_location": "L8732",
       "weight": 1.0
     },
     {
@@ -10438,7 +10488,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L9133",
+      "source_location": "L9170",
       "weight": 1.0
     },
     {
@@ -10450,7 +10500,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L8320",
+      "source_location": "L8357",
       "weight": 1.0
     },
     {
@@ -10462,7 +10512,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L8293",
+      "source_location": "L8330",
       "weight": 1.0
     },
     {
@@ -10474,7 +10524,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L8886",
+      "source_location": "L8923",
       "weight": 1.0
     },
     {
@@ -10486,7 +10536,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L8920",
+      "source_location": "L8957",
       "weight": 1.0
     },
     {
@@ -10498,7 +10548,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L8956",
+      "source_location": "L8993",
       "weight": 1.0
     },
     {
@@ -10510,7 +10560,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L8993",
+      "source_location": "L9030",
       "weight": 1.0
     },
     {
@@ -10522,7 +10572,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L9070",
+      "source_location": "L9107",
       "weight": 1.0
     },
     {
@@ -10534,7 +10584,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L8508",
+      "source_location": "L8545",
       "weight": 1.0
     },
     {
@@ -10546,7 +10596,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L8631",
+      "source_location": "L8668",
       "weight": 1.0
     },
     {
@@ -10558,7 +10608,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L9795",
+      "source_location": "L9832",
       "weight": 1.0
     },
     {
@@ -10570,7 +10620,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L8454",
+      "source_location": "L8491",
       "weight": 1.0
     },
     {
@@ -10582,7 +10632,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L9810",
+      "source_location": "L9847",
       "weight": 1.0
     },
     {
@@ -10594,7 +10644,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L10031",
+      "source_location": "L10068",
       "weight": 1.0
     },
     {
@@ -10606,7 +10656,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L9839",
+      "source_location": "L9876",
       "weight": 1.0
     },
     {
@@ -10618,7 +10668,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L9951",
+      "source_location": "L9988",
       "weight": 1.0
     },
     {
@@ -10630,7 +10680,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L9980",
+      "source_location": "L10017",
       "weight": 1.0
     },
     {
@@ -10642,7 +10692,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L9430",
+      "source_location": "L9467",
       "weight": 1.0
     },
     {
@@ -10654,7 +10704,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L9459",
+      "source_location": "L9496",
       "weight": 1.0
     },
     {
@@ -10666,7 +10716,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L8742",
+      "source_location": "L8779",
       "weight": 1.0
     },
     {
@@ -10678,7 +10728,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L8345",
+      "source_location": "L8382",
       "weight": 1.0
     },
     {
@@ -10690,7 +10740,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L8372",
+      "source_location": "L8409",
       "weight": 1.0
     },
     {
@@ -10702,7 +10752,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L9189",
+      "source_location": "L9226",
       "weight": 1.0
     },
     {
@@ -10714,7 +10764,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L8397",
+      "source_location": "L8434",
       "weight": 1.0
     },
     {
@@ -10726,7 +10776,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L9245",
+      "source_location": "L9282",
       "weight": 1.0
     },
     {
@@ -10738,7 +10788,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L9050",
+      "source_location": "L9087",
       "weight": 1.0
     },
     {
@@ -10750,7 +10800,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L9692",
+      "source_location": "L9729",
       "weight": 1.0
     },
     {
@@ -10762,7 +10812,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L9299",
+      "source_location": "L9336",
       "weight": 1.0
     },
     {
@@ -10774,7 +10824,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L9328",
+      "source_location": "L9365",
       "weight": 1.0
     },
     {
@@ -10786,7 +10836,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L9500",
+      "source_location": "L9537",
       "weight": 1.0
     },
     {
@@ -10798,7 +10848,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L9551",
+      "source_location": "L9588",
       "weight": 1.0
     },
     {
@@ -10810,7 +10860,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L9886",
+      "source_location": "L9923",
       "weight": 1.0
     },
     {
@@ -10822,7 +10872,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L9608",
+      "source_location": "L9645",
       "weight": 1.0
     },
     {
@@ -10834,7 +10884,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L10228",
+      "source_location": "L10265",
       "weight": 1.0
     },
     {
@@ -10846,7 +10896,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L8605",
+      "source_location": "L8642",
       "weight": 1.0
     },
     {
@@ -10858,7 +10908,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L8265",
+      "source_location": "L8302",
       "weight": 1.0
     },
     {
@@ -10870,7 +10920,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L8538",
+      "source_location": "L8575",
       "weight": 1.0
     },
     {
@@ -10882,7 +10932,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L10261",
+      "source_location": "L10298",
       "weight": 1.0
     },
     {
@@ -10894,7 +10944,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L8209",
+      "source_location": "L8246",
       "weight": 1.0
     },
     {
@@ -10906,7 +10956,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L8237",
+      "source_location": "L8274",
       "weight": 1.0
     },
     {
@@ -10918,7 +10968,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L7419",
+      "source_location": "L7456",
       "weight": 1.0
     },
     {
@@ -10930,7 +10980,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L10292",
+      "source_location": "L10329",
       "weight": 1.0
     },
     {
@@ -10942,7 +10992,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L7682",
+      "source_location": "L7719",
       "weight": 1.0
     },
     {
@@ -10954,7 +11004,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L7818",
+      "source_location": "L7855",
       "weight": 1.0
     },
     {
@@ -10966,7 +11016,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L8573",
+      "source_location": "L8610",
       "weight": 1.0
     },
     {
@@ -10978,7 +11028,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L7579",
+      "source_location": "L7616",
       "weight": 1.0
     },
     {
@@ -10990,7 +11040,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L7014",
+      "source_location": "L7032",
       "weight": 1.0
     },
     {
@@ -11002,7 +11052,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L7194",
+      "source_location": "L7218",
       "weight": 1.0
     },
     {
@@ -11014,7 +11064,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L7754",
+      "source_location": "L7791",
       "weight": 1.0
     },
     {
@@ -11026,7 +11076,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L7879",
+      "source_location": "L7916",
       "weight": 1.0
     },
     {
@@ -11038,7 +11088,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "app.py",
-      "source_location": "L7316",
+      "source_location": "L7353",
       "weight": 1.0
     },
     {
@@ -11266,7 +11316,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "tests/test_risk_controls.py",
-      "source_location": "L5",
+      "source_location": "L8",
       "weight": 1.0
     },
     {
@@ -11558,13 +11608,24 @@
     },
     {
       "source": "app",
+      "target": "app_demo_paper_mode_save",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app.py",
+      "source_location": "L10018",
+      "weight": 1.0
+    },
+    {
+      "source": "app",
       "target": "app_demo_mode_isolation",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L10032",
+      "source_location": "L10069",
       "weight": 1.0
     },
     {
@@ -11575,7 +11636,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L10093",
+      "source_location": "L10130",
       "weight": 1.0
     },
     {
@@ -11586,7 +11647,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L10229",
+      "source_location": "L10266",
       "weight": 1.0
     },
     {
@@ -11597,7 +11658,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L1023",
+      "source_location": "L1029",
       "weight": 1.0
     },
     {
@@ -11608,7 +11669,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L10262",
+      "source_location": "L10299",
       "weight": 1.0
     },
     {
@@ -11619,7 +11680,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L10293",
+      "source_location": "L10330",
       "weight": 1.0
     },
     {
@@ -11630,7 +11691,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L1093",
+      "source_location": "L1099",
       "weight": 1.0
     },
     {
@@ -11641,7 +11702,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L1163",
+      "source_location": "L1169",
       "weight": 1.0
     },
     {
@@ -11652,7 +11713,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L1292",
+      "source_location": "L1298",
       "weight": 1.0
     },
     {
@@ -11663,7 +11724,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L1394",
+      "source_location": "L1400",
       "weight": 1.0
     },
     {
@@ -11674,7 +11735,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L1538",
+      "source_location": "L1544",
       "weight": 1.0
     },
     {
@@ -11685,7 +11746,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L1571",
+      "source_location": "L1577",
       "weight": 1.0
     },
     {
@@ -11696,7 +11757,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L1597",
+      "source_location": "L1603",
       "weight": 1.0
     },
     {
@@ -11707,7 +11768,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L1638",
+      "source_location": "L1644",
       "weight": 1.0
     },
     {
@@ -11718,7 +11779,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L1690",
+      "source_location": "L1696",
       "weight": 1.0
     },
     {
@@ -11729,7 +11790,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L1816",
+      "source_location": "L1822",
       "weight": 1.0
     },
     {
@@ -11740,7 +11801,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L1886",
+      "source_location": "L1892",
       "weight": 1.0
     },
     {
@@ -11751,7 +11812,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L2009",
+      "source_location": "L2015",
       "weight": 1.0
     },
     {
@@ -11762,7 +11823,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L2045",
+      "source_location": "L2051",
       "weight": 1.0
     },
     {
@@ -11773,7 +11834,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L2077",
+      "source_location": "L2083",
       "weight": 1.0
     },
     {
@@ -11784,7 +11845,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L2140",
+      "source_location": "L2146",
       "weight": 1.0
     },
     {
@@ -11795,7 +11856,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L2177",
+      "source_location": "L2183",
       "weight": 1.0
     },
     {
@@ -11806,7 +11867,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L218",
+      "source_location": "L220",
       "weight": 1.0
     },
     {
@@ -11817,7 +11878,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L2226",
+      "source_location": "L2232",
       "weight": 1.0
     },
     {
@@ -11828,7 +11889,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L2262",
+      "source_location": "L2268",
       "weight": 1.0
     },
     {
@@ -11839,7 +11900,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L2324",
+      "source_location": "L2330",
       "weight": 1.0
     },
     {
@@ -11850,7 +11911,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L2386",
+      "source_location": "L2392",
       "weight": 1.0
     },
     {
@@ -11861,7 +11922,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L2467",
+      "source_location": "L2473",
       "weight": 1.0
     },
     {
@@ -11872,7 +11933,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L2535",
+      "source_location": "L2541",
       "weight": 1.0
     },
     {
@@ -11883,7 +11944,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L2583",
+      "source_location": "L2589",
       "weight": 1.0
     },
     {
@@ -11894,7 +11955,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L2666",
+      "source_location": "L2672",
       "weight": 1.0
     },
     {
@@ -11905,7 +11966,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L2741",
+      "source_location": "L2747",
       "weight": 1.0
     },
     {
@@ -11916,7 +11977,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L2974",
+      "source_location": "L2980",
       "weight": 1.0
     },
     {
@@ -11927,7 +11988,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L3050",
+      "source_location": "L3056",
       "weight": 1.0
     },
     {
@@ -11938,7 +11999,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L3098",
+      "source_location": "L3104",
       "weight": 1.0
     },
     {
@@ -11949,7 +12010,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L3119",
+      "source_location": "L3125",
       "weight": 1.0
     },
     {
@@ -11960,7 +12021,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L3128",
+      "source_location": "L3134",
       "weight": 1.0
     },
     {
@@ -11971,7 +12032,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L3196",
+      "source_location": "L3202",
       "weight": 1.0
     },
     {
@@ -11982,7 +12043,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L3271",
+      "source_location": "L3277",
       "weight": 1.0
     },
     {
@@ -11993,7 +12054,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L3335",
+      "source_location": "L3341",
       "weight": 1.0
     },
     {
@@ -12004,7 +12065,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L3400",
+      "source_location": "L3406",
       "weight": 1.0
     },
     {
@@ -12015,7 +12076,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L3449",
+      "source_location": "L3455",
       "weight": 1.0
     },
     {
@@ -12026,7 +12087,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L3521",
+      "source_location": "L3527",
       "weight": 1.0
     },
     {
@@ -12037,7 +12098,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L3605",
+      "source_location": "L3611",
       "weight": 1.0
     },
     {
@@ -12048,7 +12109,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L3665",
+      "source_location": "L3671",
       "weight": 1.0
     },
     {
@@ -12059,7 +12120,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L3727",
+      "source_location": "L3733",
       "weight": 1.0
     },
     {
@@ -12070,7 +12131,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L3797",
+      "source_location": "L3803",
       "weight": 1.0
     },
     {
@@ -12081,7 +12142,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L3922",
+      "source_location": "L3928",
       "weight": 1.0
     },
     {
@@ -12092,7 +12153,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L3987",
+      "source_location": "L3993",
       "weight": 1.0
     },
     {
@@ -12103,7 +12164,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L4009",
+      "source_location": "L4015",
       "weight": 1.0
     },
     {
@@ -12114,7 +12175,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L4067",
+      "source_location": "L4073",
       "weight": 1.0
     },
     {
@@ -12125,7 +12186,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L4111",
+      "source_location": "L4117",
       "weight": 1.0
     },
     {
@@ -12136,7 +12197,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L4234",
+      "source_location": "L4240",
       "weight": 1.0
     },
     {
@@ -12147,7 +12208,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L4278",
+      "source_location": "L4284",
       "weight": 1.0
     },
     {
@@ -12158,7 +12219,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L4369",
+      "source_location": "L4375",
       "weight": 1.0
     },
     {
@@ -12169,7 +12230,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L4472",
+      "source_location": "L4478",
       "weight": 1.0
     },
     {
@@ -12180,7 +12241,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L4606",
+      "source_location": "L4612",
       "weight": 1.0
     },
     {
@@ -12191,7 +12252,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L4703",
+      "source_location": "L4709",
       "weight": 1.0
     },
     {
@@ -12202,7 +12263,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L4775",
+      "source_location": "L4781",
       "weight": 1.0
     },
     {
@@ -12213,7 +12274,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L4898",
+      "source_location": "L4904",
       "weight": 1.0
     },
     {
@@ -12224,7 +12285,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L4931",
+      "source_location": "L4937",
       "weight": 1.0
     },
     {
@@ -12235,7 +12296,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L4971",
+      "source_location": "L4977",
       "weight": 1.0
     },
     {
@@ -12246,7 +12307,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L5007",
+      "source_location": "L5013",
       "weight": 1.0
     },
     {
@@ -12257,7 +12318,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L5093",
+      "source_location": "L5099",
       "weight": 1.0
     },
     {
@@ -12268,7 +12329,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L5152",
+      "source_location": "L5158",
       "weight": 1.0
     },
     {
@@ -12279,7 +12340,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L5192",
+      "source_location": "L5198",
       "weight": 1.0
     },
     {
@@ -12290,7 +12351,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L5233",
+      "source_location": "L5239",
       "weight": 1.0
     },
     {
@@ -12301,7 +12362,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L5271",
+      "source_location": "L5277",
       "weight": 1.0
     },
     {
@@ -12312,7 +12373,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L5312",
+      "source_location": "L5318",
       "weight": 1.0
     },
     {
@@ -12323,7 +12384,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L5439",
+      "source_location": "L5445",
       "weight": 1.0
     },
     {
@@ -12334,7 +12395,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L5458",
+      "source_location": "L5464",
       "weight": 1.0
     },
     {
@@ -12345,7 +12406,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L5758",
+      "source_location": "L5764",
       "weight": 1.0
     },
     {
@@ -12356,7 +12417,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L5893",
+      "source_location": "L5911",
       "weight": 1.0
     },
     {
@@ -12367,7 +12428,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L595",
+      "source_location": "L597",
       "weight": 1.0
     },
     {
@@ -12378,7 +12439,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L6176",
+      "source_location": "L6194",
       "weight": 1.0
     },
     {
@@ -12389,7 +12450,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L6377",
+      "source_location": "L6395",
       "weight": 1.0
     },
     {
@@ -12400,7 +12461,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L6386",
+      "source_location": "L6404",
       "weight": 1.0
     },
     {
@@ -12411,7 +12472,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L6408",
+      "source_location": "L6426",
       "weight": 1.0
     },
     {
@@ -12422,7 +12483,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L6425",
+      "source_location": "L6443",
       "weight": 1.0
     },
     {
@@ -12433,7 +12494,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L644",
+      "source_location": "L646",
       "weight": 1.0
     },
     {
@@ -12444,7 +12505,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L6497",
+      "source_location": "L6515",
       "weight": 1.0
     },
     {
@@ -12455,7 +12516,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L6534",
+      "source_location": "L6552",
       "weight": 1.0
     },
     {
@@ -12466,7 +12527,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L6563",
+      "source_location": "L6581",
       "weight": 1.0
     },
     {
@@ -12477,7 +12538,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L6582",
+      "source_location": "L6600",
       "weight": 1.0
     },
     {
@@ -12488,7 +12549,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L6610",
+      "source_location": "L6628",
       "weight": 1.0
     },
     {
@@ -12499,7 +12560,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L6628",
+      "source_location": "L6646",
       "weight": 1.0
     },
     {
@@ -12510,7 +12571,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L667",
+      "source_location": "L671",
       "weight": 1.0
     },
     {
@@ -12521,7 +12582,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L7015",
+      "source_location": "L7033",
       "weight": 1.0
     },
     {
@@ -12532,7 +12593,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L7116",
+      "source_location": "L7134",
       "weight": 1.0
     },
     {
@@ -12543,18 +12604,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L7125",
-      "weight": 1.0
-    },
-    {
-      "source": "app",
-      "target": "app_validate_slippage",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "app.py",
-      "source_location": "L713",
+      "source_location": "L7143",
       "weight": 1.0
     },
     {
@@ -12565,7 +12615,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L7133",
+      "source_location": "L7151",
       "weight": 1.0
     },
     {
@@ -12576,7 +12626,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L7141",
+      "source_location": "L7165",
       "weight": 1.0
     },
     {
@@ -12587,7 +12637,18 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L7165",
+      "source_location": "L7189",
+      "weight": 1.0
+    },
+    {
+      "source": "app",
+      "target": "app_validate_slippage",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app.py",
+      "source_location": "L719",
       "weight": 1.0
     },
     {
@@ -12598,7 +12659,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L7195",
+      "source_location": "L7219",
       "weight": 1.0
     },
     {
@@ -12609,7 +12670,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L7317",
+      "source_location": "L7354",
       "weight": 1.0
     },
     {
@@ -12620,7 +12681,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L7420",
+      "source_location": "L7457",
       "weight": 1.0
     },
     {
@@ -12631,7 +12692,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L746",
+      "source_location": "L752",
       "weight": 1.0
     },
     {
@@ -12642,18 +12703,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L7580",
-      "weight": 1.0
-    },
-    {
-      "source": "app",
-      "target": "app_create_signal_outcome",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "app.py",
-      "source_location": "L768",
+      "source_location": "L7617",
       "weight": 1.0
     },
     {
@@ -12664,7 +12714,18 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L7683",
+      "source_location": "L7720",
+      "weight": 1.0
+    },
+    {
+      "source": "app",
+      "target": "app_create_signal_outcome",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app.py",
+      "source_location": "L774",
       "weight": 1.0
     },
     {
@@ -12675,7 +12736,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L7755",
+      "source_location": "L7792",
       "weight": 1.0
     },
     {
@@ -12686,7 +12747,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L7819",
+      "source_location": "L7856",
       "weight": 1.0
     },
     {
@@ -12697,7 +12758,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L7880",
+      "source_location": "L7917",
       "weight": 1.0
     },
     {
@@ -12708,7 +12769,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L8028",
+      "source_location": "L8065",
       "weight": 1.0
     },
     {
@@ -12719,7 +12780,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L8033",
+      "source_location": "L8070",
       "weight": 1.0
     },
     {
@@ -12730,7 +12791,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L8038",
+      "source_location": "L8075",
       "weight": 1.0
     },
     {
@@ -12741,7 +12802,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L8042",
+      "source_location": "L8079",
       "weight": 1.0
     },
     {
@@ -12752,7 +12813,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L8051",
+      "source_location": "L8088",
       "weight": 1.0
     },
     {
@@ -12763,7 +12824,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L8069",
+      "source_location": "L8106",
       "weight": 1.0
     },
     {
@@ -12774,7 +12835,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L8090",
+      "source_location": "L8127",
       "weight": 1.0
     },
     {
@@ -12785,7 +12846,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L8103",
+      "source_location": "L8140",
       "weight": 1.0
     },
     {
@@ -12796,7 +12857,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L8115",
+      "source_location": "L8152",
       "weight": 1.0
     },
     {
@@ -12807,7 +12868,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L812",
+      "source_location": "L818",
       "weight": 1.0
     },
     {
@@ -12818,7 +12879,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L8210",
+      "source_location": "L8247",
       "weight": 1.0
     },
     {
@@ -12829,7 +12890,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L8238",
+      "source_location": "L8275",
       "weight": 1.0
     },
     {
@@ -12840,7 +12901,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L8266",
+      "source_location": "L8303",
       "weight": 1.0
     },
     {
@@ -12851,7 +12912,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L8294",
+      "source_location": "L8331",
       "weight": 1.0
     },
     {
@@ -12862,7 +12923,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L8321",
+      "source_location": "L8358",
       "weight": 1.0
     },
     {
@@ -12873,7 +12934,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L8346",
+      "source_location": "L8383",
       "weight": 1.0
     },
     {
@@ -12884,7 +12945,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L8373",
+      "source_location": "L8410",
       "weight": 1.0
     },
     {
@@ -12895,7 +12956,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L8398",
+      "source_location": "L8435",
       "weight": 1.0
     },
     {
@@ -12906,7 +12967,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L8455",
+      "source_location": "L8492",
       "weight": 1.0
     },
     {
@@ -12917,7 +12978,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L8482",
+      "source_location": "L8519",
       "weight": 1.0
     },
     {
@@ -12928,7 +12989,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L8509",
+      "source_location": "L8546",
       "weight": 1.0
     },
     {
@@ -12939,7 +13000,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L8539",
+      "source_location": "L8576",
       "weight": 1.0
     },
     {
@@ -12950,7 +13011,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L8557",
+      "source_location": "L8594",
       "weight": 1.0
     },
     {
@@ -12961,7 +13022,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L8574",
+      "source_location": "L8611",
       "weight": 1.0
     },
     {
@@ -12972,7 +13033,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L8606",
+      "source_location": "L8643",
       "weight": 1.0
     },
     {
@@ -12983,7 +13044,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L8632",
+      "source_location": "L8669",
       "weight": 1.0
     },
     {
@@ -12994,7 +13055,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L8656",
+      "source_location": "L8693",
       "weight": 1.0
     },
     {
@@ -13005,7 +13066,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L8696",
+      "source_location": "L8733",
       "weight": 1.0
     },
     {
@@ -13016,7 +13077,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L8743",
+      "source_location": "L8780",
       "weight": 1.0
     },
     {
@@ -13027,7 +13088,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L8768",
+      "source_location": "L8805",
       "weight": 1.0
     },
     {
@@ -13038,7 +13099,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L8813",
+      "source_location": "L8850",
       "weight": 1.0
     },
     {
@@ -13049,7 +13110,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L883",
+      "source_location": "L889",
       "weight": 1.0
     },
     {
@@ -13060,7 +13121,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L8854",
+      "source_location": "L8891",
       "weight": 1.0
     },
     {
@@ -13071,7 +13132,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L8867",
+      "source_location": "L8904",
       "weight": 1.0
     },
     {
@@ -13082,7 +13143,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L8887",
+      "source_location": "L8924",
       "weight": 1.0
     },
     {
@@ -13093,7 +13154,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L8921",
+      "source_location": "L8958",
       "weight": 1.0
     },
     {
@@ -13104,7 +13165,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L8957",
+      "source_location": "L8994",
       "weight": 1.0
     },
     {
@@ -13115,7 +13176,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L8994",
+      "source_location": "L9031",
       "weight": 1.0
     },
     {
@@ -13126,7 +13187,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L9051",
+      "source_location": "L9088",
       "weight": 1.0
     },
     {
@@ -13137,7 +13198,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L9071",
+      "source_location": "L9108",
       "weight": 1.0
     },
     {
@@ -13148,7 +13209,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L9134",
+      "source_location": "L9171",
       "weight": 1.0
     },
     {
@@ -13159,7 +13220,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L9190",
+      "source_location": "L9227",
       "weight": 1.0
     },
     {
@@ -13170,7 +13231,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L9246",
+      "source_location": "L9283",
       "weight": 1.0
     },
     {
@@ -13181,7 +13242,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L9265",
+      "source_location": "L9302",
       "weight": 1.0
     },
     {
@@ -13192,7 +13253,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L9282",
+      "source_location": "L9319",
       "weight": 1.0
     },
     {
@@ -13203,7 +13264,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L9300",
+      "source_location": "L9337",
       "weight": 1.0
     },
     {
@@ -13214,7 +13275,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L9329",
+      "source_location": "L9366",
       "weight": 1.0
     },
     {
@@ -13225,7 +13286,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L9358",
+      "source_location": "L9395",
       "weight": 1.0
     },
     {
@@ -13236,7 +13297,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L9431",
+      "source_location": "L9468",
       "weight": 1.0
     },
     {
@@ -13247,7 +13308,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L9460",
+      "source_location": "L9497",
       "weight": 1.0
     },
     {
@@ -13258,18 +13319,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L9501",
-      "weight": 1.0
-    },
-    {
-      "source": "app",
-      "target": "app_update_signal_outcome_1m",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "app.py",
-      "source_location": "L953",
+      "source_location": "L9538",
       "weight": 1.0
     },
     {
@@ -13280,7 +13330,18 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L9552",
+      "source_location": "L9589",
+      "weight": 1.0
+    },
+    {
+      "source": "app",
+      "target": "app_update_signal_outcome_1m",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app.py",
+      "source_location": "L959",
       "weight": 1.0
     },
     {
@@ -13291,7 +13352,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L9609",
+      "source_location": "L9646",
       "weight": 1.0
     },
     {
@@ -13302,7 +13363,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L9693",
+      "source_location": "L9730",
       "weight": 1.0
     },
     {
@@ -13313,7 +13374,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L9737",
+      "source_location": "L9774",
       "weight": 1.0
     },
     {
@@ -13324,7 +13385,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L9796",
+      "source_location": "L9833",
       "weight": 1.0
     },
     {
@@ -13335,7 +13396,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L9811",
+      "source_location": "L9848",
       "weight": 1.0
     },
     {
@@ -13346,7 +13407,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L9840",
+      "source_location": "L9877",
       "weight": 1.0
     },
     {
@@ -13357,7 +13418,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L9887",
+      "source_location": "L9924",
       "weight": 1.0
     },
     {
@@ -13368,18 +13429,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app.py",
-      "source_location": "L9952",
-      "weight": 1.0
-    },
-    {
-      "source": "app",
-      "target": "app_demo_paper_mode_save",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "app.py",
-      "source_location": "L9981",
+      "source_location": "L9989",
       "weight": 1.0
     },
     {
@@ -14545,7 +14595,29 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_risk_controls.py",
-      "source_location": "L8",
+      "source_location": "L11",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_risk_controls",
+      "target": "tests_test_risk_controls_livetradingguardtests",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tests/test_risk_controls.py",
+      "source_location": "L69",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_risk_controls",
+      "target": "tests_test_risk_controls_positionconcurrencytests",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tests/test_risk_controls.py",
+      "source_location": "L93",
       "weight": 1.0
     },
     {
@@ -14835,25 +14907,14 @@
       "weight": 1.0
     },
     {
-      "source": "tests_test_risk_controls_numericriskvalidationtests",
-      "target": "tests_test_risk_controls_numericriskvalidationtests_test_rejects_invalid_liquidity_inputs",
+      "source": "tests_test_risk_controls_livetradingguardtests",
+      "target": "tests_test_risk_controls_livetradingguardtests_test_live_execution_cannot_be_enabled_before_implementation",
       "relation": "method",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_risk_controls.py",
-      "source_location": "L25",
-      "weight": 1.0
-    },
-    {
-      "source": "tests_test_risk_controls_numericriskvalidationtests",
-      "target": "tests_test_risk_controls_numericriskvalidationtests_test_rejects_invalid_amount_before_database_checks",
-      "relation": "method",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "tests/test_risk_controls.py",
-      "source_location": "L40",
+      "source_location": "L70",
       "weight": 1.0
     },
     {
@@ -14864,7 +14925,40 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_risk_controls.py",
-      "source_location": "L9",
+      "source_location": "L12",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_risk_controls_numericriskvalidationtests",
+      "target": "tests_test_risk_controls_numericriskvalidationtests_test_rejects_invalid_liquidity_inputs",
+      "relation": "method",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tests/test_risk_controls.py",
+      "source_location": "L28",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_risk_controls_numericriskvalidationtests",
+      "target": "tests_test_risk_controls_numericriskvalidationtests_test_rejects_invalid_amount_before_database_checks",
+      "relation": "method",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tests/test_risk_controls.py",
+      "source_location": "L43",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_risk_controls_positionconcurrencytests",
+      "target": "tests_test_risk_controls_positionconcurrencytests_test_only_one_simultaneous_position_is_opened_per_mode",
+      "relation": "method",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tests/test_risk_controls.py",
+      "source_location": "L94",
       "weight": 1.0
     },
     {
@@ -15360,7 +15454,7 @@
       "confidence_score": 0.85,
       "context": "argument",
       "source_file": "app.py",
-      "source_location": "L6570",
+      "source_location": "L6588",
       "weight": 1.0
     },
     {
@@ -15372,7 +15466,7 @@
       "confidence_score": 0.85,
       "context": "argument",
       "source_file": "app.py",
-      "source_location": "L6411",
+      "source_location": "L6429",
       "weight": 1.0
     },
     {
@@ -15384,7 +15478,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "app.py",
-      "source_location": "L3744",
+      "source_location": "L3750",
       "weight": 1.0
     },
     {
@@ -15479,7 +15573,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.95,
       "source_file": "app.py",
-      "source_location": "L3742",
+      "source_location": "L3748",
       "weight": 0.8
     },
     {
@@ -15495,5 +15589,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "8056cb4b8a8016402b9c06fb5116005be5d70d8f"
+  "built_at_commit": "6e8168b0600846e03164d4e20e83b9c204cf90b2"
 }
