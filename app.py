@@ -539,7 +539,8 @@ CREATE TABLE IF NOT EXISTS signal_outcomes(
             reason TEXT DEFAULT '',
             source TEXT DEFAULT 'paper',
             retry_count INTEGER DEFAULT 0,
-            parent_order_id INTEGER DEFAULT NULL
+            parent_order_id INTEGER DEFAULT NULL,
+            external_signature TEXT DEFAULT NULL
         )
         """
     )
@@ -573,6 +574,16 @@ CREATE TABLE IF NOT EXISTS signal_outcomes(
             """
             ALTER TABLE execution_orders
             ADD COLUMN retry_count INTEGER DEFAULT 0
+            """
+        )
+    except sqlite3.OperationalError:
+        pass
+
+    try:
+        conn.execute(
+            """
+            ALTER TABLE execution_orders
+            ADD COLUMN external_signature TEXT DEFAULT NULL
             """
         )
     except sqlite3.OperationalError:
@@ -1952,6 +1963,20 @@ def build_pumpportal_lightning_buy_payload(
     }
 
 
+def normalize_solana_signature(signature):
+    signature = str(signature or "").strip()
+    base58 = set(
+        "123456789ABCDEFGHJKLMNPQRSTUVWXYZ"
+        "abcdefghijkmnopqrstuvwxyz"
+    )
+    if not 64 <= len(signature) <= 100 or any(
+        character not in base58
+        for character in signature
+    ):
+        raise ValueError("INVALID_SOLANA_SIGNATURE")
+    return signature
+
+
 def fetch_sol_usd_quote(timeout_seconds=5):
     request = Request(
         SOL_USD_PRICE_URL,
@@ -2052,11 +2077,126 @@ def submit_pumpportal_lightning_trade(
 
     signature = result.get("signature")
     errors = result.get("errors") or result.get("error")
+    if signature:
+        try:
+            signature = normalize_solana_signature(signature)
+        except ValueError:
+            return {
+                "ok": False,
+                "reason": "INVALID_PUMPPORTAL_RESPONSE",
+            }
     return {
         "ok": bool(signature) and not errors,
         "reason": "PUMPPORTAL_SUBMITTED" if signature else "PUMPPORTAL_REJECTED",
         "signature": signature,
         "errors": errors,
+    }
+
+
+def execute_pumpportal_lightning_buy(
+    mint,
+    expected_price,
+    execution_price,
+    liquidity_sol,
+    amount_usd,
+    idempotency_key,
+):
+    try:
+        require_live_trading()
+    except HTTPException as exc:
+        return {"ok": False, "reason": exc.detail}
+
+    readiness = get_live_execution_readiness()
+    if not readiness["ready"]:
+        return {
+            "ok": False,
+            "reason": "LIVE_EXECUTION_NOT_READY",
+            "blockers": readiness["blockers"],
+        }
+
+    if not str(idempotency_key or "").strip():
+        return {"ok": False, "reason": "IDEMPOTENCY_KEY_REQUIRED"}
+
+    order = create_execution_order_idempotent(
+        mint=mint,
+        side="buy",
+        amount_usd=amount_usd,
+        expected_price=expected_price,
+        execution_price=execution_price,
+        liquidity_sol=liquidity_sol,
+        idempotency_key=idempotency_key,
+        source="pumpportal_lightning",
+        mode="live",
+    )
+    order_id = order["order_id"]
+    if not order["created"]:
+        current = get_execution_order_status(order_id)
+        return {
+            "ok": current["status"] == "CONFIRMED",
+            "order_id": order_id,
+            "status": current["status"],
+            "reason": "IDEMPOTENT_REUSE",
+        }
+
+    risk = risk_check(
+        mint=mint,
+        amount_usd=amount_usd,
+        expected_price=expected_price,
+        execution_price=execution_price,
+        liquidity_sol=liquidity_sol,
+        mode="live",
+        execution_order_id=order_id,
+    )
+    if not risk["ok"]:
+        update_execution_order(order_id, "RISK_BLOCKED", risk["reason"])
+        return {"ok": False, "order_id": order_id, "reason": risk["reason"]}
+
+    try:
+        prepared = prepare_pumpportal_lightning_buy(mint, amount_usd)
+    except Exception:
+        update_execution_order(
+            order_id,
+            "FAILED",
+            "PUMPPORTAL_PREPARATION_FAILED",
+        )
+        return {
+            "ok": False,
+            "order_id": order_id,
+            "reason": "PUMPPORTAL_PREPARATION_FAILED",
+        }
+
+    update_execution_order(order_id, "RISK_CHECKED", "RISK_OK")
+    update_execution_order(order_id, "SENT", "")
+    submitted = submit_pumpportal_lightning_trade(prepared["payload"])
+    signature = submitted.get("signature")
+
+    if submitted["ok"] and signature:
+        set_execution_order_external_signature(order_id, signature)
+        update_execution_order(
+            order_id,
+            "PENDING_RECONCILIATION",
+            "PUMPPORTAL_SUBMITTED",
+        )
+        return {
+            "ok": True,
+            "order_id": order_id,
+            "status": "PENDING_RECONCILIATION",
+            "reason": "PUMPPORTAL_SUBMITTED",
+            "signature": signature,
+        }
+
+    reason = submitted.get("reason") or "PUMPPORTAL_REQUEST_FAILED"
+    status = (
+        "FAILED"
+        if reason == "PUMPPORTAL_REJECTED"
+        else "PENDING_RECONCILIATION"
+    )
+    update_execution_order(order_id, status, reason)
+    return {
+        "ok": False,
+        "order_id": order_id,
+        "status": status,
+        "reason": reason,
     }
 
 
@@ -2288,6 +2428,24 @@ def update_execution_order(
         status=status,
         reason=reason
     )
+
+
+def set_execution_order_external_signature(order_id, signature):
+    signature = normalize_solana_signature(signature)
+
+    conn = db()
+    cursor = conn.execute(
+        """
+        UPDATE execution_orders
+        SET external_signature = ?, ts_updated = ?
+        WHERE id = ?
+        """,
+        (signature, time.time(), order_id),
+    )
+    conn.commit()
+    updated = cursor.rowcount == 1
+    conn.close()
+    return updated
 
 def save_execution_order_event(
     order_id,
@@ -2827,13 +2985,68 @@ def reconcile_execution_order(
         "reason": reason
     }
 
+
+def reconcile_pumpportal_execution_order(order_id):
+    conn = db()
+    row = conn.execute(
+        """
+        SELECT status, external_signature
+        FROM execution_orders
+        WHERE id = ?
+        LIMIT 1
+        """,
+        (order_id,),
+    ).fetchone()
+    conn.close()
+
+    if not row:
+        return {"ok": False, "reason": "ORDER_NOT_FOUND"}
+    if row[0] not in ("SENT", "PENDING_RECONCILIATION"):
+        return {
+            "ok": False,
+            "reason": "ORDER_NOT_PENDING",
+            "status": row[0],
+        }
+    if not row[1]:
+        return {"ok": False, "reason": "ORDER_SIGNATURE_MISSING"}
+
+    try:
+        chain_status = fetch_solana_signature_status(row[1])
+    except Exception:
+        return {
+            "ok": False,
+            "order_id": order_id,
+            "status": "PENDING_RECONCILIATION",
+            "reason": "SOLANA_STATUS_CHECK_FAILED",
+        }
+    if chain_status["failed"]:
+        return reconcile_execution_order(
+            order_id,
+            "FAILED",
+            "SOLANA_TRANSACTION_FAILED",
+        )
+    if chain_status["finalized"]:
+        return reconcile_execution_order(
+            order_id,
+            "CONFIRMED",
+            "SOLANA_TRANSACTION_FINALIZED",
+        )
+
+    return {
+        "ok": False,
+        "order_id": order_id,
+        "status": "PENDING_RECONCILIATION",
+        "reason": "SOLANA_TRANSACTION_PENDING",
+    }
+
 def risk_check(
     mint,
     amount_usd,
     expected_price=None,
     execution_price=None,
     liquidity_sol=None,
-    mode="paper"
+    mode="paper",
+    execution_order_id=None,
 ):
 
     if KILL_SWITCH:
@@ -2898,6 +3111,31 @@ def risk_check(
             "ok": False,
             "reason": "MAX_OPEN_POSITIONS"
         }
+
+    if mode == "live" and execution_order_id is not None:
+        conn = db()
+        earlier_order = conn.execute(
+            """
+            SELECT 1
+            FROM execution_orders
+            WHERE mode = 'live'
+            AND id < ?
+            AND status IN (
+                'CREATED',
+                'RISK_CHECKED',
+                'SENT',
+                'PENDING_RECONCILIATION'
+            )
+            LIMIT 1
+            """,
+            (execution_order_id,),
+        ).fetchone()
+        conn.close()
+        if earlier_order:
+            return {
+                "ok": False,
+                "reason": "LIVE_EXECUTION_IN_PROGRESS",
+            }
 
     return {
         "ok": True,
@@ -6828,16 +7066,7 @@ def fetch_solana_balance_sol(wallet_address):
 
 
 def fetch_solana_signature_status(signature, timeout_seconds=5):
-    signature = str(signature or "").strip()
-    base58 = set(
-        "123456789ABCDEFGHJKLMNPQRSTUVWXYZ"
-        "abcdefghijkmnopqrstuvwxyz"
-    )
-    if not 64 <= len(signature) <= 100 or any(
-        character not in base58
-        for character in signature
-    ):
-        raise ValueError("INVALID_SOLANA_SIGNATURE")
+    signature = normalize_solana_signature(signature)
 
     body = json.dumps({
         "jsonrpc": "2.0",

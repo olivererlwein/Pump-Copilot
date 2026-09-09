@@ -267,8 +267,11 @@ class ExecutionAdapterTests(unittest.TestCase):
         urlopen.assert_not_called()
 
     def test_live_submission_parses_simulated_pumpportal_response(self):
+        signature = "1" * 88
         response = MagicMock()
-        response.read.return_value = b'{"signature":"tx-123"}'
+        response.read.return_value = json.dumps({
+            "signature": signature,
+        }).encode("utf-8")
         response.__enter__.return_value = response
 
         with patch.object(app, "LIVE_TRADING", True), patch.object(
@@ -286,8 +289,26 @@ class ExecutionAdapterTests(unittest.TestCase):
             )
 
         self.assertTrue(result["ok"])
-        self.assertEqual(result["signature"], "tx-123")
+        self.assertEqual(result["signature"], signature)
         self.assertIn("api-key=test-key", urlopen.call_args.args[0].full_url)
+
+    def test_rejects_malformed_pumpportal_signature(self):
+        response = MagicMock()
+        response.read.return_value = b'{"signature":"not-a-signature"}'
+
+        response.__enter__.return_value = response
+        with patch.object(app, "LIVE_TRADING", True), patch.object(
+            app,
+            "LIVE_EXECUTION_IMPLEMENTED",
+            True,
+        ), patch.object(app, "urlopen", return_value=response):
+            result = app.submit_pumpportal_lightning_trade(
+                {"action": "buy"},
+                api_key="test-key",
+            )
+
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["reason"], "INVALID_PUMPPORTAL_RESPONSE")
 
     def test_reads_solana_signature_confirmation_without_sending(self):
         signature = "1" * 88
@@ -344,6 +365,94 @@ class ExecutionAdapterTests(unittest.TestCase):
                 (result["found"], result["confirmed"], result["failed"]),
                 expected,
             )
+
+    def test_live_buy_is_idempotent_and_waits_for_finalization(self):
+        signature = "1" * 88
+        with tempfile.TemporaryDirectory() as temp_dir, patch.object(
+            app,
+            "DB",
+            Path(temp_dir) / "live-order.db",
+        ), patch.object(app, "LIVE_TRADING", True), patch.object(
+            app,
+            "LIVE_EXECUTION_IMPLEMENTED",
+            True,
+        ), patch.object(
+            app,
+            "get_live_execution_readiness",
+            return_value={"ready": True, "blockers": []},
+        ), patch.object(
+            app,
+            "prepare_pumpportal_lightning_buy",
+            return_value={"payload": {"action": "buy"}},
+        ), patch.object(
+            app,
+            "submit_pumpportal_lightning_trade",
+            return_value={
+                "ok": True,
+                "reason": "PUMPPORTAL_SUBMITTED",
+                "signature": signature,
+            },
+        ) as submit:
+            app.migrate_database()
+            arguments = {
+                **self.execution_args(),
+                "idempotency_key": "signal-123",
+            }
+            first = app.execute_pumpportal_lightning_buy(**arguments)
+            second = app.execute_pumpportal_lightning_buy(**arguments)
+            third = app.execute_pumpportal_lightning_buy(
+                **{
+                    **arguments,
+                    "idempotency_key": "signal-456",
+                }
+            )
+
+            self.assertEqual(first["status"], "PENDING_RECONCILIATION")
+            self.assertEqual(second["reason"], "IDEMPOTENT_REUSE")
+            self.assertEqual(third["reason"], "LIVE_EXECUTION_IN_PROGRESS")
+            submit.assert_called_once()
+
+            with patch.object(
+                app,
+                "fetch_solana_signature_status",
+                return_value={"failed": False, "finalized": True},
+            ):
+                reconciled = app.reconcile_pumpportal_execution_order(
+                    first["order_id"]
+                )
+
+            self.assertTrue(reconciled["ok"])
+            self.assertEqual(reconciled["status"], "CONFIRMED")
+
+    def test_uncertain_live_submission_requires_reconciliation(self):
+        with tempfile.TemporaryDirectory() as temp_dir, patch.object(
+            app,
+            "DB",
+            Path(temp_dir) / "uncertain-order.db",
+        ), patch.object(app, "LIVE_TRADING", True), patch.object(
+            app,
+            "LIVE_EXECUTION_IMPLEMENTED",
+            True,
+        ), patch.object(
+            app,
+            "get_live_execution_readiness",
+            return_value={"ready": True, "blockers": []},
+        ), patch.object(
+            app,
+            "prepare_pumpportal_lightning_buy",
+            return_value={"payload": {"action": "buy"}},
+        ), patch.object(
+            app,
+            "submit_pumpportal_lightning_trade",
+            return_value={"ok": False, "reason": "PUMPPORTAL_REQUEST_FAILED"},
+        ):
+            app.migrate_database()
+            result = app.execute_pumpportal_lightning_buy(
+                **self.execution_args(),
+                idempotency_key="signal-unknown",
+            )
+
+        self.assertEqual(result["status"], "PENDING_RECONCILIATION")
 
 
 class PositionConcurrencyTests(unittest.TestCase):
