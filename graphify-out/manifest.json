@@ -190,5 +190,29 @@
     "seen": 1788924070.4450886,
     "ast_hash": "d6a61d3aaf2eecab5eb857d13650ba74",
     "semantic_hash": ""
+  },
+  "scripts/analyze_feature_ablation.py": {
+    "mtime": 1788924793.3749113,
+    "seen": 1788924968.7480562,
+    "ast_hash": "8dda26ba7818f0aed3864193ac8a0b4a",
+    "semantic_hash": ""
+  },
+  "tests/test_feature_ablation.py": {
+    "mtime": 1788924927.937518,
+    "seen": 1788924968.7480748,
+    "ast_hash": "b17cd3870c1bf154110d21b594a71e61",
+    "semantic_hash": ""
+  },
+  ".trunk/configs/.markdownlint.yaml": {
+    "mtime": 1788828289.31139,
+    "seen": 1788924968.7481077,
+    "ast_hash": "2e0968e3a80f97784ffb84c699f69cf4",
+    "semantic_hash": ""
+  },
+  ".trunk/trunk.yaml": {
+    "mtime": 1788924268.5519156,
+    "seen": 1788924968.7481098,
+    "ast_hash": "0d8d03de5d530717fcdba84553ad2dbc",
+    "semantic_hash": ""
   }
 }
