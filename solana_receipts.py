@@ -23,9 +23,74 @@ def parse_buy_receipt(receipt, signature, wallet, mint):
         raise ValueError("INCOMPLETE_SOLANA_RECEIPT") from exc
 
 
+def parse_sell_receipt(receipt, signature, wallet, mint):
+    """Return exact tokens sold and the all-in net SOL proceeds."""
+    try:
+        return _parse_sell_receipt(receipt, signature, wallet, mint)
+    except (KeyError, TypeError, IndexError, AttributeError) as exc:
+        raise ValueError("INCOMPLETE_SOLANA_RECEIPT") from exc
+
+
 def _parse_buy_receipt(receipt, signature, wallet, mint):
+    balances = _parse_receipt_balances(receipt, signature, wallet, mint)
+    acquired = balances["target_delta"]
+    if acquired <= 0 or len(balances["target_decimals"]) != 1:
+        raise ValueError("NO_UNAMBIGUOUS_TOKEN_ACQUISITION")
+    decimals = balances["target_decimals"].pop()
+    native_debit = -balances["native_delta"]
+    net_debit = native_debit - balances["wsol_delta"]
+    fee = balances["fee"]
+    if net_debit <= fee:
+        raise ValueError("NO_UNAMBIGUOUS_SOL_DEBIT")
+    with localcontext() as context:
+        context.prec = 100
+        tokens = Decimal(acquired).scaleb(-decimals)
+        cash_cost_per_token = Decimal(net_debit).scaleb(-9) / tokens
+    return {
+        "signature": signature, "wallet": wallet, "mint": mint,
+        "slot": balances["slot"], "block_time": balances["block_time"],
+        "token_amount_raw": str(acquired), "token_decimals": decimals,
+        "token_amount": format(tokens, "f"),
+        "native_debit_lamports": str(native_debit),
+        "wsol_debit_lamports": str(-balances["wsol_delta"]),
+        "net_sol_debit_lamports": str(net_debit),
+        "network_fee_lamports": str(fee),
+        "cash_cost_per_token_sol": format(cash_cost_per_token, "f"),
+        "cost_basis": "net_cash_including_fees_and_account_deposits",
+    }
+
+
+def _parse_sell_receipt(receipt, signature, wallet, mint):
+    balances = _parse_receipt_balances(receipt, signature, wallet, mint)
+    sold = -balances["target_delta"]
+    if sold <= 0 or len(balances["target_decimals"]) != 1:
+        raise ValueError("NO_UNAMBIGUOUS_TOKEN_SALE")
+    decimals = balances["target_decimals"].pop()
+    native_credit = balances["native_delta"]
+    net_credit = native_credit + balances["wsol_delta"]
+    if net_credit <= 0:
+        raise ValueError("NO_UNAMBIGUOUS_SOL_CREDIT")
+    with localcontext() as context:
+        context.prec = 100
+        tokens = Decimal(sold).scaleb(-decimals)
+        proceeds_per_token = Decimal(net_credit).scaleb(-9) / tokens
+    return {
+        "signature": signature, "wallet": wallet, "mint": mint,
+        "slot": balances["slot"], "block_time": balances["block_time"],
+        "token_amount_raw": str(sold), "token_decimals": decimals,
+        "token_amount": format(tokens, "f"),
+        "native_credit_lamports": str(native_credit),
+        "wsol_credit_lamports": str(balances["wsol_delta"]),
+        "net_sol_credit_lamports": str(net_credit),
+        "network_fee_lamports": str(balances["fee"]),
+        "proceeds_per_token_sol": format(proceeds_per_token, "f"),
+        "proceeds_basis": "net_cash_including_fees_and_account_refunds",
+    }
+
+
+def _parse_receipt_balances(receipt, signature, wallet, mint):
     if not wallet or not mint or mint == WSOL_MINT:
-        raise ValueError("UNSUPPORTED_BUY_IDENTITY")
+        raise ValueError("UNSUPPORTED_TRADE_IDENTITY")
     if receipt.get("version", "legacy") not in ("legacy", 0):
         raise ValueError("UNSUPPORTED_TRANSACTION_VERSION")
     transaction = receipt["transaction"]
@@ -72,7 +137,7 @@ def _parse_buy_receipt(receipt, signature, wallet, mint):
 
     pre = token_balances("preTokenBalances")
     post = token_balances("postTokenBalances")
-    acquired = 0
+    target_delta = 0
     wsol_delta = 0
     target_decimals = set()
     for index in pre.keys() | post.keys():
@@ -90,39 +155,20 @@ def _parse_buy_receipt(receipt, signature, wallet, mint):
         delta = (new[3] if new else 0) - (old[3] if old else 0)
         if identity[1] == mint:
             target_decimals.add(identity[2])
-            acquired += delta
+            target_delta += delta
         elif identity[1] == WSOL_MINT:
             if identity[2] != 9:
                 raise ValueError("INVALID_WSOL_DECIMALS")
             wsol_delta += delta
         elif delta:
             raise ValueError("UNSUPPORTED_MULTI_ASSET_TRANSACTION")
-    if acquired <= 0 or len(target_decimals) != 1:
-        raise ValueError("NO_UNAMBIGUOUS_TOKEN_ACQUISITION")
-    decimals = target_decimals.pop()
-    native_debit = before[0] - after[0]
-    net_debit = native_debit - wsol_delta
     fee = unsigned_integer(meta["fee"])
-    if net_debit <= fee:
-        raise ValueError("NO_UNAMBIGUOUS_SOL_DEBIT")
-    with localcontext() as context:
-        context.prec = 100
-        tokens = Decimal(acquired).scaleb(-decimals)
-        # This is the all-in net cash cost, not the pool execution price.
-        cash_cost_per_token = Decimal(net_debit).scaleb(-9) / tokens
     return {
-        "signature": signature,
-        "wallet": wallet,
-        "mint": mint,
+        "target_delta": target_delta,
+        "target_decimals": target_decimals,
+        "native_delta": after[0] - before[0],
+        "wsol_delta": wsol_delta,
+        "fee": fee,
         "slot": unsigned_integer(receipt["slot"]),
         "block_time": receipt.get("blockTime"),
-        "token_amount_raw": str(acquired),
-        "token_decimals": decimals,
-        "token_amount": format(tokens, "f"),
-        "native_debit_lamports": str(native_debit),
-        "wsol_debit_lamports": str(-wsol_delta),
-        "net_sol_debit_lamports": str(net_debit),
-        "network_fee_lamports": str(fee),
-        "cash_cost_per_token_sol": format(cash_cost_per_token, "f"),
-        "cost_basis": "net_cash_including_fees_and_account_deposits",
     }

@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import app
-from solana_receipts import WSOL_MINT, parse_buy_receipt
+from solana_receipts import WSOL_MINT, parse_buy_receipt, parse_sell_receipt
 
 
 SIGNATURE = "1" * 88
@@ -32,6 +32,24 @@ def buy_receipt():
                  "preBalances": [2000000000, 0, 1000000000],
                  "postBalances": [1897955720, 2039280, 1100000000],
                  "preTokenBalances": [], "postTokenBalances": [token_entry()]},
+    }
+
+
+def sell_receipt(signature="2" * 88, sold="3000000000000000", credit=50000000):
+    before = 9007199254740993
+    sold_amount = int(sold)
+    return {
+        "slot": 43, "blockTime": 1700000060, "version": 0,
+        "transaction": {"signatures": [signature], "message": {"accountKeys": [
+            {"pubkey": WALLET, "signer": True},
+            {"pubkey": "token-account", "signer": False},
+            {"pubkey": "pool", "signer": False},
+        ]}},
+        "meta": {"err": None, "fee": 5000,
+                 "preBalances": [1000000000, 2039280, 1100000000],
+                 "postBalances": [1000000000 + credit, 2039280, 1050000000],
+                 "preTokenBalances": [token_entry(amount=str(before))],
+                 "postTokenBalances": [token_entry(amount=str(before - sold_amount))]},
     }
 
 
@@ -101,6 +119,14 @@ class ReceiptAccountingTests(unittest.TestCase):
             with patch.object(app, "urlopen", return_value=response), self.assertRaises(ValueError):
                 app.fetch_finalized_solana_transaction(SIGNATURE)
 
+    def test_sell_receipt_reports_exact_tokens_and_net_proceeds(self):
+        receipt = sell_receipt()
+        fill = parse_sell_receipt(receipt, "2" * 88, WALLET, MINT)
+        self.assertEqual(fill["token_amount_raw"], "3000000000000000")
+        self.assertEqual(fill["net_sol_credit_lamports"], "50000000")
+        with self.assertRaises(ValueError):
+            parse_buy_receipt(receipt, "2" * 88, WALLET, MINT)
+
 
 class LiveReceiptPersistenceTests(unittest.TestCase):
     def setUp(self):
@@ -124,6 +150,20 @@ class LiveReceiptPersistenceTests(unittest.TestCase):
         conn.execute("UPDATE execution_orders SET status = 'PENDING_RECONCILIATION', "
                      "external_signature = ?, trade_wallet = ? WHERE id = ?",
                      (SIGNATURE, WALLET, order["order_id"]))
+        conn.commit()
+        conn.close()
+        return order["order_id"]
+
+    def make_sell_order(self, key, amount, signature):
+        order = app.create_execution_order_idempotent(
+            MINT, "sell", 0, 0, 0, 0, key, source="pumpportal_lightning",
+            parent_order_id=self.order_id, mode="live")
+        conn = app.db()
+        conn.execute(
+            "UPDATE execution_orders SET status = 'PENDING_RECONCILIATION', "
+            "external_signature = ?, trade_wallet = ?, requested_token_amount_raw = ? "
+            "WHERE id = ?", (signature, WALLET, str(amount), order["order_id"]),
+        )
         conn.commit()
         conn.close()
         return order["order_id"]
@@ -209,6 +249,126 @@ class LiveReceiptPersistenceTests(unittest.TestCase):
             self.assertEqual(app.reconcile_pumpportal_execution_order(self.order_id)["reason"],
                              "SOLANA_RECEIPT_REVIEW_REQUIRED")
         self.assertEqual(app.get_execution_order_status(self.order_id)["status"], "PENDING_RECONCILIATION")
+
+    def test_partial_then_final_sale_allocates_all_cost_and_closes_position(self):
+        self.record()
+        first_amount = 3000000000000000
+        first_signature = "2" * 88
+        first_order = self.make_sell_order("sell-one", first_amount, first_signature)
+        first_receipt = sell_receipt(first_signature, str(first_amount), 50000000)
+        first_fill = parse_sell_receipt(first_receipt, first_signature, WALLET, MINT)
+        first = app.record_finalized_sell_position(first_order, first_fill, first_receipt)
+        self.assertEqual(first["position_status"], "open")
+
+        remaining = 9007199254740993 - first_amount
+        second_signature = "3" * 88
+        second_order = self.make_sell_order("sell-two", remaining, second_signature)
+        second_receipt = sell_receipt(second_signature, str(remaining), 60000000)
+        second_fill = parse_sell_receipt(second_receipt, second_signature, WALLET, MINT)
+        second = app.record_finalized_sell_position(second_order, second_fill, second_receipt)
+        self.assertEqual(second["position_status"], "closed")
+
+        conn = app.db()
+        position = conn.execute(
+            "SELECT status, remaining_amount_raw, remaining_cost_basis_lamports "
+            "FROM live_positions WHERE order_id = ?", (self.order_id,),
+        ).fetchone()
+        sales = conn.execute(
+            "SELECT allocated_cost_basis_lamports, realized_pnl_lamports "
+            "FROM live_position_sales ORDER BY sell_order_id",
+        ).fetchall()
+        conn.close()
+        self.assertEqual(position, ("closed", "0", "0"))
+        self.assertEqual(sum(int(row[0]) for row in sales), 102044280)
+        self.assertEqual(sum(int(row[1]) for row in sales), 110000000 - 102044280)
+        self.assertEqual(app.count_open_positions(mode="live"), 0)
+        self.assertTrue(app.record_finalized_sell_position(
+            second_order, second_fill, second_receipt)["ok"])
+
+    def test_sell_receipt_cannot_exceed_reserved_or_remaining_amount(self):
+        self.record()
+        signature = "2" * 88
+        order = self.make_sell_order("sell-too-much", 100, signature)
+        receipt = sell_receipt(signature, "101")
+        fill = parse_sell_receipt(receipt, signature, WALLET, MINT)
+        with self.assertRaises(ValueError):
+            app.record_finalized_sell_position(order, fill, receipt)
+        self.assertEqual(app.get_execution_order_status(order)["status"],
+                         "PENDING_RECONCILIATION")
+
+    def test_sell_write_failure_rolls_back_position_and_order(self):
+        self.record()
+        signature = "2" * 88
+        order = self.make_sell_order("sell-rollback", 100, signature)
+        receipt = sell_receipt(signature, "100")
+        fill = parse_sell_receipt(receipt, signature, WALLET, MINT)
+        conn = app.db()
+        conn.execute(
+            "CREATE TRIGGER reject_sale_confirmation BEFORE INSERT ON "
+            "execution_order_events WHEN NEW.status = 'CONFIRMED' "
+            "BEGIN SELECT RAISE(ABORT, 'test failure'); END"
+        )
+        conn.commit()
+        conn.close()
+        with self.assertRaises(sqlite3.IntegrityError):
+            app.record_finalized_sell_position(order, fill, receipt)
+        conn = app.db()
+        self.assertEqual(conn.execute(
+            "SELECT remaining_amount_raw FROM live_positions WHERE order_id = ?",
+            (self.order_id,),
+        ).fetchone()[0], "9007199254740993")
+        self.assertEqual(conn.execute(
+            "SELECT COUNT(*) FROM live_position_sales"
+        ).fetchone()[0], 0)
+        conn.close()
+        self.assertEqual(app.get_execution_order_status(order)["status"],
+                         "PENDING_RECONCILIATION")
+
+    def test_reconciler_routes_finalized_sell_to_linked_position(self):
+        self.record()
+        signature = "2" * 88
+        order = self.make_sell_order("sell-worker", 100, signature)
+        receipt = sell_receipt(signature, "100")
+        with patch.object(app, "fetch_solana_signature_status", return_value={
+            "failed": False, "finalized": True, "confirmation_status": "finalized",
+        }), patch.object(app, "fetch_finalized_solana_transaction", return_value=receipt):
+            result = app.reconcile_pumpportal_execution_order(order)
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["position_status"], "open")
+
+    def test_exact_sell_payload_does_not_use_wallet_percentage(self):
+        mint = "1" * 32
+        payload = app.build_pumpportal_exact_sell_payload(mint, "1234567", 6)
+        self.assertEqual(payload["amount"], "1.234567")
+        self.assertEqual(payload["denominatedInSol"], "false")
+
+    def test_simultaneous_sell_orders_cannot_reserve_same_tokens(self):
+        self.record()
+        amount = 6000000000000000
+        with patch.object(app, "LIVE_TRADING", True), patch.object(
+            app, "LIVE_EXECUTION_IMPLEMENTED", True,
+        ), patch.object(
+            app, "PUMPPORTAL_TRADING_WALLET_ADDRESS", WALLET,
+        ), patch.object(
+            app, "get_live_execution_readiness",
+            return_value={"ready": True, "blockers": []},
+        ), patch.object(
+            app, "build_pumpportal_exact_sell_payload",
+            return_value={"action": "sell"},
+        ), patch.object(
+            app, "submit_pumpportal_lightning_trade",
+            return_value={"ok": True, "signature": "4" * 88,
+                          "reason": "PUMPPORTAL_SUBMITTED"},
+        ):
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                results = list(executor.map(
+                    lambda key: app.execute_pumpportal_lightning_sell(
+                        self.order_id, amount, key),
+                    ("concurrent-sell-a", "concurrent-sell-b"),
+                ))
+        self.assertEqual(sum(bool(result["ok"]) for result in results), 1)
+        self.assertIn("SELL_AMOUNT_EXCEEDS_AVAILABLE_POSITION",
+                      {result["reason"] for result in results})
 
 
 if __name__ == "__main__":
