@@ -120,13 +120,16 @@ class LiveTradingGuardTests(unittest.TestCase):
             app,
             "LIVE_EXECUTION_IMPLEMENTED",
             False,
-        ), patch.object(app, "LIVE_TRADING", False):
+        ), patch.object(app, "LIVE_TRADING", False), patch.object(
+            app, "PUMPPORTAL_TRADING_WALLET_ADDRESS", "",
+        ):
             readiness = app.get_live_execution_readiness()
 
         self.assertFalse(readiness["ready"])
         self.assertEqual(
             readiness["blockers"],
             [
+                "PUMPPORTAL_TRADING_WALLET_MISSING",
                 "paired_completed 42/100",
                 "LIVE_EXECUTION_NOT_IMPLEMENTED",
                 "LIVE_TRADING_DISABLED",
@@ -438,7 +441,7 @@ class ExecutionAdapterTests(unittest.TestCase):
             app,
             "DB",
             Path(temp_dir) / "live-order.db",
-        ), patch.object(app, "LIVE_TRADING", True), patch.object(
+        ), patch.object(app, "PUMPPORTAL_TRADING_WALLET_ADDRESS", "wallet-a"), patch.object(app, "LIVE_TRADING", True), patch.object(
             app,
             "LIVE_EXECUTION_IMPLEMENTED",
             True,
@@ -482,13 +485,17 @@ class ExecutionAdapterTests(unittest.TestCase):
                 app,
                 "fetch_solana_signature_status",
                 return_value={"failed": False, "finalized": True},
-            ):
+            ), patch.object(app, "fetch_finalized_solana_transaction", return_value=None):
                 reconciled = (
                     app.reconcile_pending_pumpportal_execution_orders()[0]
                 )
 
-            self.assertTrue(reconciled["ok"])
-            self.assertEqual(reconciled["status"], "CONFIRMED")
+            self.assertFalse(reconciled["ok"])
+            self.assertEqual(reconciled["reason"], "SOLANA_RECEIPT_NOT_AVAILABLE")
+            self.assertEqual(
+                app.get_execution_order_status(first["order_id"])["status"],
+                "PENDING_RECONCILIATION",
+            )
 
     def test_uncertain_live_submission_requires_reconciliation(self):
         with tempfile.TemporaryDirectory() as temp_dir, patch.object(

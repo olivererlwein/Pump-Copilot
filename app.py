@@ -19,6 +19,7 @@ from dotenv import load_dotenv
 import websockets
 
 from shadow_model import ShadowLogisticModel
+from solana_receipts import parse_buy_receipt
 
 
 # =========================================================
@@ -187,6 +188,10 @@ MAX_PRIORITY_FEE_SOL = 0.001
 SOL_USD_PRICE_URL = (
     "https://api.coinbase.com/v2/prices/SOL-USD/spot"
 )
+
+PUMPPORTAL_TRADING_WALLET_ADDRESS = os.getenv(
+    "PUMPPORTAL_TRADING_WALLET_ADDRESS", ""
+).strip()
 
 MAX_POSITION_USD = 5.0
 MAX_DAILY_LOSS_USD = 5.0
@@ -620,6 +625,31 @@ CREATE TABLE IF NOT EXISTS signal_outcomes(
     )
 
 
+    order_columns = {
+        row[1] for row in conn.execute("PRAGMA table_info(execution_orders)")
+    }
+    if "trade_wallet" not in order_columns:
+        conn.execute("ALTER TABLE execution_orders ADD COLUMN trade_wallet TEXT")
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS live_positions(
+            order_id INTEGER PRIMARY KEY REFERENCES execution_orders(id),
+            signature TEXT NOT NULL UNIQUE,
+            wallet TEXT NOT NULL,
+            mint TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'open',
+            token_amount_raw TEXT NOT NULL,
+            remaining_amount_raw TEXT NOT NULL,
+            token_decimals INTEGER NOT NULL,
+            net_sol_debit_lamports TEXT NOT NULL,
+            network_fee_lamports TEXT NOT NULL,
+            cash_cost_per_token_sol TEXT NOT NULL,
+            fill_json TEXT NOT NULL,
+            receipt_json TEXT NOT NULL,
+            recorded_ts REAL NOT NULL
+        )
+        """
+    )
     conn.commit()
 
     return conn
@@ -694,10 +724,15 @@ def count_open_positions(
         )
     ).fetchone()
 
+    live_count = 0
+    if mode == "live":
+        live_count = conn.execute(
+            "SELECT COUNT(*) FROM live_positions WHERE status = 'open'"
+        ).fetchone()[0]
     if connection is None:
         conn.close()
 
-    return int(row[0] or 0)
+    return int(row[0] or 0) + live_count
 
 
 def get_daily_realized_pnl(
@@ -2244,6 +2279,14 @@ def execute_pumpportal_lightning_buy(
             "reason": "IDEMPOTENT_REUSE",
         }
 
+    # Bind accounting to the execution wallet before any network submission.
+    conn = db()
+    conn.execute(
+        "UPDATE execution_orders SET trade_wallet = ? WHERE id = ?",
+        (PUMPPORTAL_TRADING_WALLET_ADDRESS, order_id),
+    )
+    conn.commit()
+    conn.close()
     risk = risk_check(
         mint=mint,
         amount_usd=amount_usd,
@@ -2276,7 +2319,7 @@ def execute_pumpportal_lightning_buy(
     submitted = submit_pumpportal_lightning_trade(prepared["payload"])
     signature = submitted.get("signature")
 
-    if submitted["ok"] and signature:
+    if signature:
         set_execution_order_external_signature(order_id, signature)
         update_execution_order(
             order_id,
@@ -2504,36 +2547,23 @@ def update_execution_order(
     status,
     reason=""
 ):
-
     conn = db()
-
-    conn.execute(
-        """
-        UPDATE execution_orders
-
-        SET
-            ts_updated = ?,
-            status = ?,
-            reason = ?
-
-        WHERE id = ?
-        """,
-        (
-            time.time(),
-            status,
-            reason,
-            order_id
+    try:
+        now = time.time()
+        cursor = conn.execute(
+            "UPDATE execution_orders SET ts_updated = ?, status = ?, reason = ? "
+            "WHERE id = ? AND (? != 'PENDING_RECONCILIATION' "
+            "OR status IN ('SENT', 'PENDING_RECONCILIATION'))",
+            (now, status, reason, order_id, status),
         )
-    )
-
-    conn.commit()
-    conn.close()
-
-    save_execution_order_event(
-        order_id=order_id,
-        status=status,
-        reason=reason
-    )
+        if cursor.rowcount:
+            conn.execute(
+                "INSERT INTO execution_order_events(order_id, ts, status, reason) "
+                "VALUES (?, ?, ?, ?)", (order_id, now, status, reason),
+            )
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def set_execution_order_external_signature(order_id, signature):
@@ -2545,8 +2575,10 @@ def set_execution_order_external_signature(order_id, signature):
         UPDATE execution_orders
         SET external_signature = ?, ts_updated = ?
         WHERE id = ?
+        AND (external_signature IS NULL OR external_signature = ?)
+        AND status IN ('SENT', 'PENDING_RECONCILIATION')
         """,
-        (signature, time.time(), order_id),
+        (signature, time.time(), order_id, signature),
     )
     conn.commit()
     updated = cursor.rowcount == 1
@@ -3060,29 +3092,30 @@ def reconcile_execution_order(
             "reason": "INVALID_FINAL_STATUS"
         }
 
-    current = get_execution_order_status(order_id)
-
-    if current["status"] == "UNKNOWN":
-        return {
-            "ok": False,
-            "reason": "ORDER_NOT_FOUND"
-        }
-
-    if current["status"] not in (
-    "SENT",
-    "PENDING_RECONCILIATION"
-):
-        return {
-        "ok": False,
-        "reason": "ORDER_NOT_PENDING",
-        "status": current["status"]
-    }
-
-    update_execution_order(
-        order_id,
-        final_status,
-        reason
-    )
+    conn = db()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        current = conn.execute(
+            "SELECT status, mode FROM execution_orders WHERE id = ?", (order_id,),
+        ).fetchone()
+        if not current:
+            return {"ok": False, "reason": "ORDER_NOT_FOUND"}
+        if current[0] not in ("SENT", "PENDING_RECONCILIATION"):
+            return {"ok": False, "reason": "ORDER_NOT_PENDING", "status": current[0]}
+        if final_status == "CONFIRMED" and current[1] == "live":
+            return {"ok": False, "reason": "LIVE_RECEIPT_REQUIRED"}
+        now = time.time()
+        conn.execute(
+            "UPDATE execution_orders SET status = ?, ts_updated = ?, reason = ? "
+            "WHERE id = ?", (final_status, now, reason, order_id),
+        )
+        conn.execute(
+            "INSERT INTO execution_order_events(order_id, ts, status, reason) "
+            "VALUES (?, ?, ?, ?)", (order_id, now, final_status, reason),
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
     return {
         "ok": final_status == "CONFIRMED",
@@ -3092,11 +3125,91 @@ def reconcile_execution_order(
     }
 
 
+def fetch_finalized_solana_transaction(signature):
+    signature = normalize_solana_signature(signature)
+    if not signature:
+        raise ValueError("INVALID_SIGNATURE")
+    request = Request(
+        SOLANA_RPC_URL,
+        data=json.dumps({
+            "jsonrpc": "2.0", "id": 1, "method": "getTransaction",
+            "params": [signature, {
+                "encoding": "jsonParsed", "commitment": "finalized",
+                "maxSupportedTransactionVersion": 0,
+            }],
+        }).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urlopen(request, timeout=15) as response:
+        payload = json.load(response)
+    if (not isinstance(payload, dict) or payload.get("error")
+            or "result" not in payload):
+        raise ValueError("INVALID_SOLANA_RPC_RESPONSE")
+    receipt = payload["result"]
+    if receipt is not None and not isinstance(receipt, dict):
+        raise ValueError("INVALID_SOLANA_RECEIPT")
+    return receipt
+
+
+def record_finalized_buy_position(order_id, fill, receipt):
+    conn = db()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute(
+            "SELECT status, external_signature, trade_wallet, mint, side, source, mode "
+            "FROM execution_orders WHERE id = ?", (order_id,),
+        ).fetchone()
+        if (not row or row[4:] != ("buy", "pumpportal_lightning", "live")
+                or row[1:4] != (fill["signature"], fill["wallet"], fill["mint"])):
+            raise ValueError("ORDER_RECEIPT_IDENTITY_MISMATCH")
+        verified = parse_buy_receipt(receipt, row[1], row[2], row[3])
+        if verified != fill:
+            raise ValueError("ORDER_RECEIPT_FILL_MISMATCH")
+        existing = conn.execute(
+            "SELECT signature FROM live_positions WHERE order_id = ?", (order_id,),
+        ).fetchone()
+        if existing and existing[0] == row[1] and row[0] == "CONFIRMED":
+            conn.rollback()
+            return {"ok": True, "order_id": order_id, "status": "CONFIRMED"}
+        if existing or row[0] not in ("SENT", "PENDING_RECONCILIATION"):
+            raise ValueError("ORDER_NOT_PENDING")
+        now = time.time()
+        conn.execute(
+            """INSERT INTO live_positions(
+                order_id, signature, wallet, mint, token_amount_raw,
+                remaining_amount_raw, token_decimals, net_sol_debit_lamports,
+                network_fee_lamports, cash_cost_per_token_sol,
+                fill_json, receipt_json, recorded_ts
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (order_id, row[1], row[2], row[3], fill["token_amount_raw"],
+             fill["token_amount_raw"], fill["token_decimals"],
+             fill["net_sol_debit_lamports"], fill["network_fee_lamports"],
+             fill["cash_cost_per_token_sol"], json.dumps(fill), json.dumps(receipt), now),
+        )
+        conn.execute(
+            "UPDATE execution_orders SET status = 'CONFIRMED', ts_updated = ?, "
+            "reason = 'SOLANA_RECEIPT_RECORDED' WHERE id = ?", (now, order_id),
+        )
+        conn.execute(
+            "INSERT INTO execution_order_events(order_id, ts, status, reason) "
+            "VALUES (?, ?, 'CONFIRMED', 'SOLANA_RECEIPT_RECORDED')", (order_id, now),
+        )
+        conn.commit()
+        return {"ok": True, "order_id": order_id, "status": "CONFIRMED",
+                "reason": "SOLANA_RECEIPT_RECORDED"}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
 def reconcile_pumpportal_execution_order(order_id):
     conn = db()
     row = conn.execute(
         """
-        SELECT status, external_signature
+        SELECT status, external_signature, trade_wallet, mint, side, source, mode
         FROM execution_orders
         WHERE id = ?
         LIMIT 1
@@ -3107,6 +3220,8 @@ def reconcile_pumpportal_execution_order(order_id):
 
     if not row:
         return {"ok": False, "reason": "ORDER_NOT_FOUND"}
+    if row[4:] != ("buy", "pumpportal_lightning", "live"):
+        return {"ok": False, "reason": "UNSUPPORTED_RECEIPT_ORDER"}
     if row[0] not in ("SENT", "PENDING_RECONCILIATION"):
         return {
             "ok": False,
@@ -3125,18 +3240,28 @@ def reconcile_pumpportal_execution_order(order_id):
             "status": "PENDING_RECONCILIATION",
             "reason": "SOLANA_STATUS_CHECK_FAILED",
         }
-    if chain_status["failed"]:
+    if chain_status["failed"] and chain_status.get("confirmation_status") == "finalized":
         return reconcile_execution_order(
             order_id,
             "FAILED",
             "SOLANA_TRANSACTION_FAILED",
         )
     if chain_status["finalized"]:
-        return reconcile_execution_order(
-            order_id,
-            "CONFIRMED",
-            "SOLANA_TRANSACTION_FINALIZED",
-        )
+        if not row[2]:
+            return {"ok": False, "reason": "ORDER_TRADE_WALLET_MISSING"}
+        try:
+            receipt = fetch_finalized_solana_transaction(row[1])
+            if receipt is None:
+                return {"ok": False, "reason": "SOLANA_RECEIPT_NOT_AVAILABLE"}
+            fill = parse_buy_receipt(receipt, row[1], row[2], row[3])
+            return record_finalized_buy_position(order_id, fill, receipt)
+        except Exception:
+            return {
+                "ok": False,
+                "order_id": order_id,
+                "status": "PENDING_RECONCILIATION",
+                "reason": "SOLANA_RECEIPT_REVIEW_REQUIRED",
+            }
 
     return {
         "ok": False,
@@ -4997,6 +5122,8 @@ def get_live_execution_readiness():
 
     if not API_KEY:
         blockers.append("PUMPPORTAL_API_KEY_MISSING")
+    if not PUMPPORTAL_TRADING_WALLET_ADDRESS:
+        blockers.append("PUMPPORTAL_TRADING_WALLET_MISSING")
     if not STREAM_CONNECTED:
         blockers.append("STREAM_DISCONNECTED")
     if PUMPPORTAL_WALLET_BALANCE_SOL is None:
