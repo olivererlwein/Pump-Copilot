@@ -2019,6 +2019,56 @@ def build_pumpportal_lightning_sell_payload(
     }
 
 
+def calculate_wallet_sell_percentage(sell_fraction, remaining_fraction):
+    try:
+        sell_fraction = float(sell_fraction)
+        remaining_fraction = float(remaining_fraction)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("INVALID_POSITION_FRACTION") from exc
+
+    if not all(math.isfinite(value) for value in (
+        sell_fraction,
+        remaining_fraction,
+    )):
+        raise ValueError("INVALID_POSITION_FRACTION")
+    if not 0 < remaining_fraction <= 1:
+        raise ValueError("INVALID_REMAINING_FRACTION")
+    if sell_fraction <= 0 or sell_fraction > remaining_fraction + 1e-9:
+        raise ValueError("INVALID_SELL_FRACTION")
+
+    return min(
+        100.0,
+        min(sell_fraction, remaining_fraction) / remaining_fraction * 100.0,
+    )
+
+
+def prepare_pumpportal_lightning_sell(
+    mint,
+    sell_fraction,
+    remaining_fraction,
+    slippage_pct=MAX_SLIPPAGE_PCT,
+    priority_fee_sol=0.00005,
+    pool="auto",
+):
+    wallet_percentage = calculate_wallet_sell_percentage(
+        sell_fraction,
+        remaining_fraction,
+    )
+    payload = build_pumpportal_lightning_sell_payload(
+        mint=mint,
+        wallet_percentage=wallet_percentage,
+        slippage_pct=slippage_pct,
+        priority_fee_sol=priority_fee_sol,
+        pool=pool,
+    )
+    return {
+        "provider": "pumpportal_lightning",
+        "wallet_percentage": wallet_percentage,
+        "payload": payload,
+        "submitted": False,
+    }
+
+
 def normalize_solana_signature(signature):
     signature = str(signature or "").strip()
     base58 = set(

@@ -212,6 +212,51 @@ class ExecutionAdapterTests(unittest.TestCase):
                     wallet_percentage=percentage,
                 )
 
+    def test_converts_original_position_fraction_to_wallet_percentage(self):
+        cases = (
+            (0.25, 1.0, 25.0),
+            (0.25, 0.75, 100 / 3),
+            (0.25, 0.5, 50.0),
+            (0.25, 0.25, 100.0),
+        )
+
+        for sell_fraction, remaining_fraction, expected in cases:
+            with self.subTest(remaining_fraction=remaining_fraction):
+                actual = app.calculate_wallet_sell_percentage(
+                    sell_fraction,
+                    remaining_fraction,
+                )
+            self.assertAlmostEqual(actual, expected)
+
+    def test_prepares_partial_sell_without_submitting(self):
+        prepared = app.prepare_pumpportal_lightning_sell(
+            mint="So11111111111111111111111111111111111111112",
+            sell_fraction=0.25,
+            remaining_fraction=0.75,
+        )
+
+        self.assertFalse(prepared["submitted"])
+        self.assertAlmostEqual(prepared["wallet_percentage"], 100 / 3)
+        self.assertEqual(prepared["payload"]["amount"], "33.333333333%")
+
+    def test_rejects_invalid_position_sell_fractions(self):
+        for sell_fraction, remaining_fraction in (
+            (0, 1),
+            (-0.25, 1),
+            (0.5, 0.25),
+            (0.25, 0),
+            (0.25, 1.1),
+            (math.nan, 1),
+        ):
+            with self.subTest(
+                sell_fraction=sell_fraction,
+                remaining_fraction=remaining_fraction,
+            ), self.assertRaises(ValueError):
+                app.calculate_wallet_sell_percentage(
+                    sell_fraction,
+                    remaining_fraction,
+                )
+
     def test_rejects_stale_price_and_unsafe_trade_values(self):
         valid = {
             "mint": "So11111111111111111111111111111111111111112",
