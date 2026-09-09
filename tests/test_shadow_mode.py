@@ -1,3 +1,4 @@
+import json
 import sqlite3
 import tempfile
 import unittest
@@ -189,6 +190,68 @@ class ShadowPredictionTests(unittest.TestCase):
             app.SHADOW_CHALLENGER_LAST_ERROR,
             "challenger failed",
         )
+
+    def test_loader_keeps_unapproved_candidate_out_of_incumbent_slot(self):
+        def artifact(version, role, deployment_ready):
+            return {
+                "format_version": 1,
+                "data_version": 2,
+                "model_version": version,
+                "artifact_role": role,
+                "deployment_ready": deployment_ready,
+                "deployment_blockers": (
+                    [] if deployment_ready else ["holdout concentration"]
+                ),
+                "threshold": 0.5,
+                "categorical": [],
+                "numeric": {
+                    "features": [],
+                    "medians": [],
+                    "indicator_indexes": [],
+                    "mean": [],
+                    "scale": [],
+                },
+                "coefficients": [],
+                "intercept": 0.0,
+            }
+
+        incumbent_path = Path(self.temp_dir.name) / "incumbent.json"
+        challenger_path = Path(self.temp_dir.name) / "challenger.json"
+        incumbent_path.write_text(
+            json.dumps(artifact("incumbent-v1", "incumbent", True)),
+            encoding="utf-8",
+        )
+        challenger_path.write_text(
+            json.dumps(artifact("candidate-v1", "challenger", False)),
+            encoding="utf-8",
+        )
+
+        with patch.object(
+            app, "SHADOW_MODEL_PATH", challenger_path
+        ), patch.object(
+            app, "SHADOW_CHALLENGER_MODEL_PATH", incumbent_path
+        ):
+            self.assertIsNone(app.load_shadow_model())
+            self.assertIsNone(app.SHADOW_CHALLENGER_MODEL)
+            self.assertIn(
+                "challenger",
+                app.SHADOW_MODEL_LAST_ERROR.lower(),
+            )
+
+        with patch.object(
+            app, "SHADOW_MODEL_PATH", incumbent_path
+        ), patch.object(
+            app, "SHADOW_CHALLENGER_MODEL_PATH", challenger_path
+        ):
+            loaded = app.load_shadow_model()
+            self.assertEqual(loaded.model_version, "incumbent-v1")
+            self.assertEqual(
+                app.SHADOW_CHALLENGER_MODEL.model_version,
+                "candidate-v1",
+            )
+            self.assertFalse(
+                app.SHADOW_CHALLENGER_MODEL.deployment_ready
+            )
 
     def test_stats_keep_model_versions_separate(self):
         class NegativeModel(FakeShadowModel):

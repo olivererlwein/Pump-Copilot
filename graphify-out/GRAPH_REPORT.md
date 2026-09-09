@@ -1,16 +1,16 @@
-# Graph Report - pump fun  (2026-09-08)
+# Graph Report - pump fun  (2026-09-09)
 
 ## Corpus Check
-- 32 files · ~36,669 words
+- 33 files · ~37,110 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 363 nodes · 910 edges · 26 communities (20 shown, 5 thin omitted)
+- 365 nodes · 918 edges · 25 communities (19 shown, 5 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 12 edges (avg confidence: 0.87)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `0c3f76b9`
+- Built from commit: `63977170`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -21,7 +21,7 @@
 - db
 - graphify reference: extra exports and benchmark
 - PumpPortalBalanceTests
-- send_discord_alert
+- stream
 - graphify reference: query, path, explain
 - ShadowPredictionTests
 - Q: ¿Cuál es el flujo completo desde que recibimos información de un token/trader hasta que se genera una señal?
@@ -39,7 +39,6 @@
 - extraction-spec.md
 - Q: sigamos
 - simulate_execution
-- ShadowLogisticModel
 
 ## God Nodes (most connected - your core abstractions)
 1. `db()` - 86 edges
@@ -54,10 +53,10 @@
 10. `evaluate_strategy()` - 13 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `ShadowArtifactTests` --uses--> `ShadowLogisticModel`  [INFERRED]
-  tests/test_training_pipeline.py → shadow_model.py
 - `load_shadow_model()` --uses--> `ShadowLogisticModel`  [INFERRED]
   app.py → shadow_model.py
+- `ShadowArtifactTests` --uses--> `ShadowLogisticModel`  [INFERRED]
+  tests/test_training_pipeline.py → shadow_model.py
 - `main()` --calls--> `evaluate_strategy()`  [EXTRACTED]
   scripts/analyze_feature_ablation.py → scripts/compare_model_economics.py
 - `main()` --calls--> `simulate_payoff()`  [EXTRACTED]
@@ -68,15 +67,15 @@
 ## Import Cycles
 - None detected.
 
-## Communities (26 total, 5 thin omitted)
+## Communities (25 total, 5 thin omitted)
 
 ### Community 0 - "test_training_pipeline.py"
-Cohesion: 0.10
-Nodes (33): main(), schema_without_features(), evaluate_strategy(), main(), simulate_payoff(), build_matrix(), build_pipeline(), build_shadow_artifact() (+25 more)
+Cohesion: 0.09
+Nodes (36): load_shadow_model(), main(), schema_without_features(), evaluate_strategy(), main(), simulate_payoff(), build_matrix(), build_pipeline() (+28 more)
 
 ### Community 2 - "app.py"
 Cohesion: 0.08
-Nodes (86): api_shadow_predictions(), api_shadow_stats(), api_training_checkpoint_freshness(), api_training_dataset(), api_training_dataset_preview(), api_training_expired_preview(), api_training_stats(), api_training_stats_by_trader() (+78 more)
+Nodes (84): api_shadow_predictions(), api_shadow_stats(), api_training_checkpoint_freshness(), api_training_dataset(), api_training_expired_preview(), api_training_stats(), api_training_stats_by_trader(), auth() (+76 more)
 
 ### Community 3 - "What You Must Do When Invoked"
 Cohesion: 0.08
@@ -84,7 +83,7 @@ Nodes (24): For /graphify add and --watch, For /graphify query, For the commit h
 
 ### Community 4 - "db"
 Cohesion: 0.07
-Nodes (50): build_model_features(), calculate_copyability_score(), cleanup_finished_outcome_token(), complete_finished_signal_outcomes(), create_signal_outcome(), db(), decision_from_score(), evaluate_buy() (+42 more)
+Nodes (46): api_training_dataset_preview(), build_model_features(), calculate_copyability_score(), cleanup_finished_outcome_token(), complete_finished_signal_outcomes(), create_signal_outcome(), db(), decision_from_score() (+38 more)
 
 ### Community 5 - "graphify reference: extra exports and benchmark"
 Cohesion: 0.22
@@ -94,16 +93,16 @@ Nodes (8): graphify reference: extra exports and benchmark, Step 6b - Wiki (only
 Cohesion: 0.12
 Nodes (3): PumpPortalBalanceTests, PumpPortalMessageTests, StreamStateTests
 
-### Community 7 - "send_discord_alert"
-Cohesion: 0.29
-Nodes (7): fetch_solana_balance_sol(), mark_stream_problem(), mark_stream_recovered(), post_discord_alert(), pumpportal_balance_monitor(), record_pumpportal_wallet_balance(), send_discord_alert()
+### Community 7 - "stream"
+Cohesion: 0.18
+Nodes (13): fetch_solana_balance_sol(), is_pumpportal_error_message(), mark_signature_processed(), mark_stream_problem(), mark_stream_recovered(), post_discord_alert(), pumpportal_balance_monitor(), record_pumpportal_wallet_balance() (+5 more)
 
 ### Community 8 - "graphify reference: query, path, explain"
 Cohesion: 0.33
 Nodes (5): For /graphify explain, For /graphify path, graphify reference: query, path, explain, Step 0 — Constrained query expansion (REQUIRED before traversal), Step 1 — Traversal
 
 ### Community 9 - "ShadowPredictionTests"
-Cohesion: 0.14
+Cohesion: 0.13
 Nodes (3): FakeShadowModel, ShadowPredictionMigrationTests, ShadowPredictionTests
 
 ### Community 10 - "Q: ¿Cuál es el flujo completo desde que recibimos información de un token/trader hasta que se genera una señal?"
@@ -146,13 +145,9 @@ Nodes (4): Answer, Outcome, Q: sigamos, Source Nodes
 Cohesion: 0.20
 Nodes (22): can_retry_execution(), check_execution_timeout(), create_execution_order(), create_execution_order_idempotent(), demo_controlled_retry(), demo_execution_timeout(), demo_idempotency_sent(), demo_idempotency_sent_failed() (+14 more)
 
-### Community 26 - "ShadowLogisticModel"
-Cohesion: 0.33
-Nodes (3): load_shadow_model(), ShadowLogisticModel, ShadowModelError
-
 ## Knowledge Gaps
 - **60 isolated node(s):** `Usage`, `What graphify is for`, `Step 0 - GitHub repos and multi-path merge (only if a URL or several paths)`, `Step 1 - Ensure graphify is installed`, `Step 2 - Detect files` (+55 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 103 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 104 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
 - **5 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Work-memory lessons
@@ -167,17 +162,17 @@ Nodes (3): load_shadow_model(), ShadowLogisticModel, ShadowModelError
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `ShadowLogisticModel` connect `ShadowLogisticModel` to `test_training_pipeline.py`, `app.py`?**
-  _High betweenness centrality (0.089) - this node is a cross-community bridge._
-- **Why does `load_shadow_model()` connect `ShadowLogisticModel` to `test_training_pipeline.py`, `app.py`, `db`?**
-  _High betweenness centrality (0.059) - this node is a cross-community bridge._
+- **Why does `ShadowLogisticModel` connect `test_training_pipeline.py` to `app.py`?**
+  _High betweenness centrality (0.095) - this node is a cross-community bridge._
+- **Why does `load_shadow_model()` connect `test_training_pipeline.py` to `app.py`, `db`?**
+  _High betweenness centrality (0.058) - this node is a cross-community bridge._
 - **What connects `Usage`, `What graphify is for`, `Step 0 - GitHub repos and multi-path merge (only if a URL or several paths)` to the rest of the system?**
   _60 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `test_training_pipeline.py` be split into smaller, more focused modules?**
-  _Cohesion score 0.10227936879018118 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.08525149190110827 - nodes in this community are weakly interconnected._
 - **Should `app.py` be split into smaller, more focused modules?**
-  _Cohesion score 0.0772520716385993 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.07955182072829131 - nodes in this community are weakly interconnected._
 - **Should `What You Must Do When Invoked` be split into smaller, more focused modules?**
   _Cohesion score 0.08 - nodes in this community are weakly interconnected._
 - **Should `db` be split into smaller, more focused modules?**
-  _Cohesion score 0.06857142857142857 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.07246376811594203 - nodes in this community are weakly interconnected._

@@ -15,6 +15,15 @@ class ShadowLogisticModel:
         self.artifact = artifact
         self.model_version = str(artifact.get("model_version") or "")
         self.data_version = int(artifact.get("data_version") or 0)
+        self.artifact_role = str(
+            artifact.get("artifact_role") or "legacy"
+        )
+        self.deployment_ready = bool(
+            artifact.get("deployment_ready", True)
+        )
+        self.deployment_blockers = list(
+            artifact.get("deployment_blockers") or []
+        )
         self.threshold = float(artifact["threshold"])
         self.categorical = artifact["categorical"]
         self.numeric = artifact["numeric"]

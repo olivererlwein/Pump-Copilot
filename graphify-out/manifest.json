@@ -6,9 +6,9 @@
     "semantic_hash": "5ebef3dd159986e465ab65e4014107ec"
   },
   "app.py": {
-    "mtime": 1788925500.0866044,
-    "seen": 1788925601.7767437,
-    "ast_hash": "ad44e7161ba9df983155f6af4928ad2b",
+    "mtime": 1788926361.0659919,
+    "seen": 1788926910.78048,
+    "ast_hash": "2c3eb381cce8eb0e82a61c740226143e",
     "semantic_hash": ""
   },
   "models/baseline_v2_shadow.json": {
@@ -24,9 +24,9 @@
     "semantic_hash": "1aae7bdc8a38ac93a9f890b314972c02"
   },
   "scripts/train_baseline_model.py": {
-    "mtime": 1788900492.4576252,
-    "seen": 1788900642.6243577,
-    "ast_hash": "0ac16464576592b6e1274b9539c3559e",
+    "mtime": 1788926361.0569954,
+    "seen": 1788926910.7805135,
+    "ast_hash": "39b149a1ae7e28b0f2f4f6dc3c1c889b",
     "semantic_hash": ""
   },
   "scripts/validate_training_dataset.py": {
@@ -36,15 +36,15 @@
     "semantic_hash": "ba4747b022459bfcd74d23914fbea2f8"
   },
   "shadow_model.py": {
-    "mtime": 1788829544.7624025,
-    "seen": 1788834658.852744,
-    "ast_hash": "94d1d9c0e8a98f2599b35d7753e8d767",
-    "semantic_hash": "94d1d9c0e8a98f2599b35d7753e8d767"
+    "mtime": 1788926361.0609987,
+    "seen": 1788926910.7805202,
+    "ast_hash": "96dca20c39770c7160ebc49d20e3948f",
+    "semantic_hash": ""
   },
   "tests/test_shadow_mode.py": {
-    "mtime": 1788925640.8350236,
-    "seen": 1788925660.0021632,
-    "ast_hash": "d4173f6204b4322d9be73a6024e105fc",
+    "mtime": 1788926890.1532955,
+    "seen": 1788926910.7805302,
+    "ast_hash": "2bb844b8fcb31424c10b50aeb5d9c3ef",
     "semantic_hash": ""
   },
   "tests/test_stream_monitoring.py": {
@@ -54,9 +54,9 @@
     "semantic_hash": ""
   },
   "tests/test_training_pipeline.py": {
-    "mtime": 1788900626.843956,
-    "seen": 1788900642.624363,
-    "ast_hash": "4a8e79764e8172563dfbb75ec8fa760e",
+    "mtime": 1788926361.0679884,
+    "seen": 1788926910.7805352,
+    "ast_hash": "e9ea84dc655373edd82953f62370f99b",
     "semantic_hash": ""
   },
   "training/schema_v2.json": {
@@ -219,6 +219,12 @@
     "mtime": 1788925519.6662436,
     "seen": 1788925601.7768216,
     "ast_hash": "8f506f7164d41c3147fa02cd4434d857",
+    "semantic_hash": ""
+  },
+  "models/baseline_v2_challenger_shadow.json": {
+    "mtime": 1788926635.969476,
+    "seen": 1788926910.780488,
+    "ast_hash": "797ce0ef6da1cf07a16eb677ba4f61dc",
     "semantic_hash": ""
   }
 }

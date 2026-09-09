@@ -309,6 +309,10 @@ class ShadowArtifactTests(unittest.TestCase):
         )
         shadow = ShadowLogisticModel(artifact)
 
+        self.assertEqual(shadow.artifact_role, "incumbent")
+        self.assertTrue(shadow.deployment_ready)
+        self.assertEqual(shadow.deployment_blockers, [])
+
         samples = [
             {"trader": "trader-a", "feature": None},
             {"trader": "trader-b", "feature": 2.5},
@@ -337,6 +341,36 @@ class ShadowArtifactTests(unittest.TestCase):
         self.assertEqual(
             artifact["model_version"],
             retrained_at_later_time["model_version"],
+        )
+
+    def test_shadow_candidate_records_non_deployable_role(self):
+        schema = make_schema(nullable=["feature"])
+        rows = [
+            make_row(0, "mint-a", 0, feature=0.0),
+            make_row(1, "mint-b", 1, feature=1.0),
+        ]
+        matrix, _ = build_matrix(rows, schema)
+        targets = np.asarray([row["target"] for row in rows])
+        pipeline = build_pipeline(schema)
+        pipeline.fit(matrix, targets)
+
+        artifact = build_shadow_artifact(
+            pipeline,
+            schema,
+            threshold=0.6,
+            fit_rows=len(rows),
+            trained_at="2026-09-08T00:00:00+00:00",
+            artifact_role="challenger",
+            deployment_ready=False,
+            deployment_blockers=["holdout concentration"],
+        )
+        shadow = ShadowLogisticModel(artifact)
+
+        self.assertEqual(shadow.artifact_role, "challenger")
+        self.assertFalse(shadow.deployment_ready)
+        self.assertEqual(
+            shadow.deployment_blockers,
+            ["holdout concentration"],
         )
 
 

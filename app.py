@@ -3708,6 +3708,14 @@ def load_shadow_model():
             raise ValueError(
                 "Shadow model data version does not match the app"
             )
+        if model.artifact_role == "challenger":
+            raise ValueError(
+                "A challenger artifact cannot be loaded as incumbent"
+            )
+        if not model.deployment_ready:
+            raise ValueError(
+                "An unapproved artifact cannot be loaded as incumbent"
+            )
         SHADOW_MODEL = model
         print(
             f"[SHADOW] Loaded {model.model_version} "
@@ -3725,6 +3733,10 @@ def load_shadow_model():
             if challenger.data_version != DATA_VERSION:
                 raise ValueError(
                     "Shadow challenger data version does not match the app"
+                )
+            if challenger.artifact_role != "challenger":
+                raise ValueError(
+                    "Shadow challenger artifact role is not challenger"
                 )
             if (
                 SHADOW_MODEL is not None

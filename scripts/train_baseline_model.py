@@ -652,6 +652,9 @@ def build_shadow_artifact(
     threshold,
     fit_rows,
     trained_at,
+    artifact_role="incumbent",
+    deployment_ready=True,
+    deployment_blockers=None,
 ):
     preprocessor = pipeline.named_steps["preprocess"]
     classifier = pipeline.named_steps["classifier"]
@@ -682,6 +685,9 @@ def build_shadow_artifact(
         "format_version": 1,
         "data_version": int(schema["data_version"]),
         "model_type": "logistic_regression",
+        "artifact_role": artifact_role,
+        "deployment_ready": bool(deployment_ready),
+        "deployment_blockers": list(deployment_blockers or []),
         "trained_at": trained_at,
         "fit_rows": int(fit_rows),
         "threshold": float(threshold),
@@ -736,6 +742,13 @@ def main():
         "--shadow-output",
         default="models/baseline_v2_shadow.json",
     )
+    parser.add_argument(
+        "--shadow-candidate-output",
+        help=(
+            "Save a challenger artifact for shadow evaluation only. "
+            "This never writes the deployable joblib model."
+        ),
+    )
     parser.add_argument("--test-fraction", type=float, default=0.2)
     parser.add_argument(
         "--sample-weighting",
@@ -745,6 +758,11 @@ def main():
     parser.add_argument("--allow-not-ready", action="store_true")
     parser.add_argument("--no-save", action="store_true")
     args = parser.parse_args()
+
+    if args.no_save and args.shadow_candidate_output:
+        parser.error(
+            "--no-save cannot be combined with --shadow-candidate-output"
+        )
 
     if not 0.1 <= args.test_fraction <= 0.4:
         raise SystemExit("--test-fraction must be between 0.1 and 0.4")
@@ -935,7 +953,11 @@ def main():
         "saved": False,
     }
 
-    if deployment_blockers and not args.no_save:
+    if (
+        deployment_blockers
+        and not args.no_save
+        and not args.shadow_candidate_output
+    ):
         print(json.dumps(report, indent=2, ensure_ascii=True))
         raise SystemExit(
             "Model not saved because holdout support is insufficient: "
@@ -955,18 +977,19 @@ def main():
             args.sample_weighting,
         )
         trained_at = datetime.now(timezone.utc).isoformat()
-        output_path = Path(args.output)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        joblib.dump({
-            "pipeline": deployment_pipeline,
-            "schema": schema,
-            "feature_columns": feature_columns,
-            "threshold": selected_threshold,
-            "fit_rows": len(rows),
-            "trained_at": trained_at,
-            "sklearn_version": sklearn.__version__,
-            "report": report,
-        }, output_path)
+        if not args.shadow_candidate_output:
+            output_path = Path(args.output)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            joblib.dump({
+                "pipeline": deployment_pipeline,
+                "schema": schema,
+                "feature_columns": feature_columns,
+                "threshold": selected_threshold,
+                "fit_rows": len(rows),
+                "trained_at": trained_at,
+                "sklearn_version": sklearn.__version__,
+                "report": report,
+            }, output_path)
 
         shadow_artifact = build_shadow_artifact(
             deployment_pipeline,
@@ -974,8 +997,17 @@ def main():
             selected_threshold,
             len(rows),
             trained_at,
+            artifact_role=(
+                "challenger"
+                if args.shadow_candidate_output
+                else "incumbent"
+            ),
+            deployment_ready=not deployment_blockers,
+            deployment_blockers=deployment_blockers,
         )
-        shadow_output_path = Path(args.shadow_output)
+        shadow_output_path = Path(
+            args.shadow_candidate_output or args.shadow_output
+        )
         shadow_output_path.parent.mkdir(parents=True, exist_ok=True)
         shadow_output_path.write_text(
             json.dumps(
@@ -985,6 +1017,8 @@ def main():
             ) + "\n",
             encoding="utf-8",
         )
+        report["saved_artifact_role"] = shadow_artifact["artifact_role"]
+        report["saved_shadow_path"] = str(shadow_output_path)
 
     print(json.dumps(report, indent=2, ensure_ascii=True))
 
