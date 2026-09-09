@@ -1,16 +1,16 @@
 # Graph Report - pump fun  (2026-09-09)
 
 ## Corpus Check
-- 36 files · ~43,691 words
+- 36 files · ~44,040 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 466 nodes · 1145 edges · 32 communities (26 shown, 5 thin omitted)
-- Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 29 edges (avg confidence: 0.86)
+- 471 nodes · 1163 edges · 26 communities (20 shown, 5 thin omitted)
+- Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 29 edges (avg confidence: 0.86)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `ea357e0f`
+- Built from commit: `c653d891`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -19,7 +19,6 @@
 - app.py
 - ValueError
 - What You Must Do When Invoked
-- startup
 - graphify reference: extra exports and benchmark
 - test_stream_monitoring.py
 - auth
@@ -39,20 +38,15 @@
 - AGENTS.md
 - extraction-spec.md
 - Q: sigamos
-- update_execution_order
-- get
 - ExecutionAdapterTests
-- open_paper_position
-- execute_pumpportal_lightning_buy
 - ShadowLogisticModel
-- reconcile_execution_order
 
 ## God Nodes (most connected - your core abstractions)
-1. `db()` - 96 edges
-2. `auth()` - 68 edges
+1. `db()` - 98 edges
+2. `auth()` - 69 edges
 3. `require_debug_mode()` - 54 edges
-4. `ExecutionAdapterTests` - 20 edges
-5. `LiveReceiptPersistenceTests` - 19 edges
+4. `LiveReceiptPersistenceTests` - 21 edges
+5. `ExecutionAdapterTests` - 20 edges
 6. `main()` - 18 edges
 7. `simulate_execution()` - 16 edges
 8. `update_execution_order()` - 15 edges
@@ -74,27 +68,23 @@
 ## Import Cycles
 - None detected.
 
-## Communities (32 total, 5 thin omitted)
+## Communities (26 total, 5 thin omitted)
 
 ### Community 0 - "test_training_pipeline.py"
 Cohesion: 0.10
 Nodes (32): main(), schema_without_features(), evaluate_strategy(), main(), simulate_payoff(), build_matrix(), build_pipeline(), build_shadow_artifact() (+24 more)
 
 ### Community 1 - "app.py"
-Cohesion: 0.09
-Nodes (46): api_shadow_predictions(), api_training_checkpoint_freshness(), api_training_dataset(), api_training_dataset_preview(), api_training_expired_preview(), api_training_stats(), api_training_stats_by_trader(), build_model_features() (+38 more)
+Cohesion: 0.05
+Nodes (97): api_training_checkpoint_freshness(), api_training_dataset_preview(), api_training_expired_preview(), api_training_stats(), api_training_stats_by_trader(), assess_shadow_challenger(), build_model_features(), build_pumpportal_lightning_buy_payload() (+89 more)
 
 ### Community 2 - "ValueError"
 Cohesion: 0.08
-Nodes (28): build_pumpportal_exact_sell_payload(), build_pumpportal_lightning_buy_payload(), build_pumpportal_lightning_sell_payload(), calculate_wallet_sell_percentage(), fetch_finalized_solana_transaction(), fetch_sol_usd_quote(), fetch_solana_signature_status(), normalize_solana_signature() (+20 more)
+Nodes (26): build_pumpportal_exact_sell_payload(), build_pumpportal_lightning_sell_payload(), calculate_wallet_sell_percentage(), fetch_finalized_solana_transaction(), fetch_solana_signature_status(), normalize_solana_signature(), prepare_pumpportal_lightning_sell(), reconcile_execution_order() (+18 more)
 
 ### Community 3 - "What You Must Do When Invoked"
 Cohesion: 0.08
 Nodes (24): For /graphify add and --watch, For /graphify query, For the commit hook and native CLAUDE.md integration, For --update and --cluster-only, /graphify, Honesty Rules, Interpreter guard for subcommands, Part A - Structural extraction for code files (+16 more)
-
-### Community 4 - "startup"
-Cohesion: 0.07
-Nodes (37): assess_shadow_challenger(), cleanup_finished_outcome_token(), compare_shadow_models(), complete_finished_signal_outcomes(), expire_old_signal_outcomes(), fetch_solana_balance_sol(), get_persistent_kill_switch(), get_shadow_stats() (+29 more)
 
 ### Community 5 - "graphify reference: extra exports and benchmark"
 Cohesion: 0.22
@@ -105,8 +95,8 @@ Cohesion: 0.10
 Nodes (4): PumpPortalBalanceTests, PumpPortalMessageTests, ShadowReviewAlertTests, StreamStateTests
 
 ### Community 7 - "auth"
-Cohesion: 0.16
-Nodes (32): auth(), demo(), demo_close_old(), demo_concurrent_idempotency(), demo_duplicate_check(), demo_execution_order_events(), demo_execution_orders(), demo_exit_close() (+24 more)
+Cohesion: 0.07
+Nodes (85): api_live_execution_readiness(), api_live_positions(), api_shadow_predictions(), api_shadow_stats(), api_training_dataset(), auth(), can_retry_execution(), check_execution_timeout() (+77 more)
 
 ### Community 8 - "graphify reference: query, path, explain"
 Cohesion: 0.33
@@ -152,33 +142,13 @@ Nodes (3): For --cluster-only, For --update (incremental re-extraction), graphif
 Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: sigamos, Source Nodes
 
-### Community 25 - "update_execution_order"
-Cohesion: 0.20
-Nodes (19): can_retry_execution(), check_execution_timeout(), create_execution_order(), demo_can_retry(), demo_cannot_retry_risk(), demo_controlled_retry(), demo_execution_timeout(), demo_idempotency_sent() (+11 more)
-
-### Community 26 - "get"
-Cohesion: 0.13
-Nodes (19): api_live_execution_readiness(), api_shadow_stats(), demo_execution_check(), demo_execution_failure(), demo_idempotency_check(), demo_idempotency_failed(), demo_idempotency_risk_blocked(), demo_mode_save() (+11 more)
-
 ### Community 27 - "ExecutionAdapterTests"
 Cohesion: 0.08
 Nodes (4): ExecutionAdapterTests, LiveTradingGuardTests, NumericRiskValidationTests, PositionConcurrencyTests
 
-### Community 28 - "open_paper_position"
-Cohesion: 0.16
-Nodes (14): count_open_positions(), demo_daily_pnl(), demo_daily_pnl_isolation(), demo_liquidity_check(), demo_mode_isolation(), demo_paper_mode_save(), demo_risk_mode_isolation(), demo_slippage_check() (+6 more)
-
-### Community 29 - "execute_pumpportal_lightning_buy"
-Cohesion: 0.52
-Nodes (7): execute_pumpportal_lightning_buy(), execute_pumpportal_lightning_sell(), get_execution_order_status(), get_live_execution_readiness(), require_live_trading(), set_execution_order_external_signature(), submit_pumpportal_lightning_trade()
-
 ### Community 30 - "ShadowLogisticModel"
 Cohesion: 0.33
 Nodes (3): load_shadow_model(), ShadowLogisticModel, ShadowModelError
-
-### Community 31 - "reconcile_execution_order"
-Cohesion: 0.67
-Nodes (3): demo_reconcile_pending(), demo_reconcile_sent(), reconcile_execution_order()
 
 ## Knowledge Gaps
 - **60 isolated node(s):** `Usage`, `What graphify is for`, `Step 0 - GitHub repos and multi-path merge (only if a URL or several paths)`, `Step 1 - Ensure graphify is installed`, `Step 2 - Detect files` (+55 more)
@@ -198,7 +168,7 @@ Nodes (3): demo_reconcile_pending(), demo_reconcile_sent(), reconcile_execution_
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `ShadowLogisticModel` connect `ShadowLogisticModel` to `test_training_pipeline.py`, `app.py`?**
-  _High betweenness centrality (0.068) - this node is a cross-community bridge._
+  _High betweenness centrality (0.067) - this node is a cross-community bridge._
 - **Are the 24 inferred relationships involving `ValueError` (e.g. with `build_pumpportal_exact_sell_payload()` and `build_pumpportal_lightning_buy_payload()`) actually correct?**
   _`ValueError` has 24 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `Usage`, `What graphify is for`, `Step 0 - GitHub repos and multi-path merge (only if a URL or several paths)` to the rest of the system?**
@@ -206,8 +176,8 @@ _Questions this graph is uniquely positioned to answer:_
 - **Should `test_training_pipeline.py` be split into smaller, more focused modules?**
   _Cohesion score 0.1016949152542373 - nodes in this community are weakly interconnected._
 - **Should `app.py` be split into smaller, more focused modules?**
-  _Cohesion score 0.09343200740055504 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.053650326109825376 - nodes in this community are weakly interconnected._
 - **Should `ValueError` be split into smaller, more focused modules?**
-  _Cohesion score 0.07946127946127945 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.08215488215488216 - nodes in this community are weakly interconnected._
 - **Should `What You Must Do When Invoked` be split into smaller, more focused modules?**
   _Cohesion score 0.08 - nodes in this community are weakly interconnected._

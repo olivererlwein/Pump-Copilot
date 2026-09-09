@@ -1,6 +1,7 @@
 import json
 import sqlite3
 import tempfile
+import time
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -335,6 +336,32 @@ class LiveReceiptPersistenceTests(unittest.TestCase):
             result = app.reconcile_pumpportal_execution_order(order)
         self.assertTrue(result["ok"])
         self.assertEqual(result["position_status"], "open")
+
+    def test_live_daily_loss_uses_current_sol_quote_and_fails_closed(self):
+        self.record()
+        signature = "2" * 88
+        amount = 3000000000000000
+        order = self.make_sell_order("sell-loss", amount, signature)
+        receipt = sell_receipt(signature, str(amount), 1000000)
+        receipt["blockTime"] = time.time()
+        fill = parse_sell_receipt(receipt, signature, WALLET, MINT)
+        app.record_finalized_sell_position(order, fill, receipt)
+        self.assertLess(app.get_daily_live_realized_pnl_sol(), 0)
+        with patch.object(app, "fetch_sol_usd_quote", return_value={"price": 200.0}):
+            result = app.risk_check(MINT, 1, mode="live")
+        self.assertEqual(result["reason"], "MAX_DAILY_LOSS")
+        with patch.object(app, "fetch_sol_usd_quote", side_effect=RuntimeError("offline")):
+            result = app.risk_check(MINT, 1, mode="live")
+        self.assertEqual(result["reason"], "SOL_USD_QUOTE_UNAVAILABLE")
+
+    def test_live_position_summary_exposes_accounting_without_raw_receipts(self):
+        self.record()
+        summary = app.api_live_positions(app.APP_TOKEN, 10)
+        self.assertEqual(summary["total"], 1)
+        self.assertEqual(summary["open"], 1)
+        self.assertEqual(summary["positions"][0]["remaining_amount_raw"],
+                         "9007199254740993")
+        self.assertNotIn("receipt_json", summary["positions"][0])
 
     def test_exact_sell_payload_does_not_use_wallet_percentage(self):
         mint = "1" * 32

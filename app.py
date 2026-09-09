@@ -678,12 +678,18 @@ CREATE TABLE IF NOT EXISTS signal_outcomes(
             network_fee_lamports TEXT NOT NULL,
             allocated_cost_basis_lamports TEXT NOT NULL,
             realized_pnl_lamports TEXT NOT NULL,
+            block_time REAL,
             fill_json TEXT NOT NULL,
             receipt_json TEXT NOT NULL,
             recorded_ts REAL NOT NULL
         )
         """
     )
+    sale_columns = {
+        row[1] for row in conn.execute("PRAGMA table_info(live_position_sales)")
+    }
+    if "block_time" not in sale_columns:
+        conn.execute("ALTER TABLE live_position_sales ADD COLUMN block_time REAL")
     conn.commit()
 
     return conn
@@ -815,6 +821,77 @@ def get_daily_realized_pnl(
         conn.close()
 
     return float(row[0] or 0)
+
+
+def get_daily_live_realized_pnl_sol(connection=None):
+    now = time.localtime()
+    start_of_day = time.mktime((
+        now.tm_year, now.tm_mon, now.tm_mday, 0, 0, 0,
+        now.tm_wday, now.tm_yday, now.tm_isdst,
+    ))
+    conn = connection or db()
+    rows = conn.execute(
+        "SELECT realized_pnl_lamports FROM live_position_sales "
+        "WHERE COALESCE(block_time, recorded_ts) >= ?",
+        (start_of_day,),
+    ).fetchall()
+    if connection is None:
+        conn.close()
+    return sum(int(row[0]) for row in rows) / 1_000_000_000
+
+
+def get_live_position_summary(limit=100):
+    safe_limit = max(1, min(int(limit), 500))
+    conn = db()
+    positions = conn.execute(
+        """SELECT order_id, wallet, mint, status, token_amount_raw,
+                  remaining_amount_raw, token_decimals,
+                  net_sol_debit_lamports, remaining_cost_basis_lamports,
+                  network_fee_lamports, recorded_ts
+           FROM live_positions ORDER BY recorded_ts DESC LIMIT ?""",
+        (safe_limit,),
+    ).fetchall()
+    totals = conn.execute(
+        "SELECT COUNT(*), SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) "
+        "FROM live_positions"
+    ).fetchone()
+    sales = conn.execute(
+        """SELECT sell_order_id, position_order_id, signature, token_amount_raw,
+                  net_sol_credit_lamports, network_fee_lamports,
+                  allocated_cost_basis_lamports, realized_pnl_lamports,
+                  block_time, recorded_ts
+           FROM live_position_sales ORDER BY recorded_ts DESC LIMIT ?""",
+        (safe_limit,),
+    ).fetchall()
+    conn.close()
+    return {
+        "total": int(totals[0] or 0),
+        "open": int(totals[1] or 0),
+        "positions": [
+            {
+                "order_id": row[0], "wallet": row[1], "mint": row[2],
+                "status": row[3], "token_amount_raw": row[4],
+                "remaining_amount_raw": row[5], "token_decimals": row[6],
+                "net_sol_debit_lamports": row[7],
+                "remaining_cost_basis_lamports": row[8],
+                "network_fee_lamports": row[9], "recorded_ts": row[10],
+            }
+            for row in positions
+        ],
+        "sales": [
+            {
+                "sell_order_id": row[0], "position_order_id": row[1],
+                "signature": row[2], "token_amount_raw": row[3],
+                "net_sol_credit_lamports": row[4],
+                "network_fee_lamports": row[5],
+                "allocated_cost_basis_lamports": row[6],
+                "realized_pnl_lamports": row[7], "block_time": row[8],
+                "recorded_ts": row[9],
+            }
+            for row in sales
+        ],
+        "daily_realized_pnl_sol": get_daily_live_realized_pnl_sol(),
+    }
 
 
 def validate_slippage(
@@ -3425,11 +3502,11 @@ def record_finalized_sell_position(order_id, fill, receipt):
                 sell_order_id, position_order_id, signature, token_amount_raw,
                 net_sol_credit_lamports, network_fee_lamports,
                 allocated_cost_basis_lamports, realized_pnl_lamports,
-                fill_json, receipt_json, recorded_ts
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                block_time, fill_json, receipt_json, recorded_ts
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (order_id, order[7], order[1], str(sold), str(proceeds),
              fill["network_fee_lamports"], str(allocated_cost), str(realized),
-             json.dumps(fill), json.dumps(receipt), now),
+             fill.get("block_time"), json.dumps(fill), json.dumps(receipt), now),
         )
         conn.execute(
             "UPDATE live_positions SET remaining_amount_raw = ?, "
@@ -3594,9 +3671,20 @@ def risk_check(
             "reason": "MAX_POSITION_USD"
         }
 
-    daily_pnl = get_daily_realized_pnl(
-    mode=mode
-)
+    if mode == "live":
+        daily_pnl_sol = get_daily_live_realized_pnl_sol()
+        if daily_pnl_sol < 0:
+            try:
+                daily_pnl = daily_pnl_sol * fetch_sol_usd_quote()["price"]
+            except Exception:
+                return {
+                    "ok": False,
+                    "reason": "SOL_USD_QUOTE_UNAVAILABLE"
+                }
+        else:
+            daily_pnl = 0.0
+    else:
+        daily_pnl = get_daily_realized_pnl(mode=mode)
 
     if daily_pnl <= -MAX_DAILY_LOSS_USD:
         return {
@@ -9257,6 +9345,15 @@ def api_live_execution_readiness(
 ):
     auth(x_app_token)
     return get_live_execution_readiness()
+
+
+@app.get("/api/live-positions")
+def api_live_positions(
+    x_app_token: str = Header(default=""),
+    limit: int = 100,
+):
+    auth(x_app_token)
+    return get_live_position_summary(limit)
 
 
 # =========================================================
