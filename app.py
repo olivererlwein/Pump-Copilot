@@ -184,6 +184,9 @@ PUMPPORTAL_ALLOWED_POOLS = {
 }
 SOL_PRICE_MAX_AGE_SECONDS = 30.0
 MAX_PRIORITY_FEE_SOL = 0.001
+SOL_USD_PRICE_URL = (
+    "https://api.coinbase.com/v2/prices/SOL-USD/spot"
+)
 
 MAX_POSITION_USD = 5.0
 MAX_DAILY_LOSS_USD = 5.0
@@ -1946,6 +1949,57 @@ def build_pumpportal_lightning_buy_payload(
         "priorityFee": priority_fee_sol,
         "pool": pool,
         "skipPreflight": "false",
+    }
+
+
+def fetch_sol_usd_quote(timeout_seconds=5):
+    request = Request(
+        SOL_USD_PRICE_URL,
+        headers={
+            "Accept": "application/json",
+            "User-Agent": "Pump-Copilot/1.0",
+        },
+    )
+    with urlopen(request, timeout=timeout_seconds) as response:
+        payload = json.loads(response.read().decode("utf-8"))
+
+    try:
+        price = float(payload["data"]["amount"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError("INVALID_SOL_USD_RESPONSE") from exc
+
+    if not math.isfinite(price) or price <= 0:
+        raise ValueError("INVALID_SOL_USD_PRICE")
+
+    return {
+        "price": price,
+        "quoted_ts": time.time(),
+        "source": "coinbase_spot",
+    }
+
+
+def prepare_pumpportal_lightning_buy(
+    mint,
+    amount_usd,
+    slippage_pct=MAX_SLIPPAGE_PCT,
+    priority_fee_sol=0.00005,
+    pool="auto"
+):
+    quote = fetch_sol_usd_quote()
+    payload = build_pumpportal_lightning_buy_payload(
+        mint=mint,
+        amount_usd=amount_usd,
+        sol_usd_price=quote["price"],
+        quote_ts=quote["quoted_ts"],
+        slippage_pct=slippage_pct,
+        priority_fee_sol=priority_fee_sol,
+        pool=pool,
+    )
+    return {
+        "provider": "pumpportal_lightning",
+        "quote": quote,
+        "payload": payload,
+        "submitted": False,
     }
 
 

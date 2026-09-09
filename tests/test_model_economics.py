@@ -2,7 +2,10 @@ import unittest
 
 import numpy as np
 
-from scripts.compare_model_economics import simulate_payoff
+from scripts.compare_model_economics import (
+    PUMPPORTAL_LIGHTNING_ROUND_TRIP_COST,
+    simulate_payoff,
+)
 
 
 class PayoffSimulationTests(unittest.TestCase):
@@ -45,6 +48,11 @@ class PayoffSimulationTests(unittest.TestCase):
         self.assertEqual(report["executed"], 2)
         self.assertEqual(report["skipped_busy"], 1)
         self.assertEqual(report["wins"], 2)
+        self.assertEqual(
+            PUMPPORTAL_LIGHTNING_ROUND_TRIP_COST,
+            0.02,
+        )
+        self.assertAlmostEqual(report["net_return_units"], 0.46)
 
 
 if __name__ == "__main__":

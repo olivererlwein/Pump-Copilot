@@ -3,6 +3,11 @@ import json
 
 import numpy as np
 
+PUMPPORTAL_LIGHTNING_FEE_PER_SIDE = 0.01
+PUMPPORTAL_LIGHTNING_ROUND_TRIP_COST = (
+    PUMPPORTAL_LIGHTNING_FEE_PER_SIDE * 2
+)
+
 if __package__:
     from scripts.train_baseline_model import (
         build_matrix,
@@ -37,7 +42,7 @@ def simulate_payoff(
     rows,
     predictions,
     target_column,
-    round_trip_cost=0.0,
+    round_trip_cost=PUMPPORTAL_LIGHTNING_ROUND_TRIP_COST,
     hold_seconds=0,
 ):
     if len(rows) != len(predictions):
@@ -181,7 +186,7 @@ def main():
         "--costs",
         type=float,
         nargs="+",
-        default=(0.0, 0.02, 0.05),
+        default=(0.02, 0.03, 0.05),
     )
     args = parser.parse_args()
 
@@ -224,9 +229,17 @@ def main():
         "assumptions": {
             "win_return": 0.25,
             "loss_return": -0.10,
+            "pumpportal_lightning_fee_per_side": (
+                PUMPPORTAL_LIGHTNING_FEE_PER_SIDE
+            ),
+            "minimum_round_trip_cost": (
+                PUMPPORTAL_LIGHTNING_ROUND_TRIP_COST
+            ),
             "position_hold_seconds": 900,
             "note": (
-                "Conservative label-based proxy, not realized trading PnL."
+                "Conservative label-based proxy. Costs above 2% model "
+                "additional slippage and network fees; this is not "
+                "realized trading PnL."
             ),
         },
         "rows": len(rows),

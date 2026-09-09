@@ -3,7 +3,7 @@ import tempfile
 import threading
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import app
 
@@ -171,6 +171,43 @@ class ExecutionAdapterTests(unittest.TestCase):
                     app.build_pumpportal_lightning_buy_payload(
                         **arguments
                     )
+
+    def test_fetches_and_validates_sol_usd_quote(self):
+        response = MagicMock()
+        response.read.return_value = (
+            b'{"data":{"amount":"200.50","currency":"USD"}}'
+        )
+        response.__enter__.return_value = response
+
+        with patch.object(app, "urlopen", return_value=response), patch.object(
+            app.time,
+            "time",
+            return_value=1234.0,
+        ):
+            quote = app.fetch_sol_usd_quote()
+
+        self.assertEqual(quote["price"], 200.5)
+        self.assertEqual(quote["quoted_ts"], 1234.0)
+        self.assertEqual(quote["source"], "coinbase_spot")
+
+    def test_prepares_without_submitting_pumpportal_buy(self):
+        quote = {
+            "price": 200.0,
+            "quoted_ts": 1000.0,
+            "source": "coinbase_spot",
+        }
+        with patch.object(
+            app,
+            "fetch_sol_usd_quote",
+            return_value=quote,
+        ), patch.object(app.time, "time", return_value=1010.0):
+            prepared = app.prepare_pumpportal_lightning_buy(
+                mint="So11111111111111111111111111111111111111112",
+                amount_usd=5.0,
+            )
+
+        self.assertFalse(prepared["submitted"])
+        self.assertEqual(prepared["payload"]["amount"], 0.025)
 
 
 class PositionConcurrencyTests(unittest.TestCase):
