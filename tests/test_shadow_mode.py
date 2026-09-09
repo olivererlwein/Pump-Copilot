@@ -286,6 +286,13 @@ class ShadowPredictionTests(unittest.TestCase):
         self.assertEqual(stats["precision"], 1.0)
         self.assertEqual(stats["models"]["test-model-v1"]["recall"], 1.0)
         self.assertEqual(stats["models"]["test-model-v2"]["recall"], 0.0)
+        comparison = stats["comparison"]
+        self.assertEqual(comparison["total"], 1)
+        self.assertEqual(comparison["completed"], 1)
+        self.assertEqual(comparison["agreement_rate"], 0.0)
+        self.assertEqual(comparison["incumbent_only_correct"], 1)
+        self.assertEqual(comparison["challenger_only_correct"], 0)
+        self.assertEqual(comparison["recall_delta"], -1.0)
 
     def test_feature_failure_does_not_escape(self):
         with patch.object(

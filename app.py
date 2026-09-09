@@ -4072,11 +4072,135 @@ def summarize_shadow_predictions(rows):
     }
 
 
+def compare_shadow_models(
+    rows_by_version,
+    incumbent_version,
+    challenger_version,
+):
+    if not incumbent_version or not challenger_version:
+        return None
+
+    incumbent_by_evaluation = {
+        row["evaluation_id"]: row
+        for row in rows_by_version.get(incumbent_version, [])
+    }
+    challenger_by_evaluation = {
+        row["evaluation_id"]: row
+        for row in rows_by_version.get(challenger_version, [])
+    }
+    paired_ids = sorted(
+        set(incumbent_by_evaluation)
+        & set(challenger_by_evaluation)
+    )
+    incumbent_rows = [
+        incumbent_by_evaluation[evaluation_id]
+        for evaluation_id in paired_ids
+    ]
+    challenger_rows = [
+        challenger_by_evaluation[evaluation_id]
+        for evaluation_id in paired_ids
+    ]
+    completed_pairs = [
+        (incumbent, challenger)
+        for incumbent, challenger in zip(
+            incumbent_rows,
+            challenger_rows,
+        )
+        if incumbent["actual_target"] is not None
+    ]
+    agreements = sum(
+        incumbent["predicted_target"] == challenger["predicted_target"]
+        for incumbent, challenger in zip(
+            incumbent_rows,
+            challenger_rows,
+        )
+    )
+    incumbent_metrics = summarize_shadow_predictions(incumbent_rows)
+    challenger_metrics = summarize_shadow_predictions(challenger_rows)
+
+    def metric_delta(name):
+        incumbent_value = incumbent_metrics[name]
+        challenger_value = challenger_metrics[name]
+        if incumbent_value is None or challenger_value is None:
+            return None
+        return round(challenger_value - incumbent_value, 6)
+
+    return {
+        "incumbent_version": incumbent_version,
+        "challenger_version": challenger_version,
+        "total": len(paired_ids),
+        "pending": len(paired_ids) - len(completed_pairs),
+        "completed": len(completed_pairs),
+        "agreement_rate": (
+            round(agreements / len(paired_ids), 6)
+            if paired_ids
+            else None
+        ),
+        "both_positive": sum(
+            incumbent["predicted_target"] == 1
+            and challenger["predicted_target"] == 1
+            for incumbent, challenger in zip(
+                incumbent_rows,
+                challenger_rows,
+            )
+        ),
+        "both_negative": sum(
+            incumbent["predicted_target"] == 0
+            and challenger["predicted_target"] == 0
+            for incumbent, challenger in zip(
+                incumbent_rows,
+                challenger_rows,
+            )
+        ),
+        "incumbent_only_positive": sum(
+            incumbent["predicted_target"] == 1
+            and challenger["predicted_target"] == 0
+            for incumbent, challenger in zip(
+                incumbent_rows,
+                challenger_rows,
+            )
+        ),
+        "challenger_only_positive": sum(
+            incumbent["predicted_target"] == 0
+            and challenger["predicted_target"] == 1
+            for incumbent, challenger in zip(
+                incumbent_rows,
+                challenger_rows,
+            )
+        ),
+        "incumbent_only_correct": sum(
+            incumbent["predicted_target"] == incumbent["actual_target"]
+            and challenger["predicted_target"] != challenger["actual_target"]
+            for incumbent, challenger in completed_pairs
+        ),
+        "challenger_only_correct": sum(
+            challenger["predicted_target"] == challenger["actual_target"]
+            and incumbent["predicted_target"] != incumbent["actual_target"]
+            for incumbent, challenger in completed_pairs
+        ),
+        "both_correct": sum(
+            incumbent["predicted_target"] == incumbent["actual_target"]
+            and challenger["predicted_target"] == challenger["actual_target"]
+            for incumbent, challenger in completed_pairs
+        ),
+        "both_wrong": sum(
+            incumbent["predicted_target"] != incumbent["actual_target"]
+            and challenger["predicted_target"] != challenger["actual_target"]
+            for incumbent, challenger in completed_pairs
+        ),
+        "incumbent_metrics": incumbent_metrics,
+        "challenger_metrics": challenger_metrics,
+        "precision_delta": metric_delta("precision"),
+        "recall_delta": metric_delta("recall"),
+    }
+
+
 def get_shadow_stats():
     conn = db()
     raw_rows = conn.execute(
         """
         SELECT
+            p.evaluation_id,
             p.model_version,
             p.predicted_target,
             CASE
@@ -4106,9 +4230,15 @@ def get_shadow_stats():
         None,
     )
     rows_by_version = {}
-    for model_version, predicted_target, actual_target in raw_rows:
+    for (
+        evaluation_id,
+        model_version,
+        predicted_target,
+        actual_target,
+    ) in raw_rows:
         model_version = str(model_version)
         rows_by_version.setdefault(model_version, []).append({
+            "evaluation_id": int(evaluation_id),
             "predicted_target": int(predicted_target),
             "actual_target": (
                 int(actual_target) if actual_target is not None else None
@@ -4144,6 +4274,11 @@ def get_shadow_stats():
             for version, metrics in models.items()
         },
         "models": models,
+        "comparison": compare_shadow_models(
+            rows_by_version,
+            current_version,
+            challenger_version,
+        ),
         **current_metrics,
     }
 
