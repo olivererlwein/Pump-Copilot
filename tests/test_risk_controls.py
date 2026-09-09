@@ -90,6 +90,50 @@ class LiveTradingGuardTests(unittest.TestCase):
         self.assertFalse(status["live_trading_active"])
 
 
+class ExecutionAdapterTests(unittest.TestCase):
+    def execution_args(self):
+        return {
+            "mint": "mint-a",
+            "expected_price": 1.0,
+            "execution_price": 1.0,
+            "liquidity_sol": 20.0,
+            "amount_usd": 5.0,
+        }
+
+    def test_dispatches_paper_orders_to_simulation(self):
+        with patch.object(
+            app,
+            "simulate_execution",
+            return_value={"ok": True, "order_id": 1},
+        ) as simulate:
+            result = app.execute_order(**self.execution_args())
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["provider"], "simulation")
+        simulate.assert_called_once()
+
+    def test_rejects_live_and_unknown_providers(self):
+        with patch.object(app, "simulate_execution") as simulate:
+            live = app.execute_order(
+                **self.execution_args(),
+                mode="live",
+            )
+            unknown = app.execute_order(
+                **self.execution_args(),
+                provider="pumpportal",
+            )
+
+        self.assertEqual(
+            live["reason"],
+            "LIVE_EXECUTION_NOT_IMPLEMENTED",
+        )
+        self.assertEqual(
+            unknown["reason"],
+            "EXECUTION_PROVIDER_NOT_AVAILABLE",
+        )
+        simulate.assert_not_called()
+
+
 class PositionConcurrencyTests(unittest.TestCase):
     def test_only_one_simultaneous_position_is_opened_per_mode(self):
         with tempfile.TemporaryDirectory() as temp_dir, patch.object(

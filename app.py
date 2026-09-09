@@ -168,6 +168,11 @@ LIVE_TRADING = os.getenv(
 
 LIVE_EXECUTION_IMPLEMENTED = False
 
+EXECUTION_PROVIDER = os.getenv(
+    "EXECUTION_PROVIDER",
+    "simulation"
+).strip().lower()
+
 MAX_POSITION_USD = 5.0
 MAX_DAILY_LOSS_USD = 5.0
 MAX_SLIPPAGE_PCT = 5.0
@@ -1819,6 +1824,51 @@ def simulate_execution(
     }
 
 
+def execute_order(
+    mint,
+    expected_price,
+    execution_price,
+    liquidity_sol,
+    amount_usd,
+    force_fail=False,
+    idempotency_key=None,
+    parent_order_id=None,
+    mode="paper",
+    provider=None
+):
+    selected_provider = str(
+        provider or EXECUTION_PROVIDER
+    ).strip().lower()
+
+    if mode == "live":
+        return {
+            "ok": False,
+            "reason": "LIVE_EXECUTION_NOT_IMPLEMENTED",
+            "provider": selected_provider
+        }
+
+    if selected_provider != "simulation":
+        return {
+            "ok": False,
+            "reason": "EXECUTION_PROVIDER_NOT_AVAILABLE",
+            "provider": selected_provider
+        }
+
+    result = simulate_execution(
+        mint=mint,
+        expected_price=expected_price,
+        execution_price=execution_price,
+        liquidity_sol=liquidity_sol,
+        amount_usd=amount_usd,
+        force_fail=force_fail,
+        idempotency_key=idempotency_key,
+        parent_order_id=parent_order_id,
+        mode=mode
+    )
+    result["provider"] = selected_provider
+    return result
+
+
 def create_execution_order(
     mint,
     side,
@@ -2451,7 +2501,7 @@ WHERE id = ?
         f"RETRY-{order_id}-{retry_counter['retry_count']}"
     )
 
-    retry_result = simulate_execution(
+    retry_result = execute_order(
         mint=mint,
         expected_price=expected_price,
         execution_price=execution_price,
@@ -7260,6 +7310,9 @@ def status(
                 and LIVE_EXECUTION_IMPLEMENTED
                 and not KILL_SWITCH
             ),
+
+        "execution_provider":
+            EXECUTION_PROVIDER,
 
         "stream_connected":
             bool(STREAM_CONNECTED),
