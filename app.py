@@ -198,6 +198,13 @@ LIVE_SELLS_ENABLED = os.getenv(
     "false"
 ).lower() == "true"
 
+try:
+    LIVE_BUY_USD = float(
+        os.getenv("LIVE_BUY_USD", "0")
+    )
+except (TypeError, ValueError):
+    LIVE_BUY_USD = 0.0
+
 EXECUTION_PROVIDER = os.getenv(
     "EXECUTION_PROVIDER",
     "simulation"
@@ -5758,6 +5765,16 @@ def get_live_execution_readiness(execution_side=None):
         blockers.append("LIVE_BUYS_AND_SELLS_DISABLED")
     if execution_side == "buy" and not LIVE_BUYS_ENABLED:
         blockers.append("LIVE_BUYS_DISABLED")
+    if (
+        execution_side == "buy"
+        and LIVE_BUYS_ENABLED
+        and (
+            not math.isfinite(LIVE_BUY_USD)
+            or LIVE_BUY_USD <= 0
+            or LIVE_BUY_USD > MAX_POSITION_USD
+        )
+    ):
+        blockers.append("LIVE_BUY_USD_INVALID")
     if execution_side == "sell" and not LIVE_SELLS_ENABLED:
         blockers.append("LIVE_SELLS_DISABLED")
 
@@ -5774,10 +5791,13 @@ def get_live_execution_readiness(execution_side=None):
         "live_trading_enabled": bool(LIVE_TRADING),
         "live_buys_enabled": bool(LIVE_BUYS_ENABLED),
         "live_sells_enabled": bool(LIVE_SELLS_ENABLED),
+        "live_buy_usd": LIVE_BUY_USD,
         "live_buy_ready": bool(
             LIVE_TRADING
             and LIVE_EXECUTION_IMPLEMENTED
             and LIVE_BUYS_ENABLED
+            and math.isfinite(LIVE_BUY_USD)
+            and 0 < LIVE_BUY_USD <= MAX_POSITION_USD
             and not KILL_SWITCH
         ),
         "live_sell_ready": bool(
@@ -6874,6 +6894,84 @@ def decision_from_score(score):
     return "SKIP"
 
 
+def maybe_execute_live_copy(
+    signal_id,
+    decision,
+    trader,
+    event,
+    source,
+    price_at_signal,
+    market_cap,
+):
+    if str(source or "").strip().lower() != "live":
+        return {"attempted": False, "reason": "NON_LIVE_SOURCE"}
+
+    if decision != "COPY":
+        return {"attempted": False, "reason": "DECISION_NOT_COPY"}
+
+    if trader in OBSERVE_TRADERS:
+        return {"attempted": False, "reason": "TRADER_OBSERVE_ONLY"}
+
+    readiness = get_live_execution_readiness("buy")
+    if not readiness["ready"]:
+        return {
+            "attempted": False,
+            "reason": "LIVE_BUY_NOT_READY",
+            "blockers": readiness.get("blockers", []),
+        }
+
+    try:
+        signal_id = int(signal_id)
+    except (TypeError, ValueError):
+        signal_id = 0
+    if signal_id <= 0:
+        return {"attempted": False, "reason": "LIVE_SIGNAL_ID_INVALID"}
+
+    try:
+        signal_price = float(price_at_signal)
+    except (TypeError, ValueError):
+        signal_price = 0.0
+    if not math.isfinite(signal_price) or signal_price <= 0:
+        return {"attempted": False, "reason": "LIVE_SIGNAL_PRICE_INVALID"}
+
+    try:
+        liquidity_sol = float(
+            (event or {}).get("vSolInBondingCurve")
+            or 0
+        )
+    except (TypeError, ValueError):
+        liquidity_sol = 0.0
+    if not validate_liquidity(liquidity_sol):
+        return {
+            "attempted": False,
+            "reason": "LIVE_SIGNAL_LIQUIDITY_INVALID",
+        }
+
+    try:
+        result = execute_pumpportal_lightning_buy(
+            mint=str((event or {}).get("mint") or "").strip(),
+            expected_price=signal_price,
+            execution_price=None,
+            liquidity_sol=liquidity_sol,
+            amount_usd=LIVE_BUY_USD,
+            idempotency_key=f"copy-evaluation-{signal_id}",
+            market_cap_sol=market_cap,
+            origin_trader=trader,
+        )
+    except Exception as exc:
+        print("[LIVE BUY] Dispatch failed:", repr(exc))
+        return {
+            "attempted": True,
+            "ok": False,
+            "reason": "LIVE_BUY_DISPATCH_FAILED",
+        }
+
+    return {
+        **result,
+        "attempted": True,
+    }
+
+
 # =========================================================
 # ANALIZAR COMPRA
 # =========================================================
@@ -7158,7 +7256,8 @@ def evaluate_buy(
     # Solo abrimos posición paper
     # cuando el agente dice COPY.
     #
-    # Seguimos SIN ejecutar dinero real.
+    # La ejecución real se evalúa por separado y permanece
+    # protegida por todos los controles de live trading.
 
     if (
     decision == "COPY"
@@ -7173,10 +7272,21 @@ def evaluate_buy(
         decision=decision
     )
 
+    live_execution = maybe_execute_live_copy(
+        signal_id=signal_id,
+        decision=decision,
+        trader=trader,
+        event=event,
+        source=source,
+        price_at_signal=price_at_signal,
+        market_cap=market_cap,
+    )
+
     return {
         "score": score,
         "decision": decision,
-        "reasons": reasons
+        "reasons": reasons,
+        "live_execution": live_execution,
     }
 
 

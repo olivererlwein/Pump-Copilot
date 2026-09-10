@@ -190,11 +190,12 @@ class LiveTradingGuardTests(unittest.TestCase):
             patch.object(app, "LIVE_TRADING", True),
             patch.object(app, "LIVE_BUYS_ENABLED", True),
             patch.object(app, "LIVE_SELLS_ENABLED", False),
+            patch.object(app, "LIVE_BUY_USD", 1.0, create=True),
         )
 
         with patches[0], patches[1], patches[2], patches[3], patches[4], (
             patches[5]
-        ), patches[6], patches[7], patches[8], patches[9]:
+        ), patches[6], patches[7], patches[8], patches[9], patches[10]:
             buy = app.get_live_execution_readiness("buy")
             sell = app.get_live_execution_readiness("sell")
 
@@ -235,6 +236,45 @@ class LiveTradingGuardTests(unittest.TestCase):
         self.assertEqual(
             readiness["blockers"],
             ["LIVE_BUYS_AND_SELLS_DISABLED"],
+        )
+
+    def test_live_buy_readiness_requires_explicit_safe_amount(self):
+        shadow_stats = {
+            "promotion_assessment": {
+                "minimum_completed": 100,
+                "ready_for_review": True,
+                "leader": "challenger",
+                "blockers": [],
+            },
+        }
+
+        with patch.object(
+            app,
+            "get_shadow_stats",
+            return_value=shadow_stats,
+        ), patch.object(app, "API_KEY", "test-key"), patch.object(
+            app,
+            "PUMPPORTAL_TRADING_WALLET_ADDRESS",
+            "wallet-a",
+        ), patch.object(app, "STREAM_CONNECTED", True), patch.object(
+            app,
+            "PUMPPORTAL_WALLET_BALANCE_SOL",
+            0.05,
+        ), patch.object(app, "KILL_SWITCH", False), patch.object(
+            app,
+            "LIVE_EXECUTION_IMPLEMENTED",
+            True,
+        ), patch.object(app, "LIVE_TRADING", True), patch.object(
+            app,
+            "LIVE_BUYS_ENABLED",
+            True,
+        ), patch.object(app, "LIVE_BUY_USD", 0.0, create=True):
+            readiness = app.get_live_execution_readiness("buy")
+
+        self.assertFalse(readiness["ready"])
+        self.assertEqual(
+            readiness["blockers"],
+            ["LIVE_BUY_USD_INVALID"],
         )
 
 
@@ -727,6 +767,169 @@ class PositionConcurrencyTests(unittest.TestCase):
             )
 
 
+class LiveCopyDispatchTests(unittest.TestCase):
+    def live_signal(self):
+        return {
+            "mint": "So11111111111111111111111111111111111111112",
+            "vSolInBondingCurve": 20.0,
+        }
+
+    def test_non_live_copy_never_reaches_live_executor(self):
+        with patch.object(
+            app,
+            "get_live_execution_readiness",
+        ) as readiness, patch.object(
+            app,
+            "execute_pumpportal_lightning_buy",
+        ) as execute:
+            result = app.maybe_execute_live_copy(
+                signal_id=123,
+                decision="COPY",
+                trader="marcell",
+                event=self.live_signal(),
+                source="demo",
+                price_at_signal=0.0001,
+                market_cap=100.0,
+            )
+
+        self.assertFalse(result["attempted"])
+        self.assertEqual(result["reason"], "NON_LIVE_SOURCE")
+        readiness.assert_not_called()
+        execute.assert_not_called()
+
+    def test_non_copy_and_observe_only_traders_never_reach_executor(self):
+        cases = (
+            ("WATCH", "marcell", set(), "DECISION_NOT_COPY"),
+            ("SKIP", "marcell", set(), "DECISION_NOT_COPY"),
+            ("COPY", "marcell", {"marcell"}, "TRADER_OBSERVE_ONLY"),
+        )
+
+        for decision, trader, observe_traders, reason in cases:
+            with self.subTest(reason=reason), patch.object(
+                app,
+                "OBSERVE_TRADERS",
+                observe_traders,
+            ), patch.object(
+                app,
+                "get_live_execution_readiness",
+            ) as readiness, patch.object(
+                app,
+                "execute_pumpportal_lightning_buy",
+            ) as execute:
+                result = app.maybe_execute_live_copy(
+                    signal_id=123,
+                    decision=decision,
+                    trader=trader,
+                    event=self.live_signal(),
+                    source="live",
+                    price_at_signal=0.0001,
+                    market_cap=100.0,
+                )
+
+            self.assertFalse(result["attempted"])
+            self.assertEqual(result["reason"], reason)
+            readiness.assert_not_called()
+            execute.assert_not_called()
+
+    def test_copy_stays_blocked_until_live_buy_is_ready(self):
+        blockers = ["LIVE_EXECUTION_NOT_IMPLEMENTED"]
+        with patch.object(
+            app,
+            "get_live_execution_readiness",
+            return_value={"ready": False, "blockers": blockers},
+        ), patch.object(
+            app,
+            "execute_pumpportal_lightning_buy",
+        ) as execute:
+            result = app.maybe_execute_live_copy(
+                signal_id=123,
+                decision="COPY",
+                trader="marcell",
+                event=self.live_signal(),
+                source="live",
+                price_at_signal=0.0001,
+                market_cap=100.0,
+            )
+
+        self.assertFalse(result["attempted"])
+        self.assertEqual(result["reason"], "LIVE_BUY_NOT_READY")
+        self.assertEqual(result["blockers"], blockers)
+        execute.assert_not_called()
+
+    def test_ready_copy_dispatches_idempotent_live_buy(self):
+        with patch.object(
+            app,
+            "LIVE_BUY_USD",
+            2.0,
+            create=True,
+        ), patch.object(
+            app,
+            "get_live_execution_readiness",
+            return_value={"ready": True, "blockers": []},
+        ), patch.object(
+            app,
+            "execute_pumpportal_lightning_buy",
+            return_value={
+                "ok": True,
+                "status": "PENDING_RECONCILIATION",
+                "order_id": 7,
+            },
+        ) as execute:
+            result = app.maybe_execute_live_copy(
+                signal_id=123,
+                decision="COPY",
+                trader="marcell",
+                event=self.live_signal(),
+                source="live",
+                price_at_signal=0.0001,
+                market_cap=100.0,
+            )
+
+        self.assertTrue(result["attempted"])
+        self.assertEqual(result["order_id"], 7)
+        execute.assert_called_once_with(
+            mint="So11111111111111111111111111111111111111112",
+            expected_price=0.0001,
+            execution_price=None,
+            liquidity_sol=20.0,
+            amount_usd=2.0,
+            idempotency_key="copy-evaluation-123",
+            market_cap_sol=100.0,
+            origin_trader="marcell",
+        )
+
+    def test_ready_copy_requires_valid_price_and_liquidity(self):
+        cases = (
+            (0.0, 20.0, "LIVE_SIGNAL_PRICE_INVALID"),
+            (0.0001, 0.0, "LIVE_SIGNAL_LIQUIDITY_INVALID"),
+        )
+
+        for price, liquidity, reason in cases:
+            event = self.live_signal()
+            event["vSolInBondingCurve"] = liquidity
+            with self.subTest(reason=reason), patch.object(
+                app,
+                "get_live_execution_readiness",
+                return_value={"ready": True, "blockers": []},
+            ), patch.object(
+                app,
+                "execute_pumpportal_lightning_buy",
+            ) as execute:
+                result = app.maybe_execute_live_copy(
+                    signal_id=123,
+                    decision="COPY",
+                    trader="marcell",
+                    event=event,
+                    source="live",
+                    price_at_signal=price,
+                    market_cap=100.0,
+                )
+
+            self.assertFalse(result["attempted"])
+            self.assertEqual(result["reason"], reason)
+            execute.assert_not_called()
+
+
 class EvaluationIdempotencyTests(unittest.TestCase):
     def test_duplicate_evaluation_does_not_open_paper_position_twice(self):
         event = {
@@ -754,6 +957,11 @@ class EvaluationIdempotencyTests(unittest.TestCase):
             return_value=10,
         ), patch.object(app, "OBSERVE_TRADERS", set()), patch.object(
             app,
+            "maybe_execute_live_copy",
+            return_value={"attempted": False, "reason": "LIVE_BUY_NOT_READY"},
+            create=True,
+        ) as live_copy, patch.object(
+            app,
             "open_paper_position",
         ) as open_position:
             app.migrate_database()
@@ -772,6 +980,7 @@ class EvaluationIdempotencyTests(unittest.TestCase):
         self.assertEqual(second["decision"], "COPY")
         self.assertEqual(evaluation_count, 1)
         open_position.assert_called_once()
+        live_copy.assert_called_once()
 
 
 if __name__ == "__main__":
