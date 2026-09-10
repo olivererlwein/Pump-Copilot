@@ -1,8 +1,11 @@
+import io
 import struct
 import tempfile
 import unittest
+from email.message import Message
 from pathlib import Path
 from unittest.mock import patch
+from urllib.error import HTTPError
 
 import app
 from solana_rpc_fallback import (
@@ -12,6 +15,7 @@ from solana_rpc_fallback import (
     PUMP_TRADE_EVENT,
     WSOL_MINT,
     _base58_encode,
+    _rpc_request,
     parse_watched_wallet_pump_events,
 )
 
@@ -166,6 +170,48 @@ class RpcFallbackParserTests(unittest.TestCase):
             parse_watched_wallet_pump_events(receipt, WALLET, SIGNATURE),
             [],
         )
+
+
+class RpcFallbackRequestTests(unittest.TestCase):
+    def test_retries_rate_limit_then_returns_result(self):
+        headers = Message()
+        headers["Retry-After"] = "0"
+        rate_limit = HTTPError(
+            "https://rpc.test",
+            429,
+            "Too Many Requests",
+            headers,
+            None,
+        )
+        response = io.BytesIO(b'{"jsonrpc":"2.0","result":[]}')
+
+        with patch(
+            "solana_rpc_fallback.urlopen",
+            side_effect=[rate_limit, response],
+        ) as open_rpc, patch("solana_rpc_fallback.time.sleep") as sleep:
+            result = _rpc_request("https://rpc.test", "getSlot", [])
+
+        self.assertEqual(result, [])
+        self.assertEqual(open_rpc.call_count, 2)
+        self.assertTrue(sleep.called)
+
+    def test_does_not_retry_authentication_failure(self):
+        unauthorized = HTTPError(
+            "https://rpc.test",
+            401,
+            "Unauthorized",
+            Message(),
+            None,
+        )
+
+        with patch(
+            "solana_rpc_fallback.urlopen",
+            side_effect=unauthorized,
+        ) as open_rpc, patch("solana_rpc_fallback.time.sleep"):
+            with self.assertRaises(HTTPError):
+                _rpc_request("https://rpc.test", "getSlot", [])
+
+        self.assertEqual(open_rpc.call_count, 1)
 
 
 class RpcFallbackPersistenceTests(unittest.TestCase):

@@ -3,6 +3,9 @@
 import base64
 import json
 import struct
+import threading
+import time
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 
@@ -18,6 +21,24 @@ BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 LAMPORTS_PER_SOL = 1_000_000_000
 PUMP_TOKEN_SUPPLY = 1_000_000_000
 
+RPC_MIN_REQUEST_INTERVAL_SECONDS = 0.2
+RPC_RETRY_DELAYS_SECONDS = (0.5, 1.0, 2.0)
+_RPC_REQUEST_LOCK = threading.Lock()
+_RPC_LAST_REQUEST_TS = 0.0
+
+
+def _wait_for_rpc_slot():
+    global _RPC_LAST_REQUEST_TS
+
+    with _RPC_REQUEST_LOCK:
+        wait_seconds = (
+            RPC_MIN_REQUEST_INTERVAL_SECONDS
+            - (time.monotonic() - _RPC_LAST_REQUEST_TS)
+        )
+        if wait_seconds > 0:
+            time.sleep(wait_seconds)
+        _RPC_LAST_REQUEST_TS = time.monotonic()
+
 
 def _rpc_request(rpc_url, method, params, timeout=15):
     request = Request(
@@ -31,8 +52,29 @@ def _rpc_request(rpc_url, method, params, timeout=15):
         headers={"Content-Type": "application/json"},
         method="POST",
     )
-    with urlopen(request, timeout=timeout) as response:
-        payload = json.load(response)
+    for attempt in range(len(RPC_RETRY_DELAYS_SECONDS) + 1):
+        _wait_for_rpc_slot()
+        try:
+            with urlopen(request, timeout=timeout) as response:
+                payload = json.load(response)
+            break
+        except HTTPError as ex:
+            retryable = ex.code == 429 or 500 <= ex.code < 600
+            if not retryable or attempt >= len(RPC_RETRY_DELAYS_SECONDS):
+                raise
+            retry_after = ex.headers.get("Retry-After") if ex.headers else None
+            try:
+                delay = max(
+                    float(retry_after),
+                    RPC_RETRY_DELAYS_SECONDS[attempt],
+                )
+            except (TypeError, ValueError):
+                delay = RPC_RETRY_DELAYS_SECONDS[attempt]
+            time.sleep(delay)
+        except (TimeoutError, URLError):
+            if attempt >= len(RPC_RETRY_DELAYS_SECONDS):
+                raise
+            time.sleep(RPC_RETRY_DELAYS_SECONDS[attempt])
     if not isinstance(payload, dict) or payload.get("error") or "result" not in payload:
         raise ValueError(f"INVALID_SOLANA_RPC_RESPONSE:{method}")
     return payload["result"]
