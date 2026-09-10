@@ -5589,7 +5589,11 @@ def assess_shadow_challenger(comparison):
     )
 
     leader = None
-    if ready:
+    if (
+        ready
+        and precision_delta is not None
+        and recall_delta is not None
+    ):
         if (
             precision_delta >= 0
             and recall_delta >= 0
@@ -7395,7 +7399,12 @@ def decide_live_position_exit(
     if change_pct <= -0.20:
         return {"token_amount_raw": str(remaining), "reason": "STOP_LOSS",
                 "target_tp_stage": None, "change_pct": change_pct}
-    if is_origin_sell and balance_is_known and observed_balance <= 0:
+    if (
+        is_origin_sell
+        and balance_is_known
+        and observed_balance is not None
+        and observed_balance <= 0
+    ):
         return {"token_amount_raw": str(remaining), "reason": "TRADER_EXIT",
                 "target_tp_stage": None, "change_pct": change_pct}
 
