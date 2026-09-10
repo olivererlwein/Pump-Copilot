@@ -774,6 +774,23 @@ class LiveCopyDispatchTests(unittest.TestCase):
             "vSolInBondingCurve": 20.0,
         }
 
+    def approved_model(self):
+        model = MagicMock()
+        model.model_version = "approved-model-v1"
+        model.data_version = app.DATA_VERSION
+        model.artifact_role = "incumbent"
+        model.deployment_ready = True
+        return model
+
+    def positive_prediction(self):
+        return {
+            "model_version": "approved-model-v1",
+            "data_version": app.DATA_VERSION,
+            "probability": 0.8,
+            "threshold": 0.6,
+            "predicted_target": 1,
+        }
+
     def test_non_live_copy_never_reaches_live_executor(self):
         with patch.object(
             app,
@@ -790,6 +807,7 @@ class LiveCopyDispatchTests(unittest.TestCase):
                 source="demo",
                 price_at_signal=0.0001,
                 market_cap=100.0,
+                model_prediction=None,
             )
 
         self.assertFalse(result["attempted"])
@@ -824,6 +842,7 @@ class LiveCopyDispatchTests(unittest.TestCase):
                     source="live",
                     price_at_signal=0.0001,
                     market_cap=100.0,
+                    model_prediction=None,
                 )
 
             self.assertFalse(result["attempted"])
@@ -833,7 +852,7 @@ class LiveCopyDispatchTests(unittest.TestCase):
 
     def test_copy_stays_blocked_until_live_buy_is_ready(self):
         blockers = ["LIVE_EXECUTION_NOT_IMPLEMENTED"]
-        with patch.object(
+        with patch.object(app, "SHADOW_MODEL", self.approved_model()), patch.object(
             app,
             "get_live_execution_readiness",
             return_value={"ready": False, "blockers": blockers},
@@ -849,6 +868,7 @@ class LiveCopyDispatchTests(unittest.TestCase):
                 source="live",
                 price_at_signal=0.0001,
                 market_cap=100.0,
+                model_prediction=self.positive_prediction(),
             )
 
         self.assertFalse(result["attempted"])
@@ -857,7 +877,7 @@ class LiveCopyDispatchTests(unittest.TestCase):
         execute.assert_not_called()
 
     def test_ready_copy_dispatches_idempotent_live_buy(self):
-        with patch.object(
+        with patch.object(app, "SHADOW_MODEL", self.approved_model()), patch.object(
             app,
             "LIVE_BUY_USD",
             2.0,
@@ -883,6 +903,7 @@ class LiveCopyDispatchTests(unittest.TestCase):
                 source="live",
                 price_at_signal=0.0001,
                 market_cap=100.0,
+                model_prediction=self.positive_prediction(),
             )
 
         self.assertTrue(result["attempted"])
@@ -909,6 +930,10 @@ class LiveCopyDispatchTests(unittest.TestCase):
             event["vSolInBondingCurve"] = liquidity
             with self.subTest(reason=reason), patch.object(
                 app,
+                "SHADOW_MODEL",
+                self.approved_model(),
+            ), patch.object(
+                app,
                 "get_live_execution_readiness",
                 return_value={"ready": True, "blockers": []},
             ), patch.object(
@@ -923,10 +948,63 @@ class LiveCopyDispatchTests(unittest.TestCase):
                     source="live",
                     price_at_signal=price,
                     market_cap=100.0,
+                    model_prediction=self.positive_prediction(),
                 )
 
             self.assertFalse(result["attempted"])
             self.assertEqual(result["reason"], reason)
+            execute.assert_not_called()
+
+    def test_model_must_positively_approve_live_copy(self):
+        approved_model = self.approved_model()
+        unapproved_model = self.approved_model()
+        unapproved_model.deployment_ready = False
+        negative = self.positive_prediction()
+        negative.update({"probability": 0.2, "predicted_target": 0})
+        wrong_version = self.positive_prediction()
+        wrong_version["model_version"] = "other-model"
+        cases = (
+            (None, self.positive_prediction(), "LIVE_MODEL_NOT_LOADED"),
+            (
+                unapproved_model,
+                self.positive_prediction(),
+                "LIVE_MODEL_NOT_APPROVED",
+            ),
+            (approved_model, None, "LIVE_MODEL_PREDICTION_MISSING"),
+            (approved_model, negative, "LIVE_MODEL_REJECTED"),
+            (
+                approved_model,
+                wrong_version,
+                "LIVE_MODEL_VERSION_MISMATCH",
+            ),
+        )
+
+        for model, prediction, reason in cases:
+            with self.subTest(reason=reason), patch.object(
+                app,
+                "SHADOW_MODEL",
+                model,
+            ), patch.object(
+                app,
+                "get_live_execution_readiness",
+            ) as readiness, patch.object(
+                app,
+                "execute_pumpportal_lightning_buy",
+            ) as execute:
+                result = app.maybe_execute_live_copy(
+                    signal_id=123,
+                    decision="COPY",
+                    trader="marcell",
+                    event=self.live_signal(),
+                    source="live",
+                    price_at_signal=0.0001,
+                    market_cap=100.0,
+                    model_prediction=prediction,
+                )
+
+            self.assertFalse(result["attempted"])
+            self.assertEqual(result["reason"], reason)
+            readiness.assert_not_called()
             execute.assert_not_called()
 
 
@@ -937,6 +1015,13 @@ class EvaluationIdempotencyTests(unittest.TestCase):
             "signature": "duplicate-evaluation-signature",
             "solAmount": 1.0,
             "marketCapSol": 100.0,
+        }
+        model_prediction = {
+            "model_version": "approved-model-v1",
+            "data_version": app.DATA_VERSION,
+            "probability": 0.8,
+            "threshold": 0.6,
+            "predicted_target": 1,
         }
 
         with tempfile.TemporaryDirectory() as temp_dir, patch.object(
@@ -957,6 +1042,10 @@ class EvaluationIdempotencyTests(unittest.TestCase):
             return_value=10,
         ), patch.object(app, "OBSERVE_TRADERS", set()), patch.object(
             app,
+            "observe_shadow_signal",
+            return_value=model_prediction,
+        ), patch.object(
+            app,
             "maybe_execute_live_copy",
             return_value={"attempted": False, "reason": "LIVE_BUY_NOT_READY"},
             create=True,
@@ -966,8 +1055,16 @@ class EvaluationIdempotencyTests(unittest.TestCase):
         ) as open_position:
             app.migrate_database()
 
-            first = app.evaluate_buy("test-trader", event)
-            second = app.evaluate_buy("test-trader", event)
+            first = app.evaluate_buy(
+                "test-trader",
+                event,
+                price_at_signal=0.0001,
+            )
+            second = app.evaluate_buy(
+                "test-trader",
+                event,
+                price_at_signal=0.0001,
+            )
 
             conn = app.db()
             evaluation_count = conn.execute(
@@ -981,6 +1078,10 @@ class EvaluationIdempotencyTests(unittest.TestCase):
         self.assertEqual(evaluation_count, 1)
         open_position.assert_called_once()
         live_copy.assert_called_once()
+        self.assertEqual(
+            live_copy.call_args.kwargs["model_prediction"],
+            model_prediction,
+        )
 
 
 if __name__ == "__main__":

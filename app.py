@@ -6894,6 +6894,91 @@ def decision_from_score(score):
     return "SKIP"
 
 
+def assess_live_model_approval(model_prediction):
+    model = SHADOW_MODEL
+    if model is None:
+        return {
+            "approved": False,
+            "reason": "LIVE_MODEL_NOT_LOADED",
+        }
+
+    model_role = str(
+        getattr(model, "artifact_role", "legacy") or "legacy"
+    )
+    if (
+        not bool(getattr(model, "deployment_ready", False))
+        or model_role not in {"incumbent", "legacy"}
+    ):
+        return {
+            "approved": False,
+            "reason": "LIVE_MODEL_NOT_APPROVED",
+        }
+
+    if not isinstance(model_prediction, dict):
+        return {
+            "approved": False,
+            "reason": "LIVE_MODEL_PREDICTION_MISSING",
+        }
+
+    expected_version = str(
+        getattr(model, "model_version", "") or ""
+    )
+    prediction_version = str(
+        model_prediction.get("model_version") or ""
+    )
+    if not expected_version or prediction_version != expected_version:
+        return {
+            "approved": False,
+            "reason": "LIVE_MODEL_VERSION_MISMATCH",
+        }
+
+    try:
+        model_data_version = int(getattr(model, "data_version", 0) or 0)
+        prediction_data_version = int(
+            model_prediction.get("data_version") or 0
+        )
+        probability = float(model_prediction["probability"])
+        threshold = float(model_prediction["threshold"])
+        predicted_target = model_prediction["predicted_target"]
+    except (KeyError, TypeError, ValueError):
+        return {
+            "approved": False,
+            "reason": "LIVE_MODEL_PREDICTION_INVALID",
+        }
+
+    if (
+        model_data_version != DATA_VERSION
+        or prediction_data_version != DATA_VERSION
+        or not math.isfinite(probability)
+        or not math.isfinite(threshold)
+        or not 0 <= probability <= 1
+        or not 0 <= threshold <= 1
+        or type(predicted_target) is not int
+        or predicted_target not in (0, 1)
+    ):
+        return {
+            "approved": False,
+            "reason": "LIVE_MODEL_PREDICTION_INVALID",
+        }
+
+    if predicted_target != 1 or probability < threshold:
+        return {
+            "approved": False,
+            "reason": "LIVE_MODEL_REJECTED",
+            "model_version": prediction_version,
+            "probability": probability,
+            "threshold": threshold,
+        }
+
+    return {
+        "approved": True,
+        "reason": "LIVE_MODEL_APPROVED",
+        "model_version": prediction_version,
+        "probability": probability,
+        "threshold": threshold,
+    }
+
+
 def maybe_execute_live_copy(
     signal_id,
     decision,
@@ -6902,6 +6987,7 @@ def maybe_execute_live_copy(
     source,
     price_at_signal,
     market_cap,
+    model_prediction,
 ):
     if str(source or "").strip().lower() != "live":
         return {"attempted": False, "reason": "NON_LIVE_SOURCE"}
@@ -6911,6 +6997,13 @@ def maybe_execute_live_copy(
 
     if trader in OBSERVE_TRADERS:
         return {"attempted": False, "reason": "TRADER_OBSERVE_ONLY"}
+
+    model_approval = assess_live_model_approval(model_prediction)
+    if not model_approval["approved"]:
+        return {
+            "attempted": False,
+            **model_approval,
+        }
 
     readiness = get_live_execution_readiness("buy")
     if not readiness["ready"]:
@@ -6969,6 +7062,7 @@ def maybe_execute_live_copy(
     return {
         **result,
         "attempted": True,
+        "model_approval": model_approval,
     }
 
 
@@ -7209,8 +7303,9 @@ def evaluate_buy(
             price_at_signal=price_at_signal
         )
 
+        model_prediction = None
         if market_cap > 0 and sol_amount > 0 and price_at_signal > 0:
-            observe_shadow_signal(
+            model_prediction = observe_shadow_signal(
                 evaluation_id=signal_id,
                 connection=conn,
                 trader=trader,
@@ -7280,6 +7375,7 @@ def evaluate_buy(
         source=source,
         price_at_signal=price_at_signal,
         market_cap=market_cap,
+        model_prediction=model_prediction,
     )
 
     return {
