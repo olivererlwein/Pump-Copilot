@@ -23,6 +23,11 @@ import websockets
 
 from shadow_model import ShadowLogisticModel
 from solana_receipts import parse_buy_receipt, parse_sell_receipt
+from solana_rpc_fallback import (
+    fetch_confirmed_transaction,
+    fetch_signatures_for_address,
+    parse_watched_wallet_pump_events,
+)
 
 
 # =========================================================
@@ -305,6 +310,41 @@ WATCHED_RESUBSCRIBE_SECONDS = max(
 )
 
 WATCHED_WALLET_ALERTS = set()
+
+# Fallback observacional para auditar los eventos de cuenta que PumpPortal no
+# entrega. No entra a save_trade(), scoring, señales ni ejecución hasta que sus
+# resultados hayan sido comparados y promovidos explícitamente.
+RPC_FALLBACK_SHADOW_ENABLED = os.getenv(
+    "RPC_FALLBACK_SHADOW_ENABLED",
+    "false",
+).lower() == "true"
+
+RPC_FALLBACK_POLL_SECONDS = max(
+    30,
+    int(os.getenv("RPC_FALLBACK_POLL_SECONDS", "90")),
+)
+
+RPC_FALLBACK_SIGNATURE_LIMIT = max(
+    1,
+    min(1000, int(os.getenv("RPC_FALLBACK_SIGNATURE_LIMIT", "100"))),
+)
+
+RPC_FALLBACK_MAX_TRANSACTIONS_PER_POLL = max(
+    1,
+    int(os.getenv("RPC_FALLBACK_MAX_TRANSACTIONS_PER_POLL", "30")),
+)
+
+RPC_FALLBACK_GRACE_SECONDS = max(
+    10,
+    int(os.getenv("RPC_FALLBACK_GRACE_SECONDS", "45")),
+)
+
+RPC_FALLBACK_LAST_POLL_TS = 0.0
+RPC_FALLBACK_LAST_SUCCESS_TS = 0.0
+RPC_FALLBACK_LAST_ERROR = ""
+RPC_FALLBACK_SCANNED_SIGNATURES = 0
+RPC_FALLBACK_PARSED_EVENTS = 0
+RPC_FALLBACK_SATURATED_WALLETS = []
 
 # Historial corto de mensajes del proveedor. Antes solo se guardaba el último,
 # así que la respuesta a subscribeAccountTrade se perdía apenas llegaba
@@ -4297,6 +4337,55 @@ def migrate_database():
 
             except Exception:
                 pass
+
+
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS rpc_fallback_wallet_state(
+            wallet TEXT PRIMARY KEY,
+            trader TEXT NOT NULL,
+            last_signature TEXT,
+            last_slot INTEGER,
+            last_polled_ts REAL,
+            last_error TEXT DEFAULT ''
+        )
+        """
+    )
+
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS rpc_fallback_events(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            signature TEXT NOT NULL,
+            event_index INTEGER NOT NULL,
+            slot INTEGER,
+            block_time REAL,
+            detected_ts REAL NOT NULL,
+            trader TEXT NOT NULL,
+            wallet TEXT NOT NULL,
+            program TEXT NOT NULL,
+            event_name TEXT NOT NULL,
+            side TEXT NOT NULL,
+            mint TEXT NOT NULL,
+            sol REAL NOT NULL,
+            market_cap_sol REAL NOT NULL,
+            token_amount REAL NOT NULL,
+            new_token_balance REAL NOT NULL,
+            pool TEXT NOT NULL,
+            event_json TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            alerted_ts REAL,
+            UNIQUE(signature, event_index, wallet)
+        )
+        """
+    )
+
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_rpc_fallback_events_status
+        ON rpc_fallback_events(status, detected_ts)
+        """
+    )
 
 
     conn.commit()
@@ -9488,6 +9577,463 @@ async def watched_wallet_monitor():
         await asyncio.sleep(WATCHED_WALLET_CHECK_SECONDS)
 
 
+def get_rpc_fallback_wallet_states():
+    conn = db()
+    rows = conn.execute(
+        """
+        SELECT
+            wallet, trader, last_signature, last_slot,
+            last_polled_ts, last_error
+        FROM rpc_fallback_wallet_state
+        """
+    ).fetchall()
+    conn.close()
+    return {
+        row[0]: {
+            "wallet": row[0],
+            "trader": row[1],
+            "last_signature": row[2],
+            "last_slot": row[3],
+            "last_polled_ts": row[4],
+            "last_error": row[5] or "",
+        }
+        for row in rows
+    }
+
+
+def update_rpc_fallback_wallet_state(
+    wallet,
+    trader,
+    last_signature=None,
+    last_slot=None,
+    last_error="",
+):
+    conn = db()
+    conn.execute(
+        """
+        INSERT INTO rpc_fallback_wallet_state(
+            wallet, trader, last_signature, last_slot,
+            last_polled_ts, last_error
+        )
+        VALUES(?,?,?,?,?,?)
+        ON CONFLICT(wallet) DO UPDATE SET
+            trader = excluded.trader,
+            last_signature = COALESCE(
+                excluded.last_signature,
+                rpc_fallback_wallet_state.last_signature
+            ),
+            last_slot = COALESCE(
+                excluded.last_slot,
+                rpc_fallback_wallet_state.last_slot
+            ),
+            last_polled_ts = excluded.last_polled_ts,
+            last_error = excluded.last_error
+        """,
+        (
+            wallet,
+            trader,
+            last_signature,
+            last_slot,
+            time.time(),
+            str(last_error or "")[:500],
+        ),
+    )
+    conn.commit()
+    conn.close()
+
+
+def record_rpc_fallback_event(trader, wallet, receipt, parsed):
+    event = parsed["event"]
+    signature = event["signature"]
+    conn = db()
+    stream_row = conn.execute(
+        "SELECT id FROM trades WHERE signature = ? LIMIT 1",
+        (signature,),
+    ).fetchone()
+    cursor = conn.execute(
+        """
+        INSERT OR IGNORE INTO rpc_fallback_events(
+            signature, event_index, slot, block_time, detected_ts,
+            trader, wallet, program, event_name, side, mint, sol,
+            market_cap_sol, token_amount, new_token_balance, pool,
+            event_json, status
+        )
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        """,
+        (
+            signature,
+            int(parsed["event_index"]),
+            receipt.get("slot"),
+            receipt.get("blockTime"),
+            time.time(),
+            trader,
+            wallet,
+            parsed["program"],
+            parsed["event_name"],
+            event["txType"],
+            event["mint"],
+            float(event["solAmount"]),
+            float(event["marketCapSol"]),
+            float(event["tokenAmount"]),
+            float(event["newTokenBalance"]),
+            event["pool"],
+            json.dumps(event, separators=(",", ":"), sort_keys=True),
+            "matched" if stream_row else "pending",
+        ),
+    )
+    conn.commit()
+    inserted = cursor.rowcount > 0
+    conn.close()
+    return inserted
+
+
+def reconcile_rpc_fallback_events(now=None):
+    now = float(now if now is not None else time.time())
+    conn = db()
+    conn.execute(
+        """
+        UPDATE rpc_fallback_events
+        SET status = 'matched'
+        WHERE status != 'matched'
+        AND EXISTS(
+            SELECT 1 FROM trades
+            WHERE trades.signature = rpc_fallback_events.signature
+        )
+        """
+    )
+    conn.execute(
+        """
+        UPDATE rpc_fallback_events
+        SET status = 'missing'
+        WHERE status = 'pending'
+        AND detected_ts <= ?
+        AND NOT EXISTS(
+            SELECT 1 FROM trades
+            WHERE trades.signature = rpc_fallback_events.signature
+        )
+        """,
+        (now - RPC_FALLBACK_GRACE_SECONDS,),
+    )
+    rows = conn.execute(
+        """
+        SELECT id, trader, wallet, signature, side, mint, pool, block_time
+        FROM rpc_fallback_events
+        WHERE status = 'missing'
+        AND alerted_ts IS NULL
+        ORDER BY detected_ts
+        LIMIT 20
+        """
+    ).fetchall()
+    conn.commit()
+    conn.close()
+    return [
+        {
+            "id": row[0],
+            "trader": row[1],
+            "wallet": row[2],
+            "signature": row[3],
+            "side": row[4],
+            "mint": row[5],
+            "pool": row[6],
+            "block_time": row[7],
+        }
+        for row in rows
+    ]
+
+
+def mark_rpc_fallback_events_alerted(event_ids):
+    clean_ids = [int(event_id) for event_id in event_ids]
+    if not clean_ids:
+        return
+    placeholders = ",".join("?" for _ in clean_ids)
+    conn = db()
+    conn.execute(
+        f"UPDATE rpc_fallback_events SET alerted_ts = ? "
+        f"WHERE id IN ({placeholders})",
+        (time.time(), *clean_ids),
+    )
+    conn.commit()
+    conn.close()
+
+
+def poll_rpc_fallback_once():
+    global RPC_FALLBACK_LAST_POLL_TS
+    global RPC_FALLBACK_LAST_SUCCESS_TS
+    global RPC_FALLBACK_LAST_ERROR
+    global RPC_FALLBACK_SCANNED_SIGNATURES
+    global RPC_FALLBACK_PARSED_EVENTS
+    global RPC_FALLBACK_SATURATED_WALLETS
+
+    RPC_FALLBACK_LAST_POLL_TS = time.time()
+    states = get_rpc_fallback_wallet_states()
+    queues = {}
+    errors = []
+    saturated = []
+    successful_queries = 0
+
+    for trader, wallet in WATCHED.items():
+        state_exists = wallet in states
+        state = states.get(wallet) or {}
+        last_signature = state.get("last_signature")
+        try:
+            rows = fetch_signatures_for_address(
+                SOLANA_RPC_URL,
+                wallet,
+                limit=(1 if not state_exists else RPC_FALLBACK_SIGNATURE_LIMIT),
+                until=last_signature,
+            )
+        except Exception as ex:
+            error = str(ex or ex.__class__.__name__)[:500]
+            errors.append(f"{trader}: {error}")
+            update_rpc_fallback_wallet_state(
+                wallet, trader, last_error=error
+            )
+            continue
+
+        successful_queries += 1
+
+        # El primer ciclo fija un punto de partida actual. No intenta reconstruir
+        # historia parcial, porque una sola página no garantiza que esté completa.
+        if not state_exists:
+            if rows:
+                update_rpc_fallback_wallet_state(
+                    wallet,
+                    trader,
+                    last_signature=str(rows[0]["signature"]),
+                    last_slot=rows[0].get("slot"),
+                )
+            else:
+                update_rpc_fallback_wallet_state(wallet, trader)
+            continue
+
+        if (
+            len(rows) >= RPC_FALLBACK_SIGNATURE_LIMIT
+            and RPC_FALLBACK_SIGNATURE_LIMIT < 1000
+        ):
+            try:
+                rows = fetch_signatures_for_address(
+                    SOLANA_RPC_URL,
+                    wallet,
+                    limit=1000,
+                    until=last_signature,
+                )
+            except Exception as ex:
+                error = str(ex or ex.__class__.__name__)[:500]
+                errors.append(f"{trader}: {error}")
+                update_rpc_fallback_wallet_state(
+                    wallet, trader, last_error=error
+                )
+                continue
+
+        if len(rows) >= 1000:
+            saturated.append(trader)
+            error = "SIGNATURE_BACKLOG_SATURATED"
+            errors.append(f"{trader}: {error}")
+            update_rpc_fallback_wallet_state(
+                wallet, trader, last_error=error
+            )
+            continue
+
+        queues[wallet] = {
+            "trader": trader,
+            "rows": collections.deque(reversed(rows)),
+            "blocked": False,
+        }
+        update_rpc_fallback_wallet_state(wallet, trader)
+
+    processed_transactions = 0
+    while processed_transactions < RPC_FALLBACK_MAX_TRANSACTIONS_PER_POLL:
+        made_progress = False
+        for wallet, queue in queues.items():
+            if queue["blocked"] or not queue["rows"]:
+                continue
+            made_progress = True
+            row = queue["rows"].popleft()
+            signature = str(row["signature"])
+            slot = row.get("slot")
+
+            if row.get("err") is not None:
+                update_rpc_fallback_wallet_state(
+                    wallet,
+                    queue["trader"],
+                    last_signature=signature,
+                    last_slot=slot,
+                )
+                RPC_FALLBACK_SCANNED_SIGNATURES += 1
+                continue
+
+            try:
+                receipt = fetch_confirmed_transaction(
+                    SOLANA_RPC_URL,
+                    signature,
+                )
+                if receipt is None:
+                    raise ValueError("TRANSACTION_NOT_AVAILABLE")
+                parsed_events = parse_watched_wallet_pump_events(
+                    receipt,
+                    wallet,
+                    signature,
+                )
+            except Exception as ex:
+                error = str(ex or ex.__class__.__name__)[:500]
+                errors.append(f"{queue['trader']}: {error}")
+                update_rpc_fallback_wallet_state(
+                    wallet,
+                    queue["trader"],
+                    last_error=error,
+                )
+                queue["blocked"] = True
+                continue
+
+            for parsed in parsed_events:
+                if record_rpc_fallback_event(
+                    queue["trader"], wallet, receipt, parsed
+                ):
+                    RPC_FALLBACK_PARSED_EVENTS += 1
+
+            update_rpc_fallback_wallet_state(
+                wallet,
+                queue["trader"],
+                last_signature=signature,
+                last_slot=slot,
+            )
+            RPC_FALLBACK_SCANNED_SIGNATURES += 1
+            processed_transactions += 1
+            if processed_transactions >= RPC_FALLBACK_MAX_TRANSACTIONS_PER_POLL:
+                break
+
+        if not made_progress:
+            break
+
+    RPC_FALLBACK_SATURATED_WALLETS = saturated
+    if successful_queries:
+        RPC_FALLBACK_LAST_SUCCESS_TS = time.time()
+    RPC_FALLBACK_LAST_ERROR = "; ".join(errors[:5])
+    return {
+        "wallets_queried": successful_queries,
+        "transactions_processed": processed_transactions,
+        "errors": errors,
+        "saturated_wallets": saturated,
+    }
+
+
+async def rpc_fallback_shadow_worker():
+    global RPC_FALLBACK_LAST_ERROR
+
+    while True:
+        try:
+            await asyncio.to_thread(poll_rpc_fallback_once)
+            missing = await asyncio.to_thread(reconcile_rpc_fallback_events)
+            if DISCORD_ALERT_WEBHOOK_URL and missing:
+                detail = "\n".join(
+                    f"- @{item['trader']}: {item['side']} "
+                    f"{item['mint'][:8]}... ({item['pool']})"
+                    for item in missing
+                )
+                sent = await send_discord_alert(
+                    "Pump Copilot: el monitor RPC detectó operaciones Pump "
+                    "que PumpPortal no entregó.\n"
+                    f"{detail}\n"
+                    "Modo observacional: no generaron señales ni órdenes."
+                )
+                if sent:
+                    await asyncio.to_thread(
+                        mark_rpc_fallback_events_alerted,
+                        [item["id"] for item in missing],
+                    )
+        except Exception as ex:
+            RPC_FALLBACK_LAST_ERROR = str(ex or ex.__class__.__name__)[:500]
+            print("[RPC FALLBACK ERROR]", repr(ex))
+
+        await asyncio.sleep(RPC_FALLBACK_POLL_SECONDS)
+
+
+def get_rpc_fallback_stats():
+    conn = db()
+    count_rows = conn.execute(
+        """
+        SELECT status, COUNT(*)
+        FROM rpc_fallback_events
+        GROUP BY status
+        """
+    ).fetchall()
+    counts = {row[0]: int(row[1]) for row in count_rows}
+    identity_matches = conn.execute(
+        """
+        SELECT COUNT(*)
+        FROM rpc_fallback_events AS rpc
+        JOIN trades AS stream ON stream.signature = rpc.signature
+        WHERE rpc.status = 'matched'
+        AND LOWER(stream.side) = LOWER(rpc.side)
+        AND stream.mint = rpc.mint
+        """
+    ).fetchone()[0]
+    missing_rows = conn.execute(
+        """
+        SELECT trader, signature, side, mint, pool, block_time, detected_ts
+        FROM rpc_fallback_events
+        WHERE status = 'missing'
+        ORDER BY detected_ts DESC
+        LIMIT 20
+        """
+    ).fetchall()
+    state_rows = conn.execute(
+        """
+        SELECT trader, wallet, last_signature, last_slot,
+               last_polled_ts, last_error
+        FROM rpc_fallback_wallet_state
+        ORDER BY trader COLLATE NOCASE
+        """
+    ).fetchall()
+    conn.close()
+
+    matched = counts.get("matched", 0)
+    return {
+        "enabled": bool(RPC_FALLBACK_SHADOW_ENABLED),
+        "observational": True,
+        "affects_decisions": False,
+        "poll_seconds": RPC_FALLBACK_POLL_SECONDS,
+        "grace_seconds": RPC_FALLBACK_GRACE_SECONDS,
+        "last_poll_ts": RPC_FALLBACK_LAST_POLL_TS or None,
+        "last_success_ts": RPC_FALLBACK_LAST_SUCCESS_TS or None,
+        "last_error": RPC_FALLBACK_LAST_ERROR or None,
+        "scanned_signatures": RPC_FALLBACK_SCANNED_SIGNATURES,
+        "parsed_events": RPC_FALLBACK_PARSED_EVENTS,
+        "saturated_wallets": list(RPC_FALLBACK_SATURATED_WALLETS),
+        "total": sum(counts.values()),
+        "pending": counts.get("pending", 0),
+        "matched": matched,
+        "missing": counts.get("missing", 0),
+        "matched_identity": int(identity_matches or 0),
+        "identity_match_rate": (
+            round(identity_matches / matched, 6) if matched else None
+        ),
+        "missing_events": [
+            {
+                "trader": row[0],
+                "signature": row[1],
+                "side": row[2],
+                "mint": row[3],
+                "pool": row[4],
+                "block_time": row[5],
+                "detected_ts": row[6],
+            }
+            for row in missing_rows
+        ],
+        "wallets": [
+            {
+                "trader": row[0],
+                "wallet": row[1],
+                "last_signature": row[2],
+                "last_slot": row[3],
+                "last_polled_ts": row[4],
+                "last_error": row[5] or None,
+            }
+            for row in state_rows
+        ],
+    }
+
+
 async def mark_stream_problem(reason, immediate=False):
     global STREAM_CONNECTED
     global STREAM_LAST_ERROR
@@ -10091,6 +10637,11 @@ async def startup():
     asyncio.create_task(
         watched_wallet_monitor()
     )
+
+    if RPC_FALLBACK_SHADOW_ENABLED:
+        asyncio.create_task(
+            rpc_fallback_shadow_worker()
+        )
 # =========================================================
 # AUTENTICACIÓN
 # =========================================================
@@ -10317,6 +10868,18 @@ def status(
 
         "pumpportal_balance_last_error":
             (PUMPPORTAL_BALANCE_LAST_ERROR or None),
+
+        "rpc_fallback_shadow_enabled":
+            bool(RPC_FALLBACK_SHADOW_ENABLED),
+
+        "rpc_fallback_last_poll_ts":
+            (RPC_FALLBACK_LAST_POLL_TS or None),
+
+        "rpc_fallback_last_success_ts":
+            (RPC_FALLBACK_LAST_SUCCESS_TS or None),
+
+        "rpc_fallback_last_error":
+            (RPC_FALLBACK_LAST_ERROR or None),
 
         "shadow_mode_enabled":
             bool(SHADOW_MODE_ENABLED),
@@ -11167,6 +11730,16 @@ def api_watched_wallets(
         # se perdía en cuanto llegaba cualquier otro mensaje.
         "provider_messages": list(PUMPPORTAL_MESSAGE_LOG),
     }
+
+
+@app.get("/api/rpc-fallback-stats")
+def api_rpc_fallback_stats(
+    x_app_token: str = Header(default="")
+):
+    """Auditoría RPC de trades Pump ausentes del stream de PumpPortal."""
+
+    auth(x_app_token)
+    return get_rpc_fallback_stats()
 
 
 @app.get("/api/trader-quality-profile")

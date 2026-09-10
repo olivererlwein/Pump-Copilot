@@ -6,9 +6,9 @@
     "semantic_hash": "5ebef3dd159986e465ab65e4014107ec"
   },
   "app.py": {
-    "mtime": 1789017989.5471692,
-    "seen": 1789018034.395349,
-    "ast_hash": "2468eb9a2ea3bd0de9e26eedb0792f84",
+    "mtime": 1789055716.0578089,
+    "seen": 1789055765.1287117,
+    "ast_hash": "95970ec47cb619f41bab0f9e842813a5",
     "semantic_hash": ""
   },
   "models/baseline_v2_shadow.json": {
@@ -48,9 +48,9 @@
     "semantic_hash": ""
   },
   "tests/test_stream_monitoring.py": {
-    "mtime": 1788928146.977755,
-    "seen": 1788928197.4633377,
-    "ast_hash": "a31a1d28f15cd86f24ef6d2dcc153286",
+    "mtime": 1789020624.1525042,
+    "seen": 1789055765.1287787,
+    "ast_hash": "1e31878ab96a24f1e906b0331b6c7ac9",
     "semantic_hash": ""
   },
   "tests/test_training_pipeline.py": {
@@ -168,9 +168,9 @@
     "semantic_hash": ""
   },
   "static/index.html": {
-    "mtime": 1789017801.6696703,
-    "seen": 1789017846.8198848,
-    "ast_hash": "a2bed67815ed5d8a327ca63fec249a16",
+    "mtime": 1789018872.1951418,
+    "seen": 1789055765.1288612,
+    "ast_hash": "3ed3404decd3d16a3726a519c2cb2cf6",
     "semantic_hash": ""
   },
   "graphify-out/memory/query_20260908_120214_b041fd8c_sigamos.md": {
@@ -228,9 +228,9 @@
     "semantic_hash": ""
   },
   "tests/test_risk_controls.py": {
-    "mtime": 1789016933.9774408,
-    "seen": 1789016987.5523431,
-    "ast_hash": "2b43b48bf1ff434251efd1289905f2ae",
+    "mtime": 1789019900.357597,
+    "seen": 1789055765.1287653,
+    "ast_hash": "4c01bb7910f3fd5267ec0e1a658143e6",
     "semantic_hash": ""
   },
   "solana_receipts.py": {
@@ -246,21 +246,33 @@
     "semantic_hash": ""
   },
   "tests/test_trader_quality.py": {
-    "mtime": 1789017980.7986343,
-    "seen": 1789018034.3953676,
-    "ast_hash": "d3379c12aa42038b0cbca3fc7fccb0df",
+    "mtime": 1789019854.6662557,
+    "seen": 1789055765.128781,
+    "ast_hash": "ebfe92b1d080719f92df39ca271e99e2",
     "semantic_hash": ""
   },
   "CLAUDE_NOTES.md": {
-    "mtime": 1789012182.4281697,
-    "seen": 1789014706.6227462,
-    "ast_hash": "776149bb59da3ab10de5dfe5e5548623",
+    "mtime": 1789021887.36897,
+    "seen": 1789055765.1288288,
+    "ast_hash": "bc9964030881c769af3a6c4defbffae1",
     "semantic_hash": ""
   },
   "2026-09-10.md": {
     "mtime": 1789014956.590283,
     "seen": 1789015097.3016715,
     "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "solana_rpc_fallback.py": {
+    "mtime": 1789055507.6152735,
+    "seen": 1789055765.1287549,
+    "ast_hash": "7e5288d8f45e984f079ec85c2c3531c0",
+    "semantic_hash": ""
+  },
+  "tests/test_rpc_fallback.py": {
+    "mtime": 1789055844.7466044,
+    "seen": 1789055879.5625832,
+    "ast_hash": "aea8f5e27312be8980b53a5cddab863c",
     "semantic_hash": ""
   }
 }
