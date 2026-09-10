@@ -503,3 +503,57 @@ Desplegar este diff y mirar `/api/watched-wallets`:
 
 En cualquiera de los dos casos, la alerta de silencio por wallet hace que esto
 no vuelva a pasar dos semanas sin que nadie lo note.
+
+## RESULTADO EN PRODUCCIÓN: causa confirmada (2026-09-10 02:30)
+
+Commit `953a61b` desplegado. El log de mensajes del proveedor respondió la
+pregunta y una prueba en vivo cerró el diagnóstico.
+
+**PumpPortal acepta la suscripción de cuentas y no entrega los eventos.**
+
+Secuencia verificada:
+
+| Hora | Hecho |
+|---|---|
+| 02:23:14 | La app arranca y suscribe. PumpPortal responde **"Successfully subscribed to keys."** (dos veces: cuentas y tokens) |
+| 02:25:51 | `gr3gor14n` opera on-chain |
+| 02:30:09 | `sapphy` opera on-chain |
+| 02:24 → 02:30 | Monitoreo en vivo: **cero eventos** capturados de `gr3gor14n`, `sapphy`, `supermandev` y `marcell` |
+
+O sea: suscripción fresca, aceptada explícitamente por el proveedor, wallets
+operando durante la ventana, y ningún evento entregado.
+
+**Conclusión: no es un bug nuestro y la re-suscripción periódica no lo
+resuelve** (quedó probado: la del arranque es lo más fresco posible y no
+cambió nada). Sirve igual como red de seguridad ante una suscripción caída,
+pero no ataca esta causa.
+
+Sigue en pie la hipótesis de que los 5 que sí entregan lo hacen de rebote por
+`subscribeTokenTrade`: son los que operan los tokens que más seguimos
+(epicsealdarkeye crea la mayoría, y Cooker / slingoor / chriskogias / decu
+operan esos mismos tokens).
+
+### Lo que sí funciona: la alerta
+
+El arreglo desplegado ahora **hace visible el problema**: `/api/watched-wallets`
+reporta 9 silenciosas y 3 nunca vistas, y la alerta de Discord avisará en
+cuanto una wallet cruce las 24 h. Eso era lo que faltaba para que no volviera a
+pasar dos semanas inadvertido.
+
+### Workaround propuesto (a decidir)
+
+Las suscripciones de **tokens** funcionan bien; las de **cuentas** no. Y la
+consulta on-chain vía `getSignaturesForAddress` funcionó perfecto en cada
+verificación de este análisis.
+
+Propuesta: **un worker que sondee las wallets vigiladas por RPC de Solana**
+como fuente de respaldo, e inyecte los trades faltantes por el mismo camino
+que hoy usa el stream (respetando `processed_signatures` para no duplicar).
+14 wallets × 1 llamada cada N segundos es barato.
+
+Contras a sopesar: agrega dependencia del RPC, hay límites de tasa en el
+endpoint público de Solana, y la latencia sería mayor que la del stream
+(sondeo vs. push), lo que importa para señales de copytrading.
+
+Alternativa previa: reclamarle a PumpPortal con esta evidencia, que es
+concreta y reproducible.
