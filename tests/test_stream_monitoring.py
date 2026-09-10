@@ -1,4 +1,5 @@
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
@@ -176,6 +177,138 @@ class ShadowReviewAlertTests(unittest.IsolatedAsyncioTestCase):
             self.assertFalse(await app.maybe_send_shadow_review_alert())
 
         self.assertEqual(send_alert.await_count, 1)
+
+
+class WatchedWalletSilenceTests(unittest.IsolatedAsyncioTestCase):
+    """Una wallet que deja de entregar con el stream sano debe ser visible."""
+
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.original_db = app.DB
+        app.DB = Path(self.temp_dir.name) / "wallet-silence.db"
+        app.migrate_database()
+        app.WATCHED_WALLET_ALERTS.clear()
+
+    def tearDown(self):
+        app.DB = self.original_db
+        app.WATCHED_WALLET_ALERTS.clear()
+        self.temp_dir.cleanup()
+
+    def record_activity(self, wallet, trader, last_event_ts):
+        conn = app.db()
+        conn.execute(
+            """
+            INSERT INTO watched_wallet_activity(
+                wallet, trader, last_event_ts, events
+            )
+            VALUES(?,?,?,1)
+            ON CONFLICT(wallet) DO UPDATE SET
+                last_event_ts = excluded.last_event_ts
+            """,
+            (wallet, trader, last_event_ts),
+        )
+        conn.commit()
+        conn.close()
+
+    async def test_silent_wallet_is_reported_while_stream_is_healthy(self):
+        watched = {"activo": "wallet-activo", "callado": "wallet-callado"}
+        now = time.time()
+
+        self.record_activity("wallet-activo", "activo", now - 60)
+        self.record_activity(
+            "wallet-callado",
+            "callado",
+            now - (app.WATCHED_WALLET_SILENCE_SECONDS + 3600),
+        )
+
+        with patch.object(app, "WATCHED", watched), patch.object(
+            app, "STREAM_CONNECTED", True
+        ), patch.object(
+            app, "DISCORD_ALERT_WEBHOOK_URL", "https://example.invalid/hook"
+        ), patch.object(
+            app, "send_discord_alert", new_callable=AsyncMock
+        ) as send_alert:
+            silent = await app.check_watched_wallet_silence()
+
+        self.assertEqual([item["trader"] for item in silent], ["callado"])
+        self.assertEqual(send_alert.await_count, 1)
+
+    async def test_wallet_never_seen_counts_as_silent(self):
+        with patch.object(
+            app, "WATCHED", {"fantasma": "wallet-fantasma"}
+        ), patch.object(app, "STREAM_CONNECTED", True), patch.object(
+            app, "DISCORD_ALERT_WEBHOOK_URL", ""
+        ):
+            silent = await app.check_watched_wallet_silence()
+
+        self.assertEqual(len(silent), 1)
+        self.assertTrue(silent[0]["never_seen"])
+        self.assertIsNone(silent[0]["last_event_ts"])
+
+    async def test_alert_is_sent_once_and_then_on_recovery(self):
+        watched = {"intermitente": "wallet-intermitente"}
+        stale = time.time() - (app.WATCHED_WALLET_SILENCE_SECONDS + 60)
+        self.record_activity("wallet-intermitente", "intermitente", stale)
+
+        with patch.object(app, "WATCHED", watched), patch.object(
+            app, "STREAM_CONNECTED", True
+        ), patch.object(
+            app, "DISCORD_ALERT_WEBHOOK_URL", "https://example.invalid/hook"
+        ), patch.object(
+            app, "send_discord_alert", new_callable=AsyncMock
+        ) as send_alert:
+            await app.check_watched_wallet_silence()
+            await app.check_watched_wallet_silence()
+
+            self.assertEqual(send_alert.await_count, 1)
+
+            self.record_activity(
+                "wallet-intermitente",
+                "intermitente",
+                time.time(),
+            )
+            await app.check_watched_wallet_silence()
+
+            self.assertEqual(send_alert.await_count, 2)
+            self.assertIn(
+                "volvieron a entregar",
+                send_alert.await_args_list[1].args[0],
+            )
+
+    async def test_no_wallet_alerts_while_the_stream_is_down(self):
+        # Con el stream caído la alerta correcta es la del stream, no una
+        # por cada wallet.
+        with patch.object(
+            app, "WATCHED", {"alguien": "wallet-alguien"}
+        ), patch.object(app, "STREAM_CONNECTED", False), patch.object(
+            app, "send_discord_alert", new_callable=AsyncMock
+        ) as send_alert:
+            silent = await app.check_watched_wallet_silence()
+
+        self.assertEqual(silent, [])
+        send_alert.assert_not_awaited()
+
+    def test_save_trade_records_wallet_delivery(self):
+        with patch.object(app, "WATCHED", {"alguien": "wallet-alguien"}):
+            app.save_trade(
+                "alguien",
+                "wallet-alguien",
+                {
+                    "txType": "buy",
+                    "mint": "DEMO-WALLET-ACTIVITY",
+                    "solAmount": 1.0,
+                    "marketCapSol": 100.0,
+                    "signature": "sig-wallet-activity",
+                },
+                source="live",
+            )
+
+            activity = app.get_watched_wallet_activity()
+
+        self.assertEqual(len(activity), 1)
+        self.assertEqual(activity[0]["trader"], "alguien")
+        self.assertEqual(activity[0]["events"], 1)
+        self.assertFalse(activity[0]["silent"])
 
 
 if __name__ == "__main__":

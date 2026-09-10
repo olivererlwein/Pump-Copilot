@@ -3,6 +3,8 @@ import json
 import time
 import asyncio
 import math
+import statistics
+import collections
 import sqlite3
 import random
 import uuid
@@ -126,6 +128,65 @@ TRADER_QUALITY_MIN_SAMPLES = max(
 TRADER_QUALITY_MIN = 5
 TRADER_QUALITY_MAX = 30
 
+# Un outcome es evidencia utilizable cuando su desenlace es decidible:
+# vimos disparar el TP25, el SL10, o completamos la ventana de observación.
+#
+# 'expired' NO significa "salió mal": significa que perdimos la observación
+# de precio a los 20 minutos, normalmente porque el token dejó de operar. Si
+# alcanzamos a ver el TP25 antes de perderlo de vista, ese resultado es real
+# y descartarlo tira evidencia. Solo se excluyen los verdaderamente
+# indecidibles: sin ninguno de los dos timestamps y sin ventana completa.
+#
+# Los outcomes 'active' quedan fuera aunque ya tengan un timestamp: todavía
+# están mutando y se resuelven solos en ~20 minutos. La evidencia que se
+# recupera acá son los 'expired' que alcanzaron a decidirse.
+DECIDABLE_OUTCOME_SQL = """(
+        status = 'completed'
+        OR (
+            status = 'expired'
+            AND (
+                tp25_ts IS NOT NULL
+                OR sl10_ts IS NOT NULL
+            )
+        )
+    )"""
+
+# =========================================================
+# PERFIL INTEGRAL DE CALIDAD (SHADOW)
+# =========================================================
+# Evaluación multidimensional y observacional. No alimenta score_trader(),
+# decision_from_score() ni ninguna ruta de ejecución: solo se expone para
+# revisión humana hasta que sea validada y promovida explícitamente.
+
+TRADER_PROFILE_UNRATED_LABEL = "Sin calificar"
+
+# Ciclos compra -> ventas mínimos antes de publicar calidad de salida.
+TRADER_PROFILE_MIN_CYCLES = max(
+    1,
+    int(os.getenv("TRADER_PROFILE_MIN_CYCLES", "10"))
+)
+
+# Mitad de vida (días) del decaimiento por recencia.
+TRADER_PROFILE_RECENCY_HALFLIFE_DAYS = max(
+    0.5,
+    float(os.getenv("TRADER_PROFILE_RECENCY_HALFLIFE_DAYS", "14"))
+)
+
+# Muestras mínimas por mitad temporal para medir consistencia.
+TRADER_PROFILE_MIN_HALF_SAMPLES = 5
+
+# Pesos del score integral. Solo se usan los componentes disponibles y los
+# pesos se renormalizan sobre esos, para no penalizar datos faltantes con 0.
+TRADER_PROFILE_WEIGHTS = {
+    "entry_quality": 0.34,
+    "returns": 0.18,
+    "exit_quality": 0.18,
+    "consistency": 0.12,
+    "diversification": 0.08,
+    "recency": 0.08,
+    "copyability": 0.02,
+}
+
 TRUSTED_TRADERS = {
     "marcell",
     "hdegroot",
@@ -222,6 +283,34 @@ MAX_EXECUTION_RETRIES = 2
 EXECUTION_RECONCILIATION_SECONDS = 5
 
 STREAM_INACTIVITY_TIMEOUT = 120
+
+# Una wallet vigilada puede dejar de entregar eventos mientras la conexión
+# sigue sana y otras wallets siguen llegando. El watchdog del stream no ve ese
+# caso porque el stream nunca se cae. Estos controles lo hacen visible.
+WATCHED_WALLET_SILENCE_SECONDS = max(
+    3600,
+    int(os.getenv("WATCHED_WALLET_SILENCE_SECONDS", "86400"))
+)
+
+WATCHED_WALLET_CHECK_SECONDS = max(
+    60,
+    int(os.getenv("WATCHED_WALLET_CHECK_SECONDS", "900"))
+)
+
+# Reafirmar la suscripción de cuentas cada tanto: si el proveedor la descarta
+# en silencio, se recupera sola sin esperar a una reconexión.
+WATCHED_RESUBSCRIBE_SECONDS = max(
+    60,
+    int(os.getenv("WATCHED_RESUBSCRIBE_SECONDS", "1800"))
+)
+
+WATCHED_WALLET_ALERTS = set()
+
+# Historial corto de mensajes del proveedor. Antes solo se guardaba el último,
+# así que la respuesta a subscribeAccountTrade se perdía apenas llegaba
+# cualquier otro mensaje y no había forma de saber si la suscripción de
+# cuentas fue aceptada.
+PUMPPORTAL_MESSAGE_LOG = collections.deque(maxlen=50)
 
 DATA_VERSION = 2
 PUMP_TOKEN_SUPPLY = 1_000_000_000.0
@@ -329,6 +418,44 @@ def db():
     )
     """
 )
+
+    # Última vez que cada wallet vigilada entregó un evento. Sin esto, que una
+    # wallet deje de llegar es indistinguible de que el trader no opere.
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS watched_wallet_activity(
+            wallet TEXT PRIMARY KEY,
+            trader TEXT,
+            last_event_ts REAL,
+            events INTEGER DEFAULT 0
+        )
+        """
+    )
+
+    # Sembrar la tabla con el historial ya capturado, para que el monitor
+    # arranque sabiendo cuándo se vio cada wallet por última vez en vez de
+    # tratar a todas como nuevas.
+    conn.execute(
+        """
+        INSERT INTO watched_wallet_activity(
+            wallet,
+            trader,
+            last_event_ts,
+            events
+        )
+        SELECT
+            wallet,
+            trader,
+            MAX(ts),
+            COUNT(*)
+        FROM trades
+        WHERE source = 'live'
+        AND wallet IS NOT NULL
+        AND wallet != ''
+        GROUP BY wallet
+        ON CONFLICT(wallet) DO NOTHING
+        """
+    )
 
 
     conn.execute(
@@ -4351,38 +4478,24 @@ def clamp_trader_quality(value):
     )
 
 def calculate_trader_quality_candidate(hit_stats):
+    """Calidad por encogimiento continuo hacia el prior neutral.
+
+    El posterior Beta ya encoge solo cuando hay pocos datos: con cero
+    muestras devuelve exactamente el neutral (5 + 0.4 * 25 = 15) y con dos
+    muestras se mueve apenas. Por eso el valor se calcula SIEMPRE y no
+    depende de ningún umbral: un escalón en la muestra 30 movería al trader
+    hasta 8 puntos de golpe sin justificación estadística.
+
+    El mínimo de muestras ya no decide el valor, solo decide qué se publica
+    como número frente a "Sin calificar" (ver `rated`).
+    """
     samples = int(
         hit_stats.get("samples") or 0
     )
 
-    if samples < TRADER_QUALITY_MIN_SAMPLES:
-        return {
-            "candidate_quality": TRADER_QUALITY_NEUTRAL,
-            "raw_quality": TRADER_QUALITY_NEUTRAL,
-            "posterior_success_rate": (
-                TRADER_QUALITY_PRIOR_SUCCESSES
-                / (
-                    TRADER_QUALITY_PRIOR_SUCCESSES
-                    + TRADER_QUALITY_PRIOR_FAILURES
-                )
-            ),
-            "ready_for_review": False,
-            "blockers": [
-                (
-                    "samples "
-                    f"{samples}/{TRADER_QUALITY_MIN_SAMPLES}"
-                )
-            ],
-        }
-
     target_1 = int(hit_stats.get("target_1") or 0)
-    posterior_success_rate = (
-        TRADER_QUALITY_PRIOR_SUCCESSES + target_1
-    ) / (
-        TRADER_QUALITY_PRIOR_SUCCESSES
-        + TRADER_QUALITY_PRIOR_FAILURES
-        + samples
-    )
+
+    posterior_success_rate = beta_posterior_rate(target_1, samples)
 
     raw_quality = (
         TRADER_QUALITY_MIN
@@ -4390,14 +4503,22 @@ def calculate_trader_quality_candidate(hit_stats):
         * (TRADER_QUALITY_MAX - TRADER_QUALITY_MIN)
     )
 
+    rated = samples >= TRADER_QUALITY_MIN_SAMPLES
+
     return {
         "candidate_quality": clamp_trader_quality(
             raw_quality
         ),
         "raw_quality": round(raw_quality, 3),
         "posterior_success_rate": posterior_success_rate,
-        "ready_for_review": True,
-        "blockers": [],
+        "interval": wilson_interval(target_1, samples),
+        "rated": rated,
+        "ready_for_review": rated,
+        "blockers": (
+            []
+            if rated
+            else [f"samples {samples}/{TRADER_QUALITY_MIN_SAMPLES}"]
+        ),
     }
 
 def get_trader_quality_assessment(trader):
@@ -4409,6 +4530,8 @@ def get_trader_quality_assessment(trader):
             "candidate_quality": 10,
             "raw_quality": 10,
             "posterior_success_rate": 0.0,
+            "interval": None,
+            "rated": False,
             "dynamic_enabled": False,
             "ready_for_review": False,
             "blockers": ["observe_only"],
@@ -4429,10 +4552,12 @@ def get_trader_quality_assessment(trader):
 
     candidate = calculate_trader_quality_candidate(hit_stats)
 
+    # El valor ya no depende del umbral: el posterior encoge solo hacia el
+    # neutral cuando hay poca evidencia, así que no hace falta sustituirlo
+    # por una constante ni provocar un salto al cruzar el mínimo.
     effective_quality = (
         candidate["candidate_quality"]
         if TRADER_DYNAMIC_QUALITY_ENABLED
-        and candidate["ready_for_review"]
         else base_quality
     )
 
@@ -4448,6 +4573,10 @@ def get_trader_quality_assessment(trader):
         "posterior_success_rate": float(
             candidate.get("posterior_success_rate") or 0
         ),
+        "interval": candidate.get("interval"),
+        # "rated" distingue "sin medir" de "medido y resultó promedio":
+        # ambos dan un número parecido, pero solo uno es una medición.
+        "rated": bool(candidate["rated"]),
         "dynamic_enabled": bool(TRADER_DYNAMIC_QUALITY_ENABLED),
         "ready_for_review": candidate["ready_for_review"],
         "blockers": candidate["blockers"],
@@ -4534,7 +4663,7 @@ def get_trader_hit_stats(trader):
     conn = db()
 
     row = conn.execute(
-        """
+        f"""
         WITH ranked_outcomes AS (
             SELECT
                 max_return,
@@ -4552,9 +4681,13 @@ def get_trader_hit_stats(trader):
             FROM signal_outcomes
             WHERE trader = ?
             AND price_at_signal > 0
+            AND {DECIDABLE_OUTCOME_SQL}
         )
         SELECT
-            COUNT(max_return),
+            -- Una muestra por token decidible. No se exige max_return:
+            -- un outcome cuya observación de precio se perdió sigue siendo
+            -- evidencia si alcanzamos a ver el TP25 o el SL10.
+            COUNT(*),
 
             SUM(
                 CASE
@@ -4597,7 +4730,6 @@ def get_trader_hit_stats(trader):
 
         FROM ranked_outcomes
         WHERE mint_signal_number = 1
-        AND status = 'completed'
         """,
         (trader,)
     ).fetchone()
@@ -4640,6 +4772,733 @@ def get_trader_hit_stats(trader):
         "target_0": target_0,
         "target_rate_pct": round(target_rate_pct, 2),
     }
+
+# =========================================================
+# PERFIL INTEGRAL DE CALIDAD DEL TRADER (SHADOW)
+# =========================================================
+# Reglas de datos que aplican a todo el bloque:
+# - Una muestra por token: señales repetidas del mismo mint no son evidencia
+#   independiente.
+# - Las ventas parciales de un ciclo se agregan en un único resultado.
+# - Lo que no se puede reconstruir de forma fiable se reporta como None
+#   (no disponible), nunca como 0.
+
+
+def wilson_interval(successes, total, z=1.96):
+    """Intervalo de Wilson. Devuelve None si no hay muestras."""
+    if total <= 0:
+        return None
+
+    successes = max(0, min(int(successes), int(total)))
+    total = int(total)
+    rate = successes / total
+
+    denominator = 1 + (z * z) / total
+    center = rate + (z * z) / (2 * total)
+    spread = z * math.sqrt(
+        (rate * (1 - rate) + (z * z) / (4 * total)) / total
+    )
+
+    lower = (center - spread) / denominator
+    upper = (center + spread) / denominator
+
+    return {
+        "lower": max(0.0, lower),
+        "upper": min(1.0, upper),
+        "width": min(1.0, upper) - max(0.0, lower),
+    }
+
+
+def beta_posterior_rate(successes, total):
+    """Media posterior Beta con el mismo prior neutral del score vigente."""
+    return (
+        TRADER_QUALITY_PRIOR_SUCCESSES + max(0, successes)
+    ) / (
+        TRADER_QUALITY_PRIOR_SUCCESSES
+        + TRADER_QUALITY_PRIOR_FAILURES
+        + max(0, total)
+    )
+
+
+def get_trader_entry_samples(trader, connection=None):
+    """Una muestra por token: el primer outcome completado de cada mint."""
+    conn = connection or db()
+
+    try:
+        rows = conn.execute(
+            f"""
+            WITH ranked_outcomes AS (
+                SELECT
+                    mint,
+                    signal_ts,
+                    max_return,
+                    min_return,
+                    return_5m,
+                    tp25_ts,
+                    sl10_ts,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY mint
+                        ORDER BY signal_ts ASC, id ASC
+                    ) AS mint_signal_number
+                FROM signal_outcomes
+                WHERE trader = ?
+                AND price_at_signal > 0
+                AND {DECIDABLE_OUTCOME_SQL}
+            )
+            SELECT
+                mint,
+                signal_ts,
+                max_return,
+                min_return,
+                return_5m,
+                tp25_ts,
+                sl10_ts
+            FROM ranked_outcomes
+            WHERE mint_signal_number = 1
+            ORDER BY signal_ts ASC
+            """,
+            (trader,),
+        ).fetchall()
+    finally:
+        if connection is None:
+            conn.close()
+
+    samples = []
+
+    for row in rows:
+        tp25_ts = row[5]
+        sl10_ts = row[6]
+
+        samples.append({
+            "mint": row[0],
+            "signal_ts": float(row[1] or 0),
+            "max_return": (
+                float(row[2]) if row[2] is not None else None
+            ),
+            "min_return": (
+                float(row[3]) if row[3] is not None else None
+            ),
+            "return_5m": (
+                float(row[4]) if row[4] is not None else None
+            ),
+            "tp25_first": bool(
+                tp25_ts is not None
+                and (sl10_ts is None or tp25_ts < sl10_ts)
+            ),
+            "sl10_first": bool(
+                sl10_ts is not None
+                and (tp25_ts is None or sl10_ts < tp25_ts)
+            ),
+        })
+
+    return samples
+
+
+def get_trader_exit_cycles(trader, connection=None):
+    """Reconstruye ciclos entrada -> ventas por token.
+
+    Solo se reconstruye un ciclo cuando observamos la entrada antes de
+    cualquier venta. Si empezamos a mirar el token a mitad de su vida, el
+    ciclo se descarta: no se puede saber a qué precio entró.
+
+    Las ventas parciales del mismo ciclo se agregan ponderando por SOL
+    recibido, de modo que cada ciclo aporta un único resultado.
+    """
+    conn = connection or db()
+
+    try:
+        rows = conn.execute(
+            """
+            SELECT
+                mint,
+                ts,
+                side,
+                sol,
+                market_cap_sol,
+                new_token_balance
+            FROM trades
+            WHERE trader = ?
+            AND source = 'live'
+            ORDER BY mint ASC, ts ASC, id ASC
+            """,
+            (trader,),
+        ).fetchall()
+    finally:
+        if connection is None:
+            conn.close()
+
+    by_mint = {}
+
+    for mint, ts, side, sol, market_cap_sol, new_token_balance in rows:
+        by_mint.setdefault(str(mint or ""), []).append({
+            "ts": float(ts or 0),
+            "side": str(side or "").lower(),
+            "sol": float(sol or 0),
+            "market_cap_sol": float(market_cap_sol or 0),
+            "new_token_balance": float(new_token_balance or 0),
+        })
+
+    cycles = []
+    skipped_mid_life = 0
+    skipped_no_entry_price = 0
+
+    for mint, events in by_mint.items():
+        if not mint:
+            continue
+
+        entry = None
+        sells = []
+        saw_positive_balance = False
+        closure_confirmed = False
+
+        for event in events:
+            is_entry = (
+                "buy" in event["side"]
+                or event["side"] == "create"
+            )
+
+            if entry is None:
+                if not is_entry:
+                    # La primera vez que vemos el token ya estaba vendiendo:
+                    # nunca observamos su entrada.
+                    break
+
+                if event["market_cap_sol"] <= 0:
+                    break
+
+                entry = event
+
+                if event["new_token_balance"] > 0:
+                    saw_positive_balance = True
+
+                continue
+
+            if event["new_token_balance"] > 0:
+                saw_positive_balance = True
+
+            if event["side"] != "sell":
+                continue
+
+            if event["market_cap_sol"] <= 0 or event["sol"] <= 0:
+                continue
+
+            sells.append(event)
+
+            # new_token_balance == 0 es ambiguo (campo ausente o salida
+            # total). Solo lo tomamos como cierre si antes vimos saldo
+            # positivo en este mismo token.
+            if (
+                event["new_token_balance"] == 0
+                and saw_positive_balance
+            ):
+                closure_confirmed = True
+
+        if entry is None:
+            first_event = events[0] if events else None
+
+            if first_event is not None and first_event["side"] == "sell":
+                skipped_mid_life += 1
+            else:
+                skipped_no_entry_price += 1
+
+            continue
+
+        if not sells:
+            continue
+
+        proceeds = sum(sell["sol"] for sell in sells)
+
+        if proceeds <= 0:
+            continue
+
+        weighted_exit_mc = sum(
+            sell["sol"] * sell["market_cap_sol"]
+            for sell in sells
+        ) / proceeds
+
+        cycles.append({
+            "mint": mint,
+            "entry_ts": entry["ts"],
+            "entry_market_cap_sol": entry["market_cap_sol"],
+            "weighted_exit_market_cap_sol": weighted_exit_mc,
+            "exit_ratio": (
+                weighted_exit_mc / entry["market_cap_sol"] - 1
+            ),
+            "sell_events": len(sells),
+            "sol_proceeds": proceeds,
+            "closure_confirmed": closure_confirmed,
+            "last_sell_ts": sells[-1]["ts"],
+        })
+
+    cycles.sort(key=lambda cycle: cycle["entry_ts"])
+
+    return {
+        "cycles": cycles,
+        "skipped_mid_life": skipped_mid_life,
+        "skipped_no_entry_price": skipped_no_entry_price,
+    }
+
+
+def summarize_trader_entry_quality(samples):
+    """TP25 antes de SL10, separado del resto de dimensiones."""
+    total = len(samples)
+
+    if total == 0:
+        return {
+            "samples": 0,
+            "tp25_first": None,
+            "sl10_first": None,
+            "tp25_first_rate": None,
+            "posterior_rate": None,
+            "interval": None,
+        }
+
+    tp25_first = sum(1 for sample in samples if sample["tp25_first"])
+    sl10_first = sum(1 for sample in samples if sample["sl10_first"])
+
+    return {
+        "samples": total,
+        "tp25_first": tp25_first,
+        "sl10_first": sl10_first,
+        "tp25_first_rate": tp25_first / total,
+        "posterior_rate": beta_posterior_rate(tp25_first, total),
+        "interval": wilson_interval(tp25_first, total),
+    }
+
+
+def summarize_trader_returns(samples):
+    """Retornos y drawdown. Cada métrica es None si no hay datos."""
+    max_returns = [
+        sample["max_return"]
+        for sample in samples
+        if sample["max_return"] is not None
+    ]
+    min_returns = [
+        sample["min_return"]
+        for sample in samples
+        if sample["min_return"] is not None
+    ]
+    returns_5m = [
+        sample["return_5m"]
+        for sample in samples
+        if sample["return_5m"] is not None
+    ]
+
+    def average(values):
+        return sum(values) / len(values) if values else None
+
+    def median(values):
+        return statistics.median(values) if values else None
+
+    return {
+        "max_return_samples": len(max_returns),
+        "avg_max_return": average(max_returns),
+        "median_max_return": median(max_returns),
+        "drawdown_samples": len(min_returns),
+        "avg_min_return": average(min_returns),
+        "worst_min_return": min(min_returns) if min_returns else None,
+        "return_5m_samples": len(returns_5m),
+        "avg_return_5m": average(returns_5m),
+        "positive_5m_rate": (
+            sum(1 for value in returns_5m if value > 0) / len(returns_5m)
+            if returns_5m
+            else None
+        ),
+    }
+
+
+def summarize_trader_consistency(samples):
+    """Estabilidad del acierto entre la primera y la segunda mitad."""
+    total = len(samples)
+    half = total // 2
+
+    if (
+        total < TRADER_PROFILE_MIN_HALF_SAMPLES * 2
+        or half < TRADER_PROFILE_MIN_HALF_SAMPLES
+    ):
+        return {
+            "available": False,
+            "reason": (
+                "half_samples "
+                f"{half}/{TRADER_PROFILE_MIN_HALF_SAMPLES}"
+            ),
+            "first_half_rate": None,
+            "second_half_rate": None,
+            "stability": None,
+        }
+
+    ordered = sorted(samples, key=lambda sample: sample["signal_ts"])
+    first_half = ordered[:half]
+    second_half = ordered[total - half:]
+
+    first_rate = sum(
+        1 for sample in first_half if sample["tp25_first"]
+    ) / len(first_half)
+
+    second_rate = sum(
+        1 for sample in second_half if sample["tp25_first"]
+    ) / len(second_half)
+
+    return {
+        "available": True,
+        "reason": None,
+        "first_half_rate": first_rate,
+        "second_half_rate": second_rate,
+        "stability": 1 - abs(first_rate - second_rate),
+    }
+
+
+def get_trader_activity_concentration(trader, connection=None):
+    """Concentración de actividad entre tokens (Herfindahl)."""
+    conn = connection or db()
+
+    try:
+        rows = conn.execute(
+            """
+            SELECT mint, COUNT(*)
+            FROM trades
+            WHERE trader = ?
+            AND source = 'live'
+            AND mint IS NOT NULL
+            AND mint != ''
+            GROUP BY mint
+            """,
+            (trader,),
+        ).fetchall()
+    finally:
+        if connection is None:
+            conn.close()
+
+    counts = [int(row[1] or 0) for row in rows if int(row[1] or 0) > 0]
+    total = sum(counts)
+
+    if total <= 0 or not counts:
+        return {
+            "available": False,
+            "distinct_tokens": 0,
+            "events": 0,
+            "hhi": None,
+            "effective_tokens": None,
+        }
+
+    hhi = sum((count / total) ** 2 for count in counts)
+
+    return {
+        "available": True,
+        "distinct_tokens": len(counts),
+        "events": total,
+        "hhi": hhi,
+        "effective_tokens": 1 / hhi if hhi > 0 else None,
+    }
+
+
+def summarize_trader_recency(samples, now=None):
+    """Peso de la evidencia según cuán reciente es."""
+    if not samples:
+        return {
+            "available": False,
+            "last_signal_ts": None,
+            "last_signal_age_days": None,
+            "recency_weighted_samples": None,
+            "recency_ratio": None,
+        }
+
+    now = float(now if now is not None else time.time())
+    half_life_seconds = TRADER_PROFILE_RECENCY_HALFLIFE_DAYS * 86400
+
+    weighted = 0.0
+
+    for sample in samples:
+        age_seconds = max(0.0, now - sample["signal_ts"])
+        weighted += 0.5 ** (age_seconds / half_life_seconds)
+
+    last_signal_ts = max(sample["signal_ts"] for sample in samples)
+
+    return {
+        "available": True,
+        "last_signal_ts": last_signal_ts,
+        "last_signal_age_days": max(
+            0.0,
+            (now - last_signal_ts) / 86400,
+        ),
+        "recency_weighted_samples": weighted,
+        "recency_ratio": weighted / len(samples),
+    }
+
+
+def summarize_trader_exit_quality(cycle_data):
+    """Comportamiento de ventas. PnL absoluto queda no disponible.
+
+    Los campos token_amount y new_token_balance no permiten reconstruir el
+    tamaño real de la posición (los eventos 'create' no traen cantidad y un
+    balance 0 es indistinguible de un campo ausente), así que se reporta la
+    salida en términos de market cap relativo a la entrada y el PnL absoluto
+    se marca explícitamente como no disponible.
+    """
+    cycles = cycle_data["cycles"]
+    total = len(cycles)
+
+    base = {
+        "cycles": total,
+        "skipped_mid_life": cycle_data["skipped_mid_life"],
+        "skipped_no_entry_price": cycle_data["skipped_no_entry_price"],
+        "confirmed_closures": sum(
+            1 for cycle in cycles if cycle["closure_confirmed"]
+        ),
+        "realized_pnl_available": False,
+        "realized_pnl_reason": "POSITION_SIZE_NOT_RECONSTRUCTABLE",
+    }
+
+    if total < TRADER_PROFILE_MIN_CYCLES:
+        base.update({
+            "available": False,
+            "reason": f"cycles {total}/{TRADER_PROFILE_MIN_CYCLES}",
+            "avg_exit_ratio": None,
+            "median_exit_ratio": None,
+            "positive_exit_rate": None,
+            "partial_exit_rate": None,
+        })
+
+        return base
+
+    exit_ratios = [cycle["exit_ratio"] for cycle in cycles]
+
+    base.update({
+        "available": True,
+        "reason": None,
+        "avg_exit_ratio": sum(exit_ratios) / total,
+        "median_exit_ratio": statistics.median(exit_ratios),
+        "positive_exit_rate": sum(
+            1 for ratio in exit_ratios if ratio > 0
+        ) / total,
+        "partial_exit_rate": sum(
+            1 for cycle in cycles if cycle["sell_events"] > 1
+        ) / total,
+    })
+
+    return base
+
+
+def summarize_trader_evidence(entry_quality, exit_quality, concentration):
+    """Cantidad de evidencia y confianza asociada."""
+    samples = int(entry_quality["samples"] or 0)
+    interval = entry_quality["interval"]
+    width = interval["width"] if interval else None
+
+    if samples < TRADER_QUALITY_MIN_SAMPLES:
+        label = "insuficiente"
+    elif width is not None and width <= 0.20:
+        label = "alta"
+    elif width is not None and width <= 0.35:
+        label = "media"
+    else:
+        label = "baja"
+
+    return {
+        "entry_samples": samples,
+        "exit_cycles": int(exit_quality["cycles"] or 0),
+        "distinct_tokens": int(concentration["distinct_tokens"] or 0),
+        "minimum_entry_samples": TRADER_QUALITY_MIN_SAMPLES,
+        "minimum_exit_cycles": TRADER_PROFILE_MIN_CYCLES,
+        "interval_width": width,
+        "confidence": label,
+        "sufficient_evidence": samples >= TRADER_QUALITY_MIN_SAMPLES,
+    }
+
+
+def calculate_trader_profile_score(
+    entry_quality,
+    returns,
+    exit_quality,
+    consistency,
+    concentration,
+    recency,
+    copyability,
+):
+    """Score integral 0-100. None cuando no hay evidencia suficiente.
+
+    Cada componente aporta solo si está disponible y los pesos se
+    renormalizan sobre los componentes presentes, para que un dato faltante
+    no se cuente como un cero.
+    """
+    components = {}
+
+    if entry_quality["posterior_rate"] is not None:
+        components["entry_quality"] = entry_quality["posterior_rate"]
+
+    if returns["positive_5m_rate"] is not None:
+        components["returns"] = returns["positive_5m_rate"]
+
+    if exit_quality["available"]:
+        # Un ratio de salida de +50% o más satura el componente.
+        components["exit_quality"] = max(
+            0.0,
+            min(1.0, (exit_quality["avg_exit_ratio"] + 0.5) / 1.0),
+        )
+
+    if consistency["available"]:
+        components["consistency"] = max(
+            0.0,
+            min(1.0, consistency["stability"]),
+        )
+
+    if concentration["available"] and concentration["hhi"] is not None:
+        components["diversification"] = max(
+            0.0,
+            min(1.0, 1 - concentration["hhi"]),
+        )
+
+    if recency["available"] and recency["recency_ratio"] is not None:
+        components["recency"] = max(
+            0.0,
+            min(1.0, recency["recency_ratio"]),
+        )
+
+    if copyability["rate"] is not None:
+        components["copyability"] = copyability["rate"]
+
+    if not components:
+        return {
+            "score": None,
+            "components": {},
+            "weights_used": {},
+        }
+
+    total_weight = sum(
+        TRADER_PROFILE_WEIGHTS[name]
+        for name in components
+    )
+
+    if total_weight <= 0:
+        return {
+            "score": None,
+            "components": components,
+            "weights_used": {},
+        }
+
+    weights_used = {
+        name: TRADER_PROFILE_WEIGHTS[name] / total_weight
+        for name in components
+    }
+
+    score = sum(
+        components[name] * weights_used[name]
+        for name in components
+    ) * 100
+
+    return {
+        "score": score,
+        "components": components,
+        "weights_used": weights_used,
+    }
+
+
+def summarize_trader_copyability(samples):
+    """Qué proporción de señales quedó realmente observable a 5 minutos."""
+    total = len(samples)
+
+    if total == 0:
+        return {"samples": 0, "observable": 0, "rate": None}
+
+    observable = sum(
+        1 for sample in samples if sample["return_5m"] is not None
+    )
+
+    return {
+        "samples": total,
+        "observable": observable,
+        "rate": observable / total,
+    }
+
+
+def get_trader_quality_profile(trader, now=None, connection=None):
+    """Perfil integral y observacional de un trader.
+
+    No influye en score_trader(), decision_from_score() ni en ninguna ruta
+    de ejecución: es material de revisión.
+    """
+    trader = str(trader or "").strip()
+
+    conn = connection or db()
+
+    try:
+        samples = get_trader_entry_samples(trader, connection=conn)
+        cycle_data = get_trader_exit_cycles(trader, connection=conn)
+        concentration = get_trader_activity_concentration(
+            trader,
+            connection=conn,
+        )
+    finally:
+        if connection is None:
+            conn.close()
+
+    entry_quality = summarize_trader_entry_quality(samples)
+    returns = summarize_trader_returns(samples)
+    consistency = summarize_trader_consistency(samples)
+    recency = summarize_trader_recency(samples, now=now)
+    exit_quality = summarize_trader_exit_quality(cycle_data)
+    copyability = summarize_trader_copyability(samples)
+    evidence = summarize_trader_evidence(
+        entry_quality,
+        exit_quality,
+        concentration,
+    )
+
+    scored = calculate_trader_profile_score(
+        entry_quality,
+        returns,
+        exit_quality,
+        consistency,
+        concentration,
+        recency,
+        copyability,
+    )
+
+    rated = bool(
+        evidence["sufficient_evidence"]
+        and scored["score"] is not None
+    )
+
+    return {
+        "trader": trader,
+        "observational": True,
+        "affects_decisions": False,
+        "rated": rated,
+        "score": scored["score"] if rated else None,
+        "label": (
+            None
+            if rated
+            else TRADER_PROFILE_UNRATED_LABEL
+        ),
+        "score_components": scored["components"],
+        "score_weights": scored["weights_used"],
+        "entry_quality": entry_quality,
+        "copyability": copyability,
+        "returns": returns,
+        "consistency": consistency,
+        "concentration": concentration,
+        "recency": recency,
+        "exit_quality": exit_quality,
+        "evidence": evidence,
+    }
+
+
+def get_trader_quality_profiles(now=None):
+    """Perfil integral de cada trader vigilado."""
+    conn = db()
+
+    try:
+        return [
+            get_trader_quality_profile(
+                trader,
+                now=now,
+                connection=conn,
+            )
+            for trader in WATCHED.keys()
+        ]
+    finally:
+        conn.close()
+
 
 def get_signal_first_hit(outcome_id):
     conn = db()
@@ -7024,6 +7883,19 @@ def maybe_execute_live_copy(
             **model_approval,
         }
 
+    # El dinero real solo sigue a traders efectivamente medidos. Un trader
+    # sin evidencia suficiente puntúa cerca del neutral, pero eso es un prior,
+    # no una medición: en papel se lo sigue observando para acumular
+    # evidencia, en real no se lo copia hasta que esté calificado.
+    trader_quality = get_trader_quality_assessment(trader)
+    if not trader_quality["rated"]:
+        return {
+            "attempted": False,
+            "reason": "LIVE_TRADER_NOT_RATED",
+            "trader_samples": trader_quality["samples"],
+            "minimum_samples": TRADER_QUALITY_MIN_SAMPLES,
+        }
+
     readiness = get_live_execution_readiness("buy")
     if not readiness["ready"]:
         return {
@@ -8131,6 +9003,28 @@ def save_trade(
     )
 
 
+    if source == "live" and wallet:
+        conn.execute(
+            """
+            INSERT INTO watched_wallet_activity(
+                wallet,
+                trader,
+                last_event_ts,
+                events
+            )
+            VALUES(?,?,?,1)
+            ON CONFLICT(wallet) DO UPDATE SET
+                trader = excluded.trader,
+                last_event_ts = excluded.last_event_ts,
+                events = watched_wallet_activity.events + 1
+            """,
+            (
+                wallet,
+                trader,
+                time.time(),
+            )
+        )
+
     conn.commit()
     conn.close()
 
@@ -8467,6 +9361,133 @@ async def pumpportal_balance_monitor():
         await asyncio.sleep(PUMPPORTAL_BALANCE_CHECK_SECONDS)
 
 
+def get_watched_wallet_activity():
+    """Estado de entrega de cada wallet vigilada.
+
+    Una wallet puede dejar de entregar eventos mientras el stream sigue
+    conectado y otras wallets siguen llegando. Sin esta vista, ese caso es
+    indistinguible de que el trader simplemente no esté operando.
+    """
+    conn = db()
+
+    rows = conn.execute(
+        """
+        SELECT wallet, trader, last_event_ts, events
+        FROM watched_wallet_activity
+        """
+    ).fetchall()
+
+    conn.close()
+
+    by_wallet = {
+        str(row[0]): {
+            "trader": row[1],
+            "last_event_ts": float(row[2] or 0),
+            "events": int(row[3] or 0),
+        }
+        for row in rows
+    }
+
+    now = time.time()
+    result = []
+
+    for trader, wallet in WATCHED.items():
+        record = by_wallet.get(wallet)
+        last_event_ts = record["last_event_ts"] if record else None
+        age = (
+            now - last_event_ts
+            if last_event_ts
+            else None
+        )
+
+        result.append({
+            "trader": trader,
+            "wallet": wallet,
+            "events": record["events"] if record else 0,
+            "last_event_ts": last_event_ts,
+            "age_seconds": age,
+            "age_hours": round(age / 3600, 2) if age is not None else None,
+            "never_seen": last_event_ts is None,
+            "silent": (
+                age is None
+                or age >= WATCHED_WALLET_SILENCE_SECONDS
+            ),
+        })
+
+    result.sort(
+        key=lambda item: (
+            item["last_event_ts"] is not None,
+            item["last_event_ts"] or 0,
+        )
+    )
+
+    return result
+
+
+async def check_watched_wallet_silence():
+    """Avisa cuando una wallet vigilada deja de entregar con el stream sano.
+
+    Solo se evalúa con el stream conectado: si el stream está caído, la alerta
+    correcta es la del stream y no una por cada wallet.
+    """
+    if not STREAM_CONNECTED:
+        return []
+
+    activity = get_watched_wallet_activity()
+    newly_silent = []
+    recovered = []
+
+    for item in activity:
+        wallet = item["wallet"]
+
+        if item["silent"]:
+            if wallet not in WATCHED_WALLET_ALERTS:
+                WATCHED_WALLET_ALERTS.add(wallet)
+                newly_silent.append(item)
+        elif wallet in WATCHED_WALLET_ALERTS:
+            WATCHED_WALLET_ALERTS.discard(wallet)
+            recovered.append(item)
+
+    if DISCORD_ALERT_WEBHOOK_URL and newly_silent:
+        detail = "\n".join(
+            (
+                f"- @{item['trader']}: nunca entregó eventos"
+                if item["never_seen"]
+                else (
+                    f"- @{item['trader']}: sin eventos hace "
+                    f"{item['age_hours']:.1f}h"
+                )
+            )
+            for item in newly_silent
+        )
+
+        await send_discord_alert(
+            "Pump Copilot: wallets vigiladas sin entregar datos "
+            "(el stream sigue conectado).\n"
+            f"{detail}\n"
+            "Revisar la suscripción de esas cuentas en PumpPortal."
+        )
+
+    if DISCORD_ALERT_WEBHOOK_URL and recovered:
+        detail = ", ".join(f"@{item['trader']}" for item in recovered)
+
+        await send_discord_alert(
+            f"Pump Copilot: volvieron a entregar datos: {detail}"
+        )
+
+    return newly_silent
+
+
+async def watched_wallet_monitor():
+    while True:
+        try:
+            await check_watched_wallet_silence()
+        except Exception as ex:
+            print("[WALLET MONITOR ERROR]", repr(ex))
+
+        await asyncio.sleep(WATCHED_WALLET_CHECK_SECONDS)
+
+
 async def mark_stream_problem(reason, immediate=False):
     global STREAM_CONNECTED
     global STREAM_LAST_ERROR
@@ -8569,6 +9590,8 @@ async def stream():
                     json.dumps(account_payload)
                 )
 
+                last_account_subscription_ts = time.time()
+
 
                 # =========================================
                 # SUSCRIBIR TOKENS PAPER YA ABIERTOS
@@ -8658,6 +9681,27 @@ async def stream():
 
                         
 
+                    # Reafirmar la suscripción de cuentas: si el proveedor la
+                    # descartó en silencio, esto la recupera sin necesidad de
+                    # que se caiga la conexión.
+                    if (
+                        time.time() - last_account_subscription_ts
+                        >= WATCHED_RESUBSCRIBE_SECONDS
+                    ):
+                        await websocket.send(
+                            json.dumps({
+                                "method": "subscribeAccountTrade",
+                                "keys": list(WATCHED.values())
+                            })
+                        )
+
+                        last_account_subscription_ts = time.time()
+
+                        print(
+                            f"[STREAM] Suscripción de cuentas reafirmada "
+                            f"({len(WATCHED)} wallets)"
+                        )
+
                     if FORCE_STREAM_ERROR:
                         FORCE_STREAM_ERROR = False
                         raise RuntimeError(
@@ -8707,6 +9751,11 @@ async def stream():
                         LAST_PUMPPORTAL_MESSAGE = (
                             provider_message[:500]
                         )
+
+                        PUMPPORTAL_MESSAGE_LOG.append({
+                            "ts": time.time(),
+                            "message": provider_message[:500],
+                        })
 
                         print(
                             "[PUMPPORTAL]",
@@ -9037,6 +10086,10 @@ async def startup():
 
     asyncio.create_task(
         signal_outcome_checkpoint_worker()
+    )
+
+    asyncio.create_task(
+        watched_wallet_monitor()
     )
 # =========================================================
 # AUTENTICACIÓN
@@ -10058,6 +11111,25 @@ def trader_stats(
                 "quality_target_rate_pct":
                     quality["target_rate_pct"],
 
+                # Mientras no haya evidencia suficiente el valor neutral es
+                # solo un prior interno: hacia afuera se muestra sin nota.
+                "quality_rated":
+                    bool(quality["ready_for_review"]),
+
+                "quality_display":
+                    (
+                        quality["effective_quality"]
+                        if quality["ready_for_review"]
+                        else TRADER_PROFILE_UNRATED_LABEL
+                    ),
+
+                "quality_label":
+                    (
+                        None
+                        if quality["ready_for_review"]
+                        else TRADER_PROFILE_UNRATED_LABEL
+                    ),
+
             }
         )
 
@@ -10065,6 +11137,56 @@ def trader_stats(
     conn.close()
 
     return result
+
+
+@app.get("/api/watched-wallets")
+def api_watched_wallets(
+    x_app_token: str = Header(default="")
+):
+    """Entrega de datos por wallet vigilada: detecta silencios individuales."""
+
+    auth(x_app_token)
+
+    activity = get_watched_wallet_activity()
+
+    return {
+        "stream_connected": bool(STREAM_CONNECTED),
+        "silence_threshold_hours": round(
+            WATCHED_WALLET_SILENCE_SECONDS / 3600,
+            2
+        ),
+        "resubscribe_minutes": round(
+            WATCHED_RESUBSCRIBE_SECONDS / 60,
+            1
+        ),
+        "watched": len(WATCHED),
+        "silent": sum(1 for item in activity if item["silent"]),
+        "never_seen": sum(1 for item in activity if item["never_seen"]),
+        "wallets": activity,
+        # Permite ver qué contestó PumpPortal al suscribir cuentas, que antes
+        # se perdía en cuanto llegaba cualquier otro mensaje.
+        "provider_messages": list(PUMPPORTAL_MESSAGE_LOG),
+    }
+
+
+@app.get("/api/trader-quality-profile")
+def api_trader_quality_profile(
+    x_app_token: str = Header(default="")
+):
+    """Perfil integral de calidad. Observacional: no mueve dinero ni decide."""
+
+    auth(x_app_token)
+
+    return {
+        "observational": True,
+        "affects_decisions": False,
+        "unrated_label": TRADER_PROFILE_UNRATED_LABEL,
+        "minimum_entry_samples": TRADER_QUALITY_MIN_SAMPLES,
+        "minimum_exit_cycles": TRADER_PROFILE_MIN_CYCLES,
+        "recency_half_life_days": TRADER_PROFILE_RECENCY_HALFLIFE_DAYS,
+        "weights": TRADER_PROFILE_WEIGHTS,
+        "traders": get_trader_quality_profiles(),
+    }
 
 @app.get("/api/training-stats")
 def api_training_stats():

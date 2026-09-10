@@ -15,3 +15,6 @@ graphify-out/memory/
 graphify-out/.graphify_*
 graphify-out/.vocab.txt
 graphify-out/20??-??-??/
+
+# Obsidian vault config (local to each machine)
+.obsidian/

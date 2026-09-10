@@ -791,6 +791,14 @@ class LiveCopyDispatchTests(unittest.TestCase):
             "predicted_target": 1,
         }
 
+    def rated_quality(self, rated=True, samples=40):
+        return {
+            "trader": "marcell",
+            "rated": rated,
+            "samples": samples,
+            "effective_quality": 22,
+        }
+
     def test_non_live_copy_never_reaches_live_executor(self):
         with patch.object(
             app,
@@ -854,6 +862,10 @@ class LiveCopyDispatchTests(unittest.TestCase):
         blockers = ["LIVE_EXECUTION_NOT_IMPLEMENTED"]
         with patch.object(app, "SHADOW_MODEL", self.approved_model()), patch.object(
             app,
+            "get_trader_quality_assessment",
+            return_value=self.rated_quality(),
+        ), patch.object(
+            app,
             "get_live_execution_readiness",
             return_value={"ready": False, "blockers": blockers},
         ), patch.object(
@@ -878,6 +890,10 @@ class LiveCopyDispatchTests(unittest.TestCase):
 
     def test_ready_copy_dispatches_idempotent_live_buy(self):
         with patch.object(app, "SHADOW_MODEL", self.approved_model()), patch.object(
+            app,
+            "get_trader_quality_assessment",
+            return_value=self.rated_quality(),
+        ), patch.object(
             app,
             "LIVE_BUY_USD",
             2.0,
@@ -919,6 +935,72 @@ class LiveCopyDispatchTests(unittest.TestCase):
             origin_trader="marcell",
         )
 
+    def test_unrated_trader_never_reaches_live_executor(self):
+        # Un trader sin evidencia suficiente puntúa cerca del neutral, pero
+        # eso es un prior, no una medición: en real no se lo copia.
+        with patch.object(
+            app,
+            "SHADOW_MODEL",
+            self.approved_model(),
+        ), patch.object(
+            app,
+            "get_trader_quality_assessment",
+            return_value=self.rated_quality(rated=False, samples=3),
+        ), patch.object(
+            app,
+            "get_live_execution_readiness",
+        ) as readiness, patch.object(
+            app,
+            "execute_pumpportal_lightning_buy",
+        ) as execute:
+            result = app.maybe_execute_live_copy(
+                signal_id=123,
+                decision="COPY",
+                trader="marcell",
+                event=self.live_signal(),
+                source="live",
+                price_at_signal=0.0001,
+                market_cap=100.0,
+                model_prediction=self.positive_prediction(),
+            )
+
+        self.assertFalse(result["attempted"])
+        self.assertEqual(result["reason"], "LIVE_TRADER_NOT_RATED")
+        self.assertEqual(result["trader_samples"], 3)
+        readiness.assert_not_called()
+        execute.assert_not_called()
+
+    def test_unrated_trader_still_opens_paper_positions(self):
+        # El aprendizaje en papel debe seguir para poder acumular evidencia
+        # sobre traders todavía sin calificar.
+        event = {
+            "mint": "DEMO-UNRATED-PAPER",
+            "signature": "unrated-paper-signature",
+            "solAmount": 1.0,
+            "marketCapSol": 100.0,
+        }
+
+        with tempfile.TemporaryDirectory() as temp_dir, patch.object(
+            app,
+            "DB",
+            Path(temp_dir) / "unrated.db",
+        ), patch.object(app, "score_trader", return_value=30), patch.object(
+            app, "score_timing", return_value=20,
+        ), patch.object(app, "score_trade_size", return_value=15), patch.object(
+            app, "score_token_structure", return_value=15,
+        ), patch.object(app, "score_consensus", return_value=10), patch.object(
+            app, "score_market_context", return_value=10,
+        ), patch.object(app, "OBSERVE_TRADERS", set()), patch.object(
+            app, "open_paper_position",
+        ) as open_position:
+            app.migrate_database()
+
+            result = app.evaluate_buy("unmeasured-trader", event, "live")
+
+        self.assertEqual(result["decision"], "COPY")
+        open_position.assert_called_once()
+        self.assertFalse(result["live_execution"]["attempted"])
+
     def test_ready_copy_requires_valid_price_and_liquidity(self):
         cases = (
             (0.0, 20.0, "LIVE_SIGNAL_PRICE_INVALID"),
@@ -932,6 +1014,10 @@ class LiveCopyDispatchTests(unittest.TestCase):
                 app,
                 "SHADOW_MODEL",
                 self.approved_model(),
+            ), patch.object(
+                app,
+                "get_trader_quality_assessment",
+                return_value=self.rated_quality(),
             ), patch.object(
                 app,
                 "get_live_execution_readiness",
