@@ -376,5 +376,134 @@ class RpcFallbackPersistenceTests(unittest.TestCase):
         self.assertEqual(state["last_error"], "SIGNATURE_BACKLOG_REBASED")
 
 
+class RpcFallbackBaselineTests(unittest.TestCase):
+    """La línea de base decide qué observaciones cuentan como evidencia.
+
+    Un fallo de red dejó wallets sin punto de partida válido y el monitor se
+    trajo historial de hasta 19 días, que quedó contado como `missing` sin
+    serlo. La línea de base existe para que eso no vuelva a pasar.
+    """
+
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.original_db = app.DB
+        app.DB = Path(self.temp_dir.name) / "rpc-baseline.db"
+        app.migrate_database()
+
+    def tearDown(self):
+        app.DB = self.original_db
+        self.temp_dir.cleanup()
+
+    def parsed(self):
+        return parse_watched_wallet_pump_events(
+            pump_receipt(), WALLET, SIGNATURE
+        )[0]
+
+    def set_baseline(self, baseline_ts):
+        app.update_rpc_fallback_wallet_state(WALLET, "trader-a")
+        conn = app.db()
+        conn.execute(
+            "UPDATE rpc_fallback_wallet_state SET baseline_ts = ? "
+            "WHERE wallet = ?",
+            (baseline_ts, WALLET),
+        )
+        conn.commit()
+        conn.close()
+
+    def event_status(self):
+        conn = app.db()
+        row = conn.execute(
+            "SELECT status FROM rpc_fallback_events WHERE signature = ?",
+            (SIGNATURE,),
+        ).fetchone()
+        conn.close()
+        return row[0] if row else None
+
+    def insert_trade(self, ts, signature, side="buy"):
+        conn = app.db()
+        conn.execute(
+            """
+            INSERT INTO trades(
+                ts, trader, wallet, side, mint, sol,
+                market_cap_sol, signature, source
+            ) VALUES(?,?,?,?,?,?,?,?,?)
+            """,
+            (ts, "trader-a", WALLET, side, MINT, 2.5, 200.0,
+             signature, "live"),
+        )
+        conn.commit()
+        conn.close()
+
+    def test_event_older_than_baseline_is_discarded_not_missing(self):
+        # El recibo de prueba es del instante 1_700_000_000; la línea de base
+        # se fija después, así que esa operación precede a la observación.
+        self.set_baseline(1_700_000_500)
+        app.record_rpc_fallback_event(
+            "trader-a", WALLET, pump_receipt(), self.parsed()
+        )
+
+        with patch.object(app, "RPC_FALLBACK_GRACE_SECONDS", 0):
+            missing = app.reconcile_rpc_fallback_events()
+
+        self.assertEqual(missing, [])
+        self.assertEqual(self.event_status(), "discarded_prebaseline")
+        self.assertEqual(app.get_rpc_fallback_stats()["missing"], 0)
+
+    def test_event_after_baseline_still_counts_as_missing(self):
+        # Contrapeso del test anterior: la guarda no debe descartar de más.
+        self.set_baseline(1_699_999_000)
+        app.record_rpc_fallback_event(
+            "trader-a", WALLET, pump_receipt(), self.parsed()
+        )
+
+        with patch.object(app, "RPC_FALLBACK_GRACE_SECONDS", 0):
+            missing = app.reconcile_rpc_fallback_events()
+
+        self.assertEqual(len(missing), 1)
+        self.assertEqual(self.event_status(), "missing")
+
+    def test_discarded_event_never_becomes_matched(self):
+        # El descarte es terminal: si volviera a clasificarse como matched,
+        # la evidencia contaminada reaparecería en las métricas.
+        self.set_baseline(1_700_000_500)
+        app.record_rpc_fallback_event(
+            "trader-a", WALLET, pump_receipt(), self.parsed()
+        )
+        with patch.object(app, "RPC_FALLBACK_GRACE_SECONDS", 0):
+            app.reconcile_rpc_fallback_events()
+        self.assertEqual(self.event_status(), "discarded_prebaseline")
+
+        self.insert_trade(1_700_000_000, SIGNATURE)
+
+        with patch.object(app, "RPC_FALLBACK_GRACE_SECONDS", 0):
+            app.reconcile_rpc_fallback_events()
+
+        self.assertEqual(self.event_status(), "discarded_prebaseline")
+        stats = app.get_rpc_fallback_stats()
+        self.assertEqual(stats["matched"], 0)
+        self.assertEqual(stats["missing"], 0)
+
+    def test_approximate_matches_counts_events_not_pairs(self):
+        # Con una tolerancia de ±300s una observación puede emparejar con
+        # varias operaciones del stream sobre el mismo token. Lo que se mide
+        # es cuántos eventos tienen equivalente, no cuántos pares hay.
+        self.set_baseline(1_699_999_000)
+        app.record_rpc_fallback_event(
+            "trader-a", WALLET, pump_receipt(), self.parsed()
+        )
+        with patch.object(app, "RPC_FALLBACK_GRACE_SECONDS", 0):
+            app.reconcile_rpc_fallback_events()
+        self.assertEqual(self.event_status(), "missing")
+
+        self.insert_trade(1_700_000_010, "5" * 88)
+        self.insert_trade(1_700_000_120, "6" * 88)
+
+        stats = app.get_rpc_fallback_stats()
+
+        self.assertEqual(stats["missing"], 1)
+        self.assertEqual(stats["approximate_matches"], 1)
+        self.assertTrue(stats["missing_events"][0]["approximate_match"])
+
+
 if __name__ == "__main__":
     unittest.main()

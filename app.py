@@ -4347,10 +4347,17 @@ def migrate_database():
             last_signature TEXT,
             last_slot INTEGER,
             last_polled_ts REAL,
+            baseline_ts REAL,
             last_error TEXT DEFAULT ''
         )
         """
     )
+
+    try:
+        conn.execute("ALTER TABLE rpc_fallback_wallet_state ADD COLUMN baseline_ts REAL")
+    except Exception:
+        pass
+    conn.execute("UPDATE rpc_fallback_wallet_state SET baseline_ts = COALESCE(baseline_ts, ?)", (time.time(),))
 
     conn.execute(
         """
@@ -9583,7 +9590,7 @@ def get_rpc_fallback_wallet_states():
         """
         SELECT
             wallet, trader, last_signature, last_slot,
-            last_polled_ts, last_error
+            last_polled_ts, baseline_ts, last_error
         FROM rpc_fallback_wallet_state
         """
     ).fetchall()
@@ -9595,7 +9602,8 @@ def get_rpc_fallback_wallet_states():
             "last_signature": row[2],
             "last_slot": row[3],
             "last_polled_ts": row[4],
-            "last_error": row[5] or "",
+            "baseline_ts": row[5],
+            "last_error": row[6] or "",
         }
         for row in rows
     }
@@ -9613,9 +9621,9 @@ def update_rpc_fallback_wallet_state(
         """
         INSERT INTO rpc_fallback_wallet_state(
             wallet, trader, last_signature, last_slot,
-            last_polled_ts, last_error
+            last_polled_ts, baseline_ts, last_error
         )
-        VALUES(?,?,?,?,?,?)
+        VALUES(?,?,?,?,?,?,?)
         ON CONFLICT(wallet) DO UPDATE SET
             trader = excluded.trader,
             last_signature = COALESCE(
@@ -9627,6 +9635,7 @@ def update_rpc_fallback_wallet_state(
                 rpc_fallback_wallet_state.last_slot
             ),
             last_polled_ts = excluded.last_polled_ts,
+            baseline_ts = COALESCE(rpc_fallback_wallet_state.baseline_ts, excluded.baseline_ts),
             last_error = excluded.last_error
         """,
         (
@@ -9634,6 +9643,7 @@ def update_rpc_fallback_wallet_state(
             trader,
             last_signature,
             last_slot,
+            time.time(),
             time.time(),
             str(last_error or "")[:500],
         ),
@@ -9693,8 +9703,20 @@ def reconcile_rpc_fallback_events(now=None):
     conn.execute(
         """
         UPDATE rpc_fallback_events
+        SET status = 'discarded_prebaseline'
+        WHERE status IN ('pending', 'missing')
+          AND block_time IS NOT NULL
+          AND block_time < COALESCE((
+              SELECT baseline_ts FROM rpc_fallback_wallet_state
+              WHERE wallet = rpc_fallback_events.wallet
+          ), 0)
+        """
+    )
+    conn.execute(
+        """
+        UPDATE rpc_fallback_events
         SET status = 'matched'
-        WHERE status != 'matched'
+        WHERE status NOT IN ('matched', 'discarded_prebaseline')
         AND EXISTS(
             SELECT 1 FROM trades
             WHERE trades.signature = rpc_fallback_events.signature
@@ -9972,9 +9994,28 @@ def get_rpc_fallback_stats():
         AND stream.mint = rpc.mint
         """
     ).fetchone()[0]
+    # DISTINCT por evento: con una tolerancia de ±300s una misma observación
+    # puede emparejar con varias operaciones del stream sobre el mismo token,
+    # y el JOIN las contaría una vez por coincidencia. Lo que se quiere medir
+    # es cuántos eventos tienen equivalente aproximado, no cuántos pares hay.
+    approximate_matches = conn.execute(
+        """
+        SELECT COUNT(DISTINCT rpc.id) FROM rpc_fallback_events AS rpc
+        JOIN trades AS stream ON stream.wallet = rpc.wallet
+          AND stream.mint = rpc.mint
+          AND LOWER(stream.side) = LOWER(rpc.side)
+          AND ABS(stream.ts - rpc.block_time) <= 300
+        WHERE rpc.status = 'missing'
+        """
+    ).fetchone()[0]
     missing_rows = conn.execute(
         """
-        SELECT trader, signature, side, mint, pool, block_time, detected_ts
+        SELECT trader, signature, side, mint, pool, block_time, detected_ts,
+               EXISTS(SELECT 1 FROM trades AS stream
+                      WHERE stream.wallet = rpc_fallback_events.wallet
+                        AND stream.mint = rpc_fallback_events.mint
+                        AND LOWER(stream.side) = LOWER(rpc_fallback_events.side)
+                        AND ABS(stream.ts - rpc_fallback_events.block_time) <= 300)
         FROM rpc_fallback_events
         WHERE status = 'missing'
         ORDER BY detected_ts DESC
@@ -9984,7 +10025,7 @@ def get_rpc_fallback_stats():
     state_rows = conn.execute(
         """
         SELECT trader, wallet, last_signature, last_slot,
-               last_polled_ts, last_error
+               last_polled_ts, baseline_ts, last_error
         FROM rpc_fallback_wallet_state
         ORDER BY trader COLLATE NOCASE
         """
@@ -10009,6 +10050,7 @@ def get_rpc_fallback_stats():
         "matched": matched,
         "missing": counts.get("missing", 0),
         "matched_identity": int(identity_matches or 0),
+        "approximate_matches": int(approximate_matches or 0),
         "identity_match_rate": (
             round(identity_matches / matched, 6) if matched else None
         ),
@@ -10021,6 +10063,7 @@ def get_rpc_fallback_stats():
                 "pool": row[4],
                 "block_time": row[5],
                 "detected_ts": row[6],
+                "approximate_match": bool(row[7]),
             }
             for row in missing_rows
         ],
@@ -10031,7 +10074,8 @@ def get_rpc_fallback_stats():
                 "last_signature": row[2],
                 "last_slot": row[3],
                 "last_polled_ts": row[4],
-                "last_error": row[5] or None,
+                "baseline_ts": row[5],
+                "last_error": row[6] or None,
             }
             for row in state_rows
         ],

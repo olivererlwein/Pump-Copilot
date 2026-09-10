@@ -557,3 +557,36 @@ endpoint público de Solana, y la latencia sería mayor que la del stream
 
 Alternativa previa: reclamarle a PumpPortal con esta evidencia, que es
 concreta y reproducible.
+
+## Monitor RPC fallback — baseline y diagnóstico (2026-09-10)
+
+- `rpc_fallback_wallet_state` ahora conserva `baseline_ts`, independiente de `last_polled_ts`. La migración siembra la línea de base una sola vez para estados existentes; los estados nuevos la fijan al crearse.
+- Los eventos con `block_time` anterior a la línea de base se conservan y pasan a `discarded_prebaseline`; son terminales y no cuentan como `missing`.
+- La reconciliación mantiene el match exacto por firma y expone diagnóstico aproximado por wallet/mint/lado y una ventana de ±5 minutos. Esto ayuda a separar formato de firma de falta real de entrega.
+- `decu` conserva el comportamiento acotado: si el backlog satura el límite, se rebasa al encabezado y no se pagina exhaustivamente.
+- Observación B: la instrumentación existente medía eventos parseados (6/90), pero no separaba transacciones Pump reales de otras transacciones. Este diff agrega el diagnóstico aproximado; queda pendiente medir esa separación con datos de producción, porque la copia local no representa el RPC productivo.
+
+### Revisión y correcciones (Claude, sobre el diff anterior)
+
+- **`approximate_matches` estaba inflado.** La consulta usaba `COUNT(*)` sobre
+  un JOIN: con la tolerancia de ±300 s una misma observación empareja con
+  varias operaciones del stream sobre el mismo token, y cada par sumaba uno.
+  Corregido a `COUNT(DISTINCT rpc.id)` — lo que se mide es cuántos eventos
+  tienen equivalente, no cuántos pares existen. Verificado sobre el mismo
+  dataset: `COUNT(*)` devolvía 2 donde el valor correcto es 1. Importa porque
+  la métrica existe justamente para diagnosticar, y venía sesgada al alza.
+- **Faltaban tests de la lógica nueva.** `baseline_ts` y
+  `discarded_prebaseline` son reglas de corrección de datos que quedaban
+  dependiendo del orden de los UPDATE en `reconcile_rpc_fallback_events()`.
+  Se agregó `RpcFallbackBaselineTests` con cuatro casos:
+  - evento anterior a la línea de base → `discarded_prebaseline`, fuera de `missing`;
+  - evento posterior a la línea de base → sigue contando como `missing` (contrapeso, para que la guarda no descarte de más);
+  - un evento descartado **nunca** vuelve a `matched`, aunque después aparezca su firma en `trades`;
+  - `approximate_matches` cuenta eventos y no pares (bloquea la regresión del punto anterior).
+- Suite completa: **152 tests, OK** con `.venv\Scripts\python.exe`.
+
+Sigue pendiente lo de fondo: **`matched: 0` en producción**. Hasta que aparezca
+al menos un match real (o un `approximate_match`) de una wallet de control, no
+se puede distinguir "PumpPortal pierde todo" de "el comparador no empareja".
+El diagnóstico aproximado que se agregó es justamente lo que permitirá
+separarlos cuando haya datos.
