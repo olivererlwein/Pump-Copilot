@@ -7130,7 +7130,13 @@ def evaluate_buy(
             TRACKED_TOKENS.add(mint)
 
     except sqlite3.IntegrityError:
-        pass
+        conn.close()
+
+        return {
+            "score": score,
+            "decision": decision,
+            "reasons": reasons
+        }
 
     conn.close()
 

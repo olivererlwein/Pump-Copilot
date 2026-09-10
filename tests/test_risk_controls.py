@@ -727,5 +727,52 @@ class PositionConcurrencyTests(unittest.TestCase):
             )
 
 
+class EvaluationIdempotencyTests(unittest.TestCase):
+    def test_duplicate_evaluation_does_not_open_paper_position_twice(self):
+        event = {
+            "mint": "DEMO-DUPLICATE-EVALUATION",
+            "signature": "duplicate-evaluation-signature",
+            "solAmount": 1.0,
+            "marketCapSol": 100.0,
+        }
+
+        with tempfile.TemporaryDirectory() as temp_dir, patch.object(
+            app,
+            "DB",
+            Path(temp_dir) / "evaluation-test.db",
+        ), patch.object(app, "score_trader", return_value=30), patch.object(
+            app,
+            "score_timing",
+            return_value=20,
+        ), patch.object(app, "score_trade_size", return_value=15), patch.object(
+            app,
+            "score_token_structure",
+            return_value=15,
+        ), patch.object(app, "score_consensus", return_value=10), patch.object(
+            app,
+            "score_market_context",
+            return_value=10,
+        ), patch.object(app, "OBSERVE_TRADERS", set()), patch.object(
+            app,
+            "open_paper_position",
+        ) as open_position:
+            app.migrate_database()
+
+            first = app.evaluate_buy("test-trader", event)
+            second = app.evaluate_buy("test-trader", event)
+
+            conn = app.db()
+            evaluation_count = conn.execute(
+                "SELECT COUNT(*) FROM evaluations WHERE trade_signature = ?",
+                (event["signature"],),
+            ).fetchone()[0]
+            conn.close()
+
+        self.assertEqual(first["decision"], "COPY")
+        self.assertEqual(second["decision"], "COPY")
+        self.assertEqual(evaluation_count, 1)
+        open_position.assert_called_once()
+
+
 if __name__ == "__main__":
     unittest.main()
