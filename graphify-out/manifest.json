@@ -6,9 +6,9 @@
     "semantic_hash": "5ebef3dd159986e465ab65e4014107ec"
   },
   "app.py": {
-    "mtime": 1789000175.4476347,
-    "seen": 1789000278.6610663,
-    "ast_hash": "898590010a84623a29aca8352e651cdb",
+    "mtime": 1789014640.159424,
+    "seen": 1789014706.6226876,
+    "ast_hash": "2ea0800670c827fff9454865dd561905",
     "semantic_hash": ""
   },
   "models/baseline_v2_shadow.json": {
@@ -243,6 +243,18 @@
     "mtime": 1789000230.7283266,
     "seen": 1789000278.6610863,
     "ast_hash": "981f075657e92bd722e8430532e24973",
+    "semantic_hash": ""
+  },
+  "tests/test_trader_quality.py": {
+    "mtime": 1789014650.8962545,
+    "seen": 1789014706.6227188,
+    "ast_hash": "03876fae287b189a63ff0c65781e0d34",
+    "semantic_hash": ""
+  },
+  "CLAUDE_NOTES.md": {
+    "mtime": 1789012182.4281697,
+    "seen": 1789014706.6227462,
+    "ast_hash": "776149bb59da3ab10de5dfe5e5548623",
     "semantic_hash": ""
   }
 }

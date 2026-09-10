@@ -125,6 +125,24 @@ TRADER_QUALITY = {
     "supermandev": 18
 }
 
+TRADER_DYNAMIC_QUALITY_ENABLED = os.getenv(
+    "TRADER_DYNAMIC_QUALITY_ENABLED",
+    "false"
+).lower() == "true"
+
+TRADER_QUALITY_MIN_SAMPLES = max(
+    1,
+    int(os.getenv("TRADER_QUALITY_MIN_SAMPLES", "30"))
+)
+
+TRADER_QUALITY_MAX_STEP = max(
+    0,
+    int(os.getenv("TRADER_QUALITY_MAX_STEP", "3"))
+)
+
+TRADER_QUALITY_MIN = 5
+TRADER_QUALITY_MAX = 30
+
 TRUSTED_TRADERS = {
     "marcell",
     "hdegroot",
@@ -4285,13 +4303,145 @@ def trader_for(wallet):
 # =========================================================
 
 def score_trader(trader):
-    if trader in OBSERVE_TRADERS:
-        return 10
+    if not TRADER_DYNAMIC_QUALITY_ENABLED:
+        if trader in OBSERVE_TRADERS:
+            return 10
 
-    return TRADER_QUALITY.get(
+        return TRADER_QUALITY.get(
+            trader,
+            15
+        )
+
+    assessment = get_trader_quality_assessment(
+        trader
+    )
+
+    return assessment["effective_quality"]
+
+def clamp_trader_quality(value):
+    return max(
+        TRADER_QUALITY_MIN,
+        min(
+            TRADER_QUALITY_MAX,
+            int(round(value))
+        )
+    )
+
+def calculate_trader_quality_candidate(base_quality, hit_stats):
+    samples = int(
+        hit_stats.get("samples") or 0
+    )
+
+    if samples < TRADER_QUALITY_MIN_SAMPLES:
+        return {
+            "candidate_quality": base_quality,
+            "ready_for_review": False,
+            "blockers": [
+                (
+                    "samples "
+                    f"{samples}/{TRADER_QUALITY_MIN_SAMPLES}"
+                )
+            ],
+        }
+
+    tp25_rate = float(
+        hit_stats.get("tp25_pct") or 0
+    ) / 100
+
+    tp50_rate = float(
+        hit_stats.get("tp50_pct") or 0
+    ) / 100
+
+    sl10_rate = float(
+        hit_stats.get("sl10_pct") or 0
+    ) / 100
+
+    raw_quality = (
+        12
+        + (tp25_rate * 16)
+        + (tp50_rate * 8)
+        - (sl10_rate * 10)
+    )
+
+    raw_quality = clamp_trader_quality(
+        raw_quality
+    )
+
+    lower_bound = base_quality - TRADER_QUALITY_MAX_STEP
+    upper_bound = base_quality + TRADER_QUALITY_MAX_STEP
+
+    candidate_quality = max(
+        lower_bound,
+        min(
+            upper_bound,
+            raw_quality
+        )
+    )
+
+    return {
+        "candidate_quality": clamp_trader_quality(
+            candidate_quality
+        ),
+        "raw_quality": raw_quality,
+        "ready_for_review": True,
+        "blockers": [],
+    }
+
+def get_trader_quality_assessment(trader):
+    if trader in OBSERVE_TRADERS:
+        return {
+            "trader": trader,
+            "base_quality": 10,
+            "effective_quality": 10,
+            "candidate_quality": 10,
+            "raw_quality": 10,
+            "dynamic_enabled": False,
+            "ready_for_review": False,
+            "blockers": ["observe_only"],
+            "samples": 0,
+            "tp25_pct": 0.0,
+            "tp50_pct": 0.0,
+            "sl10_pct": 0.0,
+        }
+
+    base_quality = TRADER_QUALITY.get(
         trader,
         15
     )
+
+    hit_stats = get_trader_hit_stats(
+        trader
+    )
+
+    candidate = calculate_trader_quality_candidate(
+        base_quality,
+        hit_stats
+    )
+
+    effective_quality = (
+        candidate["candidate_quality"]
+        if TRADER_DYNAMIC_QUALITY_ENABLED
+        and candidate["ready_for_review"]
+        else base_quality
+    )
+
+    return {
+        "trader": trader,
+        "base_quality": base_quality,
+        "effective_quality": effective_quality,
+        "candidate_quality": candidate["candidate_quality"],
+        "raw_quality": candidate.get(
+            "raw_quality",
+            base_quality
+        ),
+        "dynamic_enabled": bool(TRADER_DYNAMIC_QUALITY_ENABLED),
+        "ready_for_review": candidate["ready_for_review"],
+        "blockers": candidate["blockers"],
+        "samples": int(hit_stats.get("samples") or 0),
+        "tp25_pct": float(hit_stats.get("tp25_pct") or 0),
+        "tp50_pct": float(hit_stats.get("tp50_pct") or 0),
+        "sl10_pct": float(hit_stats.get("sl10_pct") or 0),
+    }
 
 def get_trader_copyability_stats(trader):
     conn = db()
@@ -9466,6 +9616,10 @@ def trader_stats(
             else None
         )
 
+        quality = get_trader_quality_assessment(
+            name
+        )
+
         result.append(
             {
 
@@ -9510,10 +9664,37 @@ def trader_stats(
                     ),
 
                 "quality":
-                    TRADER_QUALITY.get(
-                        name,
-                        15
-                    )
+                    quality["base_quality"],
+
+                "effective_quality":
+                    quality["effective_quality"],
+
+                "quality_candidate":
+                    quality["candidate_quality"],
+
+                "quality_raw":
+                    quality["raw_quality"],
+
+                "quality_dynamic_enabled":
+                    quality["dynamic_enabled"],
+
+                "quality_ready_for_review":
+                    quality["ready_for_review"],
+
+                "quality_blockers":
+                    quality["blockers"],
+
+                "quality_samples":
+                    quality["samples"],
+
+                "quality_tp25_pct":
+                    quality["tp25_pct"],
+
+                "quality_tp50_pct":
+                    quality["tp50_pct"],
+
+                "quality_sl10_pct":
+                    quality["sl10_pct"],
 
             }
         )
