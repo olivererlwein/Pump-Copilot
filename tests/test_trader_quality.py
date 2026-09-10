@@ -22,36 +22,35 @@ class TraderQualityCandidateTests(unittest.TestCase):
         trader,
         *,
         samples,
-        tp25_hits=0,
-        tp50_hits=0,
-        sl10_hits=0,
+        target_hits,
+        status="completed",
     ):
         conn = app.db()
-
         rows = []
 
         for index in range(samples):
-            hit_tp25 = 1 if index < tp25_hits else 0
-            hit_tp50 = 1 if index < tp50_hits else 0
-            hit_sl10 = 1 if index < sl10_hits else 0
-            max_return = 30.0 if hit_tp25 else 5.0
-            min_return = -12.0 if hit_sl10 else -2.0
+            signal_ts = 1000.0 + index
+            target_won = index < target_hits
+            tp25_ts = signal_ts + (1.0 if target_won else 2.0)
+            sl10_ts = signal_ts + (2.0 if target_won else 1.0)
 
             rows.append(
                 (
                     index + 1,
                     f"mint-{trader}-{index}",
                     trader,
-                    1000.0 + index,
+                    signal_ts,
                     1.0,
-                    max_return,
-                    min_return,
-                    hit_tp25,
-                    hit_tp50,
-                    hit_sl10,
-                    "completed",
-                    1000.0 + index,
-                    1000.0 + index,
+                    30.0,
+                    -12.0,
+                    1,
+                    0,
+                    1,
+                    tp25_ts,
+                    sl10_ts,
+                    status,
+                    signal_ts,
+                    signal_ts,
                 )
             )
 
@@ -68,91 +67,116 @@ class TraderQualityCandidateTests(unittest.TestCase):
                 hit_tp25,
                 hit_tp50,
                 hit_sl10,
+                tp25_ts,
+                sl10_ts,
                 status,
                 created_ts,
                 updated_ts
             )
-            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """,
             rows,
         )
         conn.commit()
         conn.close()
 
-    def test_waits_for_enough_samples_before_candidate_moves(self):
+    def test_every_trader_starts_from_the_same_neutral_quality(self):
+        with patch.object(app, "TRADER_DYNAMIC_QUALITY_ENABLED", False):
+            self.assertEqual(app.score_trader("marcell"), 15)
+            self.assertEqual(app.score_trader("hdegroot"), 15)
+            self.assertEqual(app.score_trader("new-trader"), 15)
+            self.assertEqual(app.score_trader("ily"), 10)
+
+    def test_waits_for_enough_completed_samples(self):
         self.insert_outcomes(
             "marcell",
             samples=29,
-            tp25_hits=29,
-            tp50_hits=29,
+            target_hits=29,
         )
 
         quality = app.get_trader_quality_assessment("marcell")
 
         self.assertFalse(quality["ready_for_review"])
-        self.assertEqual(quality["base_quality"], 25)
-        self.assertEqual(quality["candidate_quality"], 25)
-        self.assertEqual(quality["effective_quality"], 25)
+        self.assertEqual(quality["base_quality"], 15)
+        self.assertEqual(quality["candidate_quality"], 15)
+        self.assertEqual(quality["effective_quality"], 15)
 
-    def test_strong_history_creates_capped_upgrade_candidate(self):
+    def test_strong_target_history_raises_quality(self):
         self.insert_outcomes(
             "epicsealdarkeye",
             samples=30,
-            tp25_hits=24,
-            tp50_hits=12,
-            sl10_hits=2,
+            target_hits=24,
         )
 
         quality = app.get_trader_quality_assessment("epicsealdarkeye")
 
         self.assertTrue(quality["ready_for_review"])
-        self.assertEqual(quality["base_quality"], 18)
+        self.assertEqual(quality["target_1"], 24)
+        self.assertEqual(quality["target_0"], 6)
+        self.assertEqual(quality["base_quality"], 15)
         self.assertEqual(quality["candidate_quality"], 21)
-        self.assertEqual(quality["effective_quality"], 18)
+        self.assertEqual(quality["effective_quality"], 21)
 
-    def test_weak_history_creates_capped_downgrade_candidate(self):
+    def test_weak_target_history_lowers_quality(self):
         self.insert_outcomes(
             "hdegroot",
             samples=30,
-            tp25_hits=2,
-            tp50_hits=0,
-            sl10_hits=20,
+            target_hits=2,
         )
 
         quality = app.get_trader_quality_assessment("hdegroot")
 
         self.assertTrue(quality["ready_for_review"])
-        self.assertEqual(quality["base_quality"], 27)
-        self.assertEqual(quality["candidate_quality"], 24)
-        self.assertEqual(quality["effective_quality"], 27)
+        self.assertEqual(quality["candidate_quality"], 10)
+        self.assertEqual(quality["effective_quality"], 10)
 
-    def test_dynamic_quality_only_changes_score_when_enabled(self):
+    def test_tp25_only_counts_when_it_precedes_sl10(self):
         self.insert_outcomes(
-            "epicsealdarkeye",
+            "ordered-results",
             samples=30,
-            tp25_hits=24,
-            tp50_hits=12,
-            sl10_hits=2,
+            target_hits=7,
         )
 
-        with patch.object(app, "TRADER_DYNAMIC_QUALITY_ENABLED", False):
-            self.assertEqual(app.score_trader("epicsealdarkeye"), 18)
+        stats = app.get_trader_hit_stats("ordered-results")
 
-        with patch.object(app, "TRADER_DYNAMIC_QUALITY_ENABLED", True):
-            self.assertEqual(app.score_trader("epicsealdarkeye"), 21)
+        self.assertEqual(stats["tp25_hits"], 30)
+        self.assertEqual(stats["sl10_hits"], 30)
+        self.assertEqual(stats["target_1"], 7)
+        self.assertEqual(stats["target_0"], 23)
 
-    def test_static_score_does_not_read_dynamic_stats(self):
-        with patch.object(
-            app,
-            "TRADER_DYNAMIC_QUALITY_ENABLED",
-            False,
-        ), patch.object(
-            app,
-            "get_trader_quality_assessment",
-            side_effect=AssertionError("dynamic stats should not run"),
-        ):
-            self.assertEqual(app.score_trader("marcell"), 25)
-            self.assertEqual(app.score_trader("ily"), 10)
+    def test_incomplete_outcomes_do_not_affect_quality(self):
+        self.insert_outcomes(
+            "unfinished",
+            samples=30,
+            target_hits=30,
+            status="active",
+        )
+
+        quality = app.get_trader_quality_assessment("unfinished")
+
+        self.assertEqual(quality["samples"], 0)
+        self.assertFalse(quality["ready_for_review"])
+        self.assertEqual(quality["effective_quality"], 15)
+
+    def test_repeated_signals_for_one_mint_count_as_one_sample(self):
+        self.insert_outcomes(
+            "repeater",
+            samples=30,
+            target_hits=1,
+        )
+
+        conn = app.db()
+        conn.execute(
+            "UPDATE signal_outcomes SET mint = ? WHERE trader = ?",
+            ("same-mint", "repeater"),
+        )
+        conn.commit()
+        conn.close()
+
+        stats = app.get_trader_hit_stats("repeater")
+
+        self.assertEqual(stats["samples"], 1)
+        self.assertEqual(stats["target_1"], 1)
 
 
 if __name__ == "__main__":

@@ -6,9 +6,9 @@
     "semantic_hash": "5ebef3dd159986e465ab65e4014107ec"
   },
   "app.py": {
-    "mtime": 1789016933.975662,
-    "seen": 1789016987.5523274,
-    "ast_hash": "17ab5f0f0cc7cd723f1dfc6287ad068f",
+    "mtime": 1789017989.5471692,
+    "seen": 1789018034.395349,
+    "ast_hash": "2468eb9a2ea3bd0de9e26eedb0792f84",
     "semantic_hash": ""
   },
   "models/baseline_v2_shadow.json": {
@@ -168,9 +168,9 @@
     "semantic_hash": ""
   },
   "static/index.html": {
-    "mtime": 1788927738.725446,
-    "seen": 1788928197.4633715,
-    "ast_hash": "c41a8f1e9093c121e32a9d0a59ca535e",
+    "mtime": 1789017801.6696703,
+    "seen": 1789017846.8198848,
+    "ast_hash": "a2bed67815ed5d8a327ca63fec249a16",
     "semantic_hash": ""
   },
   "graphify-out/memory/query_20260908_120214_b041fd8c_sigamos.md": {
@@ -246,9 +246,9 @@
     "semantic_hash": ""
   },
   "tests/test_trader_quality.py": {
-    "mtime": 1789014650.8962545,
-    "seen": 1789014706.6227188,
-    "ast_hash": "03876fae287b189a63ff0c65781e0d34",
+    "mtime": 1789017980.7986343,
+    "seen": 1789018034.3953676,
+    "ast_hash": "d3379c12aa42038b0cbca3fc7fccb0df",
     "semantic_hash": ""
   },
   "CLAUDE_NOTES.md": {

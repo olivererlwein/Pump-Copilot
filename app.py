@@ -104,40 +104,23 @@ app = FastAPI(
 
 
 # =========================================================
-# PESO INICIAL DE LOS TRADERS
+# CALIDAD DEL TRADER
 # =========================================================
-#
-# Estos valores NO significan que ya sepamos
-# quién es mejor.
-#
-# Son valores iniciales.
-# Después Pump Copilot los irá ajustando con
-# resultados reales / paper trading.
-#
-# Máximo: 30 puntos
-# =========================================================
+# Todos los traders parten del mismo prior neutral. Cuando hay suficientes
+# resultados completados, la calidad refleja TP25 antes de SL10.
 
-TRADER_QUALITY = {
-    "marcell": 25,
-    "hdegroot": 27,
-    "gr3gor14n": 24,
-    "epicsealdarkeye": 18,
-    "supermandev": 18
-}
+TRADER_QUALITY_NEUTRAL = 15
+TRADER_QUALITY_PRIOR_SUCCESSES = 8
+TRADER_QUALITY_PRIOR_FAILURES = 12
 
 TRADER_DYNAMIC_QUALITY_ENABLED = os.getenv(
     "TRADER_DYNAMIC_QUALITY_ENABLED",
-    "false"
+    "true"
 ).lower() == "true"
 
 TRADER_QUALITY_MIN_SAMPLES = max(
     1,
     int(os.getenv("TRADER_QUALITY_MIN_SAMPLES", "30"))
-)
-
-TRADER_QUALITY_MAX_STEP = max(
-    0,
-    int(os.getenv("TRADER_QUALITY_MAX_STEP", "3"))
 )
 
 TRADER_QUALITY_MIN = 5
@@ -500,6 +483,13 @@ CREATE TABLE IF NOT EXISTS signal_outcomes(
     updated_ts REAL NOT NULL
 )
 """)
+
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_signal_outcomes_trader_mint_ts
+        ON signal_outcomes(trader, mint, signal_ts, id)
+        """
+    )
 
     conn.execute(
         """
@@ -4343,10 +4333,7 @@ def score_trader(trader):
         if trader in OBSERVE_TRADERS:
             return 10
 
-        return TRADER_QUALITY.get(
-            trader,
-            15
-        )
+        return TRADER_QUALITY_NEUTRAL
 
     assessment = get_trader_quality_assessment(
         trader
@@ -4363,14 +4350,22 @@ def clamp_trader_quality(value):
         )
     )
 
-def calculate_trader_quality_candidate(base_quality, hit_stats):
+def calculate_trader_quality_candidate(hit_stats):
     samples = int(
         hit_stats.get("samples") or 0
     )
 
     if samples < TRADER_QUALITY_MIN_SAMPLES:
         return {
-            "candidate_quality": base_quality,
+            "candidate_quality": TRADER_QUALITY_NEUTRAL,
+            "raw_quality": TRADER_QUALITY_NEUTRAL,
+            "posterior_success_rate": (
+                TRADER_QUALITY_PRIOR_SUCCESSES
+                / (
+                    TRADER_QUALITY_PRIOR_SUCCESSES
+                    + TRADER_QUALITY_PRIOR_FAILURES
+                )
+            ),
             "ready_for_review": False,
             "blockers": [
                 (
@@ -4380,45 +4375,27 @@ def calculate_trader_quality_candidate(base_quality, hit_stats):
             ],
         }
 
-    tp25_rate = float(
-        hit_stats.get("tp25_pct") or 0
-    ) / 100
-
-    tp50_rate = float(
-        hit_stats.get("tp50_pct") or 0
-    ) / 100
-
-    sl10_rate = float(
-        hit_stats.get("sl10_pct") or 0
-    ) / 100
+    target_1 = int(hit_stats.get("target_1") or 0)
+    posterior_success_rate = (
+        TRADER_QUALITY_PRIOR_SUCCESSES + target_1
+    ) / (
+        TRADER_QUALITY_PRIOR_SUCCESSES
+        + TRADER_QUALITY_PRIOR_FAILURES
+        + samples
+    )
 
     raw_quality = (
-        12
-        + (tp25_rate * 16)
-        + (tp50_rate * 8)
-        - (sl10_rate * 10)
-    )
-
-    raw_quality = clamp_trader_quality(
-        raw_quality
-    )
-
-    lower_bound = base_quality - TRADER_QUALITY_MAX_STEP
-    upper_bound = base_quality + TRADER_QUALITY_MAX_STEP
-
-    candidate_quality = max(
-        lower_bound,
-        min(
-            upper_bound,
-            raw_quality
-        )
+        TRADER_QUALITY_MIN
+        + posterior_success_rate
+        * (TRADER_QUALITY_MAX - TRADER_QUALITY_MIN)
     )
 
     return {
         "candidate_quality": clamp_trader_quality(
-            candidate_quality
+            raw_quality
         ),
-        "raw_quality": raw_quality,
+        "raw_quality": round(raw_quality, 3),
+        "posterior_success_rate": posterior_success_rate,
         "ready_for_review": True,
         "blockers": [],
     }
@@ -4431,6 +4408,7 @@ def get_trader_quality_assessment(trader):
             "effective_quality": 10,
             "candidate_quality": 10,
             "raw_quality": 10,
+            "posterior_success_rate": 0.0,
             "dynamic_enabled": False,
             "ready_for_review": False,
             "blockers": ["observe_only"],
@@ -4438,21 +4416,18 @@ def get_trader_quality_assessment(trader):
             "tp25_pct": 0.0,
             "tp50_pct": 0.0,
             "sl10_pct": 0.0,
+            "target_1": 0,
+            "target_0": 0,
+            "target_rate_pct": 0.0,
         }
 
-    base_quality = TRADER_QUALITY.get(
-        trader,
-        15
-    )
+    base_quality = TRADER_QUALITY_NEUTRAL
 
     hit_stats = get_trader_hit_stats(
         trader
     )
 
-    candidate = calculate_trader_quality_candidate(
-        base_quality,
-        hit_stats
-    )
+    candidate = calculate_trader_quality_candidate(hit_stats)
 
     effective_quality = (
         candidate["candidate_quality"]
@@ -4470,6 +4445,9 @@ def get_trader_quality_assessment(trader):
             "raw_quality",
             base_quality
         ),
+        "posterior_success_rate": float(
+            candidate.get("posterior_success_rate") or 0
+        ),
         "dynamic_enabled": bool(TRADER_DYNAMIC_QUALITY_ENABLED),
         "ready_for_review": candidate["ready_for_review"],
         "blockers": candidate["blockers"],
@@ -4477,6 +4455,11 @@ def get_trader_quality_assessment(trader):
         "tp25_pct": float(hit_stats.get("tp25_pct") or 0),
         "tp50_pct": float(hit_stats.get("tp50_pct") or 0),
         "sl10_pct": float(hit_stats.get("sl10_pct") or 0),
+        "target_1": int(hit_stats.get("target_1") or 0),
+        "target_0": int(hit_stats.get("target_0") or 0),
+        "target_rate_pct": float(
+            hit_stats.get("target_rate_pct") or 0
+        ),
     }
 
 def get_trader_copyability_stats(trader):
@@ -4552,6 +4535,24 @@ def get_trader_hit_stats(trader):
 
     row = conn.execute(
         """
+        WITH ranked_outcomes AS (
+            SELECT
+                max_return,
+                min_return,
+                hit_tp25,
+                hit_tp50,
+                hit_sl10,
+                tp25_ts,
+                sl10_ts,
+                status,
+                ROW_NUMBER() OVER (
+                    PARTITION BY mint
+                    ORDER BY signal_ts ASC, id ASC
+                ) AS mint_signal_number
+            FROM signal_outcomes
+            WHERE trader = ?
+            AND price_at_signal > 0
+        )
         SELECT
             COUNT(max_return),
 
@@ -4580,13 +4581,23 @@ def get_trader_hit_stats(trader):
                     THEN 1
                     ELSE 0
                 END
+            ),
+
+            SUM(
+                CASE
+                    WHEN tp25_ts IS NOT NULL
+                    AND (
+                        sl10_ts IS NULL
+                        OR tp25_ts < sl10_ts
+                    )
+                    THEN 1
+                    ELSE 0
+                END
             )
 
-        FROM signal_outcomes
-
-        WHERE trader = ?
-        AND price_at_signal > 0
-        AND status != 'expired'
+        FROM ranked_outcomes
+        WHERE mint_signal_number = 1
+        AND status = 'completed'
         """,
         (trader,)
     ).fetchone()
@@ -4598,15 +4609,19 @@ def get_trader_hit_stats(trader):
     tp25_hits = int(row[1] or 0)
     tp50_hits = int(row[2] or 0)
     sl10_hits = int(row[3] or 0)
+    target_1 = int(row[4] or 0)
+    target_0 = samples - target_1
 
     if samples > 0:
         tp25_pct = tp25_hits / samples * 100
         tp50_pct = tp50_hits / samples * 100
         sl10_pct = sl10_hits / samples * 100
+        target_rate_pct = target_1 / samples * 100
     else:
         tp25_pct = 0.0
         tp50_pct = 0.0
         sl10_pct = 0.0
+        target_rate_pct = 0.0
 
     return {
         "trader": trader,
@@ -4620,6 +4635,10 @@ def get_trader_hit_stats(trader):
 
         "sl10_hits": sl10_hits,
         "sl10_pct": round(sl10_pct, 2),
+
+        "target_1": target_1,
+        "target_0": target_0,
+        "target_rate_pct": round(target_rate_pct, 2),
     }
 
 def get_signal_first_hit(outcome_id):
@@ -10000,6 +10019,15 @@ def trader_stats(
                 "quality_raw":
                     quality["raw_quality"],
 
+                "quality_method":
+                    "bayesian_target_rate",
+
+                "quality_posterior_success_pct":
+                    round(
+                        quality["posterior_success_rate"] * 100,
+                        2
+                    ),
+
                 "quality_dynamic_enabled":
                     quality["dynamic_enabled"],
 
@@ -10020,6 +10048,15 @@ def trader_stats(
 
                 "quality_sl10_pct":
                     quality["sl10_pct"],
+
+                "quality_target_1":
+                    quality["target_1"],
+
+                "quality_target_0":
+                    quality["target_0"],
+
+                "quality_target_rate_pct":
+                    quality["target_rate_pct"],
 
             }
         )

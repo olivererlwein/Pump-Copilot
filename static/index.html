@@ -1750,7 +1750,7 @@ function renderTraders(list){
           <div class="mini"><span>Ventas</span><b class="negative">${Number(t.sells||0)}</b></div>
           <div class="mini"><span>Evaluaciones</span><b>${Number(t.evaluations||0)}</b></div>
           <div class="mini"><span>Último evento</span><b>${esc(lastEventLabel)}</b></div>
-          <div class="mini"><span>Calidad</span><b>${Number(t.quality||0)}</b></div>
+          <div class="mini"><span>Calidad</span><b>${Number(t.effective_quality ?? t.quality ?? 0)}</b></div>
         </div>
       </div>
     `;
