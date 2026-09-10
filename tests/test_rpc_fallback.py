@@ -317,6 +317,64 @@ class RpcFallbackPersistenceTests(unittest.TestCase):
         state = app.get_rpc_fallback_wallet_states()[WALLET]
         self.assertEqual(state["last_signature"], SIGNATURE)
 
+    def test_failed_initial_state_still_bootstraps_current_head(self):
+        signature_row = {
+            "signature": SIGNATURE,
+            "slot": 42,
+            "err": None,
+        }
+        app.update_rpc_fallback_wallet_state(
+            WALLET,
+            "trader-a",
+            last_error="HTTP Error 429",
+        )
+
+        with patch.object(app, "WATCHED", {"trader-a": WALLET}), patch.object(
+            app,
+            "fetch_signatures_for_address",
+            return_value=[signature_row],
+        ) as fetch_signatures, patch.object(
+            app,
+            "fetch_confirmed_transaction",
+        ) as fetch_transaction:
+            result = app.poll_rpc_fallback_once()
+
+        self.assertEqual(result["transactions_processed"], 0)
+        self.assertEqual(fetch_signatures.call_args.kwargs["limit"], 1)
+        fetch_transaction.assert_not_called()
+        state = app.get_rpc_fallback_wallet_states()[WALLET]
+        self.assertEqual(state["last_signature"], SIGNATURE)
+
+    def test_saturated_backlog_rebases_to_current_head(self):
+        previous_signature = "2" * 88
+        newest_signature = "4" * 88
+        rows = [
+            {
+                "signature": newest_signature,
+                "slot": 84,
+                "err": None,
+            }
+        ] * 1000
+        app.update_rpc_fallback_wallet_state(
+            WALLET,
+            "trader-a",
+            last_signature=previous_signature,
+            last_slot=41,
+        )
+
+        with patch.object(app, "WATCHED", {"trader-a": WALLET}), patch.object(
+            app,
+            "fetch_signatures_for_address",
+            return_value=rows,
+        ), patch.object(app, "fetch_confirmed_transaction") as fetch_transaction:
+            result = app.poll_rpc_fallback_once()
+
+        self.assertEqual(result["saturated_wallets"], ["trader-a"])
+        fetch_transaction.assert_not_called()
+        state = app.get_rpc_fallback_wallet_states()[WALLET]
+        self.assertEqual(state["last_signature"], newest_signature)
+        self.assertEqual(state["last_error"], "SIGNATURE_BACKLOG_REBASED")
+
 
 if __name__ == "__main__":
     unittest.main()

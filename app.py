@@ -9772,9 +9772,9 @@ def poll_rpc_fallback_once():
     successful_queries = 0
 
     for trader, wallet in WATCHED.items():
-        state_exists = wallet in states
         state = states.get(wallet) or {}
         last_signature = state.get("last_signature")
+        state_exists = bool(last_signature)
         try:
             rows = fetch_signatures_for_address(
                 SOLANA_RPC_URL,
@@ -9827,10 +9827,14 @@ def poll_rpc_fallback_once():
 
         if len(rows) >= 1000:
             saturated.append(trader)
-            error = "SIGNATURE_BACKLOG_SATURATED"
+            error = "SIGNATURE_BACKLOG_REBASED"
             errors.append(f"{trader}: {error}")
             update_rpc_fallback_wallet_state(
-                wallet, trader, last_error=error
+                wallet,
+                trader,
+                last_signature=str(rows[0]["signature"]),
+                last_slot=rows[0].get("slot"),
+                last_error=error,
             )
             continue
 
