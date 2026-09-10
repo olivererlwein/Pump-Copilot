@@ -635,6 +635,16 @@ CREATE TABLE IF NOT EXISTS signal_outcomes(
         conn.execute(
             "ALTER TABLE execution_orders ADD COLUMN requested_token_amount_raw TEXT"
         )
+    for column, definition in (
+        ("entry_market_cap_sol", "REAL"),
+        ("origin_trader", "TEXT"),
+        ("exit_reason", "TEXT"),
+        ("target_tp_stage", "INTEGER"),
+    ):
+        if column not in order_columns:
+            conn.execute(
+                f"ALTER TABLE execution_orders ADD COLUMN {column} {definition}"
+            )
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS live_positions(
@@ -650,6 +660,11 @@ CREATE TABLE IF NOT EXISTS signal_outcomes(
             network_fee_lamports TEXT NOT NULL,
             cash_cost_per_token_sol TEXT NOT NULL,
             remaining_cost_basis_lamports TEXT,
+            entry_market_cap_sol REAL,
+            current_market_cap_sol REAL,
+            origin_trader TEXT,
+            tp_stage INTEGER NOT NULL DEFAULT 0,
+            last_exit_reason TEXT,
             fill_json TEXT NOT NULL,
             receipt_json TEXT NOT NULL,
             recorded_ts REAL NOT NULL
@@ -663,10 +678,21 @@ CREATE TABLE IF NOT EXISTS signal_outcomes(
         conn.execute(
             "ALTER TABLE live_positions ADD COLUMN remaining_cost_basis_lamports TEXT"
         )
-        conn.execute(
-            "UPDATE live_positions SET remaining_cost_basis_lamports = "
-            "net_sol_debit_lamports WHERE remaining_cost_basis_lamports IS NULL"
-        )
+    for column, definition in (
+        ("entry_market_cap_sol", "REAL"),
+        ("current_market_cap_sol", "REAL"),
+        ("origin_trader", "TEXT"),
+        ("tp_stage", "INTEGER NOT NULL DEFAULT 0"),
+        ("last_exit_reason", "TEXT"),
+    ):
+        if column not in position_columns:
+            conn.execute(
+                f"ALTER TABLE live_positions ADD COLUMN {column} {definition}"
+            )
+    conn.execute(
+        "UPDATE live_positions SET remaining_cost_basis_lamports = "
+        "net_sol_debit_lamports WHERE remaining_cost_basis_lamports IS NULL"
+    )
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS live_position_sales(
@@ -847,7 +873,9 @@ def get_live_position_summary(limit=100):
         """SELECT order_id, wallet, mint, status, token_amount_raw,
                   remaining_amount_raw, token_decimals,
                   net_sol_debit_lamports, remaining_cost_basis_lamports,
-                  network_fee_lamports, recorded_ts
+                  network_fee_lamports, recorded_ts, entry_market_cap_sol,
+                  current_market_cap_sol, origin_trader, tp_stage,
+                  last_exit_reason
            FROM live_positions ORDER BY recorded_ts DESC LIMIT ?""",
         (safe_limit,),
     ).fetchall()
@@ -875,6 +903,10 @@ def get_live_position_summary(limit=100):
                 "net_sol_debit_lamports": row[7],
                 "remaining_cost_basis_lamports": row[8],
                 "network_fee_lamports": row[9], "recorded_ts": row[10],
+                "entry_market_cap_sol": row[11],
+                "current_market_cap_sol": row[12],
+                "origin_trader": row[13], "tp_stage": row[14],
+                "last_exit_reason": row[15],
             }
             for row in positions
         ],
@@ -2382,6 +2414,8 @@ def execute_pumpportal_lightning_buy(
     liquidity_sol,
     amount_usd,
     idempotency_key,
+    market_cap_sol=None,
+    origin_trader="",
 ):
     try:
         require_live_trading()
@@ -2398,6 +2432,18 @@ def execute_pumpportal_lightning_buy(
 
     if not str(idempotency_key or "").strip():
         return {"ok": False, "reason": "IDEMPOTENCY_KEY_REQUIRED"}
+
+    if market_cap_sol is None:
+        return {"ok": False, "reason": "ENTRY_MARKET_CAP_REQUIRED"}
+    try:
+        entry_market_cap_sol = float(market_cap_sol)
+    except (TypeError, ValueError):
+        return {"ok": False, "reason": "INVALID_ENTRY_MARKET_CAP"}
+    if not math.isfinite(entry_market_cap_sol) or entry_market_cap_sol <= 0:
+        return {"ok": False, "reason": "INVALID_ENTRY_MARKET_CAP"}
+    origin_trader = str(origin_trader or "").strip()
+    if not origin_trader:
+        return {"ok": False, "reason": "ORIGIN_TRADER_REQUIRED"}
 
     order = create_execution_order_idempotent(
         mint=mint,
@@ -2420,11 +2466,13 @@ def execute_pumpportal_lightning_buy(
             "reason": "IDEMPOTENT_REUSE",
         }
 
-    # Bind accounting to the execution wallet before any network submission.
+    # Bind accounting and entry context before any network submission.
     conn = db()
     conn.execute(
-        "UPDATE execution_orders SET trade_wallet = ? WHERE id = ?",
-        (PUMPPORTAL_TRADING_WALLET_ADDRESS, order_id),
+        "UPDATE execution_orders SET trade_wallet = ?, entry_market_cap_sol = ?, "
+        "origin_trader = ? WHERE id = ?",
+        (PUMPPORTAL_TRADING_WALLET_ADDRESS, entry_market_cap_sol,
+         origin_trader, order_id),
     )
     conn.commit()
     conn.close()
@@ -2497,6 +2545,8 @@ def execute_pumpportal_lightning_sell(
     slippage_pct=MAX_SLIPPAGE_PCT,
     priority_fee_sol=0.00005,
     pool="auto",
+    exit_reason="",
+    target_tp_stage=None,
 ):
     idempotency_key = str(idempotency_key or "").strip()
     if not idempotency_key:
@@ -2517,6 +2567,11 @@ def execute_pumpportal_lightning_sell(
     if requested <= 0 or requested > 2**64 - 1:
         return {"ok": False, "reason": "INVALID_RAW_TOKEN_AMOUNT"}
     raw_text = str(requested)
+    exit_reason = str(exit_reason or "").strip()
+    if target_tp_stage is not None:
+        target_tp_stage = int(target_tp_stage)
+        if target_tp_stage not in (1, 2, 3):
+            return {"ok": False, "reason": "INVALID_TARGET_TP_STAGE"}
     conn = db()
     try:
         conn.execute("BEGIN IMMEDIATE")
@@ -2557,10 +2612,12 @@ def execute_pumpportal_lightning_sell(
             """INSERT INTO execution_orders(
                 ts_created, ts_updated, mint, side, amount_usd, expected_price,
                 execution_price, liquidity_sol, status, reason, source,
-                parent_order_id, mode, trade_wallet, requested_token_amount_raw
+                parent_order_id, mode, trade_wallet, requested_token_amount_raw,
+                exit_reason, target_tp_stage
             ) VALUES (?, ?, ?, 'sell', 0, 0, 0, 0, 'CREATED', '',
-                      'pumpportal_lightning', ?, 'live', ?, ?)""",
-            (now, now, position[1], position_order_id, position[0], raw_text),
+                      'pumpportal_lightning', ?, 'live', ?, ?, ?, ?)""",
+            (now, now, position[1], position_order_id, position[0], raw_text,
+             exit_reason, target_tp_stage),
         )
         order_id = cursor.lastrowid
         conn.execute(
@@ -3402,10 +3459,11 @@ def record_finalized_buy_position(order_id, fill, receipt):
     try:
         conn.execute("BEGIN IMMEDIATE")
         row = conn.execute(
-            "SELECT status, external_signature, trade_wallet, mint, side, source, mode "
+            "SELECT status, external_signature, trade_wallet, mint, side, source, mode, "
+            "entry_market_cap_sol, origin_trader "
             "FROM execution_orders WHERE id = ?", (order_id,),
         ).fetchone()
-        if (not row or row[4:] != ("buy", "pumpportal_lightning", "live")
+        if (not row or row[4:7] != ("buy", "pumpportal_lightning", "live")
                 or row[1:4] != (fill["signature"], fill["wallet"], fill["mint"])):
             raise ValueError("ORDER_RECEIPT_IDENTITY_MISMATCH")
         verified = parse_buy_receipt(receipt, row[1], row[2], row[3])
@@ -3416,6 +3474,8 @@ def record_finalized_buy_position(order_id, fill, receipt):
         ).fetchone()
         if existing and existing[0] == row[1] and row[0] == "CONFIRMED":
             conn.rollback()
+            if row[3] and not row[3].startswith("DEMO"):
+                TRACKED_TOKENS.add(row[3])
             return {"ok": True, "order_id": order_id, "status": "CONFIRMED"}
         if existing or row[0] not in ("SENT", "PENDING_RECONCILIATION"):
             raise ValueError("ORDER_NOT_PENDING")
@@ -3426,12 +3486,14 @@ def record_finalized_buy_position(order_id, fill, receipt):
                 remaining_amount_raw, token_decimals, net_sol_debit_lamports,
                 network_fee_lamports, cash_cost_per_token_sol,
                 remaining_cost_basis_lamports,
+                entry_market_cap_sol, current_market_cap_sol, origin_trader,
                 fill_json, receipt_json, recorded_ts
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (order_id, row[1], row[2], row[3], fill["token_amount_raw"],
              fill["token_amount_raw"], fill["token_decimals"],
              fill["net_sol_debit_lamports"], fill["network_fee_lamports"],
              fill["cash_cost_per_token_sol"], fill["net_sol_debit_lamports"],
+             row[7], row[7], row[8],
              json.dumps(fill), json.dumps(receipt), now),
         )
         conn.execute(
@@ -3443,6 +3505,8 @@ def record_finalized_buy_position(order_id, fill, receipt):
             "VALUES (?, ?, 'CONFIRMED', 'SOLANA_RECEIPT_RECORDED')", (order_id, now),
         )
         conn.commit()
+        if row[3] and not row[3].startswith("DEMO"):
+            TRACKED_TOKENS.add(row[3])
         return {"ok": True, "order_id": order_id, "status": "CONFIRMED",
                 "reason": "SOLANA_RECEIPT_RECORDED"}
     except Exception:
@@ -3458,7 +3522,8 @@ def record_finalized_sell_position(order_id, fill, receipt):
         conn.execute("BEGIN IMMEDIATE")
         order = conn.execute(
             "SELECT status, external_signature, trade_wallet, mint, side, source, mode, "
-            "parent_order_id, requested_token_amount_raw FROM execution_orders WHERE id = ?",
+            "parent_order_id, requested_token_amount_raw, exit_reason, target_tp_stage "
+            "FROM execution_orders WHERE id = ?",
             (order_id,),
         ).fetchone()
         if (not order or order[4:7] != ("sell", "pumpportal_lightning", "live")
@@ -3477,7 +3542,8 @@ def record_finalized_sell_position(order_id, fill, receipt):
             raise ValueError("ORDER_NOT_PENDING")
         position = conn.execute(
             "SELECT wallet, mint, status, remaining_amount_raw, token_decimals, "
-            "remaining_cost_basis_lamports FROM live_positions WHERE order_id = ?",
+            "remaining_cost_basis_lamports, tp_stage "
+            "FROM live_positions WHERE order_id = ?",
             (order[7],),
         ).fetchone()
         sold = int(fill["token_amount_raw"])
@@ -3496,6 +3562,7 @@ def record_finalized_sell_position(order_id, fill, receipt):
         realized = proceeds - allocated_cost
         new_remaining = remaining - sold
         new_cost = remaining_cost - allocated_cost
+        new_tp_stage = max(int(position[6] or 0), int(order[10] or 0))
         now = time.time()
         conn.execute(
             """INSERT INTO live_position_sales(
@@ -3510,9 +3577,10 @@ def record_finalized_sell_position(order_id, fill, receipt):
         )
         conn.execute(
             "UPDATE live_positions SET remaining_amount_raw = ?, "
-            "remaining_cost_basis_lamports = ?, status = ? WHERE order_id = ?",
+            "remaining_cost_basis_lamports = ?, status = ?, tp_stage = ?, "
+            "last_exit_reason = ? WHERE order_id = ?",
             (str(new_remaining), str(new_cost), "closed" if not new_remaining else "open",
-             order[7]),
+             new_tp_stage, order[9] or None, order[7]),
         )
         conn.execute(
             "UPDATE execution_orders SET status = 'CONFIRMED', ts_updated = ?, "
@@ -3523,6 +3591,11 @@ def record_finalized_sell_position(order_id, fill, receipt):
             "VALUES (?, ?, 'CONFIRMED', 'SOLANA_SELL_RECEIPT_RECORDED')", (order_id, now),
         )
         conn.commit()
+        if not new_remaining:
+            try:
+                untrack_token_if_unused(order[3])
+            except Exception as exc:
+                print(f"[LIVE TRACKING] Cleanup failed: {exc}")
         return {"ok": True, "order_id": order_id, "status": "CONFIRMED",
                 "reason": "SOLANA_SELL_RECEIPT_RECORDED",
                 "position_status": "closed" if not new_remaining else "open",
@@ -7036,6 +7109,156 @@ def open_paper_position(
 
 
 
+def untrack_token_if_unused(mint):
+    if not mint:
+        return False
+    conn = db()
+    needed = conn.execute(
+        """SELECT 1 FROM paper_positions
+           WHERE mint = ? AND status = 'open'
+           UNION ALL
+           SELECT 1 FROM live_positions
+           WHERE mint = ? AND status = 'open'
+           UNION ALL
+           SELECT 1 FROM signal_outcomes
+           WHERE mint = ? AND status = 'active'
+           LIMIT 1""",
+        (mint, mint, mint),
+    ).fetchone()
+    conn.close()
+    if needed:
+        return False
+    TOKENS_TO_UNSUBSCRIBE.add(mint)
+    TRACKED_TOKENS.discard(mint)
+    SUBSCRIBED_TOKENS.discard(mint)
+    return True
+
+
+def decide_live_position_exit(
+    original_amount_raw,
+    remaining_amount_raw,
+    entry_market_cap_sol,
+    current_market_cap_sol,
+    origin_trader,
+    event_trader,
+    side,
+    new_token_balance,
+    tp_stage,
+):
+    original = int(original_amount_raw)
+    remaining = int(remaining_amount_raw)
+    entry_market_cap = float(entry_market_cap_sol or 0)
+    current_market_cap = float(current_market_cap_sol or 0)
+    stage = int(tp_stage or 0)
+    if (original <= 0 or remaining <= 0
+            or not math.isfinite(entry_market_cap)
+            or not math.isfinite(current_market_cap)
+            or entry_market_cap <= 0 or current_market_cap <= 0):
+        return None
+
+    change_pct = current_market_cap / entry_market_cap - 1
+    try:
+        observed_balance = (
+            float(new_token_balance)
+            if new_token_balance is not None
+            else None
+        )
+    except (TypeError, ValueError):
+        observed_balance = None
+    balance_is_known = (
+        observed_balance is not None
+        and math.isfinite(observed_balance)
+    )
+    is_origin_sell = (
+        "sell" in str(side or "").lower()
+        and str(event_trader or "") == str(origin_trader or "")
+        and bool(origin_trader)
+    )
+    if change_pct <= -0.20:
+        return {"token_amount_raw": str(remaining), "reason": "STOP_LOSS",
+                "target_tp_stage": None, "change_pct": change_pct}
+    if is_origin_sell and balance_is_known and observed_balance <= 0:
+        return {"token_amount_raw": str(remaining), "reason": "TRADER_EXIT",
+                "target_tp_stage": None, "change_pct": change_pct}
+
+    target_stage = 0
+    if change_pct >= 1.00:
+        target_stage = 3
+    elif change_pct >= 0.50:
+        target_stage = 2
+    elif change_pct >= 0.25:
+        target_stage = 1
+    if target_stage > stage:
+        pending_stages = target_stage - stage
+        amount = min(remaining, original * pending_stages // 4)
+        if amount > 0:
+            return {"token_amount_raw": str(amount), "reason": "TAKE_PROFIT",
+                    "target_tp_stage": target_stage, "change_pct": change_pct}
+
+    if is_origin_sell:
+        amount = min(remaining, max(1, original // 4))
+        return {"token_amount_raw": str(amount), "reason": "TRADER_PARTIAL",
+                "target_tp_stage": None, "change_pct": change_pct}
+    return None
+
+
+def evaluate_live_position_exit(
+    mint,
+    trader,
+    side,
+    market_cap,
+    new_token_balance,
+    event_signature="",
+):
+    current_market_cap = float(market_cap or 0)
+    if not mint or not math.isfinite(current_market_cap) or current_market_cap <= 0:
+        return []
+    conn = db()
+    rows = conn.execute(
+        """SELECT order_id, token_amount_raw, remaining_amount_raw,
+                  entry_market_cap_sol, origin_trader, tp_stage
+           FROM live_positions
+           WHERE mint = ? AND status = 'open'
+           ORDER BY order_id""",
+        (mint,),
+    ).fetchall()
+    conn.execute(
+        "UPDATE live_positions SET current_market_cap_sol = ? "
+        "WHERE mint = ? AND status = 'open'",
+        (current_market_cap, mint),
+    )
+    conn.commit()
+    conn.close()
+
+    results = []
+    for row in rows:
+        decision = decide_live_position_exit(
+            row[1], row[2], row[3], current_market_cap, row[4], trader, side,
+            new_token_balance, row[5],
+        )
+        if not decision:
+            continue
+        reason = decision["reason"]
+        if reason == "TRADER_PARTIAL" and not str(event_signature or "").strip():
+            results.append({"ok": False, "position_order_id": row[0],
+                            "reason": "EVENT_SIGNATURE_REQUIRED"})
+            continue
+        suffix = (
+            f"TP-{decision['target_tp_stage']}"
+            if reason == "TAKE_PROFIT"
+            else (f"{reason}-{event_signature}" if reason == "TRADER_PARTIAL" else reason)
+        )
+        result = execute_pumpportal_lightning_sell(
+            position_order_id=row[0],
+            token_amount_raw=decision["token_amount_raw"],
+            idempotency_key=f"LIVE-EXIT-{row[0]}-{suffix}",
+            exit_reason=reason,
+            target_tp_stage=decision["target_tp_stage"],
+        )
+        results.append({"position_order_id": row[0], **result})
+    return results
+
+
 def update_paper_position(
     mint,
     trader,
@@ -7251,12 +7474,6 @@ def update_paper_position(
         if not exit_reason:
             exit_reason = action
 
-        TOKENS_TO_UNSUBSCRIBE.add(mint)
-
-        TRACKED_TOKENS.discard(mint)
-        SUBSCRIBED_TOKENS.discard(mint)
-
-
     conn.execute(
         """
         UPDATE paper_positions
@@ -7294,6 +7511,9 @@ def update_paper_position(
 
     conn.commit()
     conn.close()
+
+    if status == "closed":
+        untrack_token_if_unused(mint)
 
     if action != "HOLD":
 
@@ -7384,10 +7604,8 @@ def save_trade(
         price_at_signal = 0.0
 
 
-    new_token_balance = float(
-        event.get("newTokenBalance")
-        or 0
-    )
+    raw_new_token_balance = event.get("newTokenBalance")
+    new_token_balance = float(raw_new_token_balance or 0)
 
 
     pool = (
@@ -7501,6 +7719,18 @@ def save_trade(
         side=side,
         market_cap=market_cap,
         new_token_balance=new_token_balance
+    )
+    evaluate_live_position_exit(
+        mint=mint,
+        trader=trader,
+        side=side,
+        market_cap=market_cap,
+        new_token_balance=(
+            float(raw_new_token_balance)
+            if raw_new_token_balance is not None
+            else None
+        ),
+        event_signature=signature,
     )
 # =========================================================
 # STREAM REAL PUMPPORTAL
@@ -8197,6 +8427,27 @@ async def stream():
                             )
                         )
 
+                        evaluate_live_position_exit(
+                            mint=mint,
+                            trader=trader_for(wallet),
+                            side=str(
+                                event.get("txType")
+                                or event.get("type")
+                                or ""
+                            ).lower(),
+                            market_cap=float(
+                                event.get("marketCapSol")
+                                or event.get("market_cap_sol")
+                                or 0
+                            ),
+                            new_token_balance=(
+                                float(event["newTokenBalance"])
+                                if event.get("newTokenBalance") is not None
+                                else None
+                            ),
+                            event_signature=event.get("signature") or "",
+                        )
+
 
         except Exception as ex:
             STREAM_CONNECTED = False
@@ -8256,6 +8507,16 @@ async def startup():
         """
     ).fetchall()
 
+    live_rows = conn.execute(
+        """
+        SELECT DISTINCT mint
+        FROM live_positions
+        WHERE status = 'open'
+        AND mint IS NOT NULL
+        AND mint != ''
+        """
+    ).fetchall()
+
     # Recuperar outcomes incompletos recientes
     outcome_rows = conn.execute(
         """
@@ -8288,6 +8549,12 @@ async def startup():
             expire_old_signal_outcomes(mint)
 
     for row in paper_rows:
+        mint = row[0]
+
+        if mint and not mint.startswith("DEMO"):
+            TRACKED_TOKENS.add(mint)
+
+    for row in live_rows:
         mint = row[0]
 
         if mint and not mint.startswith("DEMO"):

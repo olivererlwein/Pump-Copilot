@@ -466,6 +466,8 @@ class ExecutionAdapterTests(unittest.TestCase):
             arguments = {
                 **self.execution_args(),
                 "idempotency_key": "signal-123",
+                "market_cap_sol": 100.0,
+                "origin_trader": "marcell",
             }
             first = app.execute_pumpportal_lightning_buy(**arguments)
             second = app.execute_pumpportal_lightning_buy(**arguments)
@@ -497,6 +499,23 @@ class ExecutionAdapterTests(unittest.TestCase):
                 "PENDING_RECONCILIATION",
             )
 
+    def test_live_buy_requires_exit_context_before_creating_order(self):
+        with patch.object(app, "LIVE_TRADING", True), patch.object(
+            app, "LIVE_EXECUTION_IMPLEMENTED", True,
+        ), patch.object(
+            app, "get_live_execution_readiness",
+            return_value={"ready": True, "blockers": []},
+        ):
+            missing_market_cap = app.execute_pumpportal_lightning_buy(
+                **self.execution_args(), idempotency_key="missing-market-cap",
+            )
+            missing_trader = app.execute_pumpportal_lightning_buy(
+                **self.execution_args(), idempotency_key="missing-trader",
+                market_cap_sol=100.0,
+            )
+        self.assertEqual(missing_market_cap["reason"], "ENTRY_MARKET_CAP_REQUIRED")
+        self.assertEqual(missing_trader["reason"], "ORIGIN_TRADER_REQUIRED")
+
     def test_uncertain_live_submission_requires_reconciliation(self):
         with tempfile.TemporaryDirectory() as temp_dir, patch.object(
             app,
@@ -523,6 +542,8 @@ class ExecutionAdapterTests(unittest.TestCase):
             result = app.execute_pumpportal_lightning_buy(
                 **self.execution_args(),
                 idempotency_key="signal-unknown",
+                market_cap_sol=100.0,
+                origin_trader="marcell",
             )
 
         self.assertEqual(result["status"], "PENDING_RECONCILIATION")

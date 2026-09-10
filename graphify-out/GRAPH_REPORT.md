@@ -1,24 +1,25 @@
 # Graph Report - pump fun  (2026-09-09)
 
 ## Corpus Check
-- 36 files · ~44,040 words
+- 36 files · ~45,315 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 471 nodes · 1163 edges · 26 communities (20 shown, 5 thin omitted)
+- 480 nodes · 1188 edges · 31 communities (25 shown, 5 thin omitted)
 - Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 29 edges (avg confidence: 0.86)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `c653d891`
+- Built from commit: `ced585e4`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - test_training_pipeline.py
 - app.py
-- ValueError
+- LiveReceiptPersistenceTests
 - What You Must Do When Invoked
+- startup
 - graphify reference: extra exports and benchmark
 - test_stream_monitoring.py
 - auth
@@ -38,53 +39,61 @@
 - AGENTS.md
 - extraction-spec.md
 - Q: sigamos
+- ValueError
+- get
 - ExecutionAdapterTests
+- update_execution_order
+- open_paper_position
 - ShadowLogisticModel
 
 ## God Nodes (most connected - your core abstractions)
-1. `db()` - 98 edges
+1. `db()` - 100 edges
 2. `auth()` - 69 edges
 3. `require_debug_mode()` - 54 edges
-4. `LiveReceiptPersistenceTests` - 21 edges
-5. `ExecutionAdapterTests` - 20 edges
+4. `LiveReceiptPersistenceTests` - 26 edges
+5. `ExecutionAdapterTests` - 21 edges
 6. `main()` - 18 edges
 7. `simulate_execution()` - 16 edges
 8. `update_execution_order()` - 15 edges
-9. `update_paper_position()` - 14 edges
-10. `create_execution_order()` - 13 edges
+9. `update_paper_position()` - 15 edges
+10. `parse_sell_receipt()` - 14 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `ShadowArtifactTests` --uses--> `ShadowLogisticModel`  [INFERRED]
   tests/test_training_pipeline.py → shadow_model.py
+- `record_finalized_sell_position()` --calls--> `parse_sell_receipt()`  [EXTRACTED]
+  app.py → solana_receipts.py
+- `reconcile_pumpportal_execution_order()` --calls--> `parse_sell_receipt()`  [EXTRACTED]
+  app.py → solana_receipts.py
 - `load_shadow_model()` --uses--> `ShadowLogisticModel`  [INFERRED]
   app.py → shadow_model.py
 - `record_finalized_buy_position()` --calls--> `parse_buy_receipt()`  [EXTRACTED]
-  app.py → solana_receipts.py
-- `record_finalized_sell_position()` --calls--> `parse_sell_receipt()`  [EXTRACTED]
-  app.py → solana_receipts.py
-- `reconcile_pumpportal_execution_order()` --calls--> `parse_buy_receipt()`  [EXTRACTED]
   app.py → solana_receipts.py
 
 ## Import Cycles
 - None detected.
 
-## Communities (26 total, 5 thin omitted)
+## Communities (31 total, 5 thin omitted)
 
 ### Community 0 - "test_training_pipeline.py"
 Cohesion: 0.10
 Nodes (32): main(), schema_without_features(), evaluate_strategy(), main(), simulate_payoff(), build_matrix(), build_pipeline(), build_shadow_artifact() (+24 more)
 
 ### Community 1 - "app.py"
-Cohesion: 0.05
-Nodes (97): api_training_checkpoint_freshness(), api_training_dataset_preview(), api_training_expired_preview(), api_training_stats(), api_training_stats_by_trader(), assess_shadow_challenger(), build_model_features(), build_pumpportal_lightning_buy_payload() (+89 more)
+Cohesion: 0.09
+Nodes (50): api_live_positions(), api_shadow_predictions(), api_training_checkpoint_freshness(), api_training_dataset(), api_training_dataset_preview(), api_training_expired_preview(), api_training_stats(), api_training_stats_by_trader() (+42 more)
 
-### Community 2 - "ValueError"
-Cohesion: 0.08
-Nodes (26): build_pumpportal_exact_sell_payload(), build_pumpportal_lightning_sell_payload(), calculate_wallet_sell_percentage(), fetch_finalized_solana_transaction(), fetch_solana_signature_status(), normalize_solana_signature(), prepare_pumpportal_lightning_sell(), reconcile_execution_order() (+18 more)
+### Community 2 - "LiveReceiptPersistenceTests"
+Cohesion: 0.11
+Nodes (7): parse_sell_receipt(), Return exact tokens sold and the all-in net SOL proceeds., buy_receipt(), LiveReceiptPersistenceTests, ReceiptAccountingTests, sell_receipt(), token_entry()
 
 ### Community 3 - "What You Must Do When Invoked"
 Cohesion: 0.08
 Nodes (24): For /graphify add and --watch, For /graphify query, For the commit hook and native CLAUDE.md integration, For --update and --cluster-only, /graphify, Honesty Rules, Interpreter guard for subcommands, Part A - Structural extraction for code files (+16 more)
+
+### Community 4 - "startup"
+Cohesion: 0.07
+Nodes (39): assess_shadow_challenger(), cleanup_finished_outcome_token(), compare_shadow_models(), complete_finished_signal_outcomes(), decide_live_position_exit(), evaluate_live_position_exit(), expire_old_signal_outcomes(), fetch_solana_balance_sol() (+31 more)
 
 ### Community 5 - "graphify reference: extra exports and benchmark"
 Cohesion: 0.22
@@ -95,8 +104,8 @@ Cohesion: 0.10
 Nodes (4): PumpPortalBalanceTests, PumpPortalMessageTests, ShadowReviewAlertTests, StreamStateTests
 
 ### Community 7 - "auth"
-Cohesion: 0.07
-Nodes (85): api_live_execution_readiness(), api_live_positions(), api_shadow_predictions(), api_shadow_stats(), api_training_dataset(), auth(), can_retry_execution(), check_execution_timeout() (+77 more)
+Cohesion: 0.18
+Nodes (30): auth(), demo(), demo_close_old(), demo_concurrent_idempotency(), demo_duplicate_check(), demo_execution_order_events(), demo_execution_orders(), demo_exit_close() (+22 more)
 
 ### Community 8 - "graphify reference: query, path, explain"
 Cohesion: 0.33
@@ -142,9 +151,25 @@ Nodes (3): For --cluster-only, For --update (incremental re-extraction), graphif
 Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: sigamos, Source Nodes
 
+### Community 25 - "ValueError"
+Cohesion: 0.13
+Nodes (29): build_pumpportal_exact_sell_payload(), build_pumpportal_lightning_buy_payload(), build_pumpportal_lightning_sell_payload(), calculate_wallet_sell_percentage(), execute_pumpportal_lightning_buy(), execute_pumpportal_lightning_sell(), fetch_finalized_solana_transaction(), fetch_sol_usd_quote() (+21 more)
+
+### Community 26 - "get"
+Cohesion: 0.12
+Nodes (21): api_live_execution_readiness(), api_shadow_stats(), demo_execution_check(), demo_execution_failure(), demo_idempotency_check(), demo_idempotency_failed(), demo_idempotency_risk_blocked(), demo_mode_save() (+13 more)
+
 ### Community 27 - "ExecutionAdapterTests"
 Cohesion: 0.08
 Nodes (4): ExecutionAdapterTests, LiveTradingGuardTests, NumericRiskValidationTests, PositionConcurrencyTests
+
+### Community 28 - "update_execution_order"
+Cohesion: 0.17
+Nodes (21): can_retry_execution(), check_execution_timeout(), create_execution_order(), demo_can_retry(), demo_cannot_retry_risk(), demo_controlled_retry(), demo_execution_timeout(), demo_idempotency_sent() (+13 more)
+
+### Community 29 - "open_paper_position"
+Cohesion: 0.16
+Nodes (14): count_open_positions(), demo_daily_pnl(), demo_daily_pnl_isolation(), demo_liquidity_check(), demo_mode_isolation(), demo_paper_mode_save(), demo_risk_mode_isolation(), demo_slippage_check() (+6 more)
 
 ### Community 30 - "ShadowLogisticModel"
 Cohesion: 0.33
@@ -152,7 +177,7 @@ Nodes (3): load_shadow_model(), ShadowLogisticModel, ShadowModelError
 
 ## Knowledge Gaps
 - **60 isolated node(s):** `Usage`, `What graphify is for`, `Step 0 - GitHub repos and multi-path merge (only if a URL or several paths)`, `Step 1 - Ensure graphify is installed`, `Step 2 - Detect files` (+55 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 137 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 138 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
 - **5 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Work-memory lessons
@@ -168,16 +193,16 @@ Nodes (3): load_shadow_model(), ShadowLogisticModel, ShadowModelError
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `ShadowLogisticModel` connect `ShadowLogisticModel` to `test_training_pipeline.py`, `app.py`?**
-  _High betweenness centrality (0.067) - this node is a cross-community bridge._
-- **Are the 24 inferred relationships involving `ValueError` (e.g. with `build_pumpportal_exact_sell_payload()` and `build_pumpportal_lightning_buy_payload()`) actually correct?**
-  _`ValueError` has 24 INFERRED edges - model-reasoned connections that need verification._
+  _High betweenness centrality (0.066) - this node is a cross-community bridge._
 - **What connects `Usage`, `What graphify is for`, `Step 0 - GitHub repos and multi-path merge (only if a URL or several paths)` to the rest of the system?**
   _60 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `test_training_pipeline.py` be split into smaller, more focused modules?**
   _Cohesion score 0.1016949152542373 - nodes in this community are weakly interconnected._
 - **Should `app.py` be split into smaller, more focused modules?**
-  _Cohesion score 0.053650326109825376 - nodes in this community are weakly interconnected._
-- **Should `ValueError` be split into smaller, more focused modules?**
-  _Cohesion score 0.08215488215488216 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.08627450980392157 - nodes in this community are weakly interconnected._
+- **Should `LiveReceiptPersistenceTests` be split into smaller, more focused modules?**
+  _Cohesion score 0.11282051282051282 - nodes in this community are weakly interconnected._
 - **Should `What You Must Do When Invoked` be split into smaller, more focused modules?**
   _Cohesion score 0.08 - nodes in this community are weakly interconnected._
+- **Should `startup` be split into smaller, more focused modules?**
+  _Cohesion score 0.07017543859649122 - nodes in this community are weakly interconnected._

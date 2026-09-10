@@ -140,6 +140,9 @@ class LiveReceiptPersistenceTests(unittest.TestCase):
         network.start()
         self.addCleanup(network.stop)
         app.migrate_database()
+        self.addCleanup(app.TRACKED_TOKENS.discard, MINT)
+        self.addCleanup(app.SUBSCRIBED_TOKENS.discard, MINT)
+        self.addCleanup(app.TOKENS_TO_UNSUBSCRIBE.discard, MINT)
         self.order_id = self.make_order("first")
         self.receipt = buy_receipt()
         self.fill = parse_buy_receipt(self.receipt, SIGNATURE, WALLET, MINT)
@@ -155,15 +158,17 @@ class LiveReceiptPersistenceTests(unittest.TestCase):
         conn.close()
         return order["order_id"]
 
-    def make_sell_order(self, key, amount, signature):
+    def make_sell_order(self, key, amount, signature, exit_reason="", target_tp_stage=None):
         order = app.create_execution_order_idempotent(
             MINT, "sell", 0, 0, 0, 0, key, source="pumpportal_lightning",
             parent_order_id=self.order_id, mode="live")
         conn = app.db()
         conn.execute(
             "UPDATE execution_orders SET status = 'PENDING_RECONCILIATION', "
-            "external_signature = ?, trade_wallet = ?, requested_token_amount_raw = ? "
-            "WHERE id = ?", (signature, WALLET, str(amount), order["order_id"]),
+            "external_signature = ?, trade_wallet = ?, requested_token_amount_raw = ?, "
+            "exit_reason = ?, target_tp_stage = ? WHERE id = ?",
+            (signature, WALLET, str(amount), exit_reason, target_tp_stage,
+             order["order_id"]),
         )
         conn.commit()
         conn.close()
@@ -362,6 +367,160 @@ class LiveReceiptPersistenceTests(unittest.TestCase):
         self.assertEqual(summary["positions"][0]["remaining_amount_raw"],
                          "9007199254740993")
         self.assertNotIn("receipt_json", summary["positions"][0])
+
+    def test_buy_receipt_preserves_exit_context_and_tracks_mint(self):
+        conn = app.db()
+        conn.execute(
+            "UPDATE execution_orders SET entry_market_cap_sol = 100, "
+            "origin_trader = 'marcell' WHERE id = ?", (self.order_id,),
+        )
+        conn.commit()
+        conn.close()
+        self.record()
+        conn = app.db()
+        context = conn.execute(
+            "SELECT entry_market_cap_sol, current_market_cap_sol, origin_trader, tp_stage "
+            "FROM live_positions WHERE order_id = ?", (self.order_id,),
+        ).fetchone()
+        conn.close()
+        self.assertEqual(context, (100.0, 100.0, "marcell", 0))
+        self.assertIn(MINT, app.TRACKED_TOKENS)
+
+    def test_tp_stage_advances_only_after_finalized_sell_receipt(self):
+        conn = app.db()
+        conn.execute(
+            "UPDATE execution_orders SET entry_market_cap_sol = 100, "
+            "origin_trader = 'marcell' WHERE id = ?", (self.order_id,),
+        )
+        conn.commit()
+        conn.close()
+        self.record()
+        decision = app.decide_live_position_exit(
+            9007199254740993, 9007199254740993, 100, 160,
+            "marcell", "other", "buy", 1, 0,
+        )
+        self.assertEqual(decision["target_tp_stage"], 2)
+        self.assertEqual(decision["token_amount_raw"], str(9007199254740993 * 2 // 4))
+
+        signature = "2" * 88
+        amount = int(decision["token_amount_raw"])
+        sell_order = self.make_sell_order(
+            "tp-two", amount, signature, "TAKE_PROFIT", 2,
+        )
+        conn = app.db()
+        self.assertEqual(conn.execute(
+            "SELECT tp_stage FROM live_positions WHERE order_id = ?", (self.order_id,),
+        ).fetchone()[0], 0)
+        conn.close()
+        receipt = sell_receipt(signature, str(amount), 50000000)
+        fill = parse_sell_receipt(receipt, signature, WALLET, MINT)
+        app.record_finalized_sell_position(sell_order, fill, receipt)
+        conn = app.db()
+        state = conn.execute(
+            "SELECT tp_stage, last_exit_reason FROM live_positions WHERE order_id = ?",
+            (self.order_id,),
+        ).fetchone()
+        conn.close()
+        self.assertEqual(state, (2, "TAKE_PROFIT"))
+
+    def test_disabled_live_mode_observes_but_never_creates_exit_order(self):
+        conn = app.db()
+        conn.execute(
+            "UPDATE execution_orders SET entry_market_cap_sol = 100, "
+            "origin_trader = 'marcell' WHERE id = ?", (self.order_id,),
+        )
+        conn.commit()
+        conn.close()
+        self.record()
+        with patch.object(app, "LIVE_TRADING", False):
+            result = app.evaluate_live_position_exit(
+                MINT, "other", "buy", 130, 1, "event-one",
+            )
+        self.assertEqual(result[0]["reason"], "LIVE_TRADING_DISABLED")
+        conn = app.db()
+        self.assertEqual(conn.execute(
+            "SELECT COUNT(*) FROM execution_orders WHERE side = 'sell'"
+        ).fetchone()[0], 0)
+        self.assertEqual(conn.execute(
+            "SELECT current_market_cap_sol FROM live_positions WHERE order_id = ?",
+            (self.order_id,),
+        ).fetchone()[0], 130.0)
+        conn.close()
+
+    def test_repeated_tp_event_creates_only_one_reserved_sell(self):
+        conn = app.db()
+        conn.execute(
+            "UPDATE execution_orders SET entry_market_cap_sol = 100, "
+            "origin_trader = 'marcell' WHERE id = ?", (self.order_id,),
+        )
+        conn.commit()
+        conn.close()
+        self.record()
+        with patch.object(app, "LIVE_TRADING", True), patch.object(
+            app, "LIVE_EXECUTION_IMPLEMENTED", True,
+        ), patch.object(
+            app, "PUMPPORTAL_TRADING_WALLET_ADDRESS", WALLET,
+        ), patch.object(
+            app, "get_live_execution_readiness",
+            return_value={"ready": True, "blockers": []},
+        ), patch.object(
+            app, "submit_pumpportal_lightning_trade",
+            return_value={"signature": "2" * 88},
+        ) as submit, patch.object(
+            app, "build_pumpportal_exact_sell_payload",
+            return_value={"action": "sell"},
+        ):
+            first = app.evaluate_live_position_exit(
+                MINT, "other", "buy", 130, 1, "same-event",
+            )
+            second = app.evaluate_live_position_exit(
+                MINT, "other", "buy", 130, 1, "same-event",
+            )
+        self.assertTrue(first[0]["ok"])
+        self.assertEqual(second[0]["reason"], "IDEMPOTENT_REUSE")
+        submit.assert_called_once()
+        conn = app.db()
+        order = conn.execute(
+            "SELECT exit_reason, target_tp_stage FROM execution_orders "
+            "WHERE side = 'sell'",
+        ).fetchone()
+        count = conn.execute(
+            "SELECT COUNT(*) FROM execution_orders WHERE side = 'sell'"
+        ).fetchone()[0]
+        conn.close()
+        self.assertEqual(count, 1)
+        self.assertEqual(order, ("TAKE_PROFIT", 1))
+
+    def test_exit_decision_prioritizes_loss_and_origin_trader_actions(self):
+        stop = app.decide_live_position_exit(
+            1000, 600, 100, 79, "marcell", "marcell", "sell", 0, 0,
+        )
+        self.assertEqual(stop["reason"], "STOP_LOSS")
+        self.assertEqual(stop["token_amount_raw"], "600")
+
+        full_exit = app.decide_live_position_exit(
+            1000, 600, 100, 90, "marcell", "marcell", "sell", 0, 0,
+        )
+        self.assertEqual(full_exit["reason"], "TRADER_EXIT")
+        self.assertEqual(full_exit["token_amount_raw"], "600")
+
+        partial = app.decide_live_position_exit(
+            1000, 600, 100, 90, "marcell", "marcell", "sell", 10, 0,
+        )
+        self.assertEqual(partial["reason"], "TRADER_PARTIAL")
+        self.assertEqual(partial["token_amount_raw"], "250")
+        missing_balance = app.decide_live_position_exit(
+            1000, 600, 100, 90, "marcell", "marcell", "sell", None, 0,
+        )
+        self.assertEqual(missing_balance["reason"], "TRADER_PARTIAL")
+        after_partial = app.decide_live_position_exit(
+            1000, 750, 100, 130, "marcell", "other", "buy", 1, 0,
+        )
+        self.assertEqual(after_partial["reason"], "TAKE_PROFIT")
+        self.assertEqual(after_partial["token_amount_raw"], "250")
+        self.assertIsNone(app.decide_live_position_exit(
+            1000, 600, 100, 90, "marcell", "other", "sell", 0, 0,
+        ))
 
     def test_exact_sell_payload_does_not_use_wallet_percentage(self):
         mint = "1" * 32
