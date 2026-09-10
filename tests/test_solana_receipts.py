@@ -459,6 +459,8 @@ class LiveReceiptPersistenceTests(unittest.TestCase):
         with patch.object(app, "LIVE_TRADING", True), patch.object(
             app, "LIVE_EXECUTION_IMPLEMENTED", True,
         ), patch.object(
+            app, "LIVE_SELLS_ENABLED", True,
+        ), patch.object(
             app, "PUMPPORTAL_TRADING_WALLET_ADDRESS", WALLET,
         ), patch.object(
             app, "get_live_execution_readiness",
@@ -533,6 +535,8 @@ class LiveReceiptPersistenceTests(unittest.TestCase):
         amount = 6000000000000000
         with patch.object(app, "LIVE_TRADING", True), patch.object(
             app, "LIVE_EXECUTION_IMPLEMENTED", True,
+        ), patch.object(
+            app, "LIVE_SELLS_ENABLED", True,
         ), patch.object(
             app, "PUMPPORTAL_TRADING_WALLET_ADDRESS", WALLET,
         ), patch.object(

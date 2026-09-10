@@ -188,6 +188,16 @@ LIVE_TRADING = os.getenv(
 
 LIVE_EXECUTION_IMPLEMENTED = False
 
+LIVE_BUYS_ENABLED = os.getenv(
+    "LIVE_BUYS_ENABLED",
+    "false"
+).lower() == "true"
+
+LIVE_SELLS_ENABLED = os.getenv(
+    "LIVE_SELLS_ENABLED",
+    "false"
+).lower() == "true"
+
 EXECUTION_PROVIDER = os.getenv(
     "EXECUTION_PROVIDER",
     "simulation"
@@ -2363,10 +2373,23 @@ def prepare_pumpportal_lightning_buy(
 def submit_pumpportal_lightning_trade(
     payload,
     api_key=None,
-    timeout_seconds=5
+    timeout_seconds=5,
+    execution_side=None
 ):
+    side = str(
+        execution_side
+        or payload.get("action")
+        or ""
+    ).strip().lower()
+
+    if side not in {"buy", "sell"}:
+        return {
+            "ok": False,
+            "reason": "INVALID_EXECUTION_SIDE",
+        }
+
     try:
-        require_live_trading()
+        require_live_trading(side)
     except HTTPException as exc:
         return {
             "ok": False,
@@ -2436,11 +2459,11 @@ def execute_pumpportal_lightning_buy(
     origin_trader="",
 ):
     try:
-        require_live_trading()
+        require_live_trading("buy")
     except HTTPException as exc:
         return {"ok": False, "reason": exc.detail}
 
-    readiness = get_live_execution_readiness()
+    readiness = get_live_execution_readiness("buy")
     if not readiness["ready"]:
         return {
             "ok": False,
@@ -2523,7 +2546,10 @@ def execute_pumpportal_lightning_buy(
 
     update_execution_order(order_id, "RISK_CHECKED", "RISK_OK")
     update_execution_order(order_id, "SENT", "")
-    submitted = submit_pumpportal_lightning_trade(prepared["payload"])
+    submitted = submit_pumpportal_lightning_trade(
+        prepared["payload"],
+        execution_side="buy",
+    )
     signature = submitted.get("signature")
 
     if signature:
@@ -2570,10 +2596,10 @@ def execute_pumpportal_lightning_sell(
     if not idempotency_key:
         return {"ok": False, "reason": "IDEMPOTENCY_KEY_REQUIRED"}
     try:
-        require_live_trading()
+        require_live_trading("sell")
     except HTTPException as exc:
         return {"ok": False, "reason": exc.detail}
-    readiness = get_live_execution_readiness()
+    readiness = get_live_execution_readiness("sell")
     if not readiness["ready"]:
         return {"ok": False, "reason": "LIVE_EXECUTION_NOT_READY",
                 "blockers": readiness["blockers"]}
@@ -2655,7 +2681,10 @@ def execute_pumpportal_lightning_sell(
 
     update_execution_order(order_id, "RISK_CHECKED", "POSITION_AMOUNT_RESERVED")
     update_execution_order(order_id, "SENT", "")
-    submitted = submit_pumpportal_lightning_trade(payload)
+    submitted = submit_pumpportal_lightning_trade(
+        payload,
+        execution_side="sell",
+    )
     signature = submitted.get("signature")
     if signature:
         set_execution_order_external_signature(order_id, signature)
@@ -5684,7 +5713,11 @@ def get_shadow_stats():
     }
 
 
-def get_live_execution_readiness():
+def get_live_execution_readiness(execution_side=None):
+    execution_side = str(
+        execution_side or ""
+    ).strip().lower()
+
     shadow_stats = get_shadow_stats()
     assessment = shadow_stats["promotion_assessment"]
     blockers = []
@@ -5709,10 +5742,25 @@ def get_live_execution_readiness():
         blockers.append("LIVE_EXECUTION_NOT_IMPLEMENTED")
     if not LIVE_TRADING:
         blockers.append("LIVE_TRADING_DISABLED")
+    if (
+        not execution_side
+        and LIVE_TRADING
+        and LIVE_EXECUTION_IMPLEMENTED
+        and not (
+            LIVE_BUYS_ENABLED
+            or LIVE_SELLS_ENABLED
+        )
+    ):
+        blockers.append("LIVE_BUYS_AND_SELLS_DISABLED")
+    if execution_side == "buy" and not LIVE_BUYS_ENABLED:
+        blockers.append("LIVE_BUYS_DISABLED")
+    if execution_side == "sell" and not LIVE_SELLS_ENABLED:
+        blockers.append("LIVE_SELLS_DISABLED")
 
     return {
         "ready": not blockers,
         "blockers": blockers,
+        "execution_side": execution_side or None,
         "shadow_review": assessment,
         "stream_connected": bool(STREAM_CONNECTED),
         "pumpportal_wallet_balance_sol": PUMPPORTAL_WALLET_BALANCE_SOL,
@@ -5720,6 +5768,20 @@ def get_live_execution_readiness():
         "kill_switch": bool(KILL_SWITCH),
         "live_execution_implemented": bool(LIVE_EXECUTION_IMPLEMENTED),
         "live_trading_enabled": bool(LIVE_TRADING),
+        "live_buys_enabled": bool(LIVE_BUYS_ENABLED),
+        "live_sells_enabled": bool(LIVE_SELLS_ENABLED),
+        "live_buy_ready": bool(
+            LIVE_TRADING
+            and LIVE_EXECUTION_IMPLEMENTED
+            and LIVE_BUYS_ENABLED
+            and not KILL_SWITCH
+        ),
+        "live_sell_ready": bool(
+            LIVE_TRADING
+            and LIVE_EXECUTION_IMPLEMENTED
+            and LIVE_SELLS_ENABLED
+            and not KILL_SWITCH
+        ),
     }
 
 
@@ -8757,7 +8819,7 @@ def require_debug_mode():
             detail="NOT_FOUND"
         )
 
-def require_live_trading():
+def require_live_trading(execution_side=None):
 
     if not LIVE_TRADING:
         raise HTTPException(
@@ -8769,6 +8831,22 @@ def require_live_trading():
         raise HTTPException(
             status_code=501,
             detail="LIVE_EXECUTION_NOT_IMPLEMENTED"
+        )
+
+    execution_side = str(
+        execution_side or ""
+    ).strip().lower()
+
+    if execution_side == "buy" and not LIVE_BUYS_ENABLED:
+        raise HTTPException(
+            status_code=403,
+            detail="LIVE_BUYS_DISABLED"
+        )
+
+    if execution_side == "sell" and not LIVE_SELLS_ENABLED:
+        raise HTTPException(
+            status_code=403,
+            detail="LIVE_SELLS_DISABLED"
         )
     
 def get_persistent_kill_switch():
@@ -8863,10 +8941,36 @@ def status(
         "live_execution_implemented":
             bool(LIVE_EXECUTION_IMPLEMENTED),
 
+        "live_buys_enabled":
+            bool(LIVE_BUYS_ENABLED),
+
+        "live_sells_enabled":
+            bool(LIVE_SELLS_ENABLED),
+
         "live_trading_active":
             bool(
                 LIVE_TRADING
                 and LIVE_EXECUTION_IMPLEMENTED
+                and (
+                    LIVE_BUYS_ENABLED
+                    or LIVE_SELLS_ENABLED
+                )
+                and not KILL_SWITCH
+            ),
+
+        "live_buy_active":
+            bool(
+                LIVE_TRADING
+                and LIVE_EXECUTION_IMPLEMENTED
+                and LIVE_BUYS_ENABLED
+                and not KILL_SWITCH
+            ),
+
+        "live_sell_active":
+            bool(
+                LIVE_TRADING
+                and LIVE_EXECUTION_IMPLEMENTED
+                and LIVE_SELLS_ENABLED
                 and not KILL_SWITCH
             ),
 

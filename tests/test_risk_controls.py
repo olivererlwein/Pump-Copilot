@@ -90,6 +90,39 @@ class LiveTradingGuardTests(unittest.TestCase):
         self.assertFalse(status["live_execution_implemented"])
         self.assertFalse(status["live_trading_active"])
 
+    def test_live_buy_and_sell_have_independent_switches(self):
+        with patch.object(app, "LIVE_TRADING", True), patch.object(
+            app,
+            "LIVE_EXECUTION_IMPLEMENTED",
+            True,
+        ), patch.object(app, "LIVE_BUYS_ENABLED", False), patch.object(
+            app,
+            "LIVE_SELLS_ENABLED",
+            False,
+        ):
+            with self.assertRaises(app.HTTPException) as buy_raised:
+                app.require_live_trading("buy")
+            with self.assertRaises(app.HTTPException) as sell_raised:
+                app.require_live_trading("sell")
+
+        self.assertEqual(buy_raised.exception.detail, "LIVE_BUYS_DISABLED")
+        self.assertEqual(sell_raised.exception.detail, "LIVE_SELLS_DISABLED")
+
+        with patch.object(app, "LIVE_TRADING", True), patch.object(
+            app,
+            "LIVE_EXECUTION_IMPLEMENTED",
+            True,
+        ), patch.object(app, "LIVE_BUYS_ENABLED", True), patch.object(
+            app,
+            "LIVE_SELLS_ENABLED",
+            False,
+        ):
+            app.require_live_trading("buy")
+            with self.assertRaises(app.HTTPException) as sell_raised:
+                app.require_live_trading("sell")
+
+        self.assertEqual(sell_raised.exception.detail, "LIVE_SELLS_DISABLED")
+
     def test_live_readiness_reports_every_remaining_guard(self):
         shadow_stats = {
             "promotion_assessment": {
@@ -134,6 +167,74 @@ class LiveTradingGuardTests(unittest.TestCase):
                 "LIVE_EXECUTION_NOT_IMPLEMENTED",
                 "LIVE_TRADING_DISABLED",
             ],
+        )
+
+    def test_live_readiness_reports_side_specific_switches(self):
+        shadow_stats = {
+            "promotion_assessment": {
+                "minimum_completed": 100,
+                "ready_for_review": True,
+                "leader": "challenger",
+                "blockers": [],
+            },
+        }
+
+        patches = (
+            patch.object(app, "get_shadow_stats", return_value=shadow_stats),
+            patch.object(app, "API_KEY", "test-key"),
+            patch.object(app, "PUMPPORTAL_TRADING_WALLET_ADDRESS", "wallet-a"),
+            patch.object(app, "STREAM_CONNECTED", True),
+            patch.object(app, "PUMPPORTAL_WALLET_BALANCE_SOL", 0.05),
+            patch.object(app, "KILL_SWITCH", False),
+            patch.object(app, "LIVE_EXECUTION_IMPLEMENTED", True),
+            patch.object(app, "LIVE_TRADING", True),
+            patch.object(app, "LIVE_BUYS_ENABLED", True),
+            patch.object(app, "LIVE_SELLS_ENABLED", False),
+        )
+
+        with patches[0], patches[1], patches[2], patches[3], patches[4], (
+            patches[5]
+        ), patches[6], patches[7], patches[8], patches[9]:
+            buy = app.get_live_execution_readiness("buy")
+            sell = app.get_live_execution_readiness("sell")
+
+        self.assertTrue(buy["ready"])
+        self.assertEqual(buy["blockers"], [])
+        self.assertFalse(sell["ready"])
+        self.assertEqual(sell["blockers"], ["LIVE_SELLS_DISABLED"])
+
+    def test_general_live_readiness_requires_at_least_one_side_enabled(self):
+        shadow_stats = {
+            "promotion_assessment": {
+                "minimum_completed": 100,
+                "ready_for_review": True,
+                "leader": "challenger",
+                "blockers": [],
+            },
+        }
+
+        patches = (
+            patch.object(app, "get_shadow_stats", return_value=shadow_stats),
+            patch.object(app, "API_KEY", "test-key"),
+            patch.object(app, "PUMPPORTAL_TRADING_WALLET_ADDRESS", "wallet-a"),
+            patch.object(app, "STREAM_CONNECTED", True),
+            patch.object(app, "PUMPPORTAL_WALLET_BALANCE_SOL", 0.05),
+            patch.object(app, "KILL_SWITCH", False),
+            patch.object(app, "LIVE_EXECUTION_IMPLEMENTED", True),
+            patch.object(app, "LIVE_TRADING", True),
+            patch.object(app, "LIVE_BUYS_ENABLED", False),
+            patch.object(app, "LIVE_SELLS_ENABLED", False),
+        )
+
+        with patches[0], patches[1], patches[2], patches[3], patches[4], (
+            patches[5]
+        ), patches[6], patches[7], patches[8], patches[9]:
+            readiness = app.get_live_execution_readiness()
+
+        self.assertFalse(readiness["ready"])
+        self.assertEqual(
+            readiness["blockers"],
+            ["LIVE_BUYS_AND_SELLS_DISABLED"],
         )
 
 
@@ -335,6 +436,16 @@ class ExecutionAdapterTests(unittest.TestCase):
         )
         urlopen.assert_not_called()
 
+    def test_live_submission_requires_buy_or_sell_side(self):
+        with patch.object(app, "urlopen") as urlopen:
+            result = app.submit_pumpportal_lightning_trade(
+                {"action": "hold"},
+            )
+
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["reason"], "INVALID_EXECUTION_SIDE")
+        urlopen.assert_not_called()
+
     def test_live_submission_parses_simulated_pumpportal_response(self):
         signature = "1" * 88
         response = MagicMock()
@@ -346,6 +457,10 @@ class ExecutionAdapterTests(unittest.TestCase):
         with patch.object(app, "LIVE_TRADING", True), patch.object(
             app,
             "LIVE_EXECUTION_IMPLEMENTED",
+            True,
+        ), patch.object(
+            app,
+            "LIVE_BUYS_ENABLED",
             True,
         ), patch.object(
             app,
@@ -369,6 +484,10 @@ class ExecutionAdapterTests(unittest.TestCase):
         with patch.object(app, "LIVE_TRADING", True), patch.object(
             app,
             "LIVE_EXECUTION_IMPLEMENTED",
+            True,
+        ), patch.object(
+            app,
+            "LIVE_BUYS_ENABLED",
             True,
         ), patch.object(app, "urlopen", return_value=response):
             result = app.submit_pumpportal_lightning_trade(
@@ -447,6 +566,10 @@ class ExecutionAdapterTests(unittest.TestCase):
             True,
         ), patch.object(
             app,
+            "LIVE_BUYS_ENABLED",
+            True,
+        ), patch.object(
+            app,
             "get_live_execution_readiness",
             return_value={"ready": True, "blockers": []},
         ), patch.object(
@@ -503,6 +626,8 @@ class ExecutionAdapterTests(unittest.TestCase):
         with patch.object(app, "LIVE_TRADING", True), patch.object(
             app, "LIVE_EXECUTION_IMPLEMENTED", True,
         ), patch.object(
+            app, "LIVE_BUYS_ENABLED", True,
+        ), patch.object(
             app, "get_live_execution_readiness",
             return_value={"ready": True, "blockers": []},
         ):
@@ -524,6 +649,10 @@ class ExecutionAdapterTests(unittest.TestCase):
         ), patch.object(app, "LIVE_TRADING", True), patch.object(
             app,
             "LIVE_EXECUTION_IMPLEMENTED",
+            True,
+        ), patch.object(
+            app,
+            "LIVE_BUYS_ENABLED",
             True,
         ), patch.object(
             app,
