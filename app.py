@@ -336,6 +336,16 @@ HELIUS_WEBHOOK_MAX_TRANSACTIONS = max(
     int(os.getenv("HELIUS_WEBHOOK_MAX_TRANSACTIONS", "200")),
 )
 
+# Cuántos payloads sin parsear se guardan enteros. Sin una muestra real no hay
+# forma de distinguir "no era una operación Pump" de "el formato no es el que
+# el parser espera", que se ven exactamente igual desde afuera.
+HELIUS_WEBHOOK_RAW_SAMPLES = max(
+    0,
+    int(os.getenv("HELIUS_WEBHOOK_RAW_SAMPLES", "5")),
+)
+
+HELIUS_WEBHOOK_RAW_SAMPLE_CHARS = 20000
+
 # Fallback observacional para auditar los eventos de cuenta que PumpPortal no
 # entrega. No entra a save_trade(), scoring, señales ni ejecución hasta que sus
 # resultados hayan sido comparados y promovidos explícitamente.
@@ -496,10 +506,18 @@ def db():
             parsed INTEGER DEFAULT 0,
             side TEXT,
             mint TEXT,
-            pool TEXT
+            pool TEXT,
+            raw_sample TEXT
         )
         """
     )
+
+    try:
+        conn.execute(
+            "ALTER TABLE helius_webhook_events ADD COLUMN raw_sample TEXT"
+        )
+    except Exception:
+        pass
 
     # Última vez que cada wallet vigilada entregó un evento. Sin esto, que una
     # wallet deje de llegar es indistinguible de que el trader no opere.
@@ -11856,13 +11874,29 @@ def record_helius_webhook_transactions(payload, received_ts=None):
             if parsed is not None:
                 parsed_events += 1
 
+            raw_sample = None
+
+            if parsed is None and HELIUS_WEBHOOK_RAW_SAMPLES:
+                stored_samples = conn.execute(
+                    "SELECT COUNT(*) FROM helius_webhook_events "
+                    "WHERE raw_sample IS NOT NULL"
+                ).fetchone()[0]
+
+                if stored_samples < HELIUS_WEBHOOK_RAW_SAMPLES:
+                    try:
+                        raw_sample = json.dumps(receipt)[
+                            :HELIUS_WEBHOOK_RAW_SAMPLE_CHARS
+                        ]
+                    except Exception:
+                        raw_sample = None
+
             cursor = conn.execute(
                 """
                 INSERT OR IGNORE INTO helius_webhook_events(
                     signature, wallet, trader, block_time,
-                    received_ts, parsed, side, mint, pool
+                    received_ts, parsed, side, mint, pool, raw_sample
                 )
-                VALUES(?,?,?,?,?,?,?,?,?)
+                VALUES(?,?,?,?,?,?,?,?,?,?)
                 """,
                 (
                     signature,
@@ -11874,6 +11908,7 @@ def record_helius_webhook_transactions(payload, received_ts=None):
                     (parsed or {}).get("txType"),
                     (parsed or {}).get("mint"),
                     (parsed or {}).get("pool"),
+                    raw_sample,
                 ),
             )
 
@@ -11994,7 +12029,39 @@ def api_helius_webhook_stats(
         """
     ).fetchone()[0]
 
+    recent_rows = conn.execute(
+        """
+        SELECT signature, block_time, received_ts, parsed, trader
+        FROM helius_webhook_events
+        ORDER BY received_ts DESC
+        LIMIT 10
+        """
+    ).fetchall()
+
+    sample_row = conn.execute(
+        """
+        SELECT COUNT(*) FROM helius_webhook_events
+        WHERE raw_sample IS NOT NULL
+        """
+    ).fetchone()
+
     conn.close()
+
+    recent_events = [
+        {
+            "signature": row[0],
+            "block_time": row[1],
+            "received_ts": row[2],
+            "parsed": bool(row[3]),
+            "trader": row[4],
+        }
+        for row in recent_rows
+    ]
+
+    unparsed_sample = {
+        "stored": int(sample_row[0] or 0),
+        "endpoint": "/api/helius-webhook-sample",
+    }
 
     def summarize(row):
         return {
@@ -12014,6 +12081,45 @@ def api_helius_webhook_stats(
         "webhook_latency": summarize(webhook_latency),
         "pumpportal_latency": summarize(stream_latency),
         "parsed_only_in_webhook": int(only_webhook or 0),
+        "recent_events": recent_events,
+        "unparsed_sample": unparsed_sample,
+    }
+
+
+@app.get("/api/helius-webhook-sample")
+def api_helius_webhook_sample(
+    x_app_token: str = Header(default="")
+):
+    """Payload crudo de una transacción que no parseó, para diagnóstico."""
+
+    auth(x_app_token)
+
+    conn = db()
+    row = conn.execute(
+        """
+        SELECT signature, received_ts, raw_sample
+        FROM helius_webhook_events
+        WHERE raw_sample IS NOT NULL
+        ORDER BY received_ts DESC
+        LIMIT 1
+        """
+    ).fetchone()
+    conn.close()
+
+    if not row:
+        return {"available": False}
+
+    try:
+        payload = json.loads(row[2])
+    except Exception:
+        payload = None
+
+    return {
+        "available": True,
+        "signature": row[0],
+        "received_ts": row[1],
+        "payload": payload,
+        "raw": row[2] if payload is None else None,
     }
 
 
