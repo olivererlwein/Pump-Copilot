@@ -777,3 +777,49 @@ Nota: se observaron movimientos en esa wallet (el más reciente 7,3 h antes de
 esta medición) con el live trading apagado y la función de compra real sin
 llamarse desde ningún lado. El bot no puede ser la causa; queda para que el
 usuario confirme que los reconoce.
+
+---
+
+# Hook de pre-push para el camino del dinero — 2026-09-11
+
+`scripts/hooks/pre-push`, versionado en el repo para que aplique a cualquiera
+que trabaje sobre esta copia, no solo a quien lo instaló.
+
+**Instalación** (una vez por copia del repo):
+
+    git config core.hooksPath scripts/hooks
+
+## Qué hace
+
+Frena un push a `main` cuando el diff toca funciones o constantes que deciden
+si se gasta dinero real, o cuánto: los `execute_pumpportal_lightning_*`,
+`maybe_execute_live_copy`, `require_live_trading`, `risk_check`, los
+`record_finalized_*`, la lógica de salida de posiciones live, el kill switch, y
+las constantes `LIVE_*`, `MAX_POSITION_USD`, `MAX_DAILY_LOSS_USD`,
+`MAX_SLIPPAGE_PCT`.
+
+Railway despliega desde `main`, así que un push a esa rama llega a producción
+sin escala intermedia.
+
+**No revisa el código ni llama a ningún servicio.** Solo detecta y frena; la
+revisión queda como acción deliberada aparte. Esto es a propósito: un push que
+dependa de que haya red o de que una herramienta externa responda falla por
+motivos que no tienen nada que ver con el riesgo que intenta cubrir.
+
+Salida de escape, cuando el cambio es deliberado y ya está revisado:
+
+    ALLOW_RISK_PUSH=1 git push
+
+## Verificación
+
+Probado contra historia real del repo:
+
+| Caso | Resultado |
+|---|---|
+| `c3b0844` (solo `CLAUDE_NOTES.md`) | permitido |
+| `d0a6e28` "Connect COPY decisions to guarded live buys" | **frenado**, listando `execute_pumpportal_lightning_buy`, `maybe_execute_live_copy`, `LIVE_BUYS_ENABLED`, `LIVE_BUY_USD`, `MAX_POSITION_USD` |
+| Mismo commit con `ALLOW_RISK_PUSH=1` | permitido |
+| Rama distinta de `main` | permitido (no despliega) |
+
+El segundo caso es el que justifica el hook: ese commit conectó la decisión
+COPY con la compra real y se subió directo a `main` sin revisión previa.

@@ -1,0 +1,88 @@
+#!/bin/sh
+#
+# Frena un push que toque el camino del dinero hasta que alguien lo mire.
+#
+# Railway despliega desde main, así que un push a esta rama llega a producción
+# sin escala intermedia. Este repo ya tuvo cambios en los gates de ejecución
+# real subidos directamente a main sin revisión: el hook existe para que eso
+# requiera una decisión explícita en vez de pasar inadvertido.
+#
+# No revisa el código ni llama a ningún servicio: solo detecta y frena. La
+# revisión es una acción deliberada aparte, para que el push no dependa de que
+# haya red o de que una herramienta externa responda.
+#
+# Para saltearlo cuando el cambio es deliberado y ya está revisado:
+#     ALLOW_RISK_PUSH=1 git push
+#
+# Instalación (una vez por copia del repo):
+#     git config core.hooksPath scripts/hooks
+
+set -e
+
+PROTECTED_BRANCH="main"
+
+# Funciones y constantes que deciden si se gasta dinero real, o cuánto.
+RISK_PATTERN='execute_pumpportal_lightning_buy|execute_pumpportal_lightning_sell|maybe_execute_live_copy|require_live_trading|risk_check|record_finalized_buy_position|record_finalized_sell_position|decide_live_position_exit|evaluate_live_position_exit|create_execution_order|update_execution_order|set_persistent_kill_switch|assess_live_model_approval|LIVE_EXECUTION_IMPLEMENTED|LIVE_TRADING|LIVE_BUYS_ENABLED|LIVE_SELLS_ENABLED|LIVE_BUY_USD|KILL_SWITCH|MAX_POSITION_USD|MAX_DAILY_LOSS_USD|MAX_SLIPPAGE_PCT'
+
+# Archivos donde ese código vive.
+RISK_FILES="app.py solana_receipts.py"
+
+zero=$(git hash-object --stdin </dev/null | tr '[0-9a-f]' '0')
+found=""
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+    # Rama que se borra: nada que revisar.
+    [ "$local_sha" = "$zero" ] && continue
+
+    case "$remote_ref" in
+        *"$PROTECTED_BRANCH") ;;
+        *) continue ;;
+    esac
+
+    if [ "$remote_sha" = "$zero" ]; then
+        range="$local_sha"
+    else
+        range="$remote_sha..$local_sha"
+    fi
+
+    # Solo las líneas agregadas o quitadas, no el contexto del diff.
+    hits=$(git diff "$range" -- $RISK_FILES 2>/dev/null \
+        | grep -E '^[+-]' \
+        | grep -Ev '^(\+\+\+|---)' \
+        | grep -Eo "$RISK_PATTERN" \
+        | sort -u || true)
+
+    [ -n "$hits" ] && found="$hits"
+done
+
+[ -z "$found" ] && exit 0
+
+if [ "$ALLOW_RISK_PUSH" = "1" ]; then
+    echo "[pre-push] Cambios en el camino del dinero, permitidos por ALLOW_RISK_PUSH=1."
+    exit 0
+fi
+
+echo ""
+echo "=============================================================="
+echo " PUSH FRENADO: este cambio toca el camino del dinero"
+echo "=============================================================="
+echo ""
+echo " Railway despliega desde $PROTECTED_BRANCH, así que esto llega"
+echo " a producción sin escala intermedia."
+echo ""
+echo " Tocás estas funciones o constantes:"
+echo ""
+echo "$found" | sed 's/^/   - /'
+echo ""
+echo " Revisalo antes de subirlo. Por ejemplo:"
+echo ""
+echo "   git diff origin/$PROTECTED_BRANCH -- app.py solana_receipts.py"
+echo ""
+echo " Y si ya está revisado y es deliberado:"
+echo ""
+echo "   ALLOW_RISK_PUSH=1 git push"
+echo ""
+echo "=============================================================="
+echo ""
+
+exit 1
