@@ -288,9 +288,9 @@
     "semantic_hash": ""
   },
   "tests/test_stream_routing.py": {
-    "mtime": 1789154642.4778302,
-    "seen": 1789154677.8625126,
-    "ast_hash": "98b1a2086d95282fd4dd9d3559e26928",
+    "mtime": 1789154955.6944458,
+    "seen": 1789154967.853039,
+    "ast_hash": "ee3b374821c9213c3e3d3853b376f52d",
     "semantic_hash": ""
   }
 }

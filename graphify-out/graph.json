@@ -352,7 +352,7 @@
       "file_type": "code",
       "norm_label": "streamroutingtests",
       "source_file": "tests/test_stream_routing.py",
-      "source_location": "L12"
+      "source_location": "L13"
     },
     {
       "id": "tests_test_stream_monitoring_pumpportalbalancetests",
@@ -1155,6 +1155,30 @@
       "source_location": "L2006"
     },
     {
+      "id": "app_decide_live_position_exit",
+      "label": "decide_live_position_exit()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "startup",
+      "file_type": "code",
+      "norm_label": "decide_live_position_exit()",
+      "source_file": "app.py",
+      "source_location": "L8612"
+    },
+    {
+      "id": "app_evaluate_live_position_exit",
+      "label": "evaluate_live_position_exit()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "startup",
+      "file_type": "code",
+      "norm_label": "evaluate_live_position_exit()",
+      "source_file": "app.py",
+      "source_location": "L8685"
+    },
+    {
       "id": "app_expire_old_signal_outcomes",
       "label": "expire_old_signal_outcomes()",
       "_callable": true,
@@ -1393,6 +1417,30 @@
       "norm_label": "rpc_fallback_shadow_worker()",
       "source_file": "app.py",
       "source_location": "L10006"
+    },
+    {
+      "id": "app_save_token_history",
+      "label": "save_token_history()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "startup",
+      "file_type": "code",
+      "norm_label": "save_token_history()",
+      "source_file": "app.py",
+      "source_location": "L4469"
+    },
+    {
+      "id": "app_save_trade",
+      "label": "save_trade()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "startup",
+      "file_type": "code",
+      "norm_label": "save_trade()",
+      "source_file": "app.py",
+      "source_location": "L9022"
     },
     {
       "id": "app_send_discord_alert",
@@ -2259,30 +2307,6 @@
       "source_location": "L12295"
     },
     {
-      "id": "app_demo_can_retry",
-      "label": "demo_can_retry()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 25,
-      "community_name": "auth",
-      "file_type": "code",
-      "norm_label": "demo_can_retry()",
-      "source_file": "app.py",
-      "source_location": "L13445"
-    },
-    {
-      "id": "app_demo_cannot_retry_risk",
-      "label": "demo_cannot_retry_risk()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 25,
-      "community_name": "auth",
-      "file_type": "code",
-      "norm_label": "demo_cannot_retry_risk()",
-      "source_file": "app.py",
-      "source_location": "L13462"
-    },
-    {
       "id": "app_demo_close_old",
       "label": "demo_close_old()",
       "_callable": true,
@@ -2317,6 +2341,18 @@
       "norm_label": "demo_duplicate_check()",
       "source_file": "app.py",
       "source_location": "L12662"
+    },
+    {
+      "id": "app_demo_execution_latency",
+      "label": "demo_execution_latency()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "auth",
+      "file_type": "code",
+      "norm_label": "demo_execution_latency()",
+      "source_file": "app.py",
+      "source_location": "L13034"
     },
     {
       "id": "app_demo_execution_order_events",
@@ -4059,6 +4095,18 @@
       "source_location": "L4943"
     },
     {
+      "id": "app_api_helius_webhook_sample",
+      "label": "api_helius_webhook_sample()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 31,
+      "community_name": "get",
+      "file_type": "code",
+      "norm_label": "api_helius_webhook_sample()",
+      "source_file": "app.py",
+      "source_location": "L12095"
+    },
+    {
       "id": "app_api_helius_webhook_stats",
       "label": "api_helius_webhook_stats()",
       "_callable": true,
@@ -4069,6 +4117,18 @@
       "norm_label": "api_helius_webhook_stats()",
       "source_file": "app.py",
       "source_location": "L11972"
+    },
+    {
+      "id": "app_api_rpc_fallback_stats",
+      "label": "api_rpc_fallback_stats()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 31,
+      "community_name": "get",
+      "file_type": "code",
+      "norm_label": "api_rpc_fallback_stats()",
+      "source_file": "app.py",
+      "source_location": "L12162"
     },
     {
       "id": "app_api_shadow_stats",
@@ -4083,88 +4143,64 @@
       "source_location": "L12266"
     },
     {
-      "id": "app_demo_execution_check",
-      "label": "demo_execution_check()",
+      "id": "app_api_training_dataset",
+      "label": "api_training_dataset()",
       "_callable": true,
       "_origin": "ast",
       "community": 31,
       "community_name": "get",
       "file_type": "code",
-      "norm_label": "demo_execution_check()",
+      "norm_label": "api_training_dataset()",
       "source_file": "app.py",
-      "source_location": "L12836"
+      "source_location": "L12214"
     },
     {
-      "id": "app_demo_execution_failure",
-      "label": "demo_execution_failure()",
+      "id": "app_api_training_dataset_preview",
+      "label": "api_training_dataset_preview()",
       "_callable": true,
       "_origin": "ast",
       "community": 31,
       "community_name": "get",
       "file_type": "code",
-      "norm_label": "demo_execution_failure()",
+      "norm_label": "api_training_dataset_preview()",
       "source_file": "app.py",
-      "source_location": "L13047"
+      "source_location": "L12232"
     },
     {
-      "id": "app_demo_execution_latency",
-      "label": "demo_execution_latency()",
+      "id": "app_can_retry_execution",
+      "label": "can_retry_execution()",
       "_callable": true,
       "_origin": "ast",
       "community": 31,
       "community_name": "get",
       "file_type": "code",
-      "norm_label": "demo_execution_latency()",
+      "norm_label": "can_retry_execution()",
       "source_file": "app.py",
-      "source_location": "L13034"
+      "source_location": "L3378"
     },
     {
-      "id": "app_demo_idempotency_check",
-      "label": "demo_idempotency_check()",
+      "id": "app_demo_can_retry",
+      "label": "demo_can_retry()",
       "_callable": true,
       "_origin": "ast",
       "community": 31,
       "community_name": "get",
       "file_type": "code",
-      "norm_label": "demo_idempotency_check()",
+      "norm_label": "demo_can_retry()",
       "source_file": "app.py",
-      "source_location": "L13067"
+      "source_location": "L13445"
     },
     {
-      "id": "app_demo_idempotency_failed",
-      "label": "demo_idempotency_failed()",
+      "id": "app_demo_cannot_retry_risk",
+      "label": "demo_cannot_retry_risk()",
       "_callable": true,
       "_origin": "ast",
       "community": 31,
       "community_name": "get",
       "file_type": "code",
-      "norm_label": "demo_idempotency_failed()",
+      "norm_label": "demo_cannot_retry_risk()",
       "source_file": "app.py",
-      "source_location": "L13101"
-    },
-    {
-      "id": "app_demo_idempotency_risk_blocked",
-      "label": "demo_idempotency_risk_blocked()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 31,
-      "community_name": "get",
-      "file_type": "code",
-      "norm_label": "demo_idempotency_risk_blocked()",
-      "source_file": "app.py",
-      "source_location": "L13137"
-    },
-    {
-      "id": "app_demo_mode_save",
-      "label": "demo_mode_save()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 31,
-      "community_name": "get",
-      "file_type": "code",
-      "norm_label": "demo_mode_save()",
-      "source_file": "app.py",
-      "source_location": "L14020"
+      "source_location": "L13462"
     },
     {
       "id": "app_evaluations",
@@ -4179,28 +4215,28 @@
       "source_location": "L11142"
     },
     {
-      "id": "app_execute_order",
-      "label": "execute_order()",
+      "id": "app_get_rpc_fallback_stats",
+      "label": "get_rpc_fallback_stats()",
       "_callable": true,
       "_origin": "ast",
       "community": 31,
       "community_name": "get",
       "file_type": "code",
-      "norm_label": "execute_order()",
+      "norm_label": "get_rpc_fallback_stats()",
       "source_file": "app.py",
-      "source_location": "L2284"
+      "source_location": "L10037"
     },
     {
-      "id": "app_get_execution_latency",
-      "label": "get_execution_latency()",
+      "id": "app_get_training_dataset_rows",
+      "label": "get_training_dataset_rows()",
       "_callable": true,
       "_origin": "ast",
       "community": 31,
       "community_name": "get",
       "file_type": "code",
-      "norm_label": "get_execution_latency()",
+      "norm_label": "get_training_dataset_rows()",
       "source_file": "app.py",
-      "source_location": "L3583"
+      "source_location": "L6846"
     },
     {
       "id": "app_home",
@@ -4251,18 +4287,6 @@
       "source_location": "L11302"
     },
     {
-      "id": "app_simulate_execution",
-      "label": "simulate_execution()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 31,
-      "community_name": "get",
-      "file_type": "code",
-      "norm_label": "simulate_execution()",
-      "source_file": "app.py",
-      "source_location": "L2158"
-    },
-    {
       "id": "app_status",
       "label": "status()",
       "_callable": true,
@@ -4299,18 +4323,6 @@
       "source_location": "L11039"
     },
     {
-      "id": "app_api_helius_webhook_sample",
-      "label": "api_helius_webhook_sample()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 34,
-      "community_name": "app.py",
-      "file_type": "code",
-      "norm_label": "api_helius_webhook_sample()",
-      "source_file": "app.py",
-      "source_location": "L12095"
-    },
-    {
       "id": "app_api_live_execution_readiness",
       "label": "api_live_execution_readiness()",
       "_callable": true,
@@ -4335,18 +4347,6 @@
       "source_location": "L12282"
     },
     {
-      "id": "app_api_rpc_fallback_stats",
-      "label": "api_rpc_fallback_stats()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 34,
-      "community_name": "app.py",
-      "file_type": "code",
-      "norm_label": "api_rpc_fallback_stats()",
-      "source_file": "app.py",
-      "source_location": "L12162"
-    },
-    {
       "id": "app_api_shadow_predictions",
       "label": "api_shadow_predictions()",
       "_callable": true,
@@ -4369,30 +4369,6 @@
       "norm_label": "api_training_checkpoint_freshness()",
       "source_file": "app.py",
       "source_location": "L12201"
-    },
-    {
-      "id": "app_api_training_dataset",
-      "label": "api_training_dataset()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 34,
-      "community_name": "app.py",
-      "file_type": "code",
-      "norm_label": "api_training_dataset()",
-      "source_file": "app.py",
-      "source_location": "L12214"
-    },
-    {
-      "id": "app_api_training_dataset_preview",
-      "label": "api_training_dataset_preview()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 34,
-      "community_name": "app.py",
-      "file_type": "code",
-      "norm_label": "api_training_dataset_preview()",
-      "source_file": "app.py",
-      "source_location": "L12232"
     },
     {
       "id": "app_api_training_expired_preview",
@@ -4503,18 +4479,6 @@
       "source_location": "L429"
     },
     {
-      "id": "app_decide_live_position_exit",
-      "label": "decide_live_position_exit()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 34,
-      "community_name": "app.py",
-      "file_type": "code",
-      "norm_label": "decide_live_position_exit()",
-      "source_file": "app.py",
-      "source_location": "L8612"
-    },
-    {
       "id": "app_decision_from_score",
       "label": "decision_from_score()",
       "_callable": true,
@@ -4525,18 +4489,6 @@
       "norm_label": "decision_from_score()",
       "source_file": "app.py",
       "source_location": "L7916"
-    },
-    {
-      "id": "app_demo_liquidity_check",
-      "label": "demo_liquidity_check()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 34,
-      "community_name": "app.py",
-      "file_type": "code",
-      "norm_label": "demo_liquidity_check()",
-      "source_file": "app.py",
-      "source_location": "L12812"
     },
     {
       "id": "app_demo_live_guard",
@@ -4561,18 +4513,6 @@
       "norm_label": "evaluate_buy()",
       "source_file": "app.py",
       "source_location": "L8120"
-    },
-    {
-      "id": "app_evaluate_live_position_exit",
-      "label": "evaluate_live_position_exit()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 34,
-      "community_name": "app.py",
-      "file_type": "code",
-      "norm_label": "evaluate_live_position_exit()",
-      "source_file": "app.py",
-      "source_location": "L8685"
     },
     {
       "id": "app_execute_pumpportal_lightning_buy",
@@ -4635,6 +4575,18 @@
       "source_location": "L1104"
     },
     {
+      "id": "app_get_execution_latency",
+      "label": "get_execution_latency()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 34,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "get_execution_latency()",
+      "source_file": "app.py",
+      "source_location": "L3583"
+    },
+    {
       "id": "app_get_execution_order_status",
       "label": "get_execution_order_status()",
       "_callable": true,
@@ -4669,18 +4621,6 @@
       "norm_label": "get_live_position_summary()",
       "source_file": "app.py",
       "source_location": "L1121"
-    },
-    {
-      "id": "app_get_rpc_fallback_stats",
-      "label": "get_rpc_fallback_stats()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 34,
-      "community_name": "app.py",
-      "file_type": "code",
-      "norm_label": "get_rpc_fallback_stats()",
-      "source_file": "app.py",
-      "source_location": "L10037"
     },
     {
       "id": "app_get_shadow_predictions",
@@ -4851,18 +4791,6 @@
       "source_location": "L7252"
     },
     {
-      "id": "app_get_training_dataset_rows",
-      "label": "get_training_dataset_rows()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 34,
-      "community_name": "app.py",
-      "file_type": "code",
-      "norm_label": "get_training_dataset_rows()",
-      "source_file": "app.py",
-      "source_location": "L6846"
-    },
-    {
       "id": "app_get_training_dataset_stats",
       "label": "get_training_dataset_stats()",
       "_callable": true,
@@ -4969,30 +4897,6 @@
       "norm_label": "save_execution_order_event()",
       "source_file": "app.py",
       "source_location": "L3161"
-    },
-    {
-      "id": "app_save_token_history",
-      "label": "save_token_history()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 34,
-      "community_name": "app.py",
-      "file_type": "code",
-      "norm_label": "save_token_history()",
-      "source_file": "app.py",
-      "source_location": "L4469"
-    },
-    {
-      "id": "app_save_trade",
-      "label": "save_trade()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 34,
-      "community_name": "app.py",
-      "file_type": "code",
-      "norm_label": "save_trade()",
-      "source_file": "app.py",
-      "source_location": "L9022"
     },
     {
       "id": "app_score_consensus",
@@ -5125,18 +5029,6 @@
       "norm_label": "update_signal_outcome_extremes()",
       "source_file": "app.py",
       "source_location": "L1631"
-    },
-    {
-      "id": "app_validate_liquidity",
-      "label": "validate_liquidity()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 34,
-      "community_name": "app.py",
-      "file_type": "code",
-      "norm_label": "validate_liquidity()",
-      "source_file": "app.py",
-      "source_location": "L1214"
     },
     {
       "id": "tests_test_trader_quality_traderqualitycandidatetests_insert_outcomes",
@@ -5607,6 +5499,18 @@
       "source_location": "L14273"
     },
     {
+      "id": "app_demo_liquidity_check",
+      "label": "demo_liquidity_check()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 36,
+      "community_name": "open_paper_position",
+      "file_type": "code",
+      "norm_label": "demo_liquidity_check()",
+      "source_file": "app.py",
+      "source_location": "L12812"
+    },
+    {
       "id": "app_demo_mode_isolation",
       "label": "demo_mode_isolation()",
       "_callable": true,
@@ -5703,6 +5607,18 @@
       "source_location": "L4545"
     },
     {
+      "id": "app_validate_liquidity",
+      "label": "validate_liquidity()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 36,
+      "community_name": "open_paper_position",
+      "file_type": "code",
+      "norm_label": "validate_liquidity()",
+      "source_file": "app.py",
+      "source_location": "L1214"
+    },
+    {
       "id": "app_validate_slippage",
       "label": "validate_slippage()",
       "_callable": true,
@@ -5724,7 +5640,7 @@
       "file_type": "code",
       "norm_label": ".check_routing()",
       "source_file": "tests/test_stream_routing.py",
-      "source_location": "L13"
+      "source_location": "L14"
     },
     {
       "id": "tests_test_stream_routing_streamroutingtests_test_other_wallet_on_tracked_token_keeps_all_updates",
@@ -5736,7 +5652,19 @@
       "file_type": "code",
       "norm_label": ".test_other_wallet_on_tracked_token_keeps_all_updates()",
       "source_file": "tests/test_stream_routing.py",
-      "source_location": "L75"
+      "source_location": "L109"
+    },
+    {
+      "id": "tests_test_stream_routing_streamroutingtests_test_partial_sell_updates_paper_once_and_preserves_outcome",
+      "label": ".test_partial_sell_updates_paper_once_and_preserves_outcome()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 42,
+      "community_name": "StreamRoutingTests",
+      "file_type": "code",
+      "norm_label": ".test_partial_sell_updates_paper_once_and_preserves_outcome()",
+      "source_file": "tests/test_stream_routing.py",
+      "source_location": "L112"
     },
     {
       "id": "tests_test_stream_routing_streamroutingtests_test_watched_wallet_and_tracked_token_apply_effects_once",
@@ -5748,7 +5676,7 @@
       "file_type": "code",
       "norm_label": ".test_watched_wallet_and_tracked_token_apply_effects_once()",
       "source_file": "tests/test_stream_routing.py",
-      "source_location": "L69"
+      "source_location": "L103"
     },
     {
       "id": "tests_test_stream_routing_streamroutingtests_test_watched_wallet_only_keeps_position_updates",
@@ -5760,7 +5688,7 @@
       "file_type": "code",
       "norm_label": ".test_watched_wallet_only_keeps_position_updates()",
       "source_file": "tests/test_stream_routing.py",
-      "source_location": "L72"
+      "source_location": "L106"
     },
     {
       "id": "app_api_trader_quality_profile",
@@ -6111,24 +6039,12 @@
       "source_location": "L236"
     },
     {
-      "id": "app_can_retry_execution",
-      "label": "can_retry_execution()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 7,
-      "community_name": "update_execution_order",
-      "file_type": "code",
-      "norm_label": "can_retry_execution()",
-      "source_file": "app.py",
-      "source_location": "L3378"
-    },
-    {
       "id": "app_check_execution_timeout",
       "label": "check_execution_timeout()",
       "_callable": true,
       "_origin": "ast",
       "community": 7,
-      "community_name": "update_execution_order",
+      "community_name": "simulate_execution",
       "file_type": "code",
       "norm_label": "check_execution_timeout()",
       "source_file": "app.py",
@@ -6140,7 +6056,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 7,
-      "community_name": "update_execution_order",
+      "community_name": "simulate_execution",
       "file_type": "code",
       "norm_label": "create_execution_order()",
       "source_file": "app.py",
@@ -6152,11 +6068,35 @@
       "_callable": true,
       "_origin": "ast",
       "community": 7,
-      "community_name": "update_execution_order",
+      "community_name": "simulate_execution",
       "file_type": "code",
       "norm_label": "demo_controlled_retry()",
       "source_file": "app.py",
       "source_location": "L13538"
+    },
+    {
+      "id": "app_demo_execution_check",
+      "label": "demo_execution_check()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 7,
+      "community_name": "simulate_execution",
+      "file_type": "code",
+      "norm_label": "demo_execution_check()",
+      "source_file": "app.py",
+      "source_location": "L12836"
+    },
+    {
+      "id": "app_demo_execution_failure",
+      "label": "demo_execution_failure()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 7,
+      "community_name": "simulate_execution",
+      "file_type": "code",
+      "norm_label": "demo_execution_failure()",
+      "source_file": "app.py",
+      "source_location": "L13047"
     },
     {
       "id": "app_demo_execution_timeout",
@@ -6164,11 +6104,47 @@
       "_callable": true,
       "_origin": "ast",
       "community": 7,
-      "community_name": "update_execution_order",
+      "community_name": "simulate_execution",
       "file_type": "code",
       "norm_label": "demo_execution_timeout()",
       "source_file": "app.py",
       "source_location": "L13314"
+    },
+    {
+      "id": "app_demo_idempotency_check",
+      "label": "demo_idempotency_check()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 7,
+      "community_name": "simulate_execution",
+      "file_type": "code",
+      "norm_label": "demo_idempotency_check()",
+      "source_file": "app.py",
+      "source_location": "L13067"
+    },
+    {
+      "id": "app_demo_idempotency_failed",
+      "label": "demo_idempotency_failed()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 7,
+      "community_name": "simulate_execution",
+      "file_type": "code",
+      "norm_label": "demo_idempotency_failed()",
+      "source_file": "app.py",
+      "source_location": "L13101"
+    },
+    {
+      "id": "app_demo_idempotency_risk_blocked",
+      "label": "demo_idempotency_risk_blocked()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 7,
+      "community_name": "simulate_execution",
+      "file_type": "code",
+      "norm_label": "demo_idempotency_risk_blocked()",
+      "source_file": "app.py",
+      "source_location": "L13137"
     },
     {
       "id": "app_demo_idempotency_sent",
@@ -6176,7 +6152,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 7,
-      "community_name": "update_execution_order",
+      "community_name": "simulate_execution",
       "file_type": "code",
       "norm_label": "demo_idempotency_sent()",
       "source_file": "app.py",
@@ -6188,11 +6164,23 @@
       "_callable": true,
       "_origin": "ast",
       "community": 7,
-      "community_name": "update_execution_order",
+      "community_name": "simulate_execution",
       "file_type": "code",
       "norm_label": "demo_idempotency_sent_failed()",
       "source_file": "app.py",
       "source_location": "L13251"
+    },
+    {
+      "id": "app_demo_mode_save",
+      "label": "demo_mode_save()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 7,
+      "community_name": "simulate_execution",
+      "file_type": "code",
+      "norm_label": "demo_mode_save()",
+      "source_file": "app.py",
+      "source_location": "L14020"
     },
     {
       "id": "app_demo_pending_reconciliation",
@@ -6200,7 +6188,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 7,
-      "community_name": "update_execution_order",
+      "community_name": "simulate_execution",
       "file_type": "code",
       "norm_label": "demo_pending_reconciliation()",
       "source_file": "app.py",
@@ -6212,7 +6200,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 7,
-      "community_name": "update_execution_order",
+      "community_name": "simulate_execution",
       "file_type": "code",
       "norm_label": "demo_retry_function()",
       "source_file": "app.py",
@@ -6224,7 +6212,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 7,
-      "community_name": "update_execution_order",
+      "community_name": "simulate_execution",
       "file_type": "code",
       "norm_label": "demo_retry_limit()",
       "source_file": "app.py",
@@ -6236,7 +6224,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 7,
-      "community_name": "update_execution_order",
+      "community_name": "simulate_execution",
       "file_type": "code",
       "norm_label": "demo_retry_mode()",
       "source_file": "app.py",
@@ -6248,11 +6236,23 @@
       "_callable": true,
       "_origin": "ast",
       "community": 7,
-      "community_name": "update_execution_order",
+      "community_name": "simulate_execution",
       "file_type": "code",
       "norm_label": "demo_retry_real_limit()",
       "source_file": "app.py",
       "source_location": "L13789"
+    },
+    {
+      "id": "app_execute_order",
+      "label": "execute_order()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 7,
+      "community_name": "simulate_execution",
+      "file_type": "code",
+      "norm_label": "execute_order()",
+      "source_file": "app.py",
+      "source_location": "L2284"
     },
     {
       "id": "app_get_or_create_idempotency",
@@ -6260,7 +6260,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 7,
-      "community_name": "update_execution_order",
+      "community_name": "simulate_execution",
       "file_type": "code",
       "norm_label": "get_or_create_idempotency()",
       "source_file": "app.py",
@@ -6272,7 +6272,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 7,
-      "community_name": "update_execution_order",
+      "community_name": "simulate_execution",
       "file_type": "code",
       "norm_label": "increment_execution_retry()",
       "source_file": "app.py",
@@ -6284,7 +6284,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 7,
-      "community_name": "update_execution_order",
+      "community_name": "simulate_execution",
       "file_type": "code",
       "norm_label": "mark_order_pending_reconciliation()",
       "source_file": "app.py",
@@ -6296,11 +6296,23 @@
       "_callable": true,
       "_origin": "ast",
       "community": 7,
-      "community_name": "update_execution_order",
+      "community_name": "simulate_execution",
       "file_type": "code",
       "norm_label": "retry_execution_order()",
       "source_file": "app.py",
       "source_location": "L3502"
+    },
+    {
+      "id": "app_simulate_execution",
+      "label": "simulate_execution()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 7,
+      "community_name": "simulate_execution",
+      "file_type": "code",
+      "norm_label": "simulate_execution()",
+      "source_file": "app.py",
+      "source_location": "L2158"
     },
     {
       "id": "app_update_execution_order",
@@ -6308,7 +6320,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 7,
-      "community_name": "update_execution_order",
+      "community_name": "simulate_execution",
       "file_type": "code",
       "norm_label": "update_execution_order()",
       "source_file": "app.py",
@@ -8066,6 +8078,28 @@
       "source_location": "L11975"
     },
     {
+      "id": "app_rationale_12098",
+      "label": "Payload crudo de una transacci\u00f3n que no parse\u00f3, para diagn\u00f3stico.",
+      "_origin": "ast",
+      "community": 31,
+      "community_name": "get",
+      "file_type": "rationale",
+      "norm_label": "payload crudo de una transaccion que no parseo, para diagnostico.",
+      "source_file": "app.py",
+      "source_location": "L12098"
+    },
+    {
+      "id": "app_rationale_12165",
+      "label": "Auditor\u00eda RPC de trades Pump ausentes del stream de PumpPortal.",
+      "_origin": "ast",
+      "community": 31,
+      "community_name": "get",
+      "file_type": "rationale",
+      "norm_label": "auditoria rpc de trades pump ausentes del stream de pumpportal.",
+      "source_file": "app.py",
+      "source_location": "L12165"
+    },
+    {
       "id": "claude_notes",
       "label": "CLAUDE_NOTES.md",
       "_origin": "ast",
@@ -8195,28 +8229,6 @@
       "norm_label": "app.py",
       "source_file": "app.py",
       "source_location": "L1"
-    },
-    {
-      "id": "app_rationale_12098",
-      "label": "Payload crudo de una transacci\u00f3n que no parse\u00f3, para diagn\u00f3stico.",
-      "_origin": "ast",
-      "community": 34,
-      "community_name": "app.py",
-      "file_type": "rationale",
-      "norm_label": "payload crudo de una transaccion que no parseo, para diagnostico.",
-      "source_file": "app.py",
-      "source_location": "L12098"
-    },
-    {
-      "id": "app_rationale_12165",
-      "label": "Auditor\u00eda RPC de trades Pump ausentes del stream de PumpPortal.",
-      "_origin": "ast",
-      "community": 34,
-      "community_name": "app.py",
-      "file_type": "rationale",
-      "norm_label": "auditoria rpc de trades pump ausentes del stream de pumpportal.",
-      "source_file": "app.py",
-      "source_location": "L12165"
     },
     {
       "id": "tests_test_trader_quality",
@@ -17726,7 +17738,19 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_stream_routing.py",
-      "source_location": "L76",
+      "source_location": "L110",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_stream_routing_streamroutingtests_test_partial_sell_updates_paper_once_and_preserves_outcome",
+      "target": "tests_test_stream_routing_streamroutingtests_check_routing",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "tests/test_stream_routing.py",
+      "source_location": "L113",
       "weight": 1.0
     },
     {
@@ -17738,7 +17762,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_stream_routing.py",
-      "source_location": "L70",
+      "source_location": "L104",
       "weight": 1.0
     },
     {
@@ -17750,7 +17774,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_stream_routing.py",
-      "source_location": "L73",
+      "source_location": "L107",
       "weight": 1.0
     },
     {
@@ -19946,7 +19970,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "tests/test_stream_routing.py",
-      "source_location": "L9",
+      "source_location": "L10",
       "weight": 1.0
     },
     {
@@ -25484,7 +25508,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_stream_routing.py",
-      "source_location": "L12",
+      "source_location": "L13",
       "weight": 1.0
     },
     {
@@ -27359,24 +27383,13 @@
     },
     {
       "source": "tests_test_stream_routing_streamroutingtests",
-      "target": "tests_test_stream_routing_streamroutingtests_check_routing",
-      "relation": "method",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "tests/test_stream_routing.py",
-      "source_location": "L13",
-      "weight": 1.0
-    },
-    {
-      "source": "tests_test_stream_routing_streamroutingtests",
       "target": "tests_test_stream_routing_streamroutingtests_test_watched_wallet_and_tracked_token_apply_effects_once",
       "relation": "method",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_stream_routing.py",
-      "source_location": "L69",
+      "source_location": "L103",
       "weight": 1.0
     },
     {
@@ -27387,7 +27400,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_stream_routing.py",
-      "source_location": "L72",
+      "source_location": "L106",
       "weight": 1.0
     },
     {
@@ -27398,7 +27411,29 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_stream_routing.py",
-      "source_location": "L75",
+      "source_location": "L109",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_stream_routing_streamroutingtests",
+      "target": "tests_test_stream_routing_streamroutingtests_test_partial_sell_updates_paper_once_and_preserves_outcome",
+      "relation": "method",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tests/test_stream_routing.py",
+      "source_location": "L112",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_stream_routing_streamroutingtests",
+      "target": "tests_test_stream_routing_streamroutingtests_check_routing",
+      "relation": "method",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tests/test_stream_routing.py",
+      "source_location": "L14",
       "weight": 1.0
     },
     {
@@ -28861,5 +28896,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "ac8a52ec66ed757c4b33ed63c3d2efdef9ec202f"
+  "built_at_commit": "97f863e7c93fbb3f870b906d2bfcbc25178cf3c4"
 }

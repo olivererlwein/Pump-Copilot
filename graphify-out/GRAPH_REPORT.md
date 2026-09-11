@@ -1,16 +1,16 @@
 # Graph Report - pump fun  (2026-09-11)
 
 ## Corpus Check
-- 44 files · ~67,726 words
+- 44 files · ~67,831 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 778 nodes · 1686 edges · 48 communities (38 shown, 8 thin omitted)
+- 779 nodes · 1688 edges · 48 communities (38 shown, 8 thin omitted)
 - Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 41 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `ac8a52ec`
+- Built from commit: `97f863e7`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -22,7 +22,7 @@
 - Ablación de features — paso 0 antes del backfill, 2026-09-11
 - graphify reference: extra exports and benchmark
 - WatchedWalletSilenceTests
-- update_execution_order
+- simulate_execution
 - graphify reference: query, path, explain
 - ShadowPredictionTests
 - Q: ¿Cuál es el flujo completo desde que recibimos información de un token/trader hasta que se genera una señal?
@@ -96,8 +96,8 @@ Cohesion: 0.08
 Nodes (37): load_shadow_model(), main(), schema_without_features(), evaluate_strategy(), main(), simulate_payoff(), build_matrix(), build_pipeline() (+29 more)
 
 ### Community 1 - "startup"
-Cohesion: 0.07
-Nodes (39): assess_shadow_challenger(), check_watched_wallet_silence(), cleanup_finished_outcome_token(), compare_shadow_models(), complete_finished_signal_outcomes(), expire_old_signal_outcomes(), fetch_solana_balance_sol(), get_persistent_kill_switch() (+31 more)
+Cohesion: 0.06
+Nodes (43): assess_shadow_challenger(), check_watched_wallet_silence(), cleanup_finished_outcome_token(), compare_shadow_models(), complete_finished_signal_outcomes(), decide_live_position_exit(), evaluate_live_position_exit(), expire_old_signal_outcomes() (+35 more)
 
 ### Community 2 - "ValueError"
 Cohesion: 0.07
@@ -119,9 +119,9 @@ Nodes (8): graphify reference: extra exports and benchmark, Step 6b - Wiki (only
 Cohesion: 0.07
 Nodes (6): PumpPortalBalanceTests, PumpPortalMessageTests, Una wallet que deja de entregar con el stream sano debe ser visible., ShadowReviewAlertTests, StreamStateTests, WatchedWalletSilenceTests
 
-### Community 7 - "update_execution_order"
-Cohesion: 0.24
-Nodes (17): can_retry_execution(), check_execution_timeout(), create_execution_order(), demo_controlled_retry(), demo_execution_timeout(), demo_idempotency_sent(), demo_idempotency_sent_failed(), demo_pending_reconciliation() (+9 more)
+### Community 7 - "simulate_execution"
+Cohesion: 0.16
+Nodes (24): check_execution_timeout(), create_execution_order(), demo_controlled_retry(), demo_execution_check(), demo_execution_failure(), demo_execution_timeout(), demo_idempotency_check(), demo_idempotency_failed() (+16 more)
 
 ### Community 8 - "graphify reference: query, path, explain"
 Cohesion: 0.33
@@ -168,8 +168,8 @@ Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: sigamos, Source Nodes
 
 ### Community 25 - "auth"
-Cohesion: 0.14
-Nodes (36): auth(), demo(), demo_can_retry(), demo_cannot_retry_risk(), demo_close_old(), demo_concurrent_idempotency(), demo_duplicate_check(), demo_execution_order_events() (+28 more)
+Cohesion: 0.15
+Nodes (35): auth(), demo(), demo_close_old(), demo_concurrent_idempotency(), demo_duplicate_check(), demo_execution_latency(), demo_execution_order_events(), demo_execution_orders() (+27 more)
 
 ### Community 26 - "LiveCopyDispatchTests"
 Cohesion: 0.12
@@ -188,24 +188,24 @@ Cohesion: 0.07
 Nodes (31): beta_posterior_rate(), calculate_trader_profile_score(), calculate_trader_quality_candidate(), clamp_trader_quality(), get_trader_activity_concentration(), get_trader_entry_samples(), get_trader_exit_cycles(), get_trader_quality_profile() (+23 more)
 
 ### Community 31 - "get"
-Cohesion: 0.11
-Nodes (22): api_helius_webhook_stats(), api_shadow_stats(), demo_execution_check(), demo_execution_failure(), demo_execution_latency(), demo_idempotency_check(), demo_idempotency_failed(), demo_idempotency_risk_blocked() (+14 more)
+Cohesion: 0.09
+Nodes (23): api_helius_webhook_sample(), api_helius_webhook_stats(), api_rpc_fallback_stats(), api_shadow_stats(), api_training_dataset(), api_training_dataset_preview(), can_retry_execution(), demo_can_retry() (+15 more)
 
 ### Community 32 - "CLAUDE_NOTES.md"
 Cohesion: 0.22
 Nodes (8): Cuándo volver a encenderlo, Hallazgo #3 (`db()`) — medido y descartado, 2026-09-10, Hook de pre-push para el camino del dinero — 2026-09-11, Por qué, Por qué apagarlo y no ajustarlo, Qué hace, Scoring dinámico de traders apagado — 2026-09-11, Verificación
 
 ### Community 34 - "app.py"
-Cohesion: 0.06
-Nodes (72): api_helius_webhook_sample(), api_live_execution_readiness(), api_live_positions(), api_rpc_fallback_stats(), api_shadow_predictions(), api_training_checkpoint_freshness(), api_training_dataset(), api_training_dataset_preview() (+64 more)
+Cohesion: 0.08
+Nodes (59): api_live_execution_readiness(), api_live_positions(), api_shadow_predictions(), api_training_checkpoint_freshness(), api_training_expired_preview(), api_training_stats(), api_training_stats_by_trader(), assess_live_model_approval() (+51 more)
 
 ### Community 35 - "TraderQualityProfileTests"
 Cohesion: 0.08
 Nodes (3): Perfil integral y observacional de calidad del trader., TraderQualityCandidateTests, TraderQualityProfileTests
 
 ### Community 36 - "open_paper_position"
-Cohesion: 0.20
-Nodes (12): count_open_positions(), demo_daily_pnl(), demo_daily_pnl_isolation(), demo_mode_isolation(), demo_paper_mode_save(), demo_risk_mode_isolation(), demo_slippage_check(), get_daily_realized_pnl() (+4 more)
+Cohesion: 0.16
+Nodes (14): count_open_positions(), demo_daily_pnl(), demo_daily_pnl_isolation(), demo_liquidity_check(), demo_mode_isolation(), demo_paper_mode_save(), demo_risk_mode_isolation(), demo_slippage_check() (+6 more)
 
 ### Community 37 - "Conectar el webhook al pipeline — brief para Codex, 2026-09-11"
 Cohesion: 0.29
@@ -271,6 +271,6 @@ _Questions this graph is uniquely positioned to answer:_
 - **Should `train_baseline_model.py` be split into smaller, more focused modules?**
   _Cohesion score 0.0803312629399586 - nodes in this community are weakly interconnected._
 - **Should `startup` be split into smaller, more focused modules?**
-  _Cohesion score 0.07017543859649122 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.06423034330011074 - nodes in this community are weakly interconnected._
 - **Should `ValueError` be split into smaller, more focused modules?**
   _Cohesion score 0.0706605222734255 - nodes in this community are weakly interconnected._
