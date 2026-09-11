@@ -705,3 +705,75 @@ re-medir antes que asumir.
 
 Nota metodológica: la prioridad original se asignó leyendo el código, sin
 medir. El número la desmintió.
+
+---
+
+# Piloto del webhook de Helius — resultados, 2026-09-11
+
+El piloto funcionó de punta a punta. Las tres preguntas abiertas quedaron
+respondidas.
+
+## Latencia: parejos en promedio, muy distintos en dispersión
+
+| | Muestras | Promedio | Mínimo | Máximo |
+|---|---|---|---|---|
+| Helius webhook | 2 | 3,76 s | 3,45 s | 4,06 s |
+| PumpPortal | 88 | 3,32 s | 0,38 s | **39,28 s** |
+
+Con dos muestras hay que tomarlo con pinzas, pero el promedio es equivalente y
+la dispersión favorece al webhook: PumpPortal baja a 0,38 s en el mejor caso y
+se va a **39 segundos** en el peor. Para decidir una compra, un promedio
+parecido con menos varianza vale más que un promedio apenas menor con colas de
+39 segundos.
+
+## Entrega
+
+`parsed_only_in_webhook: 2` — las dos operaciones Pump que capturó el webhook,
+PumpPortal no las entregó. Dos de dos. Muestra chica, pero coherente con el
+80,4% de pérdida medido durante 9 horas.
+
+## Qué quedó verificado
+
+- **El parser funciona con el formato nativo.** Se comprobó pidiendo la misma
+  transacción (`4xuzhSnNq9PURN...`) en ambas codificaciones: `jsonParsed`
+  devuelve `accountKeys` como diccionarios, el webhook los manda como strings
+  con `header.numRequiredSignatures`, y `_is_signed_by()` resuelve las dos.
+- **El filtrado es correcto.** De cinco transacciones analizadas con wallets
+  vigiladas presentes, solo una parseó: las otras cuatro fueron rechazadas por
+  buenos motivos — la wallet aparecía pero no firmó (posiciones 15 y 18 de
+  `accountKeys`), o la transacción no invocaba los programas de Pump.
+- **La autenticación funciona**: secreto incorrecto devuelve 401, correcto 200.
+- **Los webhooks entregan transacciones donde la wallet está involucrada sin
+  firmar**, e incluso algunas sin ninguna wallet vigilada. El parser las
+  descarta bien, pero se pagan créditos igual.
+
+## Falso diagnóstico corregido en el camino
+
+Durante 14 minutos llegaron 20 transacciones con 0 parseadas y pareció un
+problema de formato. No lo era: `gr3gor14n` no estaba operando en pump.fun
+(0 de 10 de sus transacciones tocaban los programas de Pump). Esto además
+**resuelve la observación B** que venía abierta desde el monitor RPC: el parser
+no es demasiado estricto, simplemente la mayoría de las transacciones de estas
+wallets no son de pump.fun.
+
+Consecuencia de costo: los webhooks raw cobran **por transacción, no por
+operación Pump**. Se paga por todo el ruido. La estimación de 167.000 tx/mes ya
+contaba todas las transacciones, así que el cálculo del plan gratuito sigue en
+pie, pero la eficiencia real es baja. Si algún día el volumen aprieta, el
+`transactionSubscribe` del plan Developer permite filtrar por programa.
+
+## Estado del saldo de SOL (2026-09-11)
+
+La wallet de PumpPortal quedó en **0,0141 SOL**, por debajo del mínimo de 0,02
+que exige `subscribeAccountTrade`. Por ahora la suscripción sigue viva, pero en
+la próxima reconexión puede ser rechazada.
+
+**No bloquea el trabajo**: el webhook se paga con créditos de API, el monitor
+RPC lee gratis, y el paper trading es simulado. Lo único en riesgo es la fuente
+que ya pierde el 80%. Sí se pierde el **grupo de control** para seguir midiendo
+la comparación.
+
+Nota: se observaron movimientos en esa wallet (el más reciente 7,3 h antes de
+esta medición) con el live trading apagado y la función de compra real sin
+llamarse desde ningún lado. El bot no puede ser la causa; queda para que el
+usuario confirme que los reconoce.
