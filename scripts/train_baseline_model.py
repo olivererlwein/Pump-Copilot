@@ -408,11 +408,31 @@ def group_balanced_sample_weights(rows, schema):
     return weights * (len(weights) / weights.sum())
 
 
+def trader_balanced_sample_weights(rows, schema):
+    """Compensa la concentración por trader en vez de por token.
+
+    `inverse-group` equilibra por `split_group`, que es el mint. Eso no
+    corrige que un solo trader ocupe la mayoría del conjunto, así que existe
+    para diagnosticar cuánto del rendimiento viene de esa concentración.
+    """
+    counts = Counter(row.get("trader") for row in rows)
+    if not counts:
+        return np.asarray([], dtype=float)
+
+    weights = np.asarray(
+        [1.0 / counts[row.get("trader")] for row in rows],
+        dtype=float,
+    )
+    return weights * (len(weights) / weights.sum())
+
+
 def strategy_sample_weights(rows, schema, sample_weighting):
     if sample_weighting == "none":
         return None
     if sample_weighting == "inverse-group":
         return group_balanced_sample_weights(rows, schema)
+    if sample_weighting == "inverse-trader":
+        return trader_balanced_sample_weights(rows, schema)
     raise ValueError(f"Unknown sample weighting: {sample_weighting}")
 
 

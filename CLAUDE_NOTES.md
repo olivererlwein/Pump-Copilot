@@ -972,3 +972,71 @@ Y hay un detalle incómodo: `decu` es la wallet que excluimos del webhook por
 volumen extremo, y una de las que PumpPortal sí entrega bien. El mismo
 confundidor que apareció en el scoring de traders reaparece acá — el modelo se
 apoya en quien mejor está representado, que es quien mejor se entrega.
+
+## Corrección de la ablación — prueba de identidad, 2026-09-11
+
+Codex objetó cuatro puntos del informe anterior. **Tres eran errores míos.**
+
+**1. El blocker mal interpretado.** `holdout_largest_group_share 0.354/0.250`
+mide concentración por **mint** (`split_group = mint`), no la participación de
+`decu`. Usé ese número para respaldar una afirmación sobre concentración de
+trader. La concentración de decu (66% del holdout) es real, pero ese blocker no
+la respalda.
+
+**2. "Token age no aporta nada" era demasiado absoluto.** Lo correcto: no
+cambió ninguna decisión ni la economía en este holdout y con este umbral. El
+AUC sí bajó (0.769 → 0.754), así que conserva información de ordenamiento.
+
+**3. "El modelo aprendió a reconocer a decu" no estaba demostrado** — y al
+probarlo, resultó falso.
+
+**4. Faltaba reproducibilidad.** Corregido: `exports/ablation_report_2026-09-11.json`
+guarda comandos exactos, checksum SHA-256 del dataset (1368 filas), timestamp
+del export y commit.
+
+### Resultado de la prueba de identidad
+
+| Configuración | Prec | Recall | F1 | AUC | Selec | Neto |
+|---|---|---|---|---|---|---|
+| all_features | 1.000 | 0.430 | 0.602 | 0.769 | 37 | 8,51 |
+| sin identidad | 1.000 | **0.465** | **0.635** | 0.718 | 40 | **9,20** |
+| sin token_age | 1.000 | 0.430 | 0.602 | 0.754 | 37 | 8,51 |
+| sin identidad + token_age | 0.952 | 0.465 | 0.625 | 0.704 | 42 | 8,96 |
+
+**Quitar la identidad del trader no derrumba el rendimiento: lo mejora
+levemente** en el punto de operación. El modelo no está memorizando quién
+opera.
+
+### Pero la concentración sigue siendo el problema, por otra vía
+
+Sin identidad, el modelo **sigue eligiendo casi solo a decu**: 39 selecciones
+suyas y 1 de Cooker. Sin saber quién es, lo elige igual — los features llevan
+su firma operativa.
+
+Y al compensar la concentración con una ponderación diagnóstica por trader
+(`inverse-trader`, agregada a `train_baseline_model.py` solo para esto):
+
+| Configuración | Ponderación | Recall | Selec | AUC |
+|---|---|---|---|---|
+| all_features | inverse-group (mint) | 0.430 | 37 | 0.769 |
+| all_features | inverse-trader | 0.163 | 14 | **0.839** |
+| sin identidad | inverse-group | 0.465 | 40 | 0.718 |
+| sin identidad | inverse-trader | 0.012 | **1** | **0.854** |
+
+Cuando se deja de dejar que decu domine el peso del entrenamiento, el modelo
+**casi deja de operar** — pero su ordenamiento mejora (AUC 0.854, el mejor de
+todos).
+
+### Conclusión revisada
+
+- El modelo **no** explota la etiqueta de identidad.
+- Sí depende de la sobre-representación de decu: los features codifican su
+  patrón operativo, y el rendimiento en el punto de operación se sostiene
+  sobre esa concentración.
+- El AUC más alto con datos balanceados sugiere que el ordenamiento es mejor
+  de lo que parece, y que lo que se rompe al balancear es la **selección de
+  umbral**, que queda ultraconservadora.
+
+El diagnóstico de fondo de Codex se confirma por un camino distinto al que yo
+había propuesto: **el problema es diversidad, no identidad ni features
+faltantes.**

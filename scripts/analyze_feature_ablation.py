@@ -60,6 +60,13 @@ ABLATIONS = {
     # para el trader que crea los tokens que opera, y por eso el nulo puede
     # estar funcionando como proxy de identidad en vez de como dato faltante.
     "without_token_age": {"token_age_seconds"},
+    # Si el rendimiento se derrumba sin identidad, el modelo explota
+    # principalmente quién opera y no patrones transferibles. La variante
+    # combinada separa eso del posible efecto residual de la antigüedad.
+    "without_trader_identity_and_token_age": {
+        "trader",
+        "token_age_seconds",
+    },
 }
 
 
