@@ -1,16 +1,16 @@
 # Graph Report - pump fun  (2026-09-11)
 
 ## Corpus Check
-- 44 files · ~67,935 words
+- 44 files · ~69,316 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 788 nodes · 1699 edges · 50 communities (38 shown, 10 thin omitted)
+- 800 nodes · 1712 edges · 52 communities (40 shown, 10 thin omitted)
 - Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 41 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `28c83249`
+- Built from commit: `c30b5780`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -63,6 +63,8 @@
 - pre-push
 - TraderQualityCandidateTests
 - execute_pumpportal_lightning_buy
+- El scoring sí funciona — y dónde no, 2026-09-11
+- Scoring dinámico de traders apagado — 2026-09-11
 
 ## God Nodes (most connected - your core abstractions)
 1. `db()` - 115 edges
@@ -91,7 +93,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (50 total, 10 thin omitted)
+## Communities (52 total, 10 thin omitted)
 
 ### Community 0 - "train_baseline_model.py"
 Cohesion: 0.08
@@ -99,7 +101,7 @@ Nodes (37): load_shadow_model(), main(), schema_without_features(), evaluate_str
 
 ### Community 1 - "startup"
 Cohesion: 0.07
-Nodes (36): assess_shadow_challenger(), check_watched_wallet_silence(), cleanup_finished_outcome_token(), compare_shadow_models(), complete_finished_signal_outcomes(), expire_old_signal_outcomes(), fetch_solana_balance_sol(), get_persistent_kill_switch() (+28 more)
+Nodes (39): assess_shadow_challenger(), check_watched_wallet_silence(), cleanup_finished_outcome_token(), compare_shadow_models(), complete_finished_signal_outcomes(), expire_old_signal_outcomes(), fetch_solana_balance_sol(), get_persistent_kill_switch() (+31 more)
 
 ### Community 2 - "ValueError"
 Cohesion: 0.07
@@ -179,7 +181,7 @@ Nodes (5): EvaluationIdempotencyTests, LiveCopyDispatchTests, LiveTradingGuardTe
 
 ### Community 28 - "parse_watched_wallet_pump_events"
 Cohesion: 0.05
-Nodes (37): get_rpc_fallback_wallet_states(), mark_rpc_fallback_events_alerted(), poll_rpc_fallback_once(), reconcile_rpc_fallback_events(), record_rpc_fallback_event(), rpc_fallback_shadow_worker(), update_rpc_fallback_wallet_state(), _base58_encode() (+29 more)
+Nodes (34): get_rpc_fallback_wallet_states(), poll_rpc_fallback_once(), record_rpc_fallback_event(), update_rpc_fallback_wallet_state(), _base58_encode(), _event_payloads(), fetch_confirmed_transaction(), fetch_signatures_for_address() (+26 more)
 
 ### Community 29 - "Notas de Claude — auditoría de riesgo (2026-09-09/10)"
 Cohesion: 0.20
@@ -195,7 +197,7 @@ Nodes (22): api_helius_webhook_sample(), api_helius_webhook_stats(), api_rpc_fal
 
 ### Community 32 - "CLAUDE_NOTES.md"
 Cohesion: 0.22
-Nodes (8): Cuándo volver a encenderlo, Hallazgo #3 (`db()`) — medido y descartado, 2026-09-10, Hook de pre-push para el camino del dinero — 2026-09-11, Por qué, Por qué apagarlo y no ajustarlo, Qué hace, Scoring dinámico de traders apagado — 2026-09-11, Verificación
+Nodes (8): Cómo apareció, El punto ciego, Hallazgo #3 (`db()`) — medido y descartado, 2026-09-10, Hook de pre-push para el camino del dinero — 2026-09-11, La corrección, Punto ciego del hook de pre-push — encontrado y corregido, 2026-09-11, Qué hace, Verificación
 
 ### Community 34 - "app.py"
 Cohesion: 0.08
@@ -245,9 +247,17 @@ Nodes (5): helius_webhook(), Registra lo que llegó por webhook. Observacional: 
 Cohesion: 0.29
 Nodes (11): api_live_execution_readiness(), assess_live_model_approval(), demo_live_guard(), execute_pumpportal_lightning_buy(), execute_pumpportal_lightning_sell(), get_execution_order_status(), get_live_execution_readiness(), maybe_execute_live_copy() (+3 more)
 
+### Community 50 - "El scoring sí funciona — y dónde no, 2026-09-11"
+Cohesion: 0.29
+Nodes (7): Consecuencia para el backfill y la watchlist, El scoring sí funciona — y dónde no, 2026-09-11, La explicación: el scoring separa de verdad, Los dos límites reales, No era sesgo de supervivencia, Nota sobre la lógica de salida, Y no es el confundidor de decu
+
+### Community 51 - "Scoring dinámico de traders apagado — 2026-09-11"
+Cohesion: 0.50
+Nodes (4): Cuándo volver a encenderlo, Por qué, Por qué apagarlo y no ajustarlo, Scoring dinámico de traders apagado — 2026-09-11
+
 ## Knowledge Gaps
-- **127 isolated node(s):** `Usage`, `What graphify is for`, `Step 0 - GitHub repos and multi-path merge (only if a URL or several paths)`, `Step 1 - Ensure graphify is installed`, `Step 2 - Detect files` (+122 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 281 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **136 isolated node(s):** `Usage`, `What graphify is for`, `Step 0 - GitHub repos and multi-path merge (only if a URL or several paths)`, `Step 1 - Ensure graphify is installed`, `Step 2 - Detect files` (+131 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 290 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
 - **10 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Work-memory lessons
@@ -263,16 +273,16 @@ Nodes (11): api_live_execution_readiness(), assess_live_model_approval(), demo_l
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `TraderQualityProfileTests` connect `TraderQualityProfileTests` to `TraderQualityCandidateTests`?**
-  _High betweenness centrality (0.042) - this node is a cross-community bridge._
-- **Why does `ShadowLogisticModel` connect `train_baseline_model.py` to `app.py`?**
   _High betweenness centrality (0.041) - this node is a cross-community bridge._
-- **Why does `ExecutionAdapterTests` connect `ExecutionAdapterTests` to `LiveCopyDispatchTests`?**
+- **Why does `ShadowLogisticModel` connect `train_baseline_model.py` to `app.py`?**
   _High betweenness centrality (0.040) - this node is a cross-community bridge._
+- **Why does `ExecutionAdapterTests` connect `ExecutionAdapterTests` to `LiveCopyDispatchTests`?**
+  _High betweenness centrality (0.039) - this node is a cross-community bridge._
 - **Are the 32 inferred relationships involving `ValueError` (e.g. with `build_pumpportal_exact_sell_payload()` and `build_pumpportal_lightning_buy_payload()`) actually correct?**
   _`ValueError` has 32 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `Usage`, `What graphify is for`, `Step 0 - GitHub repos and multi-path merge (only if a URL or several paths)` to the rest of the system?**
-  _127 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _136 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `train_baseline_model.py` be split into smaller, more focused modules?**
   _Cohesion score 0.0803312629399586 - nodes in this community are weakly interconnected._
 - **Should `startup` be split into smaller, more focused modules?**
-  _Cohesion score 0.0746031746031746 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.06882591093117409 - nodes in this community are weakly interconnected._

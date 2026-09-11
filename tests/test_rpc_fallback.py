@@ -1,4 +1,5 @@
 import io
+import json
 import struct
 import tempfile
 import unittest
@@ -609,6 +610,50 @@ class HeliusWebhookTests(unittest.TestCase):
         # La latencia se mide con estos dos campos.
         self.assertEqual(row[5] - row[4], 2)
 
+        inbox = app.db()
+        try:
+            row = inbox.execute(
+                "SELECT source, event_index, wallet, trader, mint, side, "
+                "block_time, received_ts, status, attempts, event_json "
+                "FROM market_event_inbox WHERE signature = ?",
+                (SIGNATURE,),
+            ).fetchone()
+        finally:
+            inbox.close()
+        self.assertEqual(row[:10], (
+            "helius", 1, WALLET, "trader-a", MINT, "buy",
+            1_700_000_000, 1_700_000_002, "observed", 0,
+        ))
+        self.assertEqual(json.loads(row[10])["signature"], SIGNATURE)
+
+    def test_preserves_multiple_events_from_one_transaction(self):
+        receipt = self.native_receipt()
+        receipt["meta"]["logMessages"].append(
+            receipt["meta"]["logMessages"][-1]
+        )
+
+        with patch.object(app, "WATCHED", {"trader-a": WALLET}):
+            first = app.record_helius_webhook_transactions([receipt])
+            second = app.record_helius_webhook_transactions([receipt])
+
+        self.assertEqual(first["parsed_events"], 2)
+        self.assertEqual(second["parsed_events"], 2)
+        self.assertEqual(second["duplicates"], 1)
+        conn = app.db()
+        try:
+            rows = conn.execute(
+                "SELECT event_index FROM market_event_inbox "
+                "WHERE signature = ? ORDER BY event_index",
+                (SIGNATURE,),
+            ).fetchall()
+        finally:
+            conn.close()
+        self.assertEqual(rows, [(1,), (2,)])
+        with patch.object(app, "APP_TOKEN", "token"):
+            report = app.api_helius_webhook_stats("token")
+        self.assertEqual(report["normalized_events_observed"], 2)
+        self.assertEqual(report["multi_event_transactions"], 1)
+
     def test_repeated_delivery_is_not_counted_twice(self):
         # Helius reintenta si el endpoint no contesta a tiempo.
         with patch.object(app, "WATCHED", {"trader-a": WALLET}):
@@ -664,6 +709,9 @@ class HeliusWebhookTests(unittest.TestCase):
         self.assertTrue(report["observational"])
         self.assertFalse(report["affects_decisions"])
         self.assertEqual(report["pump_events_parsed"], 1)
+        self.assertEqual(report["normalized_events_observed"], 1)
+        self.assertEqual(report["multi_event_transactions"], 0)
+        self.assertEqual(report["inbox_status"], {"observed": 1})
         self.assertEqual(report["webhook_latency"]["samples"], 1)
         self.assertEqual(report["webhook_latency"]["avg_seconds"], 3.0)
         # Sin entrega por el stream, esa operación solo la vio el webhook.

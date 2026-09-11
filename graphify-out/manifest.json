@@ -6,9 +6,9 @@
     "semantic_hash": "5ebef3dd159986e465ab65e4014107ec"
   },
   "app.py": {
-    "mtime": 1789155192.7714694,
-    "seen": 1789155256.7992246,
-    "ast_hash": "29a9972bb958ed2bff209c1fe9a54db6",
+    "mtime": 1789157182.8284197,
+    "seen": 1789157242.5693634,
+    "ast_hash": "b490c046844cd7c4c9c94f0eddd5d2b2",
     "semantic_hash": ""
   },
   "models/baseline_v2_shadow.json": {
@@ -252,9 +252,9 @@
     "semantic_hash": ""
   },
   "CLAUDE_NOTES.md": {
-    "mtime": 1789154251.6990647,
-    "seen": 1789154677.862594,
-    "ast_hash": "e46c9c34bb1ca4407dba00b109a931ec",
+    "mtime": 1789156783.6384058,
+    "seen": 1789157242.56941,
+    "ast_hash": "384a688482dfd9683fdabac8f738c2ac",
     "semantic_hash": ""
   },
   "2026-09-10.md": {
@@ -270,9 +270,9 @@
     "semantic_hash": ""
   },
   "tests/test_rpc_fallback.py": {
-    "mtime": 1789155245.3626091,
-    "seen": 1789155256.7992759,
-    "ast_hash": "aa1a32677ee7e895594d097f9f315127",
+    "mtime": 1789157171.1873057,
+    "seen": 1789157242.5693843,
+    "ast_hash": "38228ec8a672be44e9452d2405c79f55",
     "semantic_hash": ""
   },
   "reports/ablation_report_2026-09-11.json": {
@@ -282,9 +282,9 @@
     "semantic_hash": ""
   },
   "scripts/hooks/pre-push": {
-    "mtime": 1789105064.29521,
-    "seen": 1789154677.8624895,
-    "ast_hash": "4f0c6b7e4dc129d08583e9abc1d5b186",
+    "mtime": 1789156732.4964235,
+    "seen": 1789157242.5693755,
+    "ast_hash": "5310be9d7fc19e2009cdb8e752120872",
     "semantic_hash": ""
   },
   "tests/test_stream_routing.py": {

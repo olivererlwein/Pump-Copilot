@@ -512,6 +512,32 @@ def db():
         """
     )
 
+    # Eventos normalizados preservados antes de activar cualquier efecto. Una
+    # transacción puede contener más de una operación Pump válida.
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS market_event_inbox(
+            signature TEXT NOT NULL,
+            event_index INTEGER NOT NULL,
+            source TEXT NOT NULL,
+            wallet TEXT,
+            trader TEXT,
+            mint TEXT,
+            side TEXT,
+            pool TEXT,
+            block_time REAL,
+            block_event_ts REAL,
+            received_ts REAL NOT NULL,
+            event_json TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'observed',
+            attempts INTEGER NOT NULL DEFAULT 0,
+            processed_ts REAL,
+            last_error TEXT,
+            PRIMARY KEY(signature, event_index)
+        )
+        """
+    )
+
     try:
         conn.execute(
             "ALTER TABLE helius_webhook_events ADD COLUMN raw_sample TEXT"
@@ -11767,7 +11793,7 @@ def record_helius_webhook_transactions(payload, received_ts=None):
             # registra la primera que efectivamente la firmó.
             matched_trader = None
             matched_wallet = None
-            parsed = None
+            matched_events = []
 
             for wallet, trader in wallets_by_address.items():
                 try:
@@ -11781,11 +11807,42 @@ def record_helius_webhook_transactions(payload, received_ts=None):
                 if events:
                     matched_trader = trader
                     matched_wallet = wallet
-                    parsed = events[0]["event"]
+                    matched_events = events
                     break
 
-            if parsed is not None:
-                parsed_events += 1
+            parsed = matched_events[0]["event"] if matched_events else None
+            parsed_events += len(matched_events)
+
+            for parsed_event in matched_events:
+                normalized_event = parsed_event["event"]
+                conn.execute(
+                    """
+                    INSERT OR IGNORE INTO market_event_inbox(
+                        signature, event_index, source, wallet, trader,
+                        mint, side, pool, block_time, block_event_ts,
+                        received_ts, event_json
+                    )
+                    VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
+                    """,
+                    (
+                        signature,
+                        int(parsed_event["event_index"]),
+                        "helius",
+                        matched_wallet,
+                        matched_trader,
+                        normalized_event.get("mint"),
+                        normalized_event.get("txType"),
+                        normalized_event.get("pool"),
+                        float(block_time) if block_time else None,
+                        parsed_event.get("block_event_ts"),
+                        received_ts,
+                        json.dumps(
+                            normalized_event,
+                            sort_keys=True,
+                            separators=(",", ":"),
+                        ),
+                    ),
+                )
 
             raw_sample = None
 
@@ -11958,6 +12015,29 @@ def api_helius_webhook_stats(
         """
     ).fetchone()
 
+    inbox_total = conn.execute(
+        "SELECT COUNT(*) FROM market_event_inbox WHERE source = 'helius'"
+    ).fetchone()[0]
+    multi_event_transactions = conn.execute(
+        """
+        SELECT COUNT(*) FROM (
+            SELECT signature
+            FROM market_event_inbox
+            WHERE source = 'helius'
+            GROUP BY signature
+            HAVING COUNT(*) > 1
+        )
+        """
+    ).fetchone()[0]
+    inbox_status_rows = conn.execute(
+        """
+        SELECT status, COUNT(*)
+        FROM market_event_inbox
+        WHERE source = 'helius'
+        GROUP BY status
+        """
+    ).fetchall()
+
     conn.close()
 
     recent_events = [
@@ -11990,6 +12070,12 @@ def api_helius_webhook_stats(
         "affects_decisions": False,
         "transactions_received": int(totals[0] or 0),
         "pump_events_parsed": int(totals[1] or 0),
+        "normalized_events_observed": int(inbox_total or 0),
+        "multi_event_transactions": int(multi_event_transactions or 0),
+        "inbox_status": {
+            str(status): int(count)
+            for status, count in inbox_status_rows
+        },
         "with_block_time": int(totals[2] or 0),
         "webhook_latency": summarize(webhook_latency),
         "pumpportal_latency": summarize(stream_latency),
