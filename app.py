@@ -10525,6 +10525,11 @@ async def stream():
     event=event
 )
 
+                        # save_trade already updated history and positions for
+                        # watched wallets; only outcomes remain for this branch.
+                        if is_watched_wallet:
+                            continue
+
                         save_token_history(
                             mint=mint,
 

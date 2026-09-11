@@ -6,9 +6,9 @@
     "semantic_hash": "5ebef3dd159986e465ab65e4014107ec"
   },
   "app.py": {
-    "mtime": 1789096917.8280797,
-    "seen": 1789096995.2109423,
-    "ast_hash": "eab8d427f929210e017e5c365d093d41",
+    "mtime": 1789154655.354181,
+    "seen": 1789154677.8624654,
+    "ast_hash": "409b174f550097ad444f8c24250f5e57",
     "semantic_hash": ""
   },
   "models/baseline_v2_shadow.json": {
@@ -24,9 +24,9 @@
     "semantic_hash": "1aae7bdc8a38ac93a9f890b314972c02"
   },
   "scripts/train_baseline_model.py": {
-    "mtime": 1788926361.0569954,
-    "seen": 1788926910.7805135,
-    "ast_hash": "39b149a1ae7e28b0f2f4f6dc3c1c889b",
+    "mtime": 1789110827.796877,
+    "seen": 1789154677.8624911,
+    "ast_hash": "ef66cee6f40d5ba1208d50842f64329b",
     "semantic_hash": ""
   },
   "scripts/validate_training_dataset.py": {
@@ -192,9 +192,9 @@
     "semantic_hash": ""
   },
   "scripts/analyze_feature_ablation.py": {
-    "mtime": 1788924793.3749113,
-    "seen": 1788924968.7480562,
-    "ast_hash": "8dda26ba7818f0aed3864193ac8a0b4a",
+    "mtime": 1789110833.297249,
+    "seen": 1789154677.8624818,
+    "ast_hash": "9ee4d5676854f1bb8f10f2c7152efeaa",
     "semantic_hash": ""
   },
   "tests/test_feature_ablation.py": {
@@ -252,9 +252,9 @@
     "semantic_hash": ""
   },
   "CLAUDE_NOTES.md": {
-    "mtime": 1789096409.5195448,
-    "seen": 1789096995.2109947,
-    "ast_hash": "19f86e8a14d46cab7c6bebd7b80f632d",
+    "mtime": 1789154251.6990647,
+    "seen": 1789154677.862594,
+    "ast_hash": "e46c9c34bb1ca4407dba00b109a931ec",
     "semantic_hash": ""
   },
   "2026-09-10.md": {
@@ -273,6 +273,24 @@
     "mtime": 1789096956.4771552,
     "seen": 1789096995.210968,
     "ast_hash": "9d5f3c247245ef5a89723059a3d7b03b",
+    "semantic_hash": ""
+  },
+  "reports/ablation_report_2026-09-11.json": {
+    "mtime": 1789110945.8658795,
+    "seen": 1789154677.8624787,
+    "ast_hash": "72a7770e055de8c2b3386efec7910a47",
+    "semantic_hash": ""
+  },
+  "scripts/hooks/pre-push": {
+    "mtime": 1789105064.29521,
+    "seen": 1789154677.8624895,
+    "ast_hash": "4f0c6b7e4dc129d08583e9abc1d5b186",
+    "semantic_hash": ""
+  },
+  "tests/test_stream_routing.py": {
+    "mtime": 1789154642.4778302,
+    "seen": 1789154677.8625126,
+    "ast_hash": "98b1a2086d95282fd4dd9d3559e26928",
     "semantic_hash": ""
   }
 }
