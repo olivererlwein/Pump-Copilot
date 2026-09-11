@@ -1148,3 +1148,83 @@ de "conectar el parser al pipeline".**
 - El hook de pre-push va a frenar cambios que toquen el camino del dinero;
   usar `ALLOW_RISK_PUSH=1` solo tras revisión.
 - Suite completa con `.venv\Scripts\python.exe`; hoy 161 tests OK.
+
+---
+
+# El scoring sí funciona — y dónde no, 2026-09-11
+
+Investigación disparada por una discrepancia: los outcomes muestran 31,4% de
+acierto (429 de 1368) y las posiciones paper 94% (16 de 17). Sesenta puntos de
+diferencia sobre el mismo motor y el mismo mercado.
+
+## No era sesgo de supervivencia
+
+Primera hipótesis: que las posiciones sobre tokens muertos quedaran abiertas
+para siempre y nunca contaran como pérdida. **Descartada por los datos**: 17 de
+17 posiciones cerradas, cero abiertas.
+
+## La explicación: el scoring separa de verdad
+
+| Tramo de score | Filas | Acierto |
+|---|---|---|
+| SKIP (<60) | 901 | **23,0%** |
+| WATCH 60-69 | 318 | 39,3% |
+| WATCH 70-79 | 132 | 60,6% |
+| COPY (≥80) | 17 | **100%** |
+
+Las posiciones paper solo se abren con COPY, y COPY acierta mucho más que el
+promedio. La discrepancia no era un artefacto: era selección funcionando.
+
+## Y no es el confundidor de decu
+
+Dado el historial de esta sesión —dos confundidores encontrados por
+concentración— se verificó si la relación existe **dentro** de cada trader:
+
+| Trader | <60 | 60-69 | 70-79 | ≥80 |
+|---|---|---|---|---|
+| decu | 31,1% (485) | 66,9% (136) | 60,3% (58) | 100% (16) |
+| epicsealdarkeye | 14,3% (21) | 66,7% (9) | **78,0% (50)** | 100% (1) |
+| Cooker | 15,9% (226) | 23,1% (65) | 66,7% (6) | — |
+| chriskogias | 11,3% (62) | 55,6% (18) | — | — |
+| slingoor | 11,7% (77) | 6,2% (32) | 100% (1) | — |
+| **gr3gor14n** | **0,0% (29)** | **1,7% (58)** | **0,0% (15)** | — |
+
+Excluyendo a decu por completo (673 filas): 13,5% → 18,7% → **60,8%** → 100%.
+La relación se sostiene.
+
+**El score tiene señal propia.** Es el primer hallazgo sólidamente positivo del
+trabajo: todo lo demás que investigamos resultó ser un confundidor.
+
+## Los dos límites reales
+
+**1. COPY es, en la práctica, un evento de un solo trader.** De 17 señales
+COPY históricas, **16 son de decu** y 1 de epicsealdarkeye. El sistema casi
+nunca dice COPY para nadie más, así que el 94% de las posiciones paper es "los
+mejores 16 momentos de decu" — real, pero angosto.
+
+**2. `gr3gor14n` no aporta nada.** 0,0% / 1,7% / 0,0% a lo largo de 102
+muestras. No es que el score no lo prediga: casi nunca acierta en ningún
+tramo. Copiarlo no tiene valor en este marco.
+
+## Consecuencia para el backfill y la watchlist
+
+Refuerza "diversidad, no volumen", con un matiz nuevo: **no toda la diversidad
+sirve**. Sumar muestras de `gr3gor14n` no va a mejorar nada.
+
+Lo que hace falta son traders con señal propia, como `epicsealdarkeye` en el
+tramo 70-79: **78% de acierto sobre 50 muestras**, el dato no-decu más sólido
+del conjunto. Ese perfil es el que conviene priorizar al elegir wallets para el
+backfill dirigido.
+
+## Nota sobre la lógica de salida
+
+Analizando las 17 posiciones cerradas aparecieron tres donde el token terminó
+**por debajo** del precio de entrada y la posición igual ganó dinero
+(−22,2% → +$2,26; −18,5% → +$0,85; −0,5% → +$4,68). Es la venta escalonada
+cobrando en la subida antes del desplome: `exit_mc` solo registra el último
+tramo. La lógica de salida por cuartos está agregando valor real, no solo
+complejidad.
+
+Queda sin medir el benchmark contra "comprar y mantener", que necesita cruzar
+las posiciones con la trayectoria de precio de `signal_outcomes`. El dato
+existe (`max_return`, `return_15m`); el cálculo no se hizo.
