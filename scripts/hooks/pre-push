@@ -45,10 +45,17 @@ while read -r local_ref local_sha remote_ref remote_sha; do
         range="$remote_sha..$local_sha"
     fi
 
-    # Solo las líneas agregadas o quitadas, no el contexto del diff.
-    hits=$(git diff "$range" -- $RISK_FILES 2>/dev/null \
-        | grep -E '^[+-]' \
-        | grep -Ev '^(\+\+\+|---)' \
+    # -W expande cada cambio a la función completa que lo contiene.
+    #
+    # Mirar solo las líneas agregadas y quitadas deja pasar el caso más
+    # peligroso: un cambio de flujo de control que altera SI una de estas
+    # funciones se ejecuta, sin nombrarla. Un `continue` agregado encima de
+    # una venta no menciona la venta, pero decide si ocurre. Ese caso ya se
+    # escapó una vez. Un contexto fijo tampoco alcanza, porque el código es
+    # espaciado y la llamada puede quedar decenas de líneas más abajo.
+    #
+    # A cambio de más falsos positivos, que para esto es el error barato.
+    hits=$(git diff -W "$range" -- $RISK_FILES 2>/dev/null \
         | grep -Eo "$RISK_PATTERN" \
         | sort -u || true)
 

@@ -1228,3 +1228,60 @@ complejidad.
 Queda sin medir el benchmark contra "comprar y mantener", que necesita cruzar
 las posiciones con la trayectoria de precio de `signal_outcomes`. El dato
 existe (`max_return`, `return_15m`); el cálculo no se hizo.
+
+---
+
+# Punto ciego del hook de pre-push — encontrado y corregido, 2026-09-11
+
+## Cómo apareció
+
+Al pushear un commit de documentación, `git push` llevó también dos commits de
+Codex que estaban commiteados localmente pero sin subir (`97f863e`,
+`28c8324`). Fueron a producción sin que nadie decidiera desplegarlos.
+
+El contenido era sano —la corrección del doble procesamiento y sus tests, 170
+pasando, live trading bloqueado— y producción quedó estable. Pero **no fue una
+decisión deliberada**, que es exactamente lo que el hook existe para evitar.
+
+**Lección operativa:** revisar `git log origin/main..HEAD` antes de pushear.
+Un push no lleva solo tu commit; lleva todo lo que haya local por delante del
+remoto.
+
+## El punto ciego
+
+El hook no lo frenó, y según su lógica original actuó bien: el diff **no
+contenía ningún patrón de riesgo**.
+
+El cambio de Codex agregaba un `if is_watched_wallet: continue` justo encima de
+las llamadas a `update_paper_position()` y `evaluate_live_position_exit()`.
+Alteró **si esas funciones se ejecutan**, sin tocar una sola línea que las
+nombre.
+
+Ese es el caso más peligroso y era justo el que se escapaba: el hook buscaba
+patrones en las líneas modificadas, así que un cambio de flujo de control
+alrededor de una venta resultaba invisible. Podía frenar un cambio cosmético
+que mencionara `risk_check` y dejar pasar uno que decidiera cuándo se vende.
+
+## La corrección
+
+Se pasó de mirar solo las líneas agregadas y quitadas a `git diff -W`, que
+expande cada cambio a **la función completa que lo contiene**. Así, cualquier
+modificación dentro de una función que toque el camino del dinero queda
+marcada, la nombre o no.
+
+Se probó primero con contexto fijo (`-U15`) y **no alcanzaba**: el código es
+espaciado y la llamada relevante quedaba decenas de líneas más abajo. `-W` no
+depende de la distancia.
+
+Verificado contra historia real:
+
+| Commit | Antes | Ahora |
+|---|---|---|
+| `97f863e` (el que se escapó) | permitido | **frenado** |
+| `d0a6e28` (conecta compra real) | frenado | **frenado** |
+| solo documentación | permitido | permitido |
+| solo `graphify-out/` | permitido | permitido |
+
+A cambio hay más falsos positivos, que para esto es el error barato: frenar de
+más cuesta un `ALLOW_RISK_PUSH=1` tras mirar el diff; frenar de menos cuesta un
+despliegue no revisado al camino del dinero.
