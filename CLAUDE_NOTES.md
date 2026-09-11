@@ -823,3 +823,54 @@ Probado contra historia real del repo:
 
 El segundo caso es el que justifica el hook: ese commit conectó la decisión
 COPY con la compra real y se subió directo a `main` sin revisión previa.
+
+---
+
+# Scoring dinámico de traders apagado — 2026-09-11
+
+`TRADER_DYNAMIC_QUALITY_ENABLED=false` en Railway. Verificado: los 14 traders
+volvieron al prior neutral de 15.
+
+## Por qué
+
+El scoring no estaba midiendo la calidad del trader. Estaba midiendo **qué tan
+bien lo entrega PumpPortal**.
+
+| Trader | Muestras | Calidad | ¿Lo entrega PumpPortal? |
+|---|---|---|---|
+| epicsealdarkeye | 149 | 23 | sí |
+| decu | 142 | 27 | sí |
+| Cooker | 54 | 17 | sí |
+| chriskogias | 17 | 17 | parcial |
+| slingoor | 6 | 17 | parcial |
+| gr3gor14n | 4 | 14 | no (39 h de silencio) |
+| marcell | 0 | 15 | no (178 h) |
+| supermandev | 0 | 15 | no (226 h) |
+| hdegroot | 1 | 16 | no (177 h) |
+
+Los tres con más muestras son exactamente los tres que PumpPortal entrega bien.
+Las muestras salen de `signal_outcomes`, que se alimenta del stream, y el
+stream pierde el 80%. Un trader cuyas operaciones no llegan nunca puede
+acumular evidencia, así que se queda en el neutral por más que opere bien.
+
+Eso es un confundidor, no ruido: la variable medida (calidad) está
+sistemáticamente correlacionada con una variable ajena (tasa de entrega). Con
+el dinámico encendido, `score_trader()` aportaba hasta 30 de los 100 puntos que
+deciden un COPY, usando ese ranking sesgado.
+
+## Por qué apagarlo y no ajustarlo
+
+Con el dinámico apagado todos valen 15, que es la posición honesta: no sabemos.
+Parece un retroceso pero no lo es — el ranking anterior no era "mejor que nada",
+era información sesgada por un confundidor recién descubierto. Estar seguro de
+algo equivocado es peor que no diferenciar.
+
+## Cuándo volver a encenderlo
+
+Cuando el feed de datos esté completo **y** se haya subido `DATA_VERSION`, para
+que las muestras del régimen incompleto no se mezclen con las nuevas. Recién
+ahí el número va a medir lo que dice medir.
+
+Nota sobre `decu`, que encabezaba con 27: es la wallet de volumen extremo
+(1000+ transacciones cada 90 s) que se excluyó del webhook. Sus 142 muestras
+reflejan volumen y buena entrega más que acierto.
