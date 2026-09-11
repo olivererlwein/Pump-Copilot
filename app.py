@@ -5,6 +5,7 @@ import asyncio
 import math
 import statistics
 import collections
+import secrets
 import sqlite3
 import random
 import uuid
@@ -13,7 +14,10 @@ import decimal
 from pathlib import Path
 from urllib.request import Request, urlopen
 
+# Con alias: `Request` a secas pisaría `urllib.request.Request`, que este
+# módulo usa para todas sus llamadas HTTP salientes.
 from fastapi import FastAPI, Header, HTTPException
+from fastapi import Request as FastAPIRequest
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
@@ -311,6 +315,27 @@ WATCHED_RESUBSCRIBE_SECONDS = max(
 
 WATCHED_WALLET_ALERTS = set()
 
+# =========================================================
+# PILOTO: WEBHOOK DE HELIUS (OBSERVACIONAL)
+# =========================================================
+# Mide si una fuente por push entrega lo que PumpPortal pierde, y con cuánto
+# retraso. No genera señales, scoring ni órdenes: solo registra qué llegó y
+# cuándo, para comparar contra el stream antes de confiarle nada.
+HELIUS_WEBHOOK_ENABLED = os.getenv(
+    "HELIUS_WEBHOOK_ENABLED",
+    "false",
+).lower() == "true"
+
+# Secreto compartido que Helius envía en la cabecera Authorization. Sin esto
+# configurado el endpoint no acepta nada: es una ruta pública que escribe en
+# la base.
+HELIUS_WEBHOOK_SECRET = os.getenv("HELIUS_WEBHOOK_SECRET", "")
+
+HELIUS_WEBHOOK_MAX_TRANSACTIONS = max(
+    1,
+    int(os.getenv("HELIUS_WEBHOOK_MAX_TRANSACTIONS", "200")),
+)
+
 # Fallback observacional para auditar los eventos de cuenta que PumpPortal no
 # entrega. No entra a save_trade(), scoring, señales ni ejecución hasta que sus
 # resultados hayan sido comparados y promovidos explícitamente.
@@ -458,6 +483,23 @@ def db():
     )
     """
 )
+
+    # Piloto del webhook de Helius: qué llegó por push y con cuánto retraso.
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS helius_webhook_events(
+            signature TEXT PRIMARY KEY,
+            wallet TEXT,
+            trader TEXT,
+            block_time REAL,
+            received_ts REAL,
+            parsed INTEGER DEFAULT 0,
+            side TEXT,
+            mint TEXT,
+            pool TEXT
+        )
+        """
+    )
 
     # Última vez que cada wallet vigilada entregó un evento. Sin esto, que una
     # wallet deje de llegar es indistinguible de que el trader no opere.
@@ -11748,6 +11790,231 @@ def trader_stats(
     conn.close()
 
     return result
+
+
+def record_helius_webhook_transactions(payload, received_ts=None):
+    """Registra lo que llegó por webhook. Observacional: no dispara nada.
+
+    Devuelve cuántas transacciones se vieron, cuántas resultaron ser
+    operaciones Pump de una wallet vigilada, y cuántas ya estaban registradas.
+    """
+    received_ts = float(
+        received_ts if received_ts is not None else time.time()
+    )
+
+    if not isinstance(payload, list):
+        payload = [payload]
+
+    wallets_by_address = {
+        wallet: trader
+        for trader, wallet in WATCHED.items()
+    }
+
+    seen = 0
+    parsed_events = 0
+    duplicates = 0
+
+    conn = db()
+
+    try:
+        for receipt in payload[:HELIUS_WEBHOOK_MAX_TRANSACTIONS]:
+            if not isinstance(receipt, dict):
+                continue
+
+            seen += 1
+
+            transaction = receipt.get("transaction") or {}
+            signatures = transaction.get("signatures") or []
+            signature = signatures[0] if signatures else None
+
+            if not signature:
+                continue
+
+            block_time = receipt.get("blockTime")
+
+            # Una transacción puede tocar varias wallets vigiladas; se
+            # registra la primera que efectivamente la firmó.
+            matched_trader = None
+            matched_wallet = None
+            parsed = None
+
+            for wallet, trader in wallets_by_address.items():
+                try:
+                    events = parse_watched_wallet_pump_events(
+                        receipt, wallet, signature
+                    )
+                except Exception as exc:
+                    print("[HELIUS WEBHOOK] Parse failed:", repr(exc))
+                    events = []
+
+                if events:
+                    matched_trader = trader
+                    matched_wallet = wallet
+                    parsed = events[0]["event"]
+                    break
+
+            if parsed is not None:
+                parsed_events += 1
+
+            cursor = conn.execute(
+                """
+                INSERT OR IGNORE INTO helius_webhook_events(
+                    signature, wallet, trader, block_time,
+                    received_ts, parsed, side, mint, pool
+                )
+                VALUES(?,?,?,?,?,?,?,?,?)
+                """,
+                (
+                    signature,
+                    matched_wallet,
+                    matched_trader,
+                    float(block_time) if block_time else None,
+                    received_ts,
+                    1 if parsed else 0,
+                    (parsed or {}).get("txType"),
+                    (parsed or {}).get("mint"),
+                    (parsed or {}).get("pool"),
+                ),
+            )
+
+            if not cursor.rowcount:
+                duplicates += 1
+
+        conn.commit()
+    finally:
+        conn.close()
+
+    return {
+        "seen": seen,
+        "parsed_events": parsed_events,
+        "duplicates": duplicates,
+    }
+
+
+@app.post("/api/helius-webhook")
+async def helius_webhook(
+    request: FastAPIRequest,
+    authorization: str = Header(default=""),
+):
+    """Recibe transacciones de Helius. Solo mide; no alimenta decisiones."""
+
+    if not HELIUS_WEBHOOK_ENABLED:
+        raise HTTPException(status_code=404, detail="NOT_FOUND")
+
+    # Sin secreto configurado no se acepta nada: es una ruta pública que
+    # escribe en la base.
+    if not HELIUS_WEBHOOK_SECRET:
+        raise HTTPException(
+            status_code=503,
+            detail="HELIUS_WEBHOOK_SECRET_NOT_CONFIGURED",
+        )
+
+    if not secrets.compare_digest(
+        str(authorization or ""),
+        HELIUS_WEBHOOK_SECRET,
+    ):
+        raise HTTPException(status_code=401, detail="INVALID_WEBHOOK_SECRET")
+
+    try:
+        payload = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="INVALID_JSON")
+
+    result = await asyncio.to_thread(
+        record_helius_webhook_transactions,
+        payload,
+    )
+
+    return {"ok": True, **result}
+
+
+@app.get("/api/helius-webhook-stats")
+def api_helius_webhook_stats(
+    x_app_token: str = Header(default="")
+):
+    """Comparación de entrega y latencia entre el webhook y PumpPortal."""
+
+    auth(x_app_token)
+
+    conn = db()
+
+    totals = conn.execute(
+        """
+        SELECT
+            COUNT(*),
+            SUM(parsed),
+            COUNT(block_time)
+        FROM helius_webhook_events
+        """
+    ).fetchone()
+
+    # Latencia del webhook: desde que la transacción entró en un bloque hasta
+    # que llegó el push.
+    webhook_latency = conn.execute(
+        """
+        SELECT
+            COUNT(*),
+            AVG(received_ts - block_time),
+            MIN(received_ts - block_time),
+            MAX(received_ts - block_time)
+        FROM helius_webhook_events
+        WHERE parsed = 1
+        AND block_time IS NOT NULL
+        AND received_ts >= block_time
+        """
+    ).fetchone()
+
+    # Latencia de PumpPortal, medida sobre las operaciones que sí entregó:
+    # el momento en que las guardamos contra el tiempo de bloque que conocemos
+    # por el monitor RPC.
+    stream_latency = conn.execute(
+        """
+        SELECT
+            COUNT(*),
+            AVG(trades.ts - rpc.block_time),
+            MIN(trades.ts - rpc.block_time),
+            MAX(trades.ts - rpc.block_time)
+        FROM rpc_fallback_events AS rpc
+        JOIN trades ON trades.signature = rpc.signature
+        WHERE rpc.block_time IS NOT NULL
+        AND trades.ts >= rpc.block_time
+        """
+    ).fetchone()
+
+    # Operaciones que el webhook vio y el stream no.
+    only_webhook = conn.execute(
+        """
+        SELECT COUNT(*)
+        FROM helius_webhook_events AS hook
+        WHERE hook.parsed = 1
+        AND NOT EXISTS(
+            SELECT 1 FROM trades
+            WHERE trades.signature = hook.signature
+        )
+        """
+    ).fetchone()[0]
+
+    conn.close()
+
+    def summarize(row):
+        return {
+            "samples": int(row[0] or 0),
+            "avg_seconds": round(row[1], 3) if row[1] is not None else None,
+            "min_seconds": round(row[2], 3) if row[2] is not None else None,
+            "max_seconds": round(row[3], 3) if row[3] is not None else None,
+        }
+
+    return {
+        "enabled": bool(HELIUS_WEBHOOK_ENABLED),
+        "observational": True,
+        "affects_decisions": False,
+        "transactions_received": int(totals[0] or 0),
+        "pump_events_parsed": int(totals[1] or 0),
+        "with_block_time": int(totals[2] or 0),
+        "webhook_latency": summarize(webhook_latency),
+        "pumpportal_latency": summarize(stream_latency),
+        "parsed_only_in_webhook": int(only_webhook or 0),
+    }
 
 
 @app.get("/api/watched-wallets")

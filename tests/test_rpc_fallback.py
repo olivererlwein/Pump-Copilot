@@ -560,3 +560,111 @@ class RpcFallbackBaselineTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class HeliusWebhookTests(unittest.TestCase):
+    """Piloto del webhook: registra qué llegó y cuándo, sin decidir nada."""
+
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.original_db = app.DB
+        app.DB = Path(self.temp_dir.name) / "helius-webhook.db"
+        app.migrate_database()
+
+    def tearDown(self):
+        app.DB = self.original_db
+        self.temp_dir.cleanup()
+
+    def native_receipt(self):
+        # Los webhooks entregan la codificación nativa, no jsonParsed.
+        receipt = pump_receipt()
+        receipt["transaction"]["message"] = {
+            "accountKeys": [WALLET, MINT],
+            "header": {"numRequiredSignatures": 1},
+        }
+        return receipt
+
+    def test_records_pump_event_from_native_encoded_payload(self):
+        with patch.object(app, "WATCHED", {"trader-a": WALLET}):
+            result = app.record_helius_webhook_transactions(
+                [self.native_receipt()],
+                received_ts=1_700_000_002,
+            )
+
+        self.assertEqual(result["seen"], 1)
+        self.assertEqual(result["parsed_events"], 1)
+
+        conn = app.db()
+        row = conn.execute(
+            "SELECT trader, parsed, side, mint, block_time, received_ts "
+            "FROM helius_webhook_events WHERE signature = ?",
+            (SIGNATURE,),
+        ).fetchone()
+        conn.close()
+
+        self.assertEqual(row[0], "trader-a")
+        self.assertEqual(row[1], 1)
+        self.assertEqual(row[2], "buy")
+        self.assertEqual(row[3], MINT)
+        # La latencia se mide con estos dos campos.
+        self.assertEqual(row[5] - row[4], 2)
+
+    def test_repeated_delivery_is_not_counted_twice(self):
+        # Helius reintenta si el endpoint no contesta a tiempo.
+        with patch.object(app, "WATCHED", {"trader-a": WALLET}):
+            app.record_helius_webhook_transactions([self.native_receipt()])
+            second = app.record_helius_webhook_transactions(
+                [self.native_receipt()]
+            )
+
+        self.assertEqual(second["duplicates"], 1)
+
+        conn = app.db()
+        count = conn.execute(
+            "SELECT COUNT(*) FROM helius_webhook_events"
+        ).fetchone()[0]
+        conn.close()
+        self.assertEqual(count, 1)
+
+    def test_transaction_from_unwatched_wallet_is_recorded_unparsed(self):
+        # Se guarda para poder medir volumen, pero no cuenta como operación.
+        with patch.object(app, "WATCHED", {"otro": "otra-wallet"}):
+            result = app.record_helius_webhook_transactions(
+                [self.native_receipt()]
+            )
+
+        self.assertEqual(result["seen"], 1)
+        self.assertEqual(result["parsed_events"], 0)
+
+    def test_stats_separate_webhook_and_stream_latency(self):
+        with patch.object(app, "WATCHED", {"trader-a": WALLET}):
+            app.record_helius_webhook_transactions(
+                [self.native_receipt()],
+                received_ts=1_700_000_003,
+            )
+
+        stats = app.get_rpc_fallback_stats()  # no debe romperse
+        self.assertIsInstance(stats, dict)
+
+        conn = app.db()
+        conn.close()
+
+        with patch.object(app, "APP_TOKEN", "token"):
+            report = app.api_helius_webhook_stats("token")
+
+        self.assertTrue(report["observational"])
+        self.assertFalse(report["affects_decisions"])
+        self.assertEqual(report["pump_events_parsed"], 1)
+        self.assertEqual(report["webhook_latency"]["samples"], 1)
+        self.assertEqual(report["webhook_latency"]["avg_seconds"], 3.0)
+        # Sin entrega por el stream, esa operación solo la vio el webhook.
+        self.assertEqual(report["parsed_only_in_webhook"], 1)
+
+
+class OutboundRequestTests(unittest.TestCase):
+    def test_request_name_still_refers_to_urllib(self):
+        # `from fastapi import Request` pisaría `urllib.request.Request` y
+        # rompería en silencio todas las llamadas HTTP salientes del módulo.
+        import urllib.request
+
+        self.assertIs(app.Request, urllib.request.Request)
