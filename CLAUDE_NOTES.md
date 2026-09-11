@@ -874,3 +874,101 @@ ahí el número va a medir lo que dice medir.
 Nota sobre `decu`, que encabezaba con 27: es la wallet de volumen extremo
 (1000+ transacciones cada 90 s) que se excluyó del webhook. Sus 142 muestras
 reflejan volumen y buena entrega más que acierto.
+
+---
+
+# Ablación de features — paso 0 antes del backfill, 2026-09-11
+
+Ejecutada a pedido de Codex antes de autorizar cualquier backfill. Sin entrenar,
+guardar ni promover ningún modelo. Producción sin tocar.
+
+## Cambio en el script
+
+Se agregó la ablación aislada `without_token_age` a
+`scripts/analyze_feature_ablation.py`. La existente `without_market_context`
+quita tres features a la vez (`market_score`, `market_cap`,
+`token_age_seconds`), así que no permitía atribuir nada a la antigüedad del
+token.
+
+## Dato de partida corregido
+
+El export local tenía **4 filas** (obsoleto, del 8/09). Producción tiene
+**1368**. Ni los 162 que yo citaba ni los 727 de Codex eran el número actual —
+tercera vez en el trabajo que una copia local desactualizada da una cifra
+equivocada.
+
+## Hallazgo principal: el modelo solo apuesta a un trader
+
+En las cinco configuraciones, sin excepción:
+
+| Trader | Holdout | Positivos reales | Seleccionados | Aciertos |
+|---|---|---|---|---|
+| decu | 180 | 76 | **37** | 37 |
+| Cooker | 37 | 4 | 0 | 0 |
+| slingoor | 27 | 2 | 0 | 0 |
+| gr3gor14n | 25 | 0 | 0 | 0 |
+| epicsealdarkeye | 5 | 4 | 0 | 0 |
+
+La precisión de 1.000 no indica calidad: el modelo aprendió a apostar
+exclusivamente a `decu`, que ocupa el 66% del holdout y tiene 42% de tasa base.
+Con el umbral en 0,84 se queda con sus mejores casos y nunca se equivoca porque
+nunca sale de ahí.
+
+El detalle más elocuente: `epicsealdarkeye` tiene 4 aciertos reales de 5 filas
+—la mejor tasa del conjunto— y el modelo selecciona **cero**.
+
+Coherente con el bloqueador que ya reportaba el propio script:
+`holdout_largest_group_share 0.354/0.250`.
+
+## Respuesta sobre token_age_seconds
+
+| Configuración | Prec | Recall | F1 | AUC | Selec | Neto |
+|---|---|---|---|---|---|---|
+| actual completo | 1.000 | 0.430 | 0.602 | 0.769 | 37 | 8,51 |
+| actual sin token_age | 1.000 | 0.430 | 0.602 | 0.754 | 37 | 8,51 |
+| actual sin mkt context | 1.000 | 0.407 | 0.579 | 0.753 | 35 | 8,05 |
+| candidato completo | 1.000 | 0.407 | 0.579 | 0.771 | 35 | 8,05 |
+| candidato sin token_age | 1.000 | 0.407 | 0.579 | 0.760 | 35 | 8,05 |
+
+Quitarlo no cambia nada en el punto de operación: mismas decisiones, misma
+economía. Solo baja levemente el AUC, o sea que aporta al ordenamiento pero no
+a la decisión. Es el caso "queda igual".
+
+**Por qué:** el modelo ya tiene la identidad del trader como feature, y el nulo
+de `token_age_seconds` es casi un alias de esa identidad.
+
+## Tasa de ausencia: el nulo como proxy de identidad
+
+1261 nulos de 1368 (**92,2%**).
+
+| Trader | Filas | Nulos | target=1 |
+|---|---|---|---|
+| epicsealdarkeye | 81 | **1,2%** | 60,5% |
+| decu | 695 | 99,4% | 42,2% |
+| Cooker | 297 | 92,6% | 18,5% |
+| slingoor | 110 | 100% | 10,9% |
+| gr3gor14n | 102 | 100% | 1,0% |
+| chriskogias | 81 | 100% | 21,0% |
+
+Con el dato presente el target es 1 en **53,3%** de los casos; sin él, en
+**29,5%**. La ausencia informa más que el valor — pero lo que informa es quién
+operó, no la antigüedad del token.
+
+**Causa estructural confirmada:** `build_model_features()` busca el evento
+`create` dentro de `trades`, y esa tabla solo guarda operaciones de wallets
+vigiladas. El dato existe únicamente cuando un trader vigilado creó el token
+que opera — que es lo que hace `epicsealdarkeye` y casi nadie más.
+
+## Conclusión para el backfill
+
+La hipótesis de Claude —que el backfill valía porque completaría un feature
+roto— **queda descartada**: ese feature no mueve la aguja.
+
+El argumento de Codex se refuerza: el backfill vale por **diversidad**, no por
+volumen ni por completar features. Mientras el dataset sea 66% de un trader,
+ningún modelo va a aprender a operar; va a aprender a reconocer a ese trader.
+
+Y hay un detalle incómodo: `decu` es la wallet que excluimos del webhook por
+volumen extremo, y una de las que PumpPortal sí entrega bien. El mismo
+confundidor que apareció en el scoring de traders reaparece acá — el modelo se
+apoya en quien mejor está representado, que es quien mejor se entrega.

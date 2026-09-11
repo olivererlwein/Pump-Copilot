@@ -54,6 +54,12 @@ ABLATIONS = {
         "market_cap",
         "token_age_seconds",
     },
+    # Aislada a propósito: `without_market_context` quita tres features a la
+    # vez, así que no permite atribuir nada a la antigüedad del token. Importa
+    # medirla sola porque su ausencia no es aleatoria — está presente casi solo
+    # para el trader que crea los tokens que opera, y por eso el nulo puede
+    # estar funcionando como proxy de identidad en vez de como dato faltante.
+    "without_token_age": {"token_age_seconds"},
 }
 
 
