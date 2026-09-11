@@ -1040,3 +1040,111 @@ todos).
 El diagnóstico de fondo de Codex se confirma por un camino distinto al que yo
 había propuesto: **el problema es diversidad, no identidad ni features
 faltantes.**
+
+---
+
+# Conectar el webhook al pipeline — brief para Codex, 2026-09-11
+
+## Situación
+
+**PumpPortal dejó de entregar por completo hace ~21 horas.** Las 14 wallets,
+incluidas las cinco que venían funcionando (decu 20,7 h, gr3gor14n 20,8 h,
+slingoor 20,9 h, Cooker 21,2 h, epicsealdarkeye 21,7 h). El stream sigue
+conectado respondiendo *"Successfully subscribed to keys."*
+
+Causa probable, no confirmada: el saldo de la wallet cayó a 0,0141 SOL, por
+debajo de los 0,02 que PumpPortal exige para `subscribeAccountTrade`. El
+momento calza pero ellos no informan nada.
+
+**El bot no captura una sola señal desde entonces.** Sin eventos de wallet no
+hay `save_trade`, sin eso no hay evaluaciones, ni outcomes, ni paper trading.
+
+## Evidencia acumulada
+
+| | |
+|---|---|
+| Tasa de pérdida del stream (monitor RPC) | **86,5%** (566 de 654) |
+| Operaciones Pump capturadas por el webhook | 116 |
+| De esas, **no entregadas** por PumpPortal | **116 de 116** |
+| `matched` nuevo desde el apagón | 0 |
+
+Latencia, ahora con muestra sólida:
+
+| Fuente | Muestras | Promedio | Máximo |
+|---|---|---|---|
+| Helius webhook | 116 | 4,10 s | **8,33 s** |
+| PumpPortal | 88 | 3,32 s | **39,28 s** |
+
+Helius es 0,78 s más lento en promedio y **4,7× más ajustado en la cola**.
+
+**Dato clave para la decisión:** el 80% de pérdida se midió *mientras la wallet
+estaba financiada* (0,034 SOL). Recargar no devuelve un servicio sano; devuelve
+uno que pierde 4 de cada 5 operaciones. Recargar cuesta 35 Bs y es opcional.
+
+## LA DEPENDENCIA CRÍTICA (revisar antes de estimar)
+
+El webhook vigila **wallets**. Pero el stream tiene dos ramas, y la segunda es
+la que sostiene todo el aprendizaje:
+
+- **Rama de wallet vigilada** (`app.py:10394`): `save_trade()` → `evaluate_buy()`
+  → crea `signal_outcomes` con `price_at_signal`.
+- **Rama de token trackeado** (`app.py:10523` en adelante):
+  `process_signal_outcomes_event()`, `save_token_history()`,
+  `update_paper_position()`, `evaluate_live_position_exit()`.
+
+`process_signal_outcomes_event()` es lo que llena `price_10s`, `price_30s`,
+`price_1m`, `price_5m`, `price_15m`. **Sin eventos de token, los outcomes se
+crean pero nunca se completan** — expiran a los 20 minutos, y sin outcomes
+completados no hay dataset de entrenamiento, ni muestras de calidad de trader,
+ni muestras para el modelo shadow.
+
+Además, `update_paper_position()` y `evaluate_live_position_exit()` también
+dependen de esa rama: sin ella, las posiciones abiertas no se actualizan y los
+stop-loss de posiciones reales no se evalúan.
+
+**Consecuencia:** conectar el webhook solo para wallets restaura las señales
+pero no sus resultados. Para función completa hace falta también recibir
+eventos de los tokens trackeados — y `TRACKED_TOKENS` cambia dinámicamente con
+cada señal nueva y cada posición que se abre o cierra.
+
+Helius permite editar la lista de direcciones de un webhook por API, así que es
+viable, pero implica gestión dinámica de direcciones, límites de edición, y un
+conjunto de tokens que rota constantemente. **Eso expande el alcance más allá
+de "conectar el parser al pipeline".**
+
+## Lo que ya existe
+
+- `parse_watched_wallet_pump_events()` en `solana_rpc_fallback.py` produce
+  exactamente los campos que consume el pipeline (`marketCapSol`,
+  `vSolInBondingCurve`, `solAmount`, `txType`, `newTokenBalance`, `pool`).
+  Verificado contra ambas codificaciones (`jsonParsed` y nativa).
+- `POST /api/helius-webhook` recibe, autentica con secreto compartido y
+  registra. Apagado salvo `HELIUS_WEBHOOK_ENABLED=true`.
+- `record_helius_webhook_transactions()` parsea y guarda en
+  `helius_webhook_events`. **Hoy solo mide: no llama a `save_trade()`.**
+- Deduplicación por firma: `mark_signature_processed()` sobre
+  `processed_signatures`. Permite correr ambas fuentes en paralelo.
+- 13 wallets registradas (todas menos `decu`, excluida por volumen extremo:
+  1000+ transacciones cada 90 s). Consumo actual ~5% del plan gratuito.
+
+## Riesgos a considerar
+
+1. **Orden de llegada.** El stream procesa en orden; los webhooks pueden llegar
+   desordenados. `evaluate_buy()` calcula `consensus_trader_count_30s` y
+   `trader_recent_buy_count_60s` leyendo `trades`, así que insertar fuera de
+   orden produce features calculadas sobre historia incompleta.
+2. **Deduplicación antes, no después.** Si ambas fuentes entregan, el descarte
+   tiene que ocurrir antes de `save_trade()`.
+3. **`DATA_VERSION` debe subir a 3 en el mismo cambio.** Si no, el régimen
+   incompleto se mezcla con el nuevo. El proyecto ya usa ese mecanismo para
+   filtrar el dataset y rechazar modelos de otra versión.
+4. **La transición de observacional a activo** es el momento delicado: hoy el
+   webhook no puede causar daño porque no alimenta nada.
+
+## Restricciones
+
+- Live trading sigue bloqueado y no debe tocarse.
+- `TRADER_DYNAMIC_QUALITY_ENABLED` sigue en `false` a propósito.
+- El hook de pre-push va a frenar cambios que toquen el camino del dinero;
+  usar `ALLOW_RISK_PUSH=1` solo tras revisión.
+- Suite completa con `.venv\Scripts\python.exe`; hoy 161 tests OK.
