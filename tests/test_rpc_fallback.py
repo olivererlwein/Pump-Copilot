@@ -626,6 +626,15 @@ class HeliusWebhookTests(unittest.TestCase):
         conn.close()
         self.assertEqual(count, 1)
 
+    def test_webhook_does_not_route_events_or_save_trades(self):
+        with patch.object(app, "WATCHED", {"trader-a": WALLET}), \
+                patch.object(app, "route_market_event") as route, \
+                patch.object(app, "save_trade") as save:
+            result = app.record_helius_webhook_transactions([self.native_receipt()])
+        self.assertEqual(result["parsed_events"], 1)
+        route.assert_not_called()
+        save.assert_not_called()
+
     def test_transaction_from_unwatched_wallet_is_recorded_unparsed(self):
         # Se guarda para poder medir volumen, pero no cuenta como operación.
         with patch.object(app, "WATCHED", {"otro": "otra-wallet"}):

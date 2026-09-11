@@ -10,6 +10,55 @@ from unittest.mock import AsyncMock, patch
 import app
 
 
+class MarketEventRoutingTests(unittest.TestCase):
+    def setUp(self):
+        self.stack = ExitStack()
+        self.addCleanup(self.stack.close)
+        self.stack.enter_context(patch.object(app, "WATCHED", {"trader": "wallet"}))
+        self.stack.enter_context(patch.object(app, "TRACKED_TOKENS", set()))
+        self.effects = {
+            name: self.stack.enter_context(patch.object(app, name))
+            for name in (
+                "save_trade", "save_token_history", "update_paper_position",
+                "evaluate_live_position_exit", "process_signal_outcomes_event",
+            )
+        }
+
+    def test_unrelated_event_has_no_effects(self):
+        app.route_market_event({"mint": "other", "traderPublicKey": "other"})
+        for effect in self.effects.values():
+            effect.assert_not_called()
+
+    def test_newly_tracked_buy_does_not_become_its_own_followup(self):
+        event = {"mint": "new", "traderPublicKey": "wallet", "txType": "buy"}
+        self.effects["save_trade"].side_effect = lambda *a, **k: app.TRACKED_TOKENS.add("new")
+        app.route_market_event(event)
+        self.effects["save_trade"].assert_called_once_with("trader", "wallet", event, source="live")
+        self.effects["process_signal_outcomes_event"].assert_not_called()
+
+    def test_tracking_removed_by_wallet_update_still_records_outcome(self):
+        app.TRACKED_TOKENS.add("mint")
+        self.effects["save_trade"].side_effect = lambda *a, **k: app.TRACKED_TOKENS.clear()
+        event = {"mint": "mint", "wallet": "wallet", "txType": "sell"}
+        app.route_market_event(event)
+        self.effects["process_signal_outcomes_event"].assert_called_once_with(mint="mint", event=event)
+        self.effects["update_paper_position"].assert_not_called()
+        self.effects["evaluate_live_position_exit"].assert_not_called()
+
+    def test_token_aliases_and_unknown_live_balance_are_preserved(self):
+        app.TRACKED_TOKENS.add("mint")
+        event = {"mint": "mint", "user": "other", "type": "SELL", "market_cap_sol": 42}
+        app.route_market_event(event)
+        self.effects["save_trade"].assert_not_called()
+        paper = self.effects["update_paper_position"].call_args.kwargs
+        live = self.effects["evaluate_live_position_exit"].call_args.kwargs
+        self.assertEqual(paper["side"], "sell")
+        self.assertEqual(paper["market_cap"], 42)
+        self.assertEqual(paper["new_token_balance"], 0)
+        self.assertIsNone(live["new_token_balance"])
+        self.assertEqual(self.effects["save_token_history"].call_args.kwargs["source"], "token-live")
+
+
 class StreamRoutingTests(unittest.IsolatedAsyncioTestCase):
     async def check_routing(self, watched, tracked, real_effects=False):
         event = {

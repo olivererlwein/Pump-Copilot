@@ -10188,6 +10188,59 @@ async def mark_stream_recovered():
             "Pump Copilot: PumpPortal data connection recovered."
         )
 
+def route_market_event(event):
+    """Apply an already deduplicated event using the existing live semantics.
+
+    Transport authentication, event identity and retry handling belong to the
+    caller. Helius remains observational until those contracts are implemented.
+    """
+    wallet = (
+        event.get("traderPublicKey")
+        or event.get("user")
+        or event.get("wallet")
+        or ""
+    )
+    mint = event.get("mint") or ""
+    is_watched_wallet = wallet in WATCHED.values()
+    # Snapshot before save_trade: a buy may start tracking this mint.
+    is_tracked_token = mint in TRACKED_TOKENS
+
+    if is_watched_wallet:
+        trader = trader_for(wallet)
+        print(f"[TRADE LIVE] {trader}: {event}")
+        save_trade(trader, wallet, event, source="live")
+
+    if not is_tracked_token:
+        return
+
+    print(f"[TOKEN LIVE] {mint}: {event}")
+    process_signal_outcomes_event(mint=mint, event=event)
+    # Watched-wallet history and positions were already updated by save_trade.
+    if is_watched_wallet:
+        return
+
+    trader = trader_for(wallet)
+    side = str(event.get("txType") or event.get("type") or "").lower()
+    market_cap = float(
+        event.get("marketCapSol") or event.get("market_cap_sol") or 0
+    )
+    signature = event.get("signature") or ""
+    raw_balance = event.get("newTokenBalance")
+    save_token_history(
+        mint=mint, market_cap=market_cap, trader=trader, side=side,
+        signature=signature, source="token-live",
+    )
+    update_paper_position(
+        mint=mint, trader=trader, side=side, market_cap=market_cap,
+        new_token_balance=float(raw_balance or 0),
+    )
+    evaluate_live_position_exit(
+        mint=mint, trader=trader, side=side, market_cap=market_cap,
+        new_token_balance=float(raw_balance) if raw_balance is not None else None,
+        event_signature=signature,
+    )
+
+
 async def stream():
 
     global FORCE_STREAM_ERROR
@@ -10461,152 +10514,7 @@ async def stream():
                         if len(SEEN_SIGNATURES) > 5000:
                             SEEN_SIGNATURES.clear()
 
-                    wallet = (
-                        event.get("traderPublicKey")
-                        or event.get("user")
-                        or event.get("wallet")
-                        or ""
-                    )
-
-                    mint = (
-                        event.get("mint")
-                        or ""
-                    )
-
-                    is_watched_wallet = (
-                        wallet in WATCHED.values()
-                    )
-
-
-                    is_tracked_token = (
-                        mint in TRACKED_TOKENS
-                    )
-
-
-                    # =====================================
-                    # UNO DE NUESTROS 5 TRADERS OPERÓ
-                    # =====================================
-
-                    if is_watched_wallet:
-
-                        trader = trader_for(
-                            wallet
-                        )
-
-                        print(
-                            f"[TRADE LIVE] "
-                            f"{trader}: "
-                            f"{event}"
-                        )
-
-                        save_trade(
-                            trader,
-                            wallet,
-                            event,
-                            source="live"
-                        )
-
-
-                    # =====================================
-                    # CUALQUIER OTRA WALLET OPERÓ
-                    # UN TOKEN QUE TENEMOS EN PAPER
-                    # =====================================
-
-                    if is_tracked_token:
-
-                        print(
-                            f"[TOKEN LIVE] "
-                            f"{mint}: "
-                            f"{event}"
-                        )
-
-                        process_signal_outcomes_event(
-    mint=mint,
-    event=event
-)
-
-                        # save_trade already updated history and positions for
-                        # watched wallets; only outcomes remain for this branch.
-                        if is_watched_wallet:
-                            continue
-
-                        save_token_history(
-                            mint=mint,
-
-                            market_cap=float(
-                                event.get("marketCapSol")
-                                or event.get(
-                                    "market_cap_sol"
-                                )
-                                or 0
-                            ),
-
-                            trader=trader_for(
-                                wallet
-                            ),
-
-                            side=str(
-                                event.get("txType")
-                                or event.get("type")
-                                or ""
-                            ).lower(),
-
-                            signature=event.get(
-                                "signature"
-                            ) or "",
-
-                            source="token-live"
-                        )
-
-                        update_paper_position(
-                            mint=mint,
-
-                            trader=trader_for(
-                                wallet
-                            ),
-
-                            side=str(
-                                event.get("txType")
-                                or event.get("type")
-                                or ""
-                            ).lower(),
-
-                            market_cap=float(
-                                event.get("marketCapSol")
-                                or event.get(
-                                    "market_cap_sol"
-                                )
-                                or 0
-                            ),
-
-                            new_token_balance=float(
-                                event.get(
-                                    "newTokenBalance"
-                                )
-                                or 0
-                            )
-                        )
-
-                        evaluate_live_position_exit(
-                            mint=mint,
-                            trader=trader_for(wallet),
-                            side=str(
-                                event.get("txType")
-                                or event.get("type")
-                                or ""
-                            ).lower(),
-                            market_cap=float(
-                                event.get("marketCapSol")
-                                or event.get("market_cap_sol")
-                                or 0
-                            ),
-                            new_token_balance=(
-                                float(event["newTokenBalance"])
-                                if event.get("newTokenBalance") is not None
-                                else None
-                            ),
-                            event_signature=event.get("signature") or "",
-                        )
+                    route_market_event(event)
 
 
         except Exception as ex:
