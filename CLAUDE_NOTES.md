@@ -672,3 +672,36 @@ deduplicación por firma ya existe (`mark_signature_processed` sobre
 `processed_signatures`), así que un trade que llegue por ambas vías se
 descarta solo. Riesgo de migración cero, sin ventana de corte, y si PumpPortal
 se arregla queda como redundancia.
+
+---
+
+# Hallazgo #3 (`db()`) — medido y descartado, 2026-09-10
+
+La auditoría original marcó como prioridad Media que `db()` (`app.py`) recrea
+la conexión SQLite y corre 16 `CREATE TABLE IF NOT EXISTS` más 5
+`CREATE INDEX` en cada llamada, dentro del loop del stream. **La medición no
+respalda esa prioridad.**
+
+Benchmark (200 llamadas sobre base temporal):
+
+| | |
+|---|---|
+| `db()` completo | 2,38 ms |
+| Solo abrir conexión + PRAGMAs | 2,01 ms |
+| **Sobrecarga atribuible al esquema** | **0,37 ms (16%)** |
+
+Sacar el DDL del camino caliente ahorraría ~0,37 ms por llamada, unos 2 ms por
+evento del stream. Real, pero marginal.
+
+El costo dominante son los 2 ms de abrir la conexión, y eso solo se resuelve
+reutilizando conexiones. Con SQLite más los `asyncio.to_thread` de los workers
+de reconciliación, esa es exactamente la clase de cambio que introduce errores
+sutiles de concurrencia en el sistema que va a mover dinero. Para posiciones de
+$5 el riesgo no se justifica.
+
+**Decisión: no se implementa.** Queda registrado para que no vuelva a aparecer
+como pendiente. Si algún día el volumen crece un orden de magnitud, conviene
+re-medir antes que asumir.
+
+Nota metodológica: la prioridad original se asignó leyendo el código, sin
+medir. El número la desmintió.
