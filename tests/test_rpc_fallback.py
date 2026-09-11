@@ -376,6 +376,59 @@ class RpcFallbackPersistenceTests(unittest.TestCase):
         self.assertEqual(state["last_error"], "SIGNATURE_BACKLOG_REBASED")
 
 
+class AccountKeyEncodingTests(unittest.TestCase):
+    """El parser debe aceptar las dos codificaciones de ``accountKeys``.
+
+    `getTransaction` pide `jsonParsed` y devuelve diccionarios; los webhooks
+    entregan el formato nativo, con strings y los firmantes al principio.
+    Aceptar solo el primero haría que una fuente entera se descartara en
+    silencio, indistinguible de "esa fuente no manda nada".
+    """
+
+    def native_receipt(self, keys, required_signatures=1):
+        receipt = pump_receipt()
+        receipt["transaction"]["message"] = {
+            "accountKeys": keys,
+            "header": {"numRequiredSignatures": required_signatures},
+        }
+        return receipt
+
+    def test_parses_native_encoding_with_string_account_keys(self):
+        receipt = self.native_receipt([WALLET, MINT])
+
+        events = parse_watched_wallet_pump_events(receipt, WALLET, SIGNATURE)
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["event"]["txType"], "buy")
+        self.assertEqual(events[0]["event"]["mint"], MINT)
+
+    def test_parses_json_parsed_encoding_with_dict_account_keys(self):
+        # La forma que ya usaba el sondeo RPC sigue funcionando.
+        events = parse_watched_wallet_pump_events(
+            pump_receipt(), WALLET, SIGNATURE
+        )
+
+        self.assertEqual(len(events), 1)
+
+    def test_native_encoding_rejects_wallet_that_did_not_sign(self):
+        # La wallet aparece en la transacción pero fuera de los firmantes.
+        receipt = self.native_receipt([MINT, WALLET], required_signatures=1)
+
+        self.assertEqual(
+            parse_watched_wallet_pump_events(receipt, WALLET, SIGNATURE),
+            [],
+        )
+
+    def test_native_encoding_without_header_is_rejected(self):
+        receipt = pump_receipt()
+        receipt["transaction"]["message"] = {"accountKeys": [WALLET]}
+
+        self.assertEqual(
+            parse_watched_wallet_pump_events(receipt, WALLET, SIGNATURE),
+            [],
+        )
+
+
 class RpcFallbackBaselineTests(unittest.TestCase):
     """La línea de base decide qué observaciones cuentan como evidencia.
 

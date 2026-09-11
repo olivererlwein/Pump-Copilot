@@ -297,6 +297,46 @@ def _parse_pump_amm_trade(payload, balances, wallet, signature):
     }
 
 
+def _is_signed_by(message, wallet):
+    """¿Firmó ``wallet`` esta transacción?
+
+    Solana devuelve ``accountKeys`` en dos formas según la codificación:
+
+    - ``jsonParsed`` (lo que pide ``getTransaction`` acá): diccionarios con
+      ``pubkey`` y ``signer``.
+    - nativa (lo que entregan los webhooks): lista de strings en base58, donde
+      los firmantes son los primeros ``header.numRequiredSignatures``.
+
+    Aceptar solo la primera haría que una fuente en formato nativo se
+    descartara entera y en silencio, que es indistinguible de "no hay datos".
+    """
+    account_keys = message.get("accountKeys") or []
+
+    if any(isinstance(row, dict) for row in account_keys):
+        return any(
+            isinstance(row, dict)
+            and row.get("pubkey") == wallet
+            and bool(row.get("signer"))
+            for row in account_keys
+        )
+
+    try:
+        required_signatures = int(
+            (message.get("header") or {}).get("numRequiredSignatures")
+        )
+    except (TypeError, ValueError):
+        return False
+
+    if required_signatures <= 0:
+        return False
+
+    return wallet in [
+        key
+        for key in account_keys[:required_signatures]
+        if isinstance(key, str)
+    ]
+
+
 def parse_watched_wallet_pump_events(receipt, wallet, signature):
     """Return only official Pump/PumpSwap trade events signed by ``wallet``."""
     if not isinstance(receipt, dict) or not wallet or not signature:
@@ -310,16 +350,8 @@ def parse_watched_wallet_pump_events(receipt, wallet, signature):
     if not transaction_signatures or transaction_signatures[0] != signature:
         return []
 
-    account_keys = (transaction.get("message") or {}).get("accountKeys") or []
-    signed_by_wallet = any(
-        (
-            row.get("pubkey") == wallet
-            and bool(row.get("signer"))
-        )
-        if isinstance(row, dict) else False
-        for row in account_keys
-    )
-    if not signed_by_wallet:
+    message = transaction.get("message") or {}
+    if not _is_signed_by(message, wallet):
         return []
 
     balances = _token_balances(receipt)

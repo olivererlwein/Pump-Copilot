@@ -590,3 +590,85 @@ al menos un match real (o un `approximate_match`) de una wallet de control, no
 se puede distinguir "PumpPortal pierde todo" de "el comparador no empareja".
 El diagnóstico aproximado que se agregó es justamente lo que permitirá
 separarlos cuando haya datos.
+
+---
+
+# Evaluación del streaming de Helius y arreglo del parser — 2026-09-10
+
+## Por qué se evalúa
+
+Con 9 horas de datos limpios, el monitor RPC midió una **tasa de pérdida del
+80,4%** de PumpPortal: 448 operaciones observadas on-chain, 88 entregadas, 360
+no entregadas. De las 360, solo **1** tenía coincidencia aproximada, lo que
+descarta que sea un problema de formato de firma: sencillamente no llegaron.
+
+Las pérdidas incluyen wallets del grupo que "funcionaba bien" (`slingoor`,
+`epicsealdarkeye`, `decu`), así que no se resuelve eligiendo mejor la
+watchlist.
+
+## Opciones evaluadas
+
+| Opción | Costo | Veredicto |
+|---|---|---|
+| LaserStream gRPC | $499/mes (plan Business) | Descartado para posiciones de $5 |
+| Enhanced WebSockets (`transactionSubscribe`) | Desde $49/mes (Developer) | Viable |
+| **Webhooks** | Plan gratuito, 1 crédito por push | **Mejor encaje** |
+
+Los webhooks además eliminan el problema estructural que sufrimos con
+PumpPortal: no hay conexión persistente que se caiga en silencio.
+
+## Los tres puntos verificados
+
+**1. Payload — sirve, con una trampa que ya se corrigió.** Los webhooks raw
+entregan `meta.logMessages`, `meta.pre/postTokenBalances`, `meta.err`,
+`transaction.signatures` y `transaction.message.accountKeys`: todo lo que el
+parser necesita. Pero usan el **formato nativo** de Solana, donde
+`accountKeys` es una lista de strings, mientras que el parser esperaba los
+diccionarios con `pubkey`/`signer` de `jsonParsed`. Tal como estaba habría
+descartado **cada transacción en silencio**.
+
+**2. Créditos — alcanzan sin `decu`.** Volumen real medido contra la
+blockchain (muestra de 100 firmas por wallet):
+
+| Trader | tx/mes |
+|---|---|
+| slingoor | 69.865 |
+| Cooker | 27.082 |
+| epicsealdarkeye | 20.942 |
+| chriskogias | 16.161 |
+| gr3gor14n | 11.093 |
+| y22 | 9.949 |
+| resto (7 wallets) | ~12.000 |
+| **Total sin decu** | **~167.000** |
+
+Contra 1.000.000 de créditos gratuitos mensuales: **17% de uso, seis veces de
+margen**. `decu` es la excepción — más de 100 transacciones en menos de 40
+segundos; sola no entra en ningún plan razonable. Misma conclusión que con la
+paginación: excluirla o muestrearla.
+
+**3. Latencia — sigue sin verificar.** Es el dato que decide si se recupera la
+ventaja y no se puede medir sin un piloto real. Pendiente: registrar un
+webhook con una wallet de bajo volumen (`Anglio` o `hdegroot`, ~700 tx/mes) y
+comparar el retraso `blockTime` → llegada contra lo que tarda PumpPortal en
+las operaciones que sí entrega.
+
+## Cambio implementado
+
+`_is_signed_by()` en `solana_rpc_fallback.py` reemplaza el chequeo inline y
+acepta ambas codificaciones: diccionarios con `pubkey`/`signer`, o strings en
+base58 tomando como firmantes los primeros `header.numRequiredSignatures`.
+
+Tests nuevos (`AccountKeyEncodingTests`, 4 casos): formato nativo parsea,
+`jsonParsed` sigue funcionando, una wallet presente pero fuera de los
+firmantes se rechaza, y un mensaje nativo sin `header` se rechaza en vez de
+asumir.
+
+Suite completa: **156 tests, OK**. `graphify update .` ejecutado (710 nodos).
+
+## Recomendación de arquitectura
+
+**Sumar, no reemplazar.** Correr Helius y PumpPortal en paralelo: la
+deduplicación por firma ya existe (`mark_signature_processed` sobre
+`processed_signatures`), así que un trade que llegue por ambas vías se
+descarta solo. Riesgo de migración cero, sin ventana de corte, y si PumpPortal
+se arregla queda como redundancia.
