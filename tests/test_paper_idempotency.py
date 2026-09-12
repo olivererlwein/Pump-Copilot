@@ -243,11 +243,11 @@ class PaperPositionIdempotencyTests(unittest.TestCase):
         for invalido in ("1", None, 1.0, True, -1, [1]):
             with self.subTest(event_index=invalido):
                 with self.assertRaises(ValueError):
-                    app.paper_event_identity("firma-1", invalido)
+                    app.market_event_identity("firma-1", invalido)
 
         # Sin firma no hay identidad que construir, y eso no es un error:
         # es la ruta de demo, que no tiene nada que ofrecer.
-        self.assertIsNone(app.paper_event_identity("", 0))
+        self.assertIsNone(app.market_event_identity("", 0))
 
     def test_cleanup_is_retried_when_it_failed_after_the_commit(self):
         """El cierre puede quedar confirmado y la limpieza posterior fallar.

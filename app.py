@@ -8745,10 +8745,16 @@ def evaluate_live_position_exit(
     market_cap,
     new_token_balance,
     event_signature="",
+    event_index=0,
 ):
     current_market_cap = float(market_cap or 0)
     if not mint or not math.isfinite(current_market_cap) or current_market_cap <= 0:
         return []
+    # Se calcula una sola vez, antes de decidir nada: un índice inválido es un
+    # bug del parser y conviene que falle igual de fuerte sin importar qué
+    # decisión salga. Sin firma devuelve None, que no es un error: es la ruta
+    # que todavía no tiene identidad para ofrecer.
+    event_identity = market_event_identity(event_signature, event_index)
     conn = db()
     rows = conn.execute(
         """SELECT order_id, token_amount_raw, remaining_amount_raw,
@@ -8775,15 +8781,25 @@ def evaluate_live_position_exit(
         if not decision:
             continue
         reason = decision["reason"]
-        if reason == "TRADER_PARTIAL" and not str(event_signature or "").strip():
-            results.append({"ok": False, "position_order_id": row[0],
-                            "reason": "EVENT_SIGNATURE_REQUIRED"})
-            continue
-        suffix = (
-            f"TP-{decision['target_tp_stage']}"
-            if reason == "TAKE_PROFIT"
-            else (f"{reason}-{event_signature}" if reason == "TRADER_PARTIAL" else reason)
-        )
+        if reason == "TRADER_PARTIAL":
+            # Una venta parcial por operación del trader de origen. Con la
+            # firma sola, dos operaciones de una misma transacción compartían
+            # clave y la segunda se descartaba como reuso idempotente: una
+            # venta que debía ocurrir y no ocurría. El índice las separa, y el
+            # mismo evento reintentado sigue siendo una sola.
+            if event_identity is None:
+                results.append({"ok": False, "position_order_id": row[0],
+                                "reason": "EVENT_SIGNATURE_REQUIRED"})
+                continue
+            suffix = f"{reason}-{event_identity}"
+        elif reason == "TAKE_PROFIT":
+            # Idempotente por etapa, no por evento: el escalón se vende una
+            # vez aunque lleguen muchos eventos con el precio arriba.
+            suffix = f"TP-{decision['target_tp_stage']}"
+        else:
+            # STOP_LOSS y TRADER_EXIT cierran la posición entera: idempotentes
+            # por cierre, una sola vez por posición.
+            suffix = reason
         result = execute_pumpportal_lightning_sell(
             position_order_id=row[0],
             token_amount_raw=decision["token_amount_raw"],
@@ -8795,8 +8811,12 @@ def evaluate_live_position_exit(
     return results
 
 
-def paper_event_identity(signature, event_index=0):
+def market_event_identity(signature, event_index=0):
     """Identidad de un evento de mercado dentro de una transacción.
+
+    La usan las dos rutas que tienen que distinguir operaciones: las posiciones
+    paper y las salidas live. Compartir la función es lo que garantiza que el
+    formato sea el mismo en las dos.
 
     La firma sola no alcanza: una transacción puede contener varias
     operaciones Pump válidas, cada una con su `event_index`. Usar solo la
@@ -9257,7 +9277,7 @@ def update_paper_position(
     if not mint or market_cap <= 0:
         return
 
-    event_id = paper_event_identity(event_signature, event_index)
+    event_id = market_event_identity(event_signature, event_index)
 
     resultado = apply_paper_event(
         mint=mint,
@@ -9508,6 +9528,7 @@ def save_trade(
             else None
         ),
         event_signature=signature,
+        event_index=event_index,
     )
 # =========================================================
 # STREAM REAL PUMPPORTAL
@@ -10524,6 +10545,7 @@ def route_market_event(event):
         mint=mint, trader=trader, side=side, market_cap=market_cap,
         new_token_balance=float(raw_balance) if raw_balance is not None else None,
         event_signature=signature,
+        event_index=event_index,
     )
 
 

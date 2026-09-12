@@ -524,6 +524,168 @@ class LiveReceiptPersistenceTests(unittest.TestCase):
             1000, 600, 100, 90, "marcell", "other", "sell", 0, 0,
         ))
 
+    def live_sells_enabled(self, submit_return):
+        """Habilita el camino de venta live con el envío real interceptado.
+
+        `submit_pumpportal_lightning_trade` es el único punto que toca la
+        wallet; parcheado, nada sale a la red. El `setUp` además rompe
+        `urlopen`, así que una llamada saliente fallaría en vez de salir.
+        """
+        return (
+            patch.object(app, "LIVE_TRADING", True),
+            patch.object(app, "LIVE_EXECUTION_IMPLEMENTED", True),
+            patch.object(app, "LIVE_SELLS_ENABLED", True),
+            patch.object(app, "PUMPPORTAL_TRADING_WALLET_ADDRESS", WALLET),
+            patch.object(app, "get_live_execution_readiness",
+                         return_value={"ready": True, "blockers": []}),
+            patch.object(app, "build_pumpportal_exact_sell_payload",
+                         return_value={"action": "sell"}),
+            patch.object(app, "submit_pumpportal_lightning_trade",
+                         return_value=submit_return),
+        )
+
+    def origin_trader_position(self):
+        conn = app.db()
+        conn.execute(
+            "UPDATE execution_orders SET entry_market_cap_sol = 100, "
+            "origin_trader = 'marcell' WHERE id = ?", (self.order_id,),
+        )
+        conn.commit()
+        conn.close()
+        self.record()
+
+    def sell_orders(self):
+        conn = app.db()
+        try:
+            return conn.execute(
+                "SELECT exit_reason, idempotency_key FROM execution_orders "
+                "AS o JOIN execution_idempotency AS i ON i.order_id = o.id "
+                "WHERE o.side = 'sell' ORDER BY i.idempotency_key",
+            ).fetchall()
+        finally:
+            conn.close()
+
+    def partial_sell(self, signature, event_index):
+        # El trader de origen vende parte: newTokenBalance > 0 lo distingue de
+        # un cierre total.
+        return app.evaluate_live_position_exit(
+            MINT, "marcell", "sell", 90, 10, signature, event_index,
+        )
+
+    def test_partial_sells_of_one_transaction_are_separate_exits(self):
+        self.origin_trader_position()
+        contextos = self.live_sells_enabled(
+            {"ok": True, "signature": "4" * 88,
+             "reason": "PUMPPORTAL_SUBMITTED"},
+        )
+        with contextos[0], contextos[1], contextos[2], contextos[3], \
+                contextos[4], contextos[5], contextos[6] as submit:
+            primera = self.partial_sell("firma-compartida", 0)
+            segunda = self.partial_sell("firma-compartida", 1)
+            repetida = self.partial_sell("firma-compartida", 1)
+
+        self.assertTrue(primera[0]["ok"])
+        self.assertTrue(segunda[0]["ok"])
+        # El mismo índice repetido no vuelve a vender.
+        self.assertEqual(repetida[0]["reason"], "IDEMPOTENT_REUSE")
+
+        # Dos operaciones, dos envíos. Con la firma sola eran uno solo, y la
+        # segunda venta parcial —que debía ocurrir— se perdía.
+        self.assertEqual(submit.call_count, 2)
+        claves = [fila[1] for fila in self.sell_orders()]
+        self.assertEqual(claves, [
+            f"LIVE-EXIT-{self.order_id}-TRADER_PARTIAL-firma-compartida:0",
+            f"LIVE-EXIT-{self.order_id}-TRADER_PARTIAL-firma-compartida:1",
+        ])
+
+    def test_take_profit_stays_idempotent_per_stage(self):
+        # El índice no debe meterse en la clave de TAKE_PROFIT: dos eventos
+        # distintos con el precio arriba del mismo escalón venden una vez.
+        self.origin_trader_position()
+        contextos = self.live_sells_enabled({"signature": "2" * 88})
+        with contextos[0], contextos[1], contextos[2], contextos[3], \
+                contextos[4], contextos[5], contextos[6] as submit:
+            primera = app.evaluate_live_position_exit(
+                MINT, "other", "buy", 130, 1, "firma-compartida", 0,
+            )
+            segunda = app.evaluate_live_position_exit(
+                MINT, "other", "buy", 130, 1, "firma-compartida", 1,
+            )
+
+        self.assertTrue(primera[0]["ok"])
+        self.assertEqual(segunda[0]["reason"], "IDEMPOTENT_REUSE")
+        submit.assert_called_once()
+        self.assertEqual(
+            [fila[1] for fila in self.sell_orders()],
+            [f"LIVE-EXIT-{self.order_id}-TP-1"],
+        )
+
+    def test_full_closes_stay_idempotent_per_position(self):
+        # STOP_LOSS y TRADER_EXIT cierran todo: el índice tampoco entra acá.
+        self.origin_trader_position()
+        contextos = self.live_sells_enabled({"signature": "2" * 88})
+        with contextos[0], contextos[1], contextos[2], contextos[3], \
+                contextos[4], contextos[5], contextos[6] as submit:
+            primera = app.evaluate_live_position_exit(
+                MINT, "other", "buy", 70, 1, "firma-compartida", 0,
+            )
+            segunda = app.evaluate_live_position_exit(
+                MINT, "other", "buy", 70, 1, "firma-compartida", 1,
+            )
+
+        self.assertTrue(primera[0]["ok"])
+        self.assertEqual(segunda[0]["reason"], "IDEMPOTENT_REUSE")
+        submit.assert_called_once()
+        self.assertEqual(
+            [fila[1] for fila in self.sell_orders()],
+            [f"LIVE-EXIT-{self.order_id}-STOP_LOSS"],
+        )
+
+    def test_pumpportal_event_without_index_keeps_its_key(self):
+        # PumpPortal entrega una operación por mensaje y no manda índice: la
+        # identidad es firma:0, y el mismo evento sigue siendo uno solo.
+        self.origin_trader_position()
+        contextos = self.live_sells_enabled(
+            {"ok": True, "signature": "4" * 88,
+             "reason": "PUMPPORTAL_SUBMITTED"},
+        )
+        with contextos[0], contextos[1], contextos[2], contextos[3], \
+                contextos[4], contextos[5], contextos[6] as submit:
+            app.evaluate_live_position_exit(
+                MINT, "marcell", "sell", 90, 10, "firma-sola",
+            )
+            repetida = app.evaluate_live_position_exit(
+                MINT, "marcell", "sell", 90, 10, "firma-sola",
+            )
+
+        self.assertEqual(repetida[0]["reason"], "IDEMPOTENT_REUSE")
+        submit.assert_called_once()
+        self.assertEqual(
+            [fila[1] for fila in self.sell_orders()],
+            [f"LIVE-EXIT-{self.order_id}-TRADER_PARTIAL-firma-sola:0"],
+        )
+
+    def test_partial_sell_without_signature_is_refused(self):
+        self.origin_trader_position()
+        with patch.object(app, "submit_pumpportal_lightning_trade") as submit:
+            result = app.evaluate_live_position_exit(
+                MINT, "marcell", "sell", 90, 10, "", 0,
+            )
+
+        self.assertEqual(result[0]["reason"], "EVENT_SIGNATURE_REQUIRED")
+        submit.assert_not_called()
+
+    def test_broken_index_is_rejected_before_any_order(self):
+        self.origin_trader_position()
+        with patch.object(app, "submit_pumpportal_lightning_trade") as submit:
+            with self.assertRaises(ValueError):
+                app.evaluate_live_position_exit(
+                    MINT, "marcell", "sell", 90, 10, "firma-sola", "1",
+                )
+
+        submit.assert_not_called()
+        self.assertEqual(self.sell_orders(), [])
+
     def test_exact_sell_payload_does_not_use_wallet_percentage(self):
         mint = "1" * 32
         payload = app.build_pumpportal_exact_sell_payload(mint, "1234567", 6)

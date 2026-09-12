@@ -1547,14 +1547,65 @@ Codex. Quitando el chequeo de billetera, fallan los tres subcasos.
 
 Suite completa: **195 tests, OK**. `graphify update .` ejecutado.
 
+Commiteado en `main` como `9c9636a`, sin push. Codex aprobó el informe.
+
+## Punto 2: identidad completa en las salidas live
+
+Cambio aislado, sobre el camino del dinero. El hook de pre-push lo frena.
+
+**El problema.** `evaluate_live_position_exit()` recibía solo la firma, y la
+clave de idempotencia de `TRADER_PARTIAL` era
+`LIVE-EXIT-{orden}-TRADER_PARTIAL-{firma}`. Dos ventas parciales del trader de
+origen en una misma transacción compartían clave: la segunda se descartaba como
+`IDEMPOTENT_REUSE`. Una venta que debía ocurrir y no ocurría — el espejo del bug
+paper, pero acá con plata real.
+
+**El cambio.**
+
+- `evaluate_live_position_exit()` acepta `event_index=0` y las dos rutas reales
+  se lo pasan con `market_event_index(event)`;
+- la identidad se calcula **una sola vez, antes del bucle de decisiones**, para
+  que un índice inválido falle igual sin importar qué decisión salga;
+- solo `TRADER_PARTIAL` la usa en la clave, ahora `firma:índice`;
+- `TAKE_PROFIT` sigue siendo idempotente **por etapa** (`TP-{n}`) y
+  `STOP_LOSS`/`TRADER_EXIT` **por cierre** (el motivo solo). Sin cambios, a
+  propósito: son idempotencias de estado, no de evento.
+
+**Un renombre.** `paper_event_identity()` pasó a `market_event_identity()`. La
+usan ahora las dos rutas, y compartir la función es lo que garantiza que el
+formato sea el mismo en las dos; el nombre viejo mentía sobre su alcance. Toca
+4 líneas fuera de este bloque (definición, un llamado en `update_paper_position`
+y dos en tests).
+
+### Tests agregados (6), en `LiveReceiptPersistenceTests`
+
+Sin red —el `setUp` de la clase rompe `urlopen`— y con
+`submit_pumpportal_lightning_trade` parcheado, que es el único punto que toca la
+wallet. Ninguna orden real.
+
+- dos índices de una firma producen dos ventas parciales, y repetir el mismo
+  índice produce una sola;
+- `TAKE_PROFIT` con dos índices distintos vende una sola vez;
+- `STOP_LOSS` con dos índices distintos cierra una sola vez;
+- PumpPortal sin índice conserva su clave, con identidad `firma:0`;
+- venta parcial sin firma sigue dando `EVENT_SIGNATURE_REQUIRED`;
+- índice roto levanta `ValueError` antes de crear ninguna orden.
+
+**Verificados en las dos direcciones.** Volviendo la clave de `TRADER_PARTIAL` a
+la firma sola, la prueba de dos parciales falla en `assertTrue(segunda["ok"])`:
+la segunda venta no se ejecuta. Y metiendo el índice en las claves de
+`TAKE_PROFIT` y de cierre, fallan las otras dos — o sea que están pinchando el
+comportamiento que había que dejar quieto, no solo pasando.
+
+Un dato del segundo experimento: con el índice en la clave de cierre, el segundo
+evento llega hasta `SELL_AMOUNT_EXCEEDS_AVAILABLE_POSITION`. Intenta vender de
+nuevo y lo frena la reserva de tokens, que es la última barrera. La idempotencia
+por cierre es la que evita llegar hasta ahí.
+
+Suite completa: **201 tests, OK**. `git diff --check` limpio.
+
 ## Límites
 
-- **Punto 2 de Codex, confirmado y abierto.** `evaluate_live_position_exit()`
-  recibe solo la firma, y su clave de idempotencia no distingue operaciones
-  parciales de la misma transacción. Codex pidió corregirlo como cambio
-  aislado; está en el camino del dinero y lo frena el hook de pre-push. No se
-  tocó acá a propósito: mezclarlo con esto haría el diff imposible de revisar.
-  Debe cerrarse antes de que Helius deje de ser observacional.
 - **Punto 3 de Codex, confirmado y abierto.** `apply_paper_event()` toma la
   última posición abierta sin comparar la fecha del evento contra `opened_ts`.
   Con webhooks atrasados, una operación vieja puede modificar una posición
