@@ -6,9 +6,9 @@
     "semantic_hash": "5ebef3dd159986e465ab65e4014107ec"
   },
   "app.py": {
-    "mtime": 1789227324.6773891,
-    "seen": 1789227513.9249225,
-    "ast_hash": "cfb33fd9f29e64bea506653cf7253150",
+    "mtime": 1789227824.1310182,
+    "seen": 1789227910.4836555,
+    "ast_hash": "067b7cc136d191302b62558cf27ab30b",
     "semantic_hash": ""
   },
   "models/baseline_v2_shadow.json": {
@@ -252,9 +252,9 @@
     "semantic_hash": ""
   },
   "CLAUDE_NOTES.md": {
-    "mtime": 1789226612.5061498,
-    "seen": 1789226681.7866483,
-    "ast_hash": "9023027ab63ef2f05382b1f56279d3cd",
+    "mtime": 1789227894.2357168,
+    "seen": 1789227910.483936,
+    "ast_hash": "acaed17f9a9cd6f384f2b217f30e84d5",
     "semantic_hash": ""
   },
   "2026-09-10.md": {
@@ -288,9 +288,9 @@
     "semantic_hash": ""
   },
   "tests/test_stream_routing.py": {
-    "mtime": 1789226576.1044874,
-    "seen": 1789226681.786612,
-    "ast_hash": "3c245d67a16a8af4db14c297368b1c49",
+    "mtime": 1789227824.1348355,
+    "seen": 1789227910.4837773,
+    "ast_hash": "aa34d863a1c44fb23c4f392d0406c4f1",
     "semantic_hash": ""
   },
   "tests/test_paper_idempotency.py": {

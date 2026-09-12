@@ -11437,6 +11437,10 @@ async def stream():
                             event_index,
                         )
 
+                        if event_id is None:
+                            print("[STREAM] Evento ignorado: firma inválida")
+                            continue
+
                         if event_id in SEEN_EVENT_IDS:
                             print(
                                 f"[DUPLICATE MEMORY] Ignorado {event_id[:12]}..."

@@ -1826,7 +1826,7 @@ reinicios normales no hay barrido del contenido. Pruebas específicas cubren el
 esquema anterior, el arranque sin lectura de JSON, una fila creada por una
 reversión y la escritura nueva de Helius como `ordinal-v1`.
 
-Suite completa: **248 tests, OK**. Sin cambios en señales, scoring, paper
+Suite completa: **249 tests, OK**. Sin cambios en señales, scoring, paper
 trading ni ejecución live.
 
 ## Validador observacional del inbox de Helius
