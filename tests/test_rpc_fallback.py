@@ -804,6 +804,21 @@ class InboxRoundTripTests(unittest.TestCase):
             # La columna es copia derivada de lo que se serializa.
             self.assertEqual(columna, evento["blockEventTs"])
 
+    def test_new_events_are_stored_with_ordinal_index_scheme(self):
+        app.record_helius_webhook_transactions([self.receipt_with_two_events()])
+
+        conn = app.db()
+        try:
+            schemes = conn.execute(
+                "SELECT DISTINCT event_index_scheme "
+                "FROM market_event_inbox WHERE signature = ?",
+                (SIGNATURE,),
+            ).fetchall()
+        finally:
+            conn.close()
+
+        self.assertEqual(schemes, [("ordinal-v1",)])
+
     def test_rebuilt_event_exposes_its_block_timestamp(self):
         app.record_helius_webhook_transactions([self.receipt_with_two_events()])
         indice, wallet, event_json, _ = self.inbox_rows()[0]

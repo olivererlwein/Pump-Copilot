@@ -1810,6 +1810,25 @@ Suite completa: **235 tests, OK**. `git diff --check` limpio.
   se reintenta, el token queda suscripto igual. Cerrarlo del todo pide una
   reconciliación periódica, no un rescate en el camino del evento.
 
+## Renumeración del inbox sin barrido permanente
+
+Se cerró el costo de `migrate_inbox_event_index_to_ordinal()` en cada arranque.
+No se usó un marcador global porque una reversión de Railway podría escribir
+filas viejas después de marcar la migración como terminada. Cada fila lleva ahora
+`event_index_scheme`: el valor por defecto `log-v1` permite detectar escrituras
+de código anterior, mientras la ingesta actual escribe `ordinal-v1`
+explícitamente.
+
+El arranque consulta mediante un índice solo las firmas con `log-v1`; los JSON
+se leen exclusivamente para esas firmas. En el primer despliegue, la columna se
+añade a la tabla existente y sus filas se etiquetan tras renumerarlas. En
+reinicios normales no hay barrido del contenido. Pruebas específicas cubren el
+esquema anterior, el arranque sin lectura de JSON, una fila creada por una
+reversión y la escritura nueva de Helius como `ordinal-v1`.
+
+Suite completa: **248 tests, OK**. Sin cambios en señales, scoring, paper
+trading ni ejecución live.
+
 ## Validador observacional del inbox de Helius
 
 Codex agregó la primera etapa del consumidor, todavía sin efectos. El contrato

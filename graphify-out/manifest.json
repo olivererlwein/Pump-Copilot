@@ -6,9 +6,9 @@
     "semantic_hash": "5ebef3dd159986e465ab65e4014107ec"
   },
   "app.py": {
-    "mtime": 1789226708.559728,
-    "seen": 1789226740.8449612,
-    "ast_hash": "538e7cdf4a11e7b1c5d49266307f3cb4",
+    "mtime": 1789227324.6773891,
+    "seen": 1789227513.9249225,
+    "ast_hash": "cfb33fd9f29e64bea506653cf7253150",
     "semantic_hash": ""
   },
   "models/baseline_v2_shadow.json": {
@@ -270,9 +270,9 @@
     "semantic_hash": ""
   },
   "tests/test_rpc_fallback.py": {
-    "mtime": 1789185707.8637679,
-    "seen": 1789186072.4383643,
-    "ast_hash": "6934c3c6bad4082f4588c43196cfa4ab",
+    "mtime": 1789227440.5601704,
+    "seen": 1789227513.9249737,
+    "ast_hash": "c4ab6c56c08e59c45b8c688d216ae49d",
     "semantic_hash": ""
   },
   "reports/ablation_report_2026-09-11.json": {
@@ -294,9 +294,9 @@
     "semantic_hash": ""
   },
   "tests/test_paper_idempotency.py": {
-    "mtime": 1789193482.8550131,
-    "seen": 1789193564.433008,
-    "ast_hash": "94ed97926060c9d08e364d15f6925f22",
+    "mtime": 1789227440.5566695,
+    "seen": 1789227513.9249687,
+    "ast_hash": "041187547256215485add12817d578f4",
     "semantic_hash": ""
   },
   "tests/test_market_event_inbox.py": {

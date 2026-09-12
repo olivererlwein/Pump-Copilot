@@ -560,6 +560,7 @@ def db():
         CREATE TABLE IF NOT EXISTS market_event_inbox(
             signature TEXT NOT NULL,
             event_index INTEGER NOT NULL,
+            event_index_scheme TEXT NOT NULL DEFAULT 'log-v1',
             source TEXT NOT NULL,
             wallet TEXT,
             trader TEXT,
@@ -4419,48 +4420,94 @@ def migrate_inbox_event_index_to_ordinal(conn):
     ordinal nuevo nunca es mayor que el índice viejo, actualizar en orden
     ascendente no puede chocar con la clave primaria `(signature, event_index)`.
 
-    Devuelve cuántas filas se renumeraron.
+    Solo revisa firmas con filas marcadas en el esquema viejo. El valor por
+    defecto sigue siendo `log-v1` para que una reversión temporal a código
+    anterior deje filas detectables cuando vuelva esta versión.
+
+    Devuelve cuántas filas cambiaron de índice.
     """
-    filas = conn.execute(
-        """
-        SELECT signature, event_index, event_json
-        FROM market_event_inbox
-        ORDER BY signature, event_index
-        """
-    ).fetchall()
+    firmas_pendientes = [
+        row[0]
+        for row in conn.execute(
+            """
+            SELECT DISTINCT signature
+            FROM market_event_inbox
+            WHERE event_index_scheme = 'log-v1'
+            """
+        ).fetchall()
+    ]
 
     renumeradas = 0
-    ordinal_por_firma = {}
 
-    for firma, indice_viejo, event_json in filas:
-        ordinal = ordinal_por_firma.get(firma, 0)
-        ordinal_por_firma[firma] = ordinal + 1
-
-        if ordinal == indice_viejo:
-            continue
-
-        try:
-            evento = json.loads(event_json)
-        except (TypeError, ValueError):
-            evento = None
-
-        if isinstance(evento, dict):
-            evento["eventIndex"] = ordinal
-            event_json = json.dumps(
-                evento, sort_keys=True, separators=(",", ":")
-            )
-
-        conn.execute(
+    for firma in firmas_pendientes:
+        filas = conn.execute(
             """
-            UPDATE market_event_inbox
-            SET event_index = ?, event_json = ?
-            WHERE signature = ? AND event_index = ?
+            SELECT event_index, event_json
+            FROM market_event_inbox
+            WHERE signature = ?
+            ORDER BY event_index
             """,
-            (ordinal, event_json, firma, indice_viejo),
-        )
-        renumeradas += 1
+            (firma,),
+        ).fetchall()
+
+        for ordinal, (indice_viejo, event_json) in enumerate(filas):
+            if ordinal == indice_viejo:
+                conn.execute(
+                    """
+                    UPDATE market_event_inbox
+                    SET event_index_scheme = 'ordinal-v1'
+                    WHERE signature = ? AND event_index = ?
+                    """,
+                    (firma, indice_viejo),
+                )
+                continue
+
+            try:
+                evento = json.loads(event_json)
+            except (TypeError, ValueError):
+                evento = None
+
+            if isinstance(evento, dict):
+                evento["eventIndex"] = ordinal
+                event_json = json.dumps(
+                    evento, sort_keys=True, separators=(",", ":")
+                )
+
+            conn.execute(
+                """
+                UPDATE market_event_inbox
+                SET event_index = ?, event_index_scheme = 'ordinal-v1',
+                    event_json = ?
+                WHERE signature = ? AND event_index = ?
+                """,
+                (ordinal, event_json, firma, indice_viejo),
+            )
+            renumeradas += 1
 
     return renumeradas
+
+
+def migrate_market_event_inbox_index_scheme(conn):
+    """Versiona el formato del índice sin barrer el inbox en cada arranque."""
+    columnas = {
+        row[1]
+        for row in conn.execute(
+            "PRAGMA table_info(market_event_inbox)"
+        ).fetchall()
+    }
+
+    if "event_index_scheme" not in columnas:
+        conn.execute(
+            "ALTER TABLE market_event_inbox "
+            "ADD COLUMN event_index_scheme TEXT NOT NULL DEFAULT 'log-v1'"
+        )
+
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_market_event_inbox_index_scheme
+        ON market_event_inbox(event_index_scheme, signature, event_index)
+        """
+    )
 
 
 def migrate_market_event_inbox_validation(conn):
@@ -4504,6 +4551,7 @@ def migrate_database():
     migrate_shadow_predictions_for_multiple_models(conn)
     migrate_processed_market_events(conn)
     migrate_token_history_identity(conn)
+    migrate_market_event_inbox_index_scheme(conn)
     migrate_inbox_event_index_to_ordinal(conn)
     migrate_market_event_inbox_validation(conn)
 
@@ -12693,11 +12741,12 @@ def record_helius_webhook_transactions(payload, received_ts=None):
                 conn.execute(
                     """
                     INSERT OR IGNORE INTO market_event_inbox(
-                        signature, event_index, source, wallet, trader,
+                        signature, event_index, event_index_scheme,
+                        source, wallet, trader,
                         mint, side, pool, block_time, block_event_ts,
                         received_ts, event_json
                     )
-                    VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
+                    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)
                     """,
                     (
                         signature,
@@ -12707,6 +12756,7 @@ def record_helius_webhook_transactions(payload, received_ts=None):
                         # estando. `required` porque acá el evento es nuestro:
                         # si no trae índice, se perdió en el camino.
                         market_event_index(normalized_event, required=True),
+                        "ordinal-v1",
                         "helius",
                         matched_wallet,
                         matched_trader,

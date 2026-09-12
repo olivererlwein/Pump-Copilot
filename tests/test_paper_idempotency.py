@@ -924,14 +924,15 @@ class LegacyInboxRenumberTests(unittest.TestCase):
         conn.execute(
             """
             INSERT INTO market_event_inbox(
-                signature, event_index, source, wallet, trader, mint, side,
-                pool, block_time, block_event_ts, received_ts, event_json
+                signature, event_index, event_index_scheme, source, wallet,
+                trader, mint, side, pool, block_time, block_event_ts,
+                received_ts, event_json
             )
-            VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)
             """,
             (
-                firma, indice, "helius", "wallet", TRADER, MINT, "buy",
-                "pump", 1.0, 1.0, 2.0,
+                firma, indice, "log-v1", "helius", "wallet", TRADER, MINT,
+                "buy", "pump", 1.0, 1.0, 2.0,
                 json.dumps(
                     {"signature": firma, "eventIndex": indice, "mint": MINT},
                     sort_keys=True, separators=(",", ":"),
@@ -993,6 +994,74 @@ class LegacyInboxRenumberTests(unittest.TestCase):
 
         self.assertEqual(renumeradas, 0)
         self.assertEqual(self.filas(), antes)
+
+    def test_old_schema_gets_versioned_before_rows_are_renumbered(self):
+        conn = sqlite3.connect(":memory:")
+        try:
+            conn.execute(
+                """
+                CREATE TABLE market_event_inbox(
+                    signature TEXT NOT NULL,
+                    event_index INTEGER NOT NULL,
+                    event_json TEXT NOT NULL,
+                    PRIMARY KEY(signature, event_index)
+                )
+                """
+            )
+            conn.execute(
+                "INSERT INTO market_event_inbox VALUES(?,?,?)",
+                (
+                    "firma-vieja",
+                    1,
+                    json.dumps({
+                        "signature": "firma-vieja", "eventIndex": 1,
+                    }),
+                ),
+            )
+
+            app.migrate_market_event_inbox_index_scheme(conn)
+            renumeradas = app.migrate_inbox_event_index_to_ordinal(conn)
+
+            row = conn.execute(
+                "SELECT event_index, event_index_scheme, event_json "
+                "FROM market_event_inbox"
+            ).fetchone()
+            self.assertEqual(renumeradas, 1)
+            self.assertEqual(row[:2], (0, "ordinal-v1"))
+            self.assertEqual(json.loads(row[2])["eventIndex"], 0)
+        finally:
+            conn.close()
+
+    def test_converted_rows_skip_the_full_json_scan(self):
+        self.insertar("firma-dos", 1)
+        self.renumerar()
+
+        statements = []
+        conn = app.db()
+        try:
+            conn.set_trace_callback(statements.append)
+            renumeradas = app.migrate_inbox_event_index_to_ordinal(conn)
+        finally:
+            conn.close()
+
+        self.assertEqual(renumeradas, 0)
+        self.assertFalse(any(
+            "SELECT EVENT_INDEX, EVENT_JSON" in statement.upper()
+            for statement in statements
+        ))
+
+    def test_rows_from_a_rollback_are_detected_after_initial_migration(self):
+        self.insertar("firma-dos", 1)
+        self.renumerar()
+        self.insertar("firma-dos", 3)
+
+        renumeradas = self.renumerar()
+
+        self.assertEqual(renumeradas, 1)
+        self.assertEqual(
+            self.filas(),
+            [("firma-dos", 0, 0), ("firma-dos", 1, 1)],
+        )
 
     def test_rows_already_ordinal_are_left_alone(self):
         self.insertar("firma-ok", 0)
