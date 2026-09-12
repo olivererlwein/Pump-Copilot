@@ -17,6 +17,7 @@ from solana_rpc_fallback import (
     WSOL_MINT,
     _base58_encode,
     _rpc_request,
+    parse_tracked_token_pump_events,
     parse_watched_wallet_pump_events,
 )
 
@@ -133,6 +134,7 @@ class RpcFallbackParserTests(unittest.TestCase):
         self.assertEqual(event["newTokenBalance"], 22.5)
         self.assertAlmostEqual(event["marketCapSol"], 200.0)
         self.assertEqual(event["pool"], "pump")
+        self.assertEqual(event["traderPublicKey"], WALLET)
 
     def test_parses_official_pumpswap_event_and_pool_price(self):
         parsed = parse_watched_wallet_pump_events(
@@ -147,6 +149,7 @@ class RpcFallbackParserTests(unittest.TestCase):
         self.assertEqual(event["tokenAmount"], 20.0)
         self.assertAlmostEqual(event["marketCapSol"], 111.60714285714286)
         self.assertEqual(event["pool"], "pump-amm")
+        self.assertEqual(event["traderPublicKey"], WALLET)
 
     def test_ignores_transfers_and_transactions_not_signed_by_wallet(self):
         receipt = pump_receipt()
@@ -170,6 +173,44 @@ class RpcFallbackParserTests(unittest.TestCase):
         self.assertEqual(
             parse_watched_wallet_pump_events(receipt, WALLET, SIGNATURE),
             [],
+        )
+
+
+class TrackedTokenParserTests(unittest.TestCase):
+    def test_parses_tracked_mint_without_requiring_a_watched_wallet(self):
+        receipt = pump_receipt()
+        receipt["transaction"]["message"]["accountKeys"][0] = {
+            "pubkey": "another-fee-payer",
+            "signer": True,
+        }
+
+        events = parse_tracked_token_pump_events(
+            receipt, {MINT}, SIGNATURE
+        )
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["event"]["mint"], MINT)
+        self.assertEqual(events[0]["event"]["traderPublicKey"], WALLET)
+
+    def test_ignores_an_untracked_mint(self):
+        self.assertEqual(
+            parse_tracked_token_pump_events(
+                pump_receipt(), {"another-mint"}, SIGNATURE
+            ),
+            [],
+        )
+
+    def test_multiple_operations_keep_global_ordinals(self):
+        receipt = pump_receipt()
+        receipt["meta"]["logMessages"].append(
+            receipt["meta"]["logMessages"][-1]
+        )
+
+        events = parse_tracked_token_pump_events(receipt, {MINT}, SIGNATURE)
+
+        self.assertEqual(
+            [row["event"]["eventIndex"] for row in events],
+            [0, 1],
         )
 
 
@@ -693,6 +734,51 @@ class HeliusWebhookTests(unittest.TestCase):
         self.assertEqual(result["seen"], 1)
         self.assertEqual(result["parsed_events"], 0)
 
+    def test_tracked_token_event_is_preserved_without_a_watched_wallet(self):
+        with patch.object(app, "WATCHED", {}), patch.object(
+            app, "TRACKED_TOKENS", {MINT}
+        ):
+            result = app.record_helius_webhook_transactions(
+                [self.native_receipt()]
+            )
+
+        self.assertEqual(result["parsed_events"], 1)
+        conn = app.db()
+        try:
+            row = conn.execute(
+                "SELECT wallet, mint, event_json FROM market_event_inbox "
+                "WHERE signature = ?",
+                (SIGNATURE,),
+            ).fetchone()
+        finally:
+            conn.close()
+
+        self.assertEqual(row[:2], (WALLET, MINT))
+        self.assertEqual(
+            json.loads(row[2])["traderPublicKey"],
+            WALLET,
+        )
+
+    def test_wallet_and_token_match_store_one_normalized_event(self):
+        with patch.object(app, "WATCHED", {"trader-a": WALLET}), patch.object(
+            app, "TRACKED_TOKENS", {MINT}
+        ):
+            result = app.record_helius_webhook_transactions(
+                [self.native_receipt()]
+            )
+
+        self.assertEqual(result["parsed_events"], 1)
+        conn = app.db()
+        try:
+            count = conn.execute(
+                "SELECT COUNT(*) FROM market_event_inbox "
+                "WHERE signature = ?",
+                (SIGNATURE,),
+            ).fetchone()[0]
+        finally:
+            conn.close()
+        self.assertEqual(count, 1)
+
     def test_stats_separate_webhook_and_stream_latency(self):
         with patch.object(app, "WATCHED", {"trader-a": WALLET}):
             app.record_helius_webhook_transactions(
@@ -883,19 +969,28 @@ class InboxRoundTripTests(unittest.TestCase):
         )
 
     def test_reconstructed_event_recovers_the_signing_wallet(self):
-        # El evento normalizado no lleva la billetera adentro: el parser la
-        # conoce por contexto. Sin recuperarla de la fila, el router trataría
-        # la operación como de una billetera ajena.
+        # Las filas nuevas conservan la billetera tanto en el evento como en
+        # la columna de consulta, y la reconstrucción exige que coincidan.
         app.record_helius_webhook_transactions([self.receipt_with_two_events()])
         indice, wallet, event_json, _ = self.inbox_rows()[0]
 
-        self.assertNotIn("traderPublicKey", json.loads(event_json))
+        self.assertEqual(json.loads(event_json)["traderPublicKey"], WALLET)
 
         evento = app.market_event_from_inbox_row(
             event_json, wallet=wallet, signature=SIGNATURE, event_index=indice,
         )
         self.assertEqual(evento["traderPublicKey"], WALLET)
         self.assertEqual(app.trader_for(evento["traderPublicKey"]), "trader-a")
+
+    def test_wallet_mismatch_between_column_and_json_is_rejected(self):
+        event_json = json.dumps({
+            "signature": SIGNATURE,
+            "eventIndex": 1,
+            "traderPublicKey": "another-wallet",
+        })
+
+        with self.assertRaisesRegex(ValueError, "billetera.*no coinciden"):
+            self.reconstruir(event_json)
 
     def reconstruir(self, event_json, **cambios):
         argumentos = {

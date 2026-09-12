@@ -31,6 +31,7 @@ from solana_rpc_fallback import (
     fetch_confirmed_transaction,
     fetch_signatures_for_address,
     parse_watched_wallet_pump_events,
+    parse_tracked_token_pump_events,
 )
 
 
@@ -345,6 +346,10 @@ HELIUS_WEBHOOK_RAW_SAMPLES = max(
 )
 
 HELIUS_WEBHOOK_RAW_SAMPLE_CHARS = 20000
+
+MARKET_EVENT_INBOX_ACTIVATION_STATE_KEY = (
+    "market_event_inbox_processing_activation_ts"
+)
 
 # Primera etapa del consumidor del inbox: solo reconstruye y valida eventos.
 # No llama al router ni produce efectos de trading. Se habilita por separado
@@ -9331,10 +9336,9 @@ def market_event_from_inbox_row(event_json, wallet, signature, event_index):
     código viejo o corrompida, y aplicarla sería peor que rechazarla.
 
     Todo es obligatorio a propósito. La fila siempre tiene las cuatro cosas, y
-    cada una que falte produce un error silencioso distinto: sin índice, dos
-    operaciones comparten identidad; sin billetera, el router clasifica la
-    operación por la ruta equivocada porque el evento normalizado no lleva
-    adentro quién firmó —el parser lo sabe por contexto y no lo escribe.
+    cada una que falte produce un error silencioso distinto. Las filas viejas
+    pueden no llevar la billetera dentro del JSON; las nuevas la llevan y debe
+    coincidir con la columna derivada.
     """
     event = json.loads(event_json)
 
@@ -9349,8 +9353,7 @@ def market_event_from_inbox_row(event_json, wallet, signature, event_index):
     if not wallet:
         raise ValueError(
             "la fila debe traer la billetera que firmó: el evento normalizado "
-            "no la lleva adentro y sin ella el router lo trata como de una "
-            "billetera ajena"
+            "la necesita para elegir la ruta correcta"
         )
 
     signature = str(signature or "").strip()
@@ -9374,9 +9377,99 @@ def market_event_from_inbox_row(event_json, wallet, signature, event_index):
             f"{event_index!r} contra {indice_del_json!r}"
         )
 
-    event["traderPublicKey"] = event.get("traderPublicKey") or wallet
+    wallet_del_json = str(event.get("traderPublicKey") or "").strip()
+    if wallet_del_json and wallet_del_json != wallet:
+        raise ValueError(
+            "la billetera de la fila y la del evento no coinciden: "
+            f"{wallet!r} contra {wallet_del_json!r}"
+        )
+
+    event["traderPublicKey"] = wallet
 
     return event
+
+
+def get_market_event_inbox_activation_ts(connection=None):
+    """Lee la frontera persistida del consumidor, o ``None`` si no se activó."""
+    conn = connection or db()
+    try:
+        row = conn.execute(
+            "SELECT value FROM app_state WHERE key = ?",
+            (MARKET_EVENT_INBOX_ACTIVATION_STATE_KEY,),
+        ).fetchone()
+    finally:
+        if connection is None:
+            conn.close()
+
+    if not row:
+        return None
+
+    try:
+        activation_ts = float(row[0])
+    except (TypeError, ValueError) as exc:
+        raise ValueError("INVALID_MARKET_EVENT_INBOX_ACTIVATION_TS") from exc
+
+    if not math.isfinite(activation_ts) or activation_ts <= 0:
+        raise ValueError("INVALID_MARKET_EVENT_INBOX_ACTIVATION_TS")
+
+    return activation_ts
+
+
+def establish_market_event_inbox_activation(now=None):
+    """Fija una sola vez desde cuándo el inbox puede producir efectos."""
+    activation_ts = float(now if now is not None else time.time())
+    if not math.isfinite(activation_ts) or activation_ts <= 0:
+        raise ValueError("INVALID_MARKET_EVENT_INBOX_ACTIVATION_TS")
+
+    conn = db()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        conn.execute(
+            "INSERT OR IGNORE INTO app_state(key, value) VALUES(?, ?)",
+            (
+                MARKET_EVENT_INBOX_ACTIVATION_STATE_KEY,
+                repr(activation_ts),
+            ),
+        )
+        stored = get_market_event_inbox_activation_ts(connection=conn)
+        conn.commit()
+        return stored
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def market_event_is_after_activation(
+    received_ts,
+    block_event_ts,
+    activation_ts,
+):
+    """Permite solo eventos recibidos y ocurridos desde la activación.
+
+    `blockEventTs` tiene resolución de segundos, por eso se acepta todo el
+    segundo en que se fijó la frontera. Un dato ausente o inválido falla
+    cerrado: el consumidor no debe convertir historia incierta en efectos.
+    """
+    try:
+        received_ts = float(received_ts)
+        block_event_ts = float(block_event_ts)
+        activation_ts = float(activation_ts)
+    except (TypeError, ValueError):
+        return False
+
+    if not all(math.isfinite(value) and value > 0 for value in (
+        received_ts,
+        block_event_ts,
+        activation_ts,
+    )):
+        return False
+
+    return (
+        received_ts >= activation_ts
+        and block_event_ts >= math.floor(activation_ts)
+    )
 
 
 def claim_market_event_inbox_validation_batch(limit=None, now=None):
@@ -12680,7 +12773,8 @@ def record_helius_webhook_transactions(payload, received_ts=None):
     """Registra lo que llegó por webhook. Observacional: no dispara nada.
 
     Devuelve cuántas transacciones se vieron, cuántas resultaron ser
-    operaciones Pump de una wallet vigilada, y cuántas ya estaban registradas.
+    operaciones Pump relevantes por wallet o token, y cuántas transacciones
+    ya estaban registradas.
     """
     received_ts = float(
         received_ts if received_ts is not None else time.time()
@@ -12693,6 +12787,7 @@ def record_helius_webhook_transactions(payload, received_ts=None):
         wallet: trader
         for trader, wallet in WATCHED.items()
     }
+    tracked_mints = set(TRACKED_TOKENS)
 
     seen = 0
     parsed_events = 0
@@ -12720,7 +12815,7 @@ def record_helius_webhook_transactions(payload, received_ts=None):
             # registra la primera que efectivamente la firmó.
             matched_trader = None
             matched_wallet = None
-            matched_events = []
+            matched_events_by_index = {}
 
             for wallet, trader in wallets_by_address.items():
                 try:
@@ -12734,13 +12829,54 @@ def record_helius_webhook_transactions(payload, received_ts=None):
                 if events:
                     matched_trader = trader
                     matched_wallet = wallet
-                    matched_events = events
+                    for parsed_event in events:
+                        normalized_event = parsed_event["event"]
+                        event_index = market_event_index(
+                            normalized_event, required=True
+                        )
+                        matched_events_by_index[event_index] = (
+                            parsed_event,
+                            wallet,
+                            trader,
+                        )
                     break
 
-            parsed = matched_events[0]["event"] if matched_events else None
+            try:
+                token_events = parse_tracked_token_pump_events(
+                    receipt,
+                    tracked_mints,
+                    signature,
+                )
+            except Exception as exc:
+                print("[HELIUS TOKEN WEBHOOK] Parse failed:", repr(exc))
+                token_events = []
+
+            for parsed_event in token_events:
+                normalized_event = parsed_event["event"]
+                event_index = market_event_index(
+                    normalized_event, required=True
+                )
+                event_wallet = str(
+                    normalized_event.get("traderPublicKey") or ""
+                ).strip()
+                event_trader = trader_for(event_wallet)
+                matched_events_by_index.setdefault(
+                    event_index,
+                    (parsed_event, event_wallet, event_trader),
+                )
+
+            matched_events = [
+                matched_events_by_index[index]
+                for index in sorted(matched_events_by_index)
+            ]
+
+            if matched_events and matched_wallet is None:
+                _, matched_wallet, matched_trader = matched_events[0]
+
+            parsed = matched_events[0][0]["event"] if matched_events else None
             parsed_events += len(matched_events)
 
-            for parsed_event in matched_events:
+            for parsed_event, event_wallet, event_trader in matched_events:
                 normalized_event = parsed_event["event"]
                 conn.execute(
                     """
@@ -12762,8 +12898,8 @@ def record_helius_webhook_transactions(payload, received_ts=None):
                         market_event_index(normalized_event, required=True),
                         "ordinal-v1",
                         "helius",
-                        matched_wallet,
-                        matched_trader,
+                        event_wallet,
+                        event_trader,
                         normalized_event.get("mint"),
                         normalized_event.get("txType"),
                         normalized_event.get("pool"),

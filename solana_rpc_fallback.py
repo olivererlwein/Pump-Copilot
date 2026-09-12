@@ -1,4 +1,4 @@
-"""Strict, observational parsing for watched-wallet Pump trades on Solana RPC."""
+"""Strict, observational parsing for Pump trades on Solana RPC."""
 
 import base64
 import json
@@ -52,6 +52,7 @@ def _rpc_request(rpc_url, method, params, timeout=15):
         headers={"Content-Type": "application/json"},
         method="POST",
     )
+    payload = None
     for attempt in range(len(RPC_RETRY_DELAYS_SECONDS) + 1):
         _wait_for_rpc_slot()
         try:
@@ -64,6 +65,8 @@ def _rpc_request(rpc_url, method, params, timeout=15):
                 raise
             retry_after = ex.headers.get("Retry-After") if ex.headers else None
             try:
+                if retry_after is None:
+                    raise ValueError
                 delay = max(
                     float(retry_after),
                     RPC_RETRY_DELAYS_SECONDS[attempt],
@@ -145,7 +148,12 @@ def _token_balances(receipt):
             amount_info = row.get("uiTokenAmount") or {}
             raw_amount = amount_info.get("amount")
             decimals = amount_info.get("decimals")
-            if not owner or not mint or not isinstance(raw_amount, str):
+            if (
+                not owner
+                or not mint
+                or not isinstance(raw_amount, str)
+                or decimals is None
+            ):
                 continue
             try:
                 amount = int(raw_amount)
@@ -185,7 +193,7 @@ def _post_token_amount(balances, owner, mint, decimals):
     raise ValueError("USER_TOKEN_BALANCE_UNAVAILABLE")
 
 
-def _parse_pump_trade(payload, balances, wallet, signature):
+def _parse_pump_trade(payload, balances, signature):
     minimum_size = 8 + 32 + 8 + 8 + 1 + 32 + 8 + 8 + 8
     if len(payload) < minimum_size or payload[:8] != PUMP_TRADE_EVENT:
         return None
@@ -201,7 +209,7 @@ def _parse_pump_trade(payload, balances, wallet, signature):
     offset += 32
     timestamp, virtual_sol, virtual_tokens = struct.unpack_from("<qQQ", payload, offset)
 
-    if user != wallet or virtual_tokens <= 0:
+    if virtual_tokens <= 0:
         return None
 
     decimals = _token_decimals(balances, mint)
@@ -219,10 +227,11 @@ def _parse_pump_trade(payload, balances, wallet, signature):
             "blockEventTs": timestamp,
             "txType": "buy" if is_buy else "sell",
             "mint": mint,
+            "traderPublicKey": user,
             "solAmount": sol_lamports / LAMPORTS_PER_SOL,
             "tokenAmount": token_raw / scale,
             "newTokenBalance": _post_token_amount(
-                balances, wallet, mint, decimals
+                balances, user, mint, decimals
             ),
             "marketCapSol": market_cap,
             "vSolInBondingCurve": virtual_sol / LAMPORTS_PER_SOL,
@@ -232,7 +241,7 @@ def _parse_pump_trade(payload, balances, wallet, signature):
     }
 
 
-def _parse_pump_amm_trade(payload, balances, wallet, signature):
+def _parse_pump_amm_trade(payload, balances, signature):
     if payload[:8] == PUMP_AMM_BUY_EVENT:
         side = "buy"
         event_name = "BuyEvent"
@@ -256,9 +265,6 @@ def _parse_pump_amm_trade(payload, balances, wallet, signature):
     pool_offset = 8 + (14 * 8)
     pool = _base58_encode(payload[pool_offset:pool_offset + 32])
     user = _base58_encode(payload[pool_offset + 32:pool_offset + 64])
-    if user != wallet:
-        return None
-
     base_mints = {
         mint
         for phase in balances.values()
@@ -290,10 +296,11 @@ def _parse_pump_amm_trade(payload, balances, wallet, signature):
             "blockEventTs": timestamp,
             "txType": side,
             "mint": mint,
+            "traderPublicKey": user,
             "solAmount": sol_lamports / LAMPORTS_PER_SOL,
             "tokenAmount": token_raw / scale,
             "newTokenBalance": _post_token_amount(
-                balances, wallet, mint, decimals
+                balances, user, mint, decimals
             ),
             "marketCapSol": market_cap,
             "pool": "pump-amm",
@@ -324,10 +331,14 @@ def _is_signed_by(message, wallet):
             for row in account_keys
         )
 
+    required_value = (message.get("header") or {}).get(
+        "numRequiredSignatures"
+    )
+    if required_value is None:
+        return False
+
     try:
-        required_signatures = int(
-            (message.get("header") or {}).get("numRequiredSignatures")
-        )
+        required_signatures = int(required_value)
     except (TypeError, ValueError):
         return False
 
@@ -341,9 +352,9 @@ def _is_signed_by(message, wallet):
     ]
 
 
-def parse_watched_wallet_pump_events(receipt, wallet, signature):
-    """Return only official Pump/PumpSwap trade events signed by ``wallet``."""
-    if not isinstance(receipt, dict) or not wallet or not signature:
+def _parse_official_pump_events(receipt, signature):
+    """Parse official Pump/PumpSwap events without choosing a consumer."""
+    if not isinstance(receipt, dict) or not signature:
         return []
     meta = receipt.get("meta")
     if not isinstance(meta, dict) or meta.get("err") is not None:
@@ -352,10 +363,6 @@ def parse_watched_wallet_pump_events(receipt, wallet, signature):
     transaction = receipt.get("transaction") or {}
     transaction_signatures = transaction.get("signatures") or []
     if not transaction_signatures or transaction_signatures[0] != signature:
-        return []
-
-    message = transaction.get("message") or {}
-    if not _is_signed_by(message, wallet):
         return []
 
     balances = _token_balances(receipt)
@@ -375,11 +382,11 @@ def parse_watched_wallet_pump_events(receipt, wallet, signature):
             result = None
             if PUMP_PROGRAM_ID in invoked_programs:
                 result = _parse_pump_trade(
-                    payload, balances, wallet, signature
+                    payload, balances, signature
                 )
             if result is None and PUMP_AMM_PROGRAM_ID in invoked_programs:
                 result = _parse_pump_amm_trade(
-                    payload, balances, wallet, signature
+                    payload, balances, signature
                 )
         except (ValueError, struct.error):
             continue
@@ -403,3 +410,42 @@ def parse_watched_wallet_pump_events(receipt, wallet, signature):
             result["event"]["eventIndex"] = len(parsed)
             parsed.append(result)
     return parsed
+
+
+def parse_watched_wallet_pump_events(receipt, wallet, signature):
+    """Return official Pump events signed by and attributed to ``wallet``."""
+    if not isinstance(receipt, dict) or not wallet or not signature:
+        return []
+
+    transaction = receipt.get("transaction") or {}
+    message = transaction.get("message") or {}
+    if not _is_signed_by(message, wallet):
+        return []
+
+    return [
+        parsed
+        for parsed in _parse_official_pump_events(receipt, signature)
+        if parsed["event"].get("traderPublicKey") == wallet
+    ]
+
+
+def parse_tracked_token_pump_events(receipt, tracked_mints, signature):
+    """Return official Pump events for the requested token mints.
+
+    Unlike the watched-wallet parser, this path does not require the trader to
+    be one of our configured wallets. Token follow-up events are emitted by the
+    Pump programs and may be signed by any market participant.
+    """
+    mints = {
+        str(mint).strip()
+        for mint in (tracked_mints or ())
+        if str(mint or "").strip()
+    }
+    if not mints:
+        return []
+
+    return [
+        parsed
+        for parsed in _parse_official_pump_events(receipt, signature)
+        if parsed["event"].get("mint") in mints
+    ]

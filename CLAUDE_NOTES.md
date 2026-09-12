@@ -1871,3 +1871,33 @@ writers concurrentes reservan una sola vez, la firma histórica bloquea el
 
 Esto todavía no despacha Helius. El próximo bloque puede construir el parser
 por token y la frontera temporal de activación sobre esta identidad completa.
+
+## Parser de Helius por token y frontera de activación
+
+Se agregó una segunda vista del parser oficial de Pump/PumpSwap para eventos de
+tokens seguidos. A diferencia de la vista por wallet, no exige que el firmante
+sea una wallet vigilada: filtra por mint y conserva en el evento la wallet real
+que operó. Ambas vistas comparten el mismo parser y los mismos ordinales, de
+modo que una operación que coincida por wallet y por token se guarda una sola
+vez en `market_event_inbox`.
+
+`record_helius_webhook_transactions()` ahora preserva eventos relevantes por
+wallet o por token, pero sigue siendo estrictamente observacional: no llama a
+`route_market_event()`, no modifica posiciones y no genera órdenes. La
+suscripción dinámica de los mints en Helius queda para el siguiente bloque.
+
+Se definió además una frontera persistente de activación en `app_state`. Se fija
+una sola vez y exige que tanto la recepción como el timestamp on-chain sean
+posteriores a la activación. Los timestamps ausentes o inválidos fallan
+cerrados. La frontera todavía no se establece automáticamente ni existe un
+consumidor con efectos, por lo que las observaciones históricas no pueden entrar
+accidentalmente al pipeline en este despliegue.
+
+Pruebas nuevas: parsing por mint sin wallet vigilada, exclusión de mints no
+seguidos, ordinales múltiples, deduplicación wallet+token, persistencia de la
+wallet dentro del JSON, rechazo de discrepancias y cinco casos de la frontera
+temporal. También se limpiaron los errores de tipado existentes en el parser.
+
+Suite completa: **260 tests, OK**. Pyright: **0 errores** en los cuatro archivos
+Python modificados. `git diff --check` limpio. Sin cambio de `DATA_VERSION`, sin
+consumidor funcional y sin cambio en live trading.

@@ -206,5 +206,56 @@ class MarketEventInboxValidationTests(unittest.TestCase):
         )
 
 
+class MarketEventInboxActivationTests(unittest.TestCase):
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.original_db = app.DB
+        app.DB = Path(self.temp_dir.name) / "inbox-activation.db"
+        app.migrate_database()
+        self.addCleanup(self.restore)
+
+    def restore(self):
+        app.DB = self.original_db
+        self.temp_dir.cleanup()
+
+    def test_activation_is_persisted_once_across_restarts(self):
+        first = app.establish_market_event_inbox_activation(now=200.75)
+        second = app.establish_market_event_inbox_activation(now=900.0)
+
+        self.assertEqual(first, 200.75)
+        self.assertEqual(second, first)
+        self.assertEqual(app.get_market_event_inbox_activation_ts(), first)
+
+    def test_historical_inbox_row_is_before_activation(self):
+        self.assertFalse(app.market_event_is_after_activation(
+            received_ts=199.0,
+            block_event_ts=199.0,
+            activation_ts=200.75,
+        ))
+
+    def test_delayed_old_transaction_is_before_activation(self):
+        self.assertFalse(app.market_event_is_after_activation(
+            received_ts=201.0,
+            block_event_ts=199.0,
+            activation_ts=200.75,
+        ))
+
+    def test_activation_second_and_later_delivery_are_accepted(self):
+        self.assertTrue(app.market_event_is_after_activation(
+            received_ts=200.75,
+            block_event_ts=200.0,
+            activation_ts=200.75,
+        ))
+
+    def test_missing_or_invalid_time_fails_closed(self):
+        for value in (None, 0, float("nan"), float("inf"), "broken"):
+            with self.subTest(value=value):
+                self.assertFalse(app.market_event_is_after_activation(
+                    received_ts=201.0,
+                    block_event_ts=value,
+                    activation_ts=200.75,
+                ))
+
+
 if __name__ == "__main__":
     unittest.main()
