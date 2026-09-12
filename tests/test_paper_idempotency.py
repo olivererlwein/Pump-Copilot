@@ -314,6 +314,180 @@ class PaperPositionIdempotencyTests(unittest.TestCase):
         self.assertAlmostEqual(self.posicion()["remaining"], 1.0)
 
 
+class PreEntryEventGuardTests(unittest.TestCase):
+    """Un evento anterior a la entrada no pertenece a esta posición.
+
+    Con webhooks atrasados, una operación vieja puede llegar después de que se
+    abrió una posición nueva sobre el mismo token y moverla como si fuera
+    actual. La referencia es on-chain contra on-chain: `opened_ts` mide cuándo
+    reaccionamos nosotros, es posterior al evento que nos hizo entrar, y
+    rechazaría operaciones legítimamente posteriores a la entrada.
+    """
+
+    ENTRADA = 1_700_000_000.0
+
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.original_db = app.DB
+        app.DB = Path(self.temp_dir.name) / "pre-entrada.db"
+        app.migrate_database()
+        self.addCleanup(self.restaurar)
+        self.abrir_posicion(self.ENTRADA)
+
+    def restaurar(self):
+        app.DB = self.original_db
+        self.temp_dir.cleanup()
+
+    def abrir_posicion(self, entrada_ts):
+        conn = app.db()
+        conn.execute(
+            """
+            INSERT INTO paper_positions(
+                opened_ts, mint, trigger_traders, entry_mc, stake_usd,
+                status, pnl_usd, decision, score, origin_trader,
+                current_mc, remaining_pct, realized_pnl_usd,
+                unrealized_pnl_usd, last_action, tp_stage, mode,
+                entry_block_event_ts
+            )
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            """,
+            (
+                # `opened_ts` deliberadamente muy posterior al timestamp
+                # on-chain de entrada: así es en la realidad, y una guarda que
+                # lo usara rechazaría eventos válidos.
+                self.ENTRADA + 300, MINT, '["trader-a"]', 100.0, 5.0,
+                "open", 0, "COPY", 90, TRADER,
+                100.0, 1.0, 0, 0, "HOLD", 0, "paper",
+                entrada_ts,
+            ),
+        )
+        conn.commit()
+        conn.close()
+
+    def restante(self):
+        conn = app.db()
+        fila = conn.execute(
+            "SELECT remaining_pct FROM paper_positions WHERE mint = ?",
+            (MINT,),
+        ).fetchone()
+        conn.close()
+        return fila[0]
+
+    def marcas(self):
+        conn = app.db()
+        filas = conn.execute(
+            "SELECT event_id, action FROM paper_position_applications "
+            "ORDER BY event_id"
+        ).fetchall()
+        conn.close()
+        return filas
+
+    def venta(self, firma, ts, indice=0):
+        app.update_paper_position(
+            mint=MINT, trader=TRADER, side="sell",
+            market_cap=110.0, new_token_balance=50.0,
+            event_signature=firma, event_index=indice,
+            event_block_event_ts=ts,
+        )
+
+    def test_event_before_entry_is_ignored(self):
+        self.venta("firma-vieja", self.ENTRADA - 1)
+
+        self.assertAlmostEqual(self.restante(), 1.0)
+        self.assertEqual(
+            self.marcas(), [("firma-vieja:0", "IGNORED_PRE_ENTRY")],
+        )
+
+    def test_event_after_entry_applies(self):
+        self.venta("firma-nueva", self.ENTRADA + 1)
+
+        self.assertAlmostEqual(self.restante(), 0.75)
+        self.assertEqual(self.marcas()[0][1], "PARTIAL SELL")
+
+    def test_event_at_the_same_second_as_entry_applies(self):
+        # El timestamp on-chain tiene resolución de segundos: dos operaciones
+        # distintas del mismo segundo son indistinguibles, y descartarlas sería
+        # perder operaciones válidas. Aceptar la igualdad es lo conservador.
+        self.venta("firma-empatada", self.ENTRADA)
+
+        self.assertAlmostEqual(self.restante(), 0.75)
+
+    def test_unknown_event_timestamp_keeps_previous_behaviour(self):
+        # PumpPortal no manda timestamp: sin él la guarda se apaga.
+        self.venta("firma-sin-ts", None)
+
+        self.assertAlmostEqual(self.restante(), 0.75)
+
+    def test_unknown_entry_timestamp_keeps_previous_behaviour(self):
+        # Las posiciones abiertas antes de que la columna existiera quedan en
+        # NULL. No hay referencia, así que no se rechaza nada.
+        conn = app.db()
+        conn.execute(
+            "UPDATE paper_positions SET entry_block_event_ts = NULL "
+            "WHERE mint = ?", (MINT,),
+        )
+        conn.commit()
+        conn.close()
+
+        self.venta("firma-vieja", self.ENTRADA - 1000)
+
+        self.assertAlmostEqual(self.restante(), 0.75)
+
+    def test_ignored_event_is_not_reprocessed_on_retry(self):
+        self.venta("firma-vieja", self.ENTRADA - 1)
+        self.venta("firma-vieja", self.ENTRADA - 1)
+        self.venta("firma-vieja", self.ENTRADA - 1)
+
+        # Una sola marca, y sigue sin aplicarse. Sin dejar constancia, el
+        # reintento lo volvería a evaluar para siempre.
+        self.assertEqual(
+            self.marcas(), [("firma-vieja:0", "IGNORED_PRE_ENTRY")],
+        )
+        self.assertAlmostEqual(self.restante(), 1.0)
+
+    def test_ignoring_one_event_does_not_block_the_others(self):
+        self.venta("firma-vieja", self.ENTRADA - 1)
+        self.venta("firma-nueva", self.ENTRADA + 1)
+
+        self.assertAlmostEqual(self.restante(), 0.75)
+        self.assertEqual(
+            self.marcas(),
+            [
+                ("firma-nueva:0", "PARTIAL SELL"),
+                ("firma-vieja:0", "IGNORED_PRE_ENTRY"),
+            ],
+        )
+
+    def test_invalid_timestamps_are_rejected(self):
+        for invalido in ("1700000000", float("inf"), float("nan"), 0, -1, True):
+            with self.subTest(ts=invalido):
+                with self.assertRaises(ValueError):
+                    self.venta("firma-1", invalido)
+
+    def test_open_paper_position_stores_the_entry_timestamp(self):
+        app.open_paper_position(
+            mint="otro-mint", trader=TRADER, market_cap=100.0,
+            score=90, decision="COPY", mode="guard-test",
+            entry_block_event_ts=self.ENTRADA,
+        )
+
+        conn = app.db()
+        guardado = conn.execute(
+            "SELECT entry_block_event_ts FROM paper_positions "
+            "WHERE mint = ?", ("otro-mint",),
+        ).fetchone()
+        conn.close()
+        self.assertEqual(guardado[0], self.ENTRADA)
+
+    def test_open_paper_position_rejects_an_invalid_entry_timestamp(self):
+        with self.assertRaises(ValueError):
+            app.open_paper_position(
+                mint="otro-mint", trader=TRADER, market_cap=100.0,
+                score=90, decision="COPY", mode="guard-test",
+                entry_block_event_ts="1700000000",
+            )
+
+
 WALLET = "wallet-del-trader-a"
 
 
@@ -448,6 +622,133 @@ class RouterEventIndexTests(unittest.TestCase):
             app.route_market_event(roto)
 
         self.assertAlmostEqual(self.restante(), 1.0)
+
+
+class RouterPreEntryGuardTests(unittest.TestCase):
+    """La guarda tiene que sobrevivir el recorrido real, no solo la función.
+
+    El patrón ya apareció tres veces —índice, billetera, timestamp—: el dato
+    correcto adentro de la función y perdido en el camino hasta ella. Estas
+    pruebas entran por `route_market_event()`, que es por donde entran los
+    eventos en producción, y cubren sus dos rutas.
+    """
+
+    ENTRADA = 1_700_000_000.0
+
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.original_db = app.DB
+        app.DB = Path(self.temp_dir.name) / "router-pre-entrada.db"
+        app.migrate_database()
+
+        self.watched_original = app.WATCHED
+        app.WATCHED = {TRADER: WALLET}
+        app.TRACKED_TOKENS.add(MINT)
+        self.addCleanup(self.restaurar)
+
+        conn = app.db()
+        conn.execute(
+            """
+            INSERT INTO paper_positions(
+                opened_ts, mint, trigger_traders, entry_mc, stake_usd,
+                status, pnl_usd, decision, score, origin_trader,
+                current_mc, remaining_pct, realized_pnl_usd,
+                unrealized_pnl_usd, last_action, tp_stage, mode,
+                entry_block_event_ts
+            )
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            """,
+            (
+                # Posterior al timestamp on-chain de entrada, como en la
+                # realidad: si alguien vuelve a usar `opened_ts` como
+                # referencia, estas pruebas fallan.
+                self.ENTRADA + 300, MINT, f'["{TRADER}"]', 100.0, 5.0,
+                "open", 0, "COPY", 90, TRADER,
+                100.0, 1.0, 0, 0, "HOLD", 0, "paper",
+                self.ENTRADA,
+            ),
+        )
+        conn.commit()
+        conn.close()
+
+    def restaurar(self):
+        app.WATCHED = self.watched_original
+        app.TRACKED_TOKENS.discard(MINT)
+        app.DB = self.original_db
+        self.temp_dir.cleanup()
+
+    def restante(self):
+        conn = app.db()
+        fila = conn.execute(
+            "SELECT remaining_pct FROM paper_positions WHERE mint = ?",
+            (MINT,),
+        ).fetchone()
+        conn.close()
+        return fila[0]
+
+    def marcas(self):
+        conn = app.db()
+        filas = conn.execute(
+            "SELECT event_id, action FROM paper_position_applications "
+            "ORDER BY event_id"
+        ).fetchall()
+        conn.close()
+        return filas
+
+    def evento(self, firma, wallet, block_ts, market_cap, balance):
+        return {
+            "signature": firma,
+            "eventIndex": 0,
+            "blockEventTs": block_ts,
+            "mint": MINT,
+            "txType": "sell",
+            "traderPublicKey": wallet,
+            "solAmount": 1.0,
+            "tokenAmount": 1000.0,
+            "newTokenBalance": balance,
+            "marketCapSol": market_cap,
+        }
+
+    def test_watched_wallet_route_ignores_an_event_before_entry(self):
+        # Ruta por save_trade(): el trader de origen vende. Un evento anterior
+        # a la entrada no puede mover esta posición.
+        app.route_market_event(
+            self.evento("firma-vieja", WALLET, self.ENTRADA - 1, 110.0, 500.0)
+        )
+
+        self.assertAlmostEqual(self.restante(), 1.0)
+        self.assertEqual(
+            self.marcas(), [("firma-vieja:0", "IGNORED_PRE_ENTRY")],
+        )
+
+        # Y uno posterior sí llega: la ruta funciona, no está muerta.
+        app.route_market_event(
+            self.evento("firma-nueva", WALLET, self.ENTRADA + 1, 110.0, 400.0)
+        )
+
+        self.assertAlmostEqual(self.restante(), 0.75)
+
+    def test_tracked_token_route_ignores_an_event_before_entry(self):
+        # Ruta por token seguido con billetera ajena: el trader no coincide,
+        # así que lo que dispara la venta es el precio.
+        app.route_market_event(
+            self.evento(
+                "firma-vieja", "billetera-ajena", self.ENTRADA - 1, 125.0, 900.0
+            )
+        )
+
+        self.assertAlmostEqual(self.restante(), 1.0)
+        self.assertEqual(
+            self.marcas(), [("firma-vieja:0", "IGNORED_PRE_ENTRY")],
+        )
+
+        app.route_market_event(
+            self.evento(
+                "firma-nueva", "billetera-ajena", self.ENTRADA + 1, 125.0, 900.0
+            )
+        )
+
+        self.assertAlmostEqual(self.restante(), 0.75)
 
 
 if __name__ == "__main__":

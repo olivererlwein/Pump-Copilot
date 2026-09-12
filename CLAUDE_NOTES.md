@@ -1604,17 +1604,92 @@ por cierre es la que evita llegar hasta ahí.
 
 Suite completa: **201 tests, OK**. `git diff --check` limpio.
 
+Commiteado en `main` como `3bd8353`, sin push. Codex lo aprobó.
+
+## Punto 3: protección contra eventos anteriores a la entrada
+
+**El hallazgo que cambió el diseño.** La idea original era comparar contra
+`opened_ts`, y no sirve: ese reloj mide cuándo reaccionó la app, no cuándo
+ocurrió el evento. Abrimos a las 12:00:05 por un evento on-chain de las
+12:00:00; un evento on-chain de las 12:00:03 es posterior a la entrada y hay
+que aplicarlo, pero es anterior a `opened_ts`. Una guarda así rechazaría
+operaciones legítimas.
+
+La comparación correcta es on-chain contra on-chain. Codex confirmó el
+diagnóstico y el diseño.
+
+**Segundo hallazgo.** `block_event_ts` tenía exactamente la misma forma rota que
+tenía `event_index`: el parser lo guardaba como hermano del evento, y solo el
+evento se serializa. Al reconstruir desde la cola, el dato no estaba. Movido
+adentro como `blockEventTs`, y la columna del inbox ahora se deriva de él.
+
+**El cambio.**
+
+- columna `entry_block_event_ts REAL`, sin DEFAULT: las posiciones que ya
+  existen quedan en NULL, que es la verdad;
+- `evaluate_buy()` → `open_paper_position()`, que valida al entrar;
+- el timestamp del evento llega a `update_paper_position()` y
+  `apply_paper_event()` desde las dos rutas reales;
+- se rechaza **solo** si los dos timestamps existen y el del evento es menor.
+  La igualdad se acepta: resolución de segundos, así que dos transacciones del
+  mismo segundo son indistinguibles y descartarlas perdería operaciones
+  válidas;
+- si falta cualquiera de los dos lados, queda el comportamiento previo;
+- el evento descartado se marca como `IGNORED_PRE_ENTRY` en
+  `paper_position_applications`, para que el reintento no lo evalúe para
+  siempre.
+
+**Una asimetría deliberada en la validación.** `validated_block_event_ts()` es
+estricta —numérico, finito, positivo— y se aplica a lo que entra desde el
+parser, porque ahí un valor inválido es un bug y conviene que estalle apenas
+aparece. `stored_block_event_ts()` es indulgente y trata lo inservible como
+ausente, porque un valor ya guardado que estallara rompería esa posición en cada
+evento, para siempre. Sin referencia confiable la guarda se apaga, que es la
+misma regla que ya rige para un dato ausente.
+
+### Tests agregados (12)
+
+Evento anterior, posterior, igual, timestamp de evento desconocido, timestamp de
+entrada desconocido, reintento del descartado, un descarte que no bloquea a los
+demás, timestamps inválidos (`"1700000000"`, `inf`, `nan`, `0`, `-1`, `True`),
+`open_paper_position()` guardando y validando, y dos de round trip por el inbox.
+
+**Verificados contra el bug.** Con la guarda desactivada, el evento viejo mueve
+la posición (`0.75 != 1.0`), y el que llega después de uno válido la mueve de
+nuevo (`0.5 != 0.75`). Devolviendo `block_event_ts` a viajar al lado del evento,
+el evento reconstruido pierde el timestamp (`None != 1700000000.0`).
+
+### Dos pruebas más, por el router (pedido de Codex)
+
+El patrón ya apareció tres veces —índice, billetera, timestamp—: dato correcto
+adentro de la función y perdido en el camino hasta ella. Estas entran por
+`route_market_event()` y cubren sus dos rutas:
+
+- wallet vigilada → `save_trade()` → evento anterior queda `IGNORED_PRE_ENTRY`;
+- token seguido de wallet ajena → ruta de token → mismo resultado.
+
+Las dos comprueban después que un evento posterior sí se aplica, para que no
+pasen por estar la ruta muerta.
+
+**Verificadas por separado.** Cortando la propagación en `save_trade()` falla
+solo la primera; cortándola en la ruta de token, solo la segunda. Cada una cubre
+su ruta y ninguna tapa a la otra.
+
+Suite completa: **215 tests, OK**. `git diff --check` limpio.
+
 ## Límites
 
-- **Punto 3 de Codex, confirmado y abierto.** `apply_paper_event()` toma la
-  última posición abierta sin comparar la fecha del evento contra `opened_ts`.
-  Con webhooks atrasados, una operación vieja puede modificar una posición
-  abierta después. El test `test_same_event_on_another_position_still_applies`
-  documenta el comportamiento actual, no el deseado: hoy la identidad es por
-  evento Y posición, que es correcto para dos posiciones simultáneas pero no
-  alcanza para ordenar en el tiempo. El dato para la guarda ya existe:
-  `market_event_inbox.block_event_ts`, que viene del evento on-chain y no de
-  cuándo llegó. Debe cerrarse antes de activar la cola.
+- **Esto protege paper, no live.** Las salidas live van a necesitar su propia
+  referencia temporal, basada en la confirmación on-chain de nuestra compra
+  real y no en el timestamp de la señal del trader. Marcado por Codex, sin
+  abordar.
+- **Resolución de segundos.** Dos transacciones distintas dentro del mismo
+  segundo siguen siendo ambiguas. Aceptar la igualdad es lo conservador por
+  ahora.
+- **Riesgo residual marcado por Codex, no bloqueante.** `STOP_LOSS` y
+  `TRADER_EXIT` tienen claves de idempotencia distintas aunque los dos cierran
+  la posición entera. La reserva de tokens evita una segunda venta. A revisar
+  aparte.
 - `save_token_history()` puede seguir escribiendo filas repetidas en un
   reintento. No se abordó en este bloque.
 - La limpieza se repite solo cuando el mismo evento vuelve. Si el evento nunca

@@ -647,7 +647,14 @@ def db():
 
         score INTEGER DEFAULT 0,
 
-        mode TEXT DEFAULT 'paper'
+        mode TEXT DEFAULT 'paper',
+
+        -- Momento on-chain del evento que abrió la posición, para poder
+        -- descartar operaciones anteriores a la entrada. NULL cuando no se
+        -- conoce: PumpPortal no manda timestamp y las posiciones viejas no lo
+        -- tienen. `opened_ts` no sirve para esto, porque mide cuándo
+        -- reaccionamos nosotros y no cuándo ocurrió el evento.
+        entry_block_event_ts REAL
 
     )
     """
@@ -4344,7 +4351,13 @@ def migrate_database():
             "ALTER TABLE paper_positions ADD COLUMN exit_mc REAL DEFAULT 0",
 
         "exit_reason":
-            "ALTER TABLE paper_positions ADD COLUMN exit_reason TEXT DEFAULT ''"
+            "ALTER TABLE paper_positions ADD COLUMN exit_reason TEXT DEFAULT ''",
+
+        # Sin DEFAULT a propósito: las posiciones que ya existen quedan en NULL,
+        # que es la verdad —no sabemos su momento on-chain de entrada— y apaga
+        # la guarda para ellas en vez de inventarles una referencia.
+        "entry_block_event_ts":
+            "ALTER TABLE paper_positions ADD COLUMN entry_block_event_ts REAL"
     }
 
     for column, sql in paper_migrations.items():
@@ -8205,6 +8218,11 @@ def evaluate_buy(
         or "eval-" + uuid.uuid4().hex
     )
 
+    # Momento on-chain del evento que puede abrir la posición. Se guarda como
+    # referencia de entrada para poder descartar después operaciones anteriores
+    # a ella. `opened_ts` no sirve: mide cuándo reaccionamos nosotros.
+    entry_block_event_ts = market_event_block_ts(event)
+
 
     trader_score = score_trader(
         trader
@@ -8467,7 +8485,8 @@ def evaluate_buy(
         trader=trader,
         market_cap=market_cap,
         score=score,
-        decision=decision
+        decision=decision,
+        entry_block_event_ts=entry_block_event_ts
     )
 
     live_execution = maybe_execute_live_copy(
@@ -8499,11 +8518,19 @@ def open_paper_position(
     market_cap,
     score,
     decision,
-    mode="paper"
+    mode="paper",
+    entry_block_event_ts=None
 ):
 
     if market_cap <= 0:
         return
+
+    # Se valida acá, al entrar, y no al usarse: si llega roto, el problema está
+    # en quien abre la posición y conviene verlo ahí y no eventos después.
+    entry_block_event_ts = validated_block_event_ts(
+        entry_block_event_ts,
+        origen="entry_block_event_ts",
+    )
 
     risk = risk_check(
     mint=mint,
@@ -8581,10 +8608,11 @@ def open_paper_position(
                 unrealized_pnl_usd,
                 last_action,
                 tp_stage,
-                mode
+                mode,
+                entry_block_event_ts
             )
             VALUES(
-                ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+                ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
             )
             """,
             (
@@ -8604,7 +8632,8 @@ def open_paper_position(
                 0,
                 "HOLD",
                 0,
-                mode
+                mode,
+                entry_block_event_ts
             )
         )
 
@@ -8905,6 +8934,73 @@ def market_event_index(event, required=False):
     return raw
 
 
+def validated_block_event_ts(value, origen="blockEventTs"):
+    """Timestamp on-chain validado: numérico, finito y positivo.
+
+    ``None`` pasa como ``None``: desconocido no es un error. PumpPortal no
+    manda timestamp, y las posiciones abiertas antes de que esto existiera
+    tampoco lo tienen.
+    """
+    if value is None:
+        return None
+
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(
+            f"{origen} debe ser numérico; llegó {value!r} "
+            f"({type(value).__name__})"
+        )
+
+    numero = float(value)
+
+    if not math.isfinite(numero) or numero <= 0:
+        raise ValueError(
+            f"{origen} debe ser finito y positivo; llegó {value!r}"
+        )
+
+    return numero
+
+
+def market_event_block_ts(event):
+    """Momento on-chain del evento, leído de adentro del evento.
+
+    Ausente significa desconocido y devuelve ``None``: quien lo use decide qué
+    hacer con esa falta. Presente pero inservible se rechaza, porque ahí hay un
+    parser equivocado.
+    """
+    if not isinstance(event, dict):
+        return None
+
+    raw = event.get("blockEventTs")
+
+    if raw is None:
+        raw = event.get("block_event_ts")
+
+    return validated_block_event_ts(raw)
+
+
+def stored_block_event_ts(value):
+    """Lee un timestamp que guardamos nosotros; inservible cuenta como ausente.
+
+    Asimetría deliberada con `validated_block_event_ts()`. Un valor inválido
+    que entra desde el parser es un bug y conviene que estalle apenas aparece.
+    Uno ya guardado en la base es distinto: hacerlo estallar rompería esa
+    posición en cada evento que llegue, para siempre. Sin referencia confiable
+    la guarda se apaga y queda el comportamiento previo, que es la misma regla
+    que ya rige para un dato ausente.
+    """
+    try:
+        if value is None or isinstance(value, bool):
+            return None
+        numero = float(value)
+    except (TypeError, ValueError):
+        return None
+
+    if not math.isfinite(numero) or numero <= 0:
+        return None
+
+    return numero
+
+
 def market_event_from_inbox_row(event_json, wallet, signature, event_index):
     """Reconstruye el evento normalizado guardado en `market_event_inbox`.
 
@@ -9037,6 +9133,7 @@ def apply_paper_event(
     market_cap,
     new_token_balance,
     event_id,
+    event_block_event_ts=None,
 ):
     """Aplica el evento en una sola transacción y describe qué pasó.
 
@@ -9063,7 +9160,8 @@ def apply_paper_event(
                 remaining_pct,
                 realized_pnl_usd,
                 origin_trader,
-                tp_stage
+                tp_stage,
+                entry_block_event_ts
             FROM paper_positions
             WHERE mint = ?
             AND status = 'open'
@@ -9126,6 +9224,47 @@ def apply_paper_event(
                 conn.rollback()
                 # La posición sigue abierta, así que no hay limpieza pendiente.
                 return {"applied": False, "needs_untrack": False}
+
+        # Una operación anterior a la entrada no pertenece a esta posición.
+        #
+        # Con webhooks atrasados, un evento viejo puede llegar después de que
+        # se abrió una posición nueva sobre el mismo token y moverla como si
+        # fuera actual. La referencia es on-chain contra on-chain: `opened_ts`
+        # no sirve, porque mide cuándo reaccionamos nosotros y es posterior al
+        # evento que nos hizo entrar, así que rechazaría operaciones
+        # legítimamente posteriores a la entrada.
+        #
+        # La igualdad se acepta: el timestamp on-chain tiene resolución de
+        # segundos, así que dos transacciones distintas del mismo segundo son
+        # indistinguibles y descartarlas sería perder operaciones válidas.
+        #
+        # Si falta cualquiera de los dos lados, la guarda se apaga y queda el
+        # comportamiento previo. Inventar una referencia sería peor que no
+        # tenerla.
+        entrada_ts = stored_block_event_ts(position[7])
+
+        if (
+            event_block_event_ts is not None
+            and entrada_ts is not None
+            and event_block_event_ts < entrada_ts
+        ):
+            # Se deja marcado como aplicado para que un reintento no lo vuelva
+            # a evaluar para siempre. La marca dice que se lo ignoró y por qué.
+            if event_id is not None:
+                conn.execute(
+                    """
+                    INSERT INTO paper_position_applications(
+                        position_id, event_id, applied_ts, action
+                    )
+                    VALUES(?,?,?,?)
+                    """,
+                    (position_id, event_id, time.time(), "IGNORED_PRE_ENTRY"),
+                )
+                conn.commit()
+            else:
+                conn.rollback()
+
+            return {"applied": False, "needs_untrack": False}
 
         entry_mc = float(position[1] or 0)
         stake_usd = float(position[2] or 0)
@@ -9262,6 +9401,7 @@ def update_paper_position(
     new_token_balance,
     event_signature=None,
     event_index=0,
+    event_block_event_ts=None,
 ):
     """Aplica un evento de mercado a la posición paper abierta de ``mint``.
 
@@ -9278,6 +9418,7 @@ def update_paper_position(
         return
 
     event_id = market_event_identity(event_signature, event_index)
+    event_block_event_ts = validated_block_event_ts(event_block_event_ts)
 
     resultado = apply_paper_event(
         mint=mint,
@@ -9286,6 +9427,7 @@ def update_paper_position(
         market_cap=market_cap,
         new_token_balance=new_token_balance,
         event_id=event_id,
+        event_block_event_ts=event_block_event_ts,
     )
 
     # Fuera de la transacción: abre su propia conexión y se bloquearía contra el
@@ -9350,6 +9492,7 @@ def save_trade(
     # La otra mitad de la identidad del evento. Se lee acá, al lado de la firma,
     # para que no puedan separarse.
     event_index = market_event_index(event)
+    event_block_event_ts = market_event_block_ts(event)
 
 
     token_amount = float(
@@ -9516,6 +9659,7 @@ def save_trade(
         new_token_balance=new_token_balance,
         event_signature=signature,
         event_index=event_index,
+        event_block_event_ts=event_block_event_ts,
     )
     evaluate_live_position_exit(
         mint=mint,
@@ -10530,6 +10674,7 @@ def route_market_event(event):
     signature = event.get("signature") or ""
     # La otra mitad de la identidad del evento, al lado de la firma.
     event_index = market_event_index(event)
+    event_block_event_ts = market_event_block_ts(event)
     raw_balance = event.get("newTokenBalance")
     save_token_history(
         mint=mint, market_cap=market_cap, trader=trader, side=side,
@@ -10540,6 +10685,7 @@ def route_market_event(event):
         new_token_balance=float(raw_balance or 0),
         event_signature=signature,
         event_index=event_index,
+        event_block_event_ts=event_block_event_ts,
     )
     evaluate_live_position_exit(
         mint=mint, trader=trader, side=side, market_cap=market_cap,
@@ -12121,7 +12267,9 @@ def record_helius_webhook_transactions(payload, received_ts=None):
                         normalized_event.get("txType"),
                         normalized_event.get("pool"),
                         float(block_time) if block_time else None,
-                        parsed_event.get("block_event_ts"),
+                        # Del evento, igual que el índice: la columna es copia
+                        # derivada de lo que se serializa, no un dato aparte.
+                        market_event_block_ts(normalized_event),
                         received_ts,
                         json.dumps(
                             normalized_event,

@@ -211,9 +211,12 @@ def _parse_pump_trade(payload, balances, wallet, signature):
     return {
         "program": PUMP_PROGRAM_ID,
         "event_name": "TradeEvent",
-        "block_event_ts": timestamp,
         "event": {
             "signature": signature,
+            # Momento on-chain del evento. Va adentro por la misma razón que
+            # `eventIndex`: el evento es lo único que se serializa y se vuelve
+            # a leer, así que un dato que viajara al lado se perdería ahí.
+            "blockEventTs": timestamp,
             "txType": "buy" if is_buy else "sell",
             "mint": mint,
             "solAmount": sol_lamports / LAMPORTS_PER_SOL,
@@ -281,9 +284,10 @@ def _parse_pump_amm_trade(payload, balances, wallet, signature):
     return {
         "program": PUMP_AMM_PROGRAM_ID,
         "event_name": event_name,
-        "block_event_ts": timestamp,
         "event": {
             "signature": signature,
+            # Ver la nota en `_parse_pump_trade`.
+            "blockEventTs": timestamp,
             "txType": side,
             "mint": mint,
             "solAmount": sol_lamports / LAMPORTS_PER_SOL,

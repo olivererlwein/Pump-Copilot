@@ -780,13 +780,36 @@ class InboxRoundTripTests(unittest.TestCase):
         conn = app.db()
         try:
             return conn.execute(
-                "SELECT event_index, wallet, event_json "
+                "SELECT event_index, wallet, event_json, block_event_ts "
                 "FROM market_event_inbox WHERE signature = ? "
                 "ORDER BY event_index",
                 (SIGNATURE,),
             ).fetchall()
         finally:
             conn.close()
+
+    def test_block_event_ts_survives_serialization(self):
+        # Tenía la misma forma rota que el índice: el parser lo guardaba al
+        # lado del evento, y solo el evento se serializa. Sin él adentro, la
+        # guarda de eventos anteriores a la entrada no puede verlo al
+        # reconstruir desde la cola.
+        app.record_helius_webhook_transactions([self.receipt_with_two_events()])
+
+        for _, _, event_json, columna in self.inbox_rows():
+            evento = json.loads(event_json)
+            self.assertEqual(evento["blockEventTs"], 1_700_000_000)
+            # La columna es copia derivada de lo que se serializa.
+            self.assertEqual(columna, evento["blockEventTs"])
+
+    def test_rebuilt_event_exposes_its_block_timestamp(self):
+        app.record_helius_webhook_transactions([self.receipt_with_two_events()])
+        indice, wallet, event_json, _ = self.inbox_rows()[0]
+
+        evento = app.market_event_from_inbox_row(
+            event_json, wallet=wallet, signature=SIGNATURE, event_index=indice,
+        )
+
+        self.assertEqual(app.market_event_block_ts(evento), 1_700_000_000.0)
 
     def test_event_index_survives_serialization(self):
         app.record_helius_webhook_transactions([self.receipt_with_two_events()])
@@ -796,7 +819,7 @@ class InboxRoundTripTests(unittest.TestCase):
 
         # La columna y el JSON no pueden discrepar: la columna se deriva del
         # evento, que es lo mismo que se serializa.
-        for indice, _, event_json in filas:
+        for indice, _, event_json, _ in filas:
             evento = json.loads(event_json)
             self.assertEqual(evento["eventIndex"], indice)
 
@@ -804,7 +827,7 @@ class InboxRoundTripTests(unittest.TestCase):
         app.record_helius_webhook_transactions([self.receipt_with_two_events()])
 
         # Lo que hará el procesador cuando la cola se active.
-        for indice, wallet, event_json in self.inbox_rows():
+        for indice, wallet, event_json, _ in self.inbox_rows():
             evento = app.market_event_from_inbox_row(
                 event_json,
                 wallet=wallet,
@@ -846,7 +869,7 @@ class InboxRoundTripTests(unittest.TestCase):
         # conoce por contexto. Sin recuperarla de la fila, el router trataría
         # la operación como de una billetera ajena.
         app.record_helius_webhook_transactions([self.receipt_with_two_events()])
-        indice, wallet, event_json = self.inbox_rows()[0]
+        indice, wallet, event_json, _ = self.inbox_rows()[0]
 
         self.assertNotIn("traderPublicKey", json.loads(event_json))
 
