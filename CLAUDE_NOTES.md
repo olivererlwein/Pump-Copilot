@@ -1809,3 +1809,25 @@ Suite completa: **235 tests, OK**. `git diff --check` limpio.
 - La limpieza se repite solo cuando el mismo evento vuelve. Si el evento nunca
   se reintenta, el token queda suscripto igual. Cerrarlo del todo pide una
   reconciliación periódica, no un rescate en el camino del evento.
+
+## Validador observacional del inbox de Helius
+
+Codex agregó la primera etapa del consumidor, todavía sin efectos. El contrato
+es deliberadamente limitado: reclama filas `observed`, reconstruye y valida el
+evento guardado, y termina en `validated` o `rejected`. Nunca llama a
+`route_market_event()` y el interruptor
+`MARKET_EVENT_INBOX_VALIDATION_ENABLED` queda apagado por defecto.
+
+La reserva usa `claim_token` y `claimed_ts`. Una reserva vencida puede ser
+recuperada después de `MARKET_EVENT_INBOX_VALIDATION_LEASE_SECONDS`; el token
+impide que el worker viejo confirme o rechace la fila después de perderla. Los
+intentos, errores y tiempos finales quedan en la misma fila. El endpoint
+`/api/helius-webhook-stats` expone configuración y conteos por estado.
+
+Pruebas específicas: exclusión durante una reserva vigente, recuperación tras
+vencimiento, protección contra el dueño viejo, validación sin invocar el
+router, rechazo con error persistido y filas terminales no reclamadas otra vez.
+
+El siguiente paso, separado y todavía no implementado, es consumir filas
+`validated` mediante otro interruptor. Ese paso sí tocará el pipeline funcional
+y requiere una revisión nueva antes de permitir cualquier efecto.

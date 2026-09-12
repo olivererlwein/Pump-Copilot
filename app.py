@@ -346,6 +346,32 @@ HELIUS_WEBHOOK_RAW_SAMPLES = max(
 
 HELIUS_WEBHOOK_RAW_SAMPLE_CHARS = 20000
 
+# Primera etapa del consumidor del inbox: solo reconstruye y valida eventos.
+# No llama al router ni produce efectos de trading. Se habilita por separado
+# después de desplegar y observar la migración.
+MARKET_EVENT_INBOX_VALIDATION_ENABLED = os.getenv(
+    "MARKET_EVENT_INBOX_VALIDATION_ENABLED",
+    "false",
+).lower() == "true"
+
+MARKET_EVENT_INBOX_VALIDATION_BATCH_SIZE = max(
+    1,
+    min(
+        200,
+        int(os.getenv("MARKET_EVENT_INBOX_VALIDATION_BATCH_SIZE", "25")),
+    ),
+)
+
+MARKET_EVENT_INBOX_VALIDATION_POLL_SECONDS = max(
+    1,
+    int(os.getenv("MARKET_EVENT_INBOX_VALIDATION_POLL_SECONDS", "5")),
+)
+
+MARKET_EVENT_INBOX_VALIDATION_LEASE_SECONDS = max(
+    30,
+    int(os.getenv("MARKET_EVENT_INBOX_VALIDATION_LEASE_SECONDS", "120")),
+)
+
 # Fallback observacional para auditar los eventos de cuenta que PumpPortal no
 # entrega. No entra a save_trade(), scoring, señales ni ejecución hasta que sus
 # resultados hayan sido comparados y promovidos explícitamente.
@@ -531,6 +557,8 @@ def db():
             event_json TEXT NOT NULL,
             status TEXT NOT NULL DEFAULT 'observed',
             attempts INTEGER NOT NULL DEFAULT 0,
+            claim_token TEXT,
+            claimed_ts REAL,
             processed_ts REAL,
             last_error TEXT,
             PRIMARY KEY(signature, event_index)
@@ -4387,6 +4415,36 @@ def migrate_inbox_event_index_to_ordinal(conn):
     return renumeradas
 
 
+def migrate_market_event_inbox_validation(conn):
+    """Añade el estado de reserva que necesita el validador del inbox."""
+    columnas = {
+        row[1]
+        for row in conn.execute(
+            "PRAGMA table_info(market_event_inbox)"
+        ).fetchall()
+    }
+
+    migrations = {
+        "claim_token": (
+            "ALTER TABLE market_event_inbox ADD COLUMN claim_token TEXT"
+        ),
+        "claimed_ts": (
+            "ALTER TABLE market_event_inbox ADD COLUMN claimed_ts REAL"
+        ),
+    }
+
+    for column, statement in migrations.items():
+        if column not in columnas:
+            conn.execute(statement)
+
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_market_event_inbox_validation
+        ON market_event_inbox(status, claimed_ts, received_ts)
+        """
+    )
+
+
 def migrate_database():
 
     conn = db()
@@ -4398,6 +4456,7 @@ def migrate_database():
     migrate_shadow_predictions_for_multiple_models(conn)
     migrate_token_history_identity(conn)
     migrate_inbox_event_index_to_ordinal(conn)
+    migrate_market_event_inbox_validation(conn)
 
     existing = [
         row[1]
@@ -9223,6 +9282,168 @@ def market_event_from_inbox_row(event_json, wallet, signature, event_index):
     return event
 
 
+def claim_market_event_inbox_validation_batch(limit=None, now=None):
+    """Reserva eventos observados para validarlos sin ejecutar sus efectos.
+
+    La reserva tiene vencimiento para que un reinicio no deje filas atrapadas.
+    El token impide que un worker lento confirme una fila que otro worker ya
+    recuperó después del vencimiento.
+    """
+    limit = int(limit or MARKET_EVENT_INBOX_VALIDATION_BATCH_SIZE)
+    limit = max(1, min(200, limit))
+    now = float(now if now is not None else time.time())
+    stale_before = now - MARKET_EVENT_INBOX_VALIDATION_LEASE_SECONDS
+    claim_token = secrets.token_hex(16)
+    conn = db()
+
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        rows = conn.execute(
+            """
+            SELECT signature, event_index, wallet, event_json
+            FROM market_event_inbox
+            WHERE status = 'observed'
+            OR (
+                status = 'validating'
+                AND COALESCE(claimed_ts, 0) <= ?
+            )
+            ORDER BY received_ts, signature, event_index
+            LIMIT ?
+            """,
+            (stale_before, limit),
+        ).fetchall()
+
+        for signature, event_index, _, _ in rows:
+            conn.execute(
+                """
+                UPDATE market_event_inbox
+                SET status = 'validating',
+                    attempts = attempts + 1,
+                    claim_token = ?,
+                    claimed_ts = ?,
+                    processed_ts = NULL,
+                    last_error = NULL
+                WHERE signature = ? AND event_index = ?
+                """,
+                (claim_token, now, signature, event_index),
+            )
+
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+    return [
+        {
+            "signature": row[0],
+            "event_index": row[1],
+            "wallet": row[2],
+            "event_json": row[3],
+            "claim_token": claim_token,
+        }
+        for row in rows
+    ]
+
+
+def finish_market_event_inbox_validation(
+    signature,
+    event_index,
+    claim_token,
+    status,
+    error=None,
+    now=None,
+):
+    """Finaliza una reserva solo si todavía pertenece al mismo worker."""
+    if status not in {"validated", "rejected"}:
+        raise ValueError(f"estado final de validación inválido: {status!r}")
+
+    now = float(now if now is not None else time.time())
+    error_text = str(error or "")[:500] or None
+    conn = db()
+
+    try:
+        cursor = conn.execute(
+            """
+            UPDATE market_event_inbox
+            SET status = ?,
+                processed_ts = ?,
+                last_error = ?,
+                claim_token = NULL,
+                claimed_ts = NULL
+            WHERE signature = ?
+            AND event_index = ?
+            AND status = 'validating'
+            AND claim_token = ?
+            """,
+            (
+                status,
+                now,
+                error_text,
+                signature,
+                event_index,
+                claim_token,
+            ),
+        )
+        conn.commit()
+        return bool(cursor.rowcount)
+    finally:
+        conn.close()
+
+
+def validate_market_event_inbox_once(limit=None, now=None):
+    """Valida un lote del inbox sin llamar al router ni aplicar efectos."""
+    rows = claim_market_event_inbox_validation_batch(limit=limit, now=now)
+    result = {
+        "claimed": len(rows),
+        "validated": 0,
+        "rejected": 0,
+        "lost_claims": 0,
+    }
+
+    for row in rows:
+        try:
+            market_event_from_inbox_row(
+                row["event_json"],
+                wallet=row["wallet"],
+                signature=row["signature"],
+                event_index=row["event_index"],
+            )
+            status = "validated"
+            error = None
+        except Exception as exc:
+            status = "rejected"
+            error = f"{exc.__class__.__name__}: {exc}"
+
+        finished = finish_market_event_inbox_validation(
+            row["signature"],
+            row["event_index"],
+            row["claim_token"],
+            status,
+            error=error,
+            now=now,
+        )
+
+        if finished:
+            result[status] += 1
+        else:
+            result["lost_claims"] += 1
+
+    return result
+
+
+async def market_event_inbox_validation_worker():
+    """Valida continuamente el inbox; nunca enruta eventos."""
+    while True:
+        try:
+            await asyncio.to_thread(validate_market_event_inbox_once)
+        except Exception as exc:
+            print("[HELIUS INBOX VALIDATION]", repr(exc))
+
+        await asyncio.sleep(MARKET_EVENT_INBOX_VALIDATION_POLL_SECONDS)
+
+
 def decide_paper_position_action(
     change_pct,
     remaining,
@@ -11283,6 +11504,11 @@ async def startup():
         asyncio.create_task(
             rpc_fallback_shadow_worker()
         )
+
+    if MARKET_EVENT_INBOX_VALIDATION_ENABLED:
+        asyncio.create_task(
+            market_event_inbox_validation_worker()
+        )
 # =========================================================
 # AUTENTICACIÓN
 # =========================================================
@@ -12676,6 +12902,13 @@ def api_helius_webhook_stats(
         "inbox_status": {
             str(status): int(count)
             for status, count in inbox_status_rows
+        },
+        "inbox_validation": {
+            "enabled": bool(MARKET_EVENT_INBOX_VALIDATION_ENABLED),
+            "affects_decisions": False,
+            "batch_size": MARKET_EVENT_INBOX_VALIDATION_BATCH_SIZE,
+            "poll_seconds": MARKET_EVENT_INBOX_VALIDATION_POLL_SECONDS,
+            "lease_seconds": MARKET_EVENT_INBOX_VALIDATION_LEASE_SECONDS,
         },
         "with_block_time": int(totals[2] or 0),
         "webhook_latency": summarize(webhook_latency),
