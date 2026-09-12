@@ -1928,3 +1928,36 @@ podría parecer falsamente un cierre total. No afecta este bloque porque el inbo
 todavía no se enruta.
 
 Suite completa después de la revisión: **263 tests, OK**.
+
+## Sincronización dinámica de tokens con el webhook de Helius
+
+Se agregó el bloque previo al consumidor funcional: mantener en Helius los
+tokens de `TRACKED_TOKENS` que necesitan eventos de mercado. Sigue apagado por
+defecto y separado en dos interruptores:
+
+- `HELIUS_WEBHOOK_SYNC_ENABLED=false`: no arranca el worker ni hace requests.
+- `HELIUS_WEBHOOK_SYNC_APPLY=false`: consulta y publica el plan en métricas,
+  pero no envía `PUT`.
+
+La sincronización lee la configuración remota completa y reemplaza únicamente
+`accountAddresses`, preservando URL, tipo, autorización, encoding, estado y
+tipos de transacción soportados. Las direcciones que ya estaban en Helius se
+consideran base ajena; solo se retiran tokens que este worker haya agregado.
+Una eliminación manual remota es autoritativa y no se revive desde cache.
+
+El estado se persiste en `helius_webhook_sync_state`. `pending_tokens` se graba
+antes del `PUT`: si Helius aplica el cambio y Railway reinicia antes de confirmar
+localmente, el token no se absorbe como dirección base y el siguiente ciclo lo
+puede reconciliar. Las respuestas sin `accountAddresses`, las confirmaciones
+distintas al plan y listas mayores al límite oficial fallan cerradas.
+
+Para controlar costo, el worker agrupa cambios cada 5 segundos, no consulta si
+el conjunto deseado no cambió, audita remotamente cada 15 minutos y espera 60
+segundos tras errores. `/api/helius-webhook-stats` expone el estado bajo
+`webhook_sync` sin mostrar API key, webhook ID ni secreto.
+
+Este bloque solo cambia cobertura observacional del webhook. No establece la
+frontera de activación, no consume el inbox, no llama a `route_market_event()` y
+no afecta scoring, paper trading ni órdenes live.
+
+Verificación final: **276 tests, OK**. Pyright: **0 errores y 0 warnings**.

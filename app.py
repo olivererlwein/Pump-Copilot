@@ -10,6 +10,7 @@ import sqlite3
 import random
 import uuid
 import decimal
+import threading
 
 from pathlib import Path
 from urllib.request import Request, urlopen
@@ -26,6 +27,13 @@ from dotenv import load_dotenv
 import websockets
 
 from shadow_model import ShadowLogisticModel
+from helius_webhook_sync import (
+    fetch_helius_webhook,
+    normalize_addresses,
+    plan_webhook_address_sync,
+    update_helius_webhook_addresses,
+    webhook_account_addresses,
+)
 from solana_receipts import parse_buy_receipt, parse_sell_receipt
 from solana_rpc_fallback import (
     fetch_confirmed_transaction,
@@ -346,6 +354,44 @@ HELIUS_WEBHOOK_RAW_SAMPLES = max(
 )
 
 HELIUS_WEBHOOK_RAW_SAMPLE_CHARS = 20000
+
+# Sincroniza los tokens que el pipeline necesita observar con el webhook de
+# Helius. Los dos interruptores se separan para poder validar el plan remoto en
+# producción antes de autorizar PUTs que cuestan créditos y cambian cobertura.
+HELIUS_WEBHOOK_SYNC_ENABLED = os.getenv(
+    "HELIUS_WEBHOOK_SYNC_ENABLED",
+    "false",
+).lower() == "true"
+
+HELIUS_WEBHOOK_SYNC_APPLY = os.getenv(
+    "HELIUS_WEBHOOK_SYNC_APPLY",
+    "false",
+).lower() == "true"
+
+HELIUS_API_KEY = os.getenv("HELIUS_API_KEY", "").strip()
+HELIUS_WEBHOOK_ID = os.getenv("HELIUS_WEBHOOK_ID", "").strip()
+
+HELIUS_WEBHOOK_SYNC_POLL_SECONDS = max(
+    1,
+    int(os.getenv("HELIUS_WEBHOOK_SYNC_POLL_SECONDS", "5")),
+)
+
+HELIUS_WEBHOOK_SYNC_AUDIT_SECONDS = max(
+    60,
+    int(os.getenv("HELIUS_WEBHOOK_SYNC_AUDIT_SECONDS", "900")),
+)
+
+HELIUS_WEBHOOK_SYNC_ERROR_RETRY_SECONDS = max(
+    30,
+    int(os.getenv("HELIUS_WEBHOOK_SYNC_ERROR_RETRY_SECONDS", "60")),
+)
+
+HELIUS_WEBHOOK_SYNC_TIMEOUT_SECONDS = max(
+    1,
+    int(os.getenv("HELIUS_WEBHOOK_SYNC_TIMEOUT_SECONDS", "15")),
+)
+
+HELIUS_WEBHOOK_SYNC_LOCK = threading.Lock()
 
 MARKET_EVENT_INBOX_ACTIVATION_STATE_KEY = (
     "market_event_inbox_processing_activation_ts"
@@ -4386,6 +4432,34 @@ def migrate_token_history_identity(conn):
     return migradas
 
 
+def migrate_helius_webhook_sync_state(conn):
+    """Crea el estado de propiedad para la sincronización del webhook."""
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS helius_webhook_sync_state(
+            id INTEGER PRIMARY KEY CHECK(id = 1),
+            initialized INTEGER NOT NULL DEFAULT 0,
+            base_addresses_json TEXT NOT NULL DEFAULT '[]',
+            managed_tokens_json TEXT NOT NULL DEFAULT '[]',
+            pending_tokens_json TEXT NOT NULL DEFAULT '[]',
+            last_remote_addresses_json TEXT NOT NULL DEFAULT '[]',
+            last_desired_addresses_json TEXT NOT NULL DEFAULT '[]',
+            last_check_ts REAL,
+            last_success_ts REAL,
+            last_update_ts REAL,
+            last_error TEXT,
+            updates INTEGER NOT NULL DEFAULT 0
+        )
+        """
+    )
+    conn.execute(
+        """
+        INSERT OR IGNORE INTO helius_webhook_sync_state(id)
+        VALUES(1)
+        """
+    )
+
+
 def migrate_processed_market_events(conn):
     """Convierte la deduplicación histórica por firma a identidad completa."""
     conn.execute(
@@ -4554,6 +4628,7 @@ def migrate_database():
     )
 
     migrate_shadow_predictions_for_multiple_models(conn)
+    migrate_helius_webhook_sync_state(conn)
     migrate_processed_market_events(conn)
     migrate_token_history_identity(conn)
     migrate_market_event_inbox_index_scheme(conn)
@@ -11709,6 +11784,11 @@ async def startup():
         asyncio.create_task(
             market_event_inbox_validation_worker()
         )
+
+    if HELIUS_WEBHOOK_SYNC_ENABLED:
+        asyncio.create_task(
+            helius_webhook_sync_worker()
+        )
 # =========================================================
 # AUTENTICACIÓN
 # =========================================================
@@ -12769,6 +12849,348 @@ def trader_stats(
     return result
 
 
+def _decode_helius_sync_addresses(raw_value):
+    try:
+        value = json.loads(raw_value or "[]")
+    except (TypeError, json.JSONDecodeError) as exc:
+        raise ValueError("INVALID_HELIUS_SYNC_STATE_JSON") from exc
+    if not isinstance(value, list):
+        raise ValueError("INVALID_HELIUS_SYNC_STATE_ADDRESSES")
+    return normalize_addresses(value)
+
+
+def get_helius_webhook_sync_state(connection=None):
+    owns_connection = connection is None
+    conn = connection or db()
+    try:
+        row = conn.execute(
+            """
+            SELECT
+                initialized,
+                base_addresses_json,
+                managed_tokens_json,
+                pending_tokens_json,
+                last_remote_addresses_json,
+                last_desired_addresses_json,
+                last_check_ts,
+                last_success_ts,
+                last_update_ts,
+                last_error,
+                updates
+            FROM helius_webhook_sync_state
+            WHERE id = 1
+            """
+        ).fetchone()
+    finally:
+        if owns_connection:
+            conn.close()
+
+    if row is None:
+        raise RuntimeError("HELIUS_WEBHOOK_SYNC_STATE_MISSING")
+    return {
+        "initialized": bool(row[0]),
+        "base_addresses": _decode_helius_sync_addresses(row[1]),
+        "managed_tokens": _decode_helius_sync_addresses(row[2]),
+        "pending_tokens": _decode_helius_sync_addresses(row[3]),
+        "last_remote_addresses": _decode_helius_sync_addresses(row[4]),
+        "last_desired_addresses": _decode_helius_sync_addresses(row[5]),
+        "last_check_ts": row[6],
+        "last_success_ts": row[7],
+        "last_update_ts": row[8],
+        "last_error": row[9],
+        "updates": int(row[10] or 0),
+    }
+
+
+def _write_helius_webhook_sync_state(connection, **values):
+    allowed = {
+        "initialized",
+        "base_addresses_json",
+        "managed_tokens_json",
+        "pending_tokens_json",
+        "last_remote_addresses_json",
+        "last_desired_addresses_json",
+        "last_check_ts",
+        "last_success_ts",
+        "last_update_ts",
+        "last_error",
+        "updates",
+    }
+    unknown = set(values) - allowed
+    if unknown:
+        raise ValueError(f"INVALID_HELIUS_SYNC_STATE_FIELDS:{sorted(unknown)}")
+    if not values:
+        return
+
+    assignments = ", ".join(f"{key} = ?" for key in values)
+    connection.execute(
+        f"UPDATE helius_webhook_sync_state SET {assignments} WHERE id = 1",
+        tuple(values.values()),
+    )
+
+
+def _encoded_helius_sync_addresses(addresses):
+    return json.dumps(
+        normalize_addresses(addresses),
+        separators=(",", ":"),
+    )
+
+
+def _tracked_tokens_snapshot():
+    for _ in range(3):
+        try:
+            return normalize_addresses(tuple(TRACKED_TOKENS))
+        except RuntimeError:
+            time.sleep(0)
+    raise RuntimeError("TRACKED_TOKENS_CHANGED_DURING_SNAPSHOT")
+
+
+def get_helius_webhook_sync_status():
+    try:
+        state = get_helius_webhook_sync_state()
+        state_error = None
+    except Exception as exc:
+        state = {
+            "initialized": False,
+            "base_addresses": [],
+            "managed_tokens": [],
+            "pending_tokens": [],
+            "last_remote_addresses": [],
+            "last_desired_addresses": [],
+            "last_check_ts": None,
+            "last_success_ts": None,
+            "last_update_ts": None,
+            "last_error": None,
+            "updates": 0,
+        }
+        state_error = f"{exc.__class__.__name__}:{exc}"
+
+    remote = set(state["last_remote_addresses"])
+    desired = set(state["last_desired_addresses"])
+    return {
+        "enabled": bool(HELIUS_WEBHOOK_SYNC_ENABLED),
+        "apply": bool(HELIUS_WEBHOOK_SYNC_APPLY),
+        "configured": bool(
+            HELIUS_WEBHOOK_ENABLED
+            and HELIUS_WEBHOOK_SECRET
+            and HELIUS_API_KEY
+            and HELIUS_WEBHOOK_ID
+        ),
+        "affects_decisions": False,
+        "poll_seconds": HELIUS_WEBHOOK_SYNC_POLL_SECONDS,
+        "audit_seconds": HELIUS_WEBHOOK_SYNC_AUDIT_SECONDS,
+        "error_retry_seconds": HELIUS_WEBHOOK_SYNC_ERROR_RETRY_SECONDS,
+        "initialized": state["initialized"],
+        "tracked_tokens": len(_tracked_tokens_snapshot()),
+        "base_addresses": len(state["base_addresses"]),
+        "managed_tokens": len(state["managed_tokens"]),
+        "pending_tokens": len(state["pending_tokens"]),
+        "last_remote_addresses": len(remote),
+        "last_desired_addresses": len(desired),
+        "planned_additions": len(desired - remote),
+        "planned_removals": len(remote - desired),
+        "last_check_ts": state["last_check_ts"],
+        "last_success_ts": state["last_success_ts"],
+        "last_update_ts": state["last_update_ts"],
+        "last_error": state_error or state["last_error"],
+        "updates": state["updates"],
+    }
+
+
+def sync_helius_webhook_tokens_once(
+    now=None,
+    fetch_webhook_fn=None,
+    update_webhook_fn=None,
+):
+    """Reconcile tracked tokens without taking ownership of base addresses."""
+    now = float(now if now is not None else time.time())
+    fetch_webhook_fn = fetch_webhook_fn or fetch_helius_webhook
+    update_webhook_fn = (
+        update_webhook_fn or update_helius_webhook_addresses
+    )
+
+    if not HELIUS_WEBHOOK_SYNC_ENABLED:
+        return {"status": "disabled", **get_helius_webhook_sync_status()}
+    if not HELIUS_WEBHOOK_ENABLED:
+        return {"status": "webhook_disabled", **get_helius_webhook_sync_status()}
+    if not HELIUS_WEBHOOK_SECRET or not HELIUS_API_KEY or not HELIUS_WEBHOOK_ID:
+        return {"status": "not_configured", **get_helius_webhook_sync_status()}
+    if not HELIUS_WEBHOOK_SYNC_LOCK.acquire(blocking=False):
+        return {"status": "busy", **get_helius_webhook_sync_status()}
+
+    try:
+        tracked = [
+            token
+            for token in _tracked_tokens_snapshot()
+            if not token.startswith("DEMO")
+        ]
+        conn = db()
+        try:
+            state = get_helius_webhook_sync_state(conn)
+            cached_desired = normalize_addresses(
+                [*state["base_addresses"], *tracked]
+            )
+            check_age = (
+                now - float(state["last_check_ts"])
+                if state["last_check_ts"] is not None
+                else None
+            )
+            cached_is_current = (
+                state["initialized"]
+                and cached_desired == state["last_desired_addresses"]
+                and not state["last_error"]
+                and check_age is not None
+                and check_age < HELIUS_WEBHOOK_SYNC_AUDIT_SECONDS
+            )
+            if (
+                state["last_error"]
+                and check_age is not None
+                and check_age < HELIUS_WEBHOOK_SYNC_ERROR_RETRY_SECONDS
+            ):
+                return {
+                    "status": "error_backoff",
+                    **get_helius_webhook_sync_status(),
+                }
+            if cached_is_current and (
+                not HELIUS_WEBHOOK_SYNC_APPLY
+                or state["last_remote_addresses"] == cached_desired
+            ):
+                return {
+                    "status": "cached",
+                    **get_helius_webhook_sync_status(),
+                }
+        finally:
+            conn.close()
+
+        remote_webhook = fetch_webhook_fn(
+            HELIUS_API_KEY,
+            HELIUS_WEBHOOK_ID,
+            timeout=HELIUS_WEBHOOK_SYNC_TIMEOUT_SECONDS,
+        )
+        plan = plan_webhook_address_sync(
+            webhook_account_addresses(remote_webhook),
+            tracked,
+            managed_tokens=state["managed_tokens"],
+            pending_tokens=state["pending_tokens"],
+        )
+
+        conn = db()
+        try:
+            _write_helius_webhook_sync_state(
+                conn,
+                initialized=1,
+                base_addresses_json=_encoded_helius_sync_addresses(
+                    plan["base_addresses"]
+                ),
+                last_remote_addresses_json=_encoded_helius_sync_addresses(
+                    plan["remote_addresses"]
+                ),
+                last_desired_addresses_json=_encoded_helius_sync_addresses(
+                    plan["desired_addresses"]
+                ),
+                last_check_ts=now,
+                last_error=None,
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        changed = bool(plan["additions"] or plan["removals"])
+        if not HELIUS_WEBHOOK_SYNC_APPLY:
+            return {
+                "status": "dry_run_changed" if changed else "dry_run_current",
+                **get_helius_webhook_sync_status(),
+            }
+
+        previously_owned = set(state["managed_tokens"])
+        previously_owned.update(state["pending_tokens"])
+        next_managed = (
+            previously_owned.intersection(tracked)
+            | set(plan["additions"]).intersection(tracked)
+        )
+
+        if not changed:
+            conn = db()
+            try:
+                _write_helius_webhook_sync_state(
+                    conn,
+                    managed_tokens_json=_encoded_helius_sync_addresses(
+                        next_managed
+                    ),
+                    pending_tokens_json="[]",
+                    last_success_ts=now,
+                )
+                conn.commit()
+            finally:
+                conn.close()
+            return {"status": "current", **get_helius_webhook_sync_status()}
+
+        # Persistir propiedad antes del PUT cierra la ventana de reinicio: si
+        # Helius cambia y el proceso cae, esos tokens siguen siendo removibles.
+        conn = db()
+        try:
+            _write_helius_webhook_sync_state(
+                conn,
+                pending_tokens_json=_encoded_helius_sync_addresses(next_managed),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        update_helius_webhook_fn_result = update_webhook_fn(
+            HELIUS_API_KEY,
+            HELIUS_WEBHOOK_ID,
+            remote_webhook,
+            plan["desired_addresses"],
+            timeout=HELIUS_WEBHOOK_SYNC_TIMEOUT_SECONDS,
+        )
+        confirmed = webhook_account_addresses(update_helius_webhook_fn_result)
+        if confirmed != plan["desired_addresses"]:
+            raise RuntimeError("HELIUS_WEBHOOK_UPDATE_NOT_CONFIRMED")
+
+        conn = db()
+        try:
+            _write_helius_webhook_sync_state(
+                conn,
+                managed_tokens_json=_encoded_helius_sync_addresses(next_managed),
+                pending_tokens_json="[]",
+                last_remote_addresses_json=_encoded_helius_sync_addresses(
+                    plan["desired_addresses"]
+                ),
+                last_success_ts=now,
+                last_update_ts=now,
+                last_error=None,
+                updates=state["updates"] + 1,
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        return {"status": "updated", **get_helius_webhook_sync_status()}
+    except Exception as exc:
+        error_text = f"{exc.__class__.__name__}:{exc}"[:500]
+        conn = db()
+        try:
+            _write_helius_webhook_sync_state(
+                conn,
+                last_check_ts=now,
+                last_error=error_text,
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        return {"status": "error", **get_helius_webhook_sync_status()}
+    finally:
+        HELIUS_WEBHOOK_SYNC_LOCK.release()
+
+
+async def helius_webhook_sync_worker():
+    while True:
+        result = await asyncio.to_thread(sync_helius_webhook_tokens_once)
+        if result.get("status") == "error":
+            print("[HELIUS SYNC]", result.get("last_error"))
+        await asyncio.sleep(HELIUS_WEBHOOK_SYNC_POLL_SECONDS)
+
+
 def record_helius_webhook_transactions(payload, received_ts=None):
     """Registra lo que llegó por webhook. Observacional: no dispara nada.
 
@@ -13145,6 +13567,7 @@ def api_helius_webhook_stats(
         "enabled": bool(HELIUS_WEBHOOK_ENABLED),
         "observational": True,
         "affects_decisions": False,
+        "webhook_sync": get_helius_webhook_sync_status(),
         "transactions_received": int(totals[0] or 0),
         "pump_events_parsed": int(totals[1] or 0),
         "normalized_events_observed": int(inbox_total or 0),
@@ -15032,8 +15455,6 @@ def demo_concurrent_idempotency(
                     "error": repr(ex)
                 }
             )
-
-    import threading
 
     t1 = threading.Thread(target=worker)
     t2 = threading.Thread(target=worker)
