@@ -718,6 +718,211 @@ class HeliusWebhookTests(unittest.TestCase):
         self.assertEqual(report["parsed_only_in_webhook"], 1)
 
 
+class InboxRoundTripTests(unittest.TestCase):
+    """El índice tiene que sobrevivir el viaje completo, no solo el parser.
+
+    Webhook, inbox, deserialización, router. Lo que se guarda y se vuelve a
+    leer es el evento serializado: si el índice viajara al lado del evento, se
+    perdería justo en ese salto y dos operaciones de la misma transacción
+    volverían a compartir identidad, silenciosamente.
+    """
+
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.original_db = app.DB
+        app.DB = Path(self.temp_dir.name) / "inbox-round-trip.db"
+        app.migrate_database()
+
+        self.watched_original = app.WATCHED
+        app.WATCHED = {"trader-a": WALLET}
+        app.TRACKED_TOKENS.add(MINT)
+        self.addCleanup(self.restaurar)
+
+        conn = app.db()
+        conn.execute(
+            """
+            INSERT INTO paper_positions(
+                opened_ts, mint, trigger_traders, entry_mc, stake_usd,
+                status, pnl_usd, decision, score, origin_trader,
+                current_mc, remaining_pct, realized_pnl_usd,
+                unrealized_pnl_usd, last_action, tp_stage, mode
+            )
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            """,
+            (
+                1000.0, MINT, '["trader-a"]', 200.0, 5.0,
+                "open", 0, "COPY", 90, "trader-a",
+                200.0, 1.0, 0, 0, "HOLD", 0, "paper",
+            ),
+        )
+        conn.commit()
+        conn.close()
+
+    def restaurar(self):
+        app.WATCHED = self.watched_original
+        app.TRACKED_TOKENS.discard(MINT)
+        app.DB = self.original_db
+        self.temp_dir.cleanup()
+
+    def receipt_with_two_events(self):
+        # Dos operaciones Pump válidas en una sola transacción.
+        receipt = pump_receipt()
+        receipt["transaction"]["message"] = {
+            "accountKeys": [WALLET, MINT],
+            "header": {"numRequiredSignatures": 1},
+        }
+        receipt["meta"]["logMessages"].append(
+            receipt["meta"]["logMessages"][-1]
+        )
+        return receipt
+
+    def inbox_rows(self):
+        conn = app.db()
+        try:
+            return conn.execute(
+                "SELECT event_index, wallet, event_json "
+                "FROM market_event_inbox WHERE signature = ? "
+                "ORDER BY event_index",
+                (SIGNATURE,),
+            ).fetchall()
+        finally:
+            conn.close()
+
+    def test_event_index_survives_serialization(self):
+        app.record_helius_webhook_transactions([self.receipt_with_two_events()])
+
+        filas = self.inbox_rows()
+        self.assertEqual([fila[0] for fila in filas], [1, 2])
+
+        # La columna y el JSON no pueden discrepar: la columna se deriva del
+        # evento, que es lo mismo que se serializa.
+        for indice, _, event_json in filas:
+            evento = json.loads(event_json)
+            self.assertEqual(evento["eventIndex"], indice)
+
+    def test_deserialized_events_keep_distinct_identity_through_the_router(self):
+        app.record_helius_webhook_transactions([self.receipt_with_two_events()])
+
+        # Lo que hará el procesador cuando la cola se active.
+        for indice, wallet, event_json in self.inbox_rows():
+            evento = app.market_event_from_inbox_row(
+                event_json,
+                wallet=wallet,
+                signature=SIGNATURE,
+                event_index=indice,
+            )
+            # Una venta parcial del trader de origen, para que cada evento
+            # tenga un efecto visible y acumulable.
+            evento["txType"] = "sell"
+            evento["newTokenBalance"] = 10.0
+            app.route_market_event(evento)
+
+        conn = app.db()
+        try:
+            restante = conn.execute(
+                "SELECT remaining_pct FROM paper_positions WHERE mint = ?",
+                (MINT,),
+            ).fetchone()[0]
+            identidades = [
+                fila[0] for fila in conn.execute(
+                    "SELECT event_id FROM paper_position_applications "
+                    "ORDER BY event_id"
+                ).fetchall()
+            ]
+        finally:
+            conn.close()
+
+        # Con el índice perdido en la serialización, las dos operaciones
+        # compartirían identidad, la segunda se descartaría como duplicado y
+        # el restante quedaría en 0.75.
+        self.assertAlmostEqual(restante, 0.50)
+        self.assertEqual(
+            identidades,
+            [f"{SIGNATURE}:1", f"{SIGNATURE}:2"],
+        )
+
+    def test_reconstructed_event_recovers_the_signing_wallet(self):
+        # El evento normalizado no lleva la billetera adentro: el parser la
+        # conoce por contexto. Sin recuperarla de la fila, el router trataría
+        # la operación como de una billetera ajena.
+        app.record_helius_webhook_transactions([self.receipt_with_two_events()])
+        indice, wallet, event_json = self.inbox_rows()[0]
+
+        self.assertNotIn("traderPublicKey", json.loads(event_json))
+
+        evento = app.market_event_from_inbox_row(
+            event_json, wallet=wallet, signature=SIGNATURE, event_index=indice,
+        )
+        self.assertEqual(evento["traderPublicKey"], WALLET)
+        self.assertEqual(app.trader_for(evento["traderPublicKey"]), "trader-a")
+
+    def reconstruir(self, event_json, **cambios):
+        argumentos = {
+            "wallet": WALLET,
+            "signature": SIGNATURE,
+            "event_index": 1,
+        }
+        argumentos.update(cambios)
+        return app.market_event_from_inbox_row(event_json, **argumentos)
+
+    def test_event_json_without_index_is_rejected_on_rebuild(self):
+        """Una fila escrita antes de que el índice viajara adentro del evento.
+
+        Es el caso que importa: no un índice roto, sino uno *ausente*. La regla
+        del router en vivo —ausente vale 0, porque PumpPortal manda una
+        operación por mensaje— es exactamente la equivocada al reconstruir
+        desde disco, donde ausente significa que el índice se perdió.
+
+        Con `event_index=0` el chequeo de discrepancia no puede rescatarlo: la
+        columna diría 0 y la ausencia también daría 0, así que coincidirían.
+        Lo único que lo rechaza es exigir que el campo esté.
+        """
+        sin_indice = json.dumps({"signature": SIGNATURE, "txType": "sell"})
+
+        with self.assertRaises(ValueError):
+            self.reconstruir(sin_indice, event_index=0)
+
+    def test_event_json_with_invalid_index_is_rejected_on_rebuild(self):
+        roto = json.dumps({"signature": SIGNATURE, "eventIndex": "1"})
+
+        with self.assertRaises(ValueError):
+            self.reconstruir(roto)
+
+    def test_missing_wallet_is_rejected_on_rebuild(self):
+        # Sin billetera el evento se reconstruye igual, pero el router lo
+        # clasifica por la ruta equivocada. Falla silenciosa: nada se rompe,
+        # solo se aplica mal.
+        valido = json.dumps({"signature": SIGNATURE, "eventIndex": 1})
+
+        for vacia in (None, "", "   "):
+            with self.subTest(wallet=vacia):
+                with self.assertRaises(ValueError):
+                    self.reconstruir(valido, wallet=vacia)
+
+    def test_signature_mismatch_between_column_and_json_is_rejected(self):
+        otro = json.dumps({"signature": "otra-firma", "eventIndex": 1})
+
+        with self.assertRaises(ValueError):
+            self.reconstruir(otro)
+
+    def test_index_mismatch_between_column_and_json_is_rejected(self):
+        # Si discrepan, la fila la escribió código viejo o está corrompida.
+        # Aplicarla con una de las dos identidades es peor que rechazarla.
+        desfasado = json.dumps({"signature": SIGNATURE, "eventIndex": 2})
+
+        with self.assertRaises(ValueError):
+            self.reconstruir(desfasado, event_index=1)
+
+    def test_serialization_rejects_an_event_that_lost_its_index(self):
+        # La otra punta: si el parser dejara de escribir el índice, la pérdida
+        # se detecta al guardar, no recién al reconstruir.
+        with self.assertRaises(ValueError):
+            app.market_event_index({"signature": SIGNATURE}, required=True)
+
+        # Y en vivo, ausente sigue siendo 0: PumpPortal no manda índice.
+        self.assertEqual(app.market_event_index({"signature": SIGNATURE}), 0)
+
+
 class OutboundRequestTests(unittest.TestCase):
     def test_request_name_still_refers_to_urllib(self):
         # `from fastapi import Request` pisaría `urllib.request.Request` y

@@ -662,6 +662,27 @@ def db():
     except sqlite3.OperationalError:
      pass
 
+    # Qué eventos ya se aplicaron a qué posición.
+    #
+    # `update_paper_position()` descuenta de `remaining_pct` y acumula en
+    # `realized_pnl_usd`: aplicar dos veces el mismo evento convierte una venta
+    # parcial del 25% en una del 50% y suma la ganancia dos veces. Un reintento
+    # tras un fallo de red basta para provocarlo.
+    #
+    # La fila se escribe dentro de la misma transacción que modifica la
+    # posición, para que no pueda quedar una sin la otra.
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS paper_position_applications(
+            position_id INTEGER NOT NULL,
+            event_id TEXT NOT NULL,
+            applied_ts REAL NOT NULL,
+            action TEXT DEFAULT '',
+            PRIMARY KEY (position_id, event_id)
+        )
+        """
+    )
+
 
     conn.execute(
         """
@@ -4574,13 +4595,21 @@ def save_position_event(
     market_cap,
     remaining_pct=0.0,
     realized_pnl_usd=0.0,
-    details=""
+    details="",
+    connection=None,
 ):
+    """Registra un evento de posición.
+
+    Con ``connection`` escribe dentro de la transacción del llamador y no
+    confirma: así la auditoría y el efecto que la origina quedan atados. Si la
+    auditoría quedara fuera y fallara, el reintento vería la aplicación ya
+    registrada y el evento se perdería para siempre.
+    """
 
     if not mint:
         return
 
-    conn = db()
+    conn = connection or db()
 
     conn.execute(
         """
@@ -4609,8 +4638,9 @@ def save_position_event(
         )
     )
 
-    conn.commit()
-    conn.close()
+    if connection is None:
+        conn.commit()
+        conn.close()
 
 # =========================================================
 # IDENTIFICAR TRADER
@@ -8765,115 +8795,188 @@ def evaluate_live_position_exit(
     return results
 
 
-def update_paper_position(
-    mint,
-    trader,
+def paper_event_identity(signature, event_index=0):
+    """Identidad de un evento de mercado dentro de una transacción.
+
+    La firma sola no alcanza: una transacción puede contener varias
+    operaciones Pump válidas, cada una con su `event_index`. Usar solo la
+    firma haría que la segunda se descartara como duplicado, perdiéndola.
+
+    Un índice inválido se rechaza en vez de convertirse en 0: convertirlo
+    silenciosamente haría que dos operaciones distintas de la misma
+    transacción compartieran identidad, y la segunda se perdería como
+    duplicado. Justo el error que esta función existe para evitar. El índice
+    lo produce nuestro propio parser, así que un valor inválido es un bug, y
+    conviene que se vea.
+    """
+    signature = str(signature or "").strip()
+
+    if not signature:
+        return None
+
+    # `isinstance(True, int)` es verdadero en Python, y `f"{True}"` da "True".
+    if isinstance(event_index, bool) or not isinstance(event_index, int):
+        raise ValueError(
+            "event_index debe ser un entero; "
+            f"llegó {event_index!r} ({type(event_index).__name__})"
+        )
+
+    if event_index < 0:
+        raise ValueError(
+            f"event_index no puede ser negativo; llegó {event_index!r}"
+        )
+
+    return f"{signature}:{event_index}"
+
+
+def market_event_index(event, required=False):
+    """Índice de una operación dentro de su transacción, leído del evento.
+
+    La identidad viaja adentro del evento y no como parámetro aparte a
+    propósito: cuando la ingesta normalizada tenga cola y reintentos, el
+    evento se va a guardar y releer, y un índice que viajara al lado se
+    perdería en ese salto mientras la firma sobrevive. Firma e índice son dos
+    mitades de una misma identidad y tienen que moverse juntas.
+
+    Ausente significa cosas distintas según de dónde venga el evento, y por eso
+    existe ``required``:
+
+    - llegando en vivo por PumpPortal, ausente es legítimo y vale 0: ese
+      transporte entrega una operación por mensaje y no manda índice;
+    - saliendo de un evento normalizado nuestro —al serializarlo o al
+      reconstruirlo desde disco—, ausente significa que el índice se perdió en
+      el camino. Ahí `required=True`, porque devolver 0 le daría la misma
+      identidad a dos operaciones distintas y la segunda se descartaría como
+      duplicado, en silencio.
+
+    Presente pero inválido se rechaza siempre: ahí hay un parser equivocado.
+    """
+    if not isinstance(event, dict):
+        if required:
+            raise ValueError(
+                "el evento debe ser un objeto; "
+                f"llegó {type(event).__name__}"
+            )
+        return 0
+
+    raw = event.get("eventIndex")
+
+    if raw is None:
+        raw = event.get("event_index")
+
+    if raw is None:
+        if required:
+            raise ValueError(
+                "el evento normalizado no trae eventIndex: se perdió en el "
+                "camino. Convertirlo en 0 haría colisionar dos operaciones "
+                "de la misma transacción."
+            )
+        return 0
+
+    if isinstance(raw, bool) or not isinstance(raw, int):
+        raise ValueError(
+            f"eventIndex debe ser un entero; llegó {raw!r} "
+            f"({type(raw).__name__})"
+        )
+
+    if raw < 0:
+        raise ValueError(f"eventIndex no puede ser negativo; llegó {raw!r}")
+
+    return raw
+
+
+def market_event_from_inbox_row(event_json, wallet, signature, event_index):
+    """Reconstruye el evento normalizado guardado en `market_event_inbox`.
+
+    La fila guarda el evento serializado y, al lado, las columnas por las que
+    se consulta. Reconstruir es volver a juntar las dos partes, y verificar que
+    no se hayan separado: el JSON es la fuente de la identidad y las columnas
+    son una copia derivada, así que si discrepan hay una fila escrita por
+    código viejo o corrompida, y aplicarla sería peor que rechazarla.
+
+    Todo es obligatorio a propósito. La fila siempre tiene las cuatro cosas, y
+    cada una que falte produce un error silencioso distinto: sin índice, dos
+    operaciones comparten identidad; sin billetera, el router clasifica la
+    operación por la ruta equivocada porque el evento normalizado no lleva
+    adentro quién firmó —el parser lo sabe por contexto y no lo escribe.
+    """
+    event = json.loads(event_json)
+
+    if not isinstance(event, dict):
+        raise ValueError(
+            "event_json debe ser un objeto; "
+            f"llegó {type(event).__name__}"
+        )
+
+    wallet = str(wallet or "").strip()
+
+    if not wallet:
+        raise ValueError(
+            "la fila debe traer la billetera que firmó: el evento normalizado "
+            "no la lleva adentro y sin ella el router lo trata como de una "
+            "billetera ajena"
+        )
+
+    signature = str(signature or "").strip()
+
+    if not signature:
+        raise ValueError("la fila debe traer la firma de la transacción")
+
+    # Identidad del JSON, que es la que se va a usar al aplicarlo.
+    indice_del_json = market_event_index(event, required=True)
+    firma_del_json = str(event.get("signature") or "").strip()
+
+    if firma_del_json != signature:
+        raise ValueError(
+            "la firma de la fila y la del evento no coinciden: "
+            f"{signature!r} contra {firma_del_json!r}"
+        )
+
+    if indice_del_json != event_index:
+        raise ValueError(
+            "el índice de la fila y el del evento no coinciden: "
+            f"{event_index!r} contra {indice_del_json!r}"
+        )
+
+    event["traderPublicKey"] = event.get("traderPublicKey") or wallet
+
+    return event
+
+
+def decide_paper_position_action(
+    change_pct,
+    remaining,
+    tp_stage,
     side,
-    market_cap,
-    new_token_balance
+    trader,
+    origin_trader,
+    new_token_balance,
 ):
+    """Decide qué hacer con una posición paper. No toca la base de datos.
 
-    if not mint or market_cap <= 0:
-        return
-
-    conn = db()
-
-    position = conn.execute(
-        """
-        SELECT
-            id,
-            entry_mc,
-            stake_usd,
-            remaining_pct,
-            realized_pnl_usd,
-            origin_trader,
-            tp_stage
-
-        FROM paper_positions
-
-        WHERE mint = ?
-        AND status = 'open'
-
-        ORDER BY id DESC
-        LIMIT 1
-        """,
-        (mint,)
-    ).fetchone()
-
-    if not position:
-
-        conn.close()
-        return
-
-
-    position_id = position[0]
-    entry_mc = float(position[1] or 0)
-    stake_usd = float(position[2] or 0)
-    remaining = float(position[3] or 0)
-    realized = float(position[4] or 0)
-    origin_trader = position[5] or ""
-    tp_stage = int(position[6] or 0)
-
-
-    if entry_mc <= 0 or remaining <= 0:
-
-        conn.close()
-        return
-
-
-    change_pct = (
-        market_cap / entry_mc
-        -
-        1
-    )
-
-
-    unrealized = (
-        stake_usd
-        *
-        remaining
-        *
-        change_pct
-    )
-
-
+    Separado de la escritura para que el razonamiento sea verificable por sí
+    solo y para que la transacción quede acotada, igual que la pareja
+    `decide_live_position_exit` / `evaluate_live_position_exit`.
+    """
     action = "HOLD"
     exit_reason = ""
     sell_fraction = 0.0
 
-
-    # =========================================
-    # 1. STOP LOSS
-    # =========================================
-
     if change_pct <= -0.20:
-
         action = "STOP LOSS"
         sell_fraction = remaining
         exit_reason = "Caída del 20% desde la entrada"
-
-
-    # =========================================
-    # 2. TRADER ORIGINAL VENDE TODO
-    # =========================================
 
     elif (
         "sell" in side
         and trader == origin_trader
         and float(new_token_balance or 0) <= 0
     ):
-
         action = "EXIT"
         sell_fraction = remaining
-        exit_reason = (
-            f"@{origin_trader} cerró su posición"
-        )
+        exit_reason = f"@{origin_trader} cerró su posición"
 
-        # =========================================
-    # 3. TAKE PROFIT
-    # =========================================
     elif change_pct >= 0.25 and tp_stage < 3:
-
         if change_pct >= 1.00:
             target_stage = 3
         elif change_pct >= 0.50:
@@ -8883,17 +8986,9 @@ def update_paper_position(
 
         missing_stages = target_stage - tp_stage
 
-        # Cada nivel vende 25% de la posición original.
-        # Si el precio salta varios niveles,
-        # ejecutamos todos los tramos pendientes.
-        sell_fraction = 0.25 * missing_stages
-
-        # Nunca vender más de lo que queda abierto.
-        sell_fraction = min(
-            sell_fraction,
-            remaining
-        )
-
+        # Cada nivel vende 25% de la posición original. Si el precio salta
+        # varios niveles, se ejecutan todos los tramos pendientes.
+        sell_fraction = min(0.25 * missing_stages, remaining)
         tp_stage = target_stage
 
         if target_stage == 3:
@@ -8903,147 +8998,295 @@ def update_paper_position(
         else:
             action = "TAKE PROFIT +25%"
 
-
-    # =========================================
-    # 6. TRADER ORIGINAL VENDE PARCIALMENTE
-    # =========================================
-
-    elif (
-        "sell" in side
-        and trader == origin_trader
-    ):
-
+    elif "sell" in side and trader == origin_trader:
         action = "PARTIAL SELL"
+        sell_fraction = min(0.25, remaining)
 
-        sell_fraction = min(
-            0.25,
-            remaining
+    return {
+        "action": action,
+        "sell_fraction": sell_fraction,
+        "exit_reason": exit_reason,
+        "tp_stage": tp_stage,
+    }
+
+
+def apply_paper_event(
+    mint,
+    trader,
+    side,
+    market_cap,
+    new_token_balance,
+    event_id,
+):
+    """Aplica el evento en una sola transacción y describe qué pasó.
+
+    Deliberadamente no toca nada fuera de la base: la limpieza posterior al
+    cierre abre su propia conexión y se bloquearía contra el lock de escritura
+    que esta sostiene. Vive en `update_paper_position()`, después del commit.
+    """
+
+    conn = db()
+
+    # Toda la vida de la conexión va dentro del try: `BEGIN IMMEDIATE` toma el
+    # lock de escritura de entrada, así que una excepción en la consulta o en
+    # los cálculos dejaría la conexión abierta sosteniéndolo y bloquearía a los
+    # demás escritores.
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+
+        position = conn.execute(
+            """
+            SELECT
+                id,
+                entry_mc,
+                stake_usd,
+                remaining_pct,
+                realized_pnl_usd,
+                origin_trader,
+                tp_stage
+            FROM paper_positions
+            WHERE mint = ?
+            AND status = 'open'
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            (mint,),
+        ).fetchone()
+
+        if not position:
+            # Que no haya posición abierta no siempre significa que no haya
+            # nada que hacer: puede que este mismo evento la haya cerrado en un
+            # intento anterior y que la limpieza posterior al commit —que abre
+            # otra conexión— haya fallado. El reintento no encontraría la
+            # posición y daría la limpieza por hecha, dejando el token suscripto
+            # para siempre sin nada que lo justifique.
+            #
+            # La limpieza es idempotente, así que repetirla es gratis y no
+            # repetirla no se arregla después.
+            cerrada_por_este_evento = False
+
+            if event_id is not None:
+                cerrada_por_este_evento = bool(
+                    conn.execute(
+                        """
+                        SELECT 1
+                        FROM paper_position_applications AS aplicacion
+                        JOIN paper_positions AS posicion
+                            ON posicion.id = aplicacion.position_id
+                        WHERE posicion.mint = ?
+                        AND posicion.status = 'closed'
+                        AND aplicacion.event_id = ?
+                        LIMIT 1
+                        """,
+                        (mint, event_id),
+                    ).fetchone()
+                )
+
+            conn.rollback()
+            return {
+                "applied": False,
+                "needs_untrack": cerrada_por_este_evento,
+            }
+
+        position_id = position[0]
+
+        if event_id is not None:
+            ya_aplicado = conn.execute(
+                """
+                SELECT 1
+                FROM paper_position_applications
+                WHERE position_id = ?
+                AND event_id = ?
+                LIMIT 1
+                """,
+                (position_id, event_id),
+            ).fetchone()
+
+            if ya_aplicado:
+                conn.rollback()
+                # La posición sigue abierta, así que no hay limpieza pendiente.
+                return {"applied": False, "needs_untrack": False}
+
+        entry_mc = float(position[1] or 0)
+        stake_usd = float(position[2] or 0)
+        remaining = float(position[3] or 0)
+        realized = float(position[4] or 0)
+        origin_trader = position[5] or ""
+        tp_stage = int(position[6] or 0)
+
+        if entry_mc <= 0 or remaining <= 0:
+            conn.rollback()
+            return {"applied": False, "needs_untrack": False}
+
+        change_pct = market_cap / entry_mc - 1
+
+        decision = decide_paper_position_action(
+            change_pct=change_pct,
+            remaining=remaining,
+            tp_stage=tp_stage,
+            side=side,
+            trader=trader,
+            origin_trader=origin_trader,
+            new_token_balance=new_token_balance,
         )
 
+        action = decision["action"]
+        sell_fraction = decision["sell_fraction"]
+        exit_reason = decision["exit_reason"]
+        tp_stage = decision["tp_stage"]
 
-    # =========================================
-    # EJECUTAR VENTA PAPER
-    # =========================================
+        if sell_fraction > 0:
+            realized += stake_usd * sell_fraction * change_pct
+            remaining = max(0, remaining - sell_fraction)
 
-    if sell_fraction > 0:
+        unrealized = stake_usd * remaining * change_pct
+        total_pnl = realized + unrealized
 
-        realized_from_sell = (
-            stake_usd
-            *
-            sell_fraction
-            *
-            change_pct
+        status = "open"
+        closed_ts = 0
+        exit_mc = 0
+
+        if remaining <= 0.000001:
+            status = "closed"
+            remaining = 0
+            unrealized = 0
+            total_pnl = realized
+            closed_ts = time.time()
+            exit_mc = market_cap
+
+            if not exit_reason:
+                exit_reason = action
+
+        conn.execute(
+            """
+            UPDATE paper_positions
+            SET
+                current_mc = ?,
+                remaining_pct = ?,
+                realized_pnl_usd = ?,
+                unrealized_pnl_usd = ?,
+                pnl_usd = ?,
+                last_action = ?,
+                tp_stage = ?,
+                status = ?,
+                closed_ts = ?,
+                exit_mc = ?,
+                exit_reason = ?
+            WHERE id = ?
+            """,
+            (
+                market_cap,
+                remaining,
+                realized,
+                unrealized,
+                total_pnl,
+                action,
+                tp_stage,
+                status,
+                closed_ts,
+                exit_mc,
+                exit_reason,
+                position_id,
+            ),
         )
 
-        realized += realized_from_sell
+        # La auditoría va en la misma transacción que el efecto. Si quedara
+        # afuera y fallara, el reintento vería la marca de aplicación y el
+        # evento de auditoría se perdería para siempre.
+        if action != "HOLD":
+            save_position_event(
+                mint=mint,
+                event_type=action,
+                market_cap=market_cap,
+                remaining_pct=remaining * 100,
+                realized_pnl_usd=realized,
+                details=exit_reason,
+                connection=conn,
+            )
 
-        remaining -= sell_fraction
+        # La marca, también en la misma transacción: si el proceso muere entre
+        # el efecto y la marca, el reintento volvería a aplicar el efecto.
+        if event_id is not None:
+            conn.execute(
+                """
+                INSERT INTO paper_position_applications(
+                    position_id, event_id, applied_ts, action
+                )
+                VALUES(?,?,?,?)
+                """,
+                (position_id, event_id, time.time(), action),
+            )
 
-        remaining = max(
-            0,
-            remaining
-        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+    return {
+        "applied": True,
+        "needs_untrack": status == "closed",
+        "action": action,
+        "change_pct": change_pct,
+        "remaining": remaining,
+        "total_pnl": total_pnl,
+    }
 
 
-    # Recalcular PnL no realizado después de vender
+def update_paper_position(
+    mint,
+    trader,
+    side,
+    market_cap,
+    new_token_balance,
+    event_signature=None,
+    event_index=0,
+):
+    """Aplica un evento de mercado a la posición paper abierta de ``mint``.
 
-    unrealized = (
-        stake_usd
-        *
-        remaining
-        *
-        change_pct
+    Con ``event_signature`` la aplicación es idempotente: el mismo evento
+    sobre la misma posición se aplica una sola vez aunque el llamador
+    reintente. La identidad incluye el índice del evento dentro de la
+    transacción, porque una transacción puede traer varias operaciones.
+
+    Sin firma se conserva el comportamiento anterior, para las rutas de demo
+    que no tienen una identidad que ofrecer.
+    """
+
+    if not mint or market_cap <= 0:
+        return
+
+    event_id = paper_event_identity(event_signature, event_index)
+
+    resultado = apply_paper_event(
+        mint=mint,
+        trader=trader,
+        side=side,
+        market_cap=market_cap,
+        new_token_balance=new_token_balance,
+        event_id=event_id,
     )
 
-
-    total_pnl = (
-        realized
-        +
-        unrealized
-    )
-
-
-    status = "open"
-    closed_ts = 0
-    exit_mc = 0
-
-
-    if remaining <= 0.000001:
-
-        status = "closed"
-        remaining = 0
-        unrealized = 0
-        total_pnl = realized
-        closed_ts = time.time()
-        exit_mc = market_cap
-
-        if not exit_reason:
-            exit_reason = action
-
-    conn.execute(
-        """
-        UPDATE paper_positions
-
-        SET
-            current_mc = ?,
-            remaining_pct = ?,
-            realized_pnl_usd = ?,
-            unrealized_pnl_usd = ?,
-            pnl_usd = ?,
-            last_action = ?,
-            tp_stage = ?,
-            status = ?,
-            closed_ts = ?,
-            exit_mc = ?,
-            exit_reason = ?
-
-        WHERE id = ?
-        """,
-        (
-            market_cap,
-            remaining,
-            realized,
-            unrealized,
-            total_pnl,
-            action,
-            tp_stage,
-            status,
-            closed_ts,
-            exit_mc,
-            exit_reason,
-            position_id
-        )
-    )
-
-    conn.commit()
-    conn.close()
-
-    if status == "closed":
+    # Fuera de la transacción: abre su propia conexión y se bloquearía contra el
+    # lock de escritura que sostenía la anterior. Va antes del corte por
+    # `applied` porque un reintento sobre una posición ya cerrada no aplica
+    # nada, pero sí puede tener limpieza pendiente de un intento que falló acá.
+    if resultado["needs_untrack"]:
         untrack_token_if_unused(mint)
 
-    if action != "HOLD":
-
-        save_position_event(
-        mint=mint,
-        event_type=action,
-        market_cap=market_cap,
-        remaining_pct=remaining * 100,
-        realized_pnl_usd=realized,
-        details=exit_reason
-        )
-
+    if not resultado["applied"]:
+        return
 
     print(
-        f"[POSITION] {action} | "
+        f"[POSITION] {resultado['action']} | "
         f"{mint} | "
-        f"{change_pct * 100:+.1f}% | "
-        f"restante {remaining * 100:.0f}% | "
-        f"PnL ${total_pnl:+.2f}"
+        f"{resultado['change_pct'] * 100:+.1f}% | "
+        f"restante {resultado['remaining'] * 100:.0f}% | "
+        f"PnL ${resultado['total_pnl']:+.2f}"
     )
 
-# =========================================================
-# GUARDAR TRADE
-# =========================================================
+
 
 def save_trade(
     trader,
@@ -9083,6 +9326,10 @@ def save_trade(
         event.get("signature")
         or ""
     )
+
+    # La otra mitad de la identidad del evento. Se lee acá, al lado de la firma,
+    # para que no puedan separarse.
+    event_index = market_event_index(event)
 
 
     token_amount = float(
@@ -9246,7 +9493,9 @@ def save_trade(
         trader=trader,
         side=side,
         market_cap=market_cap,
-        new_token_balance=new_token_balance
+        new_token_balance=new_token_balance,
+        event_signature=signature,
+        event_index=event_index,
     )
     evaluate_live_position_exit(
         mint=mint,
@@ -9758,7 +10007,10 @@ def record_rpc_fallback_event(trader, wallet, receipt, parsed):
         """,
         (
             signature,
-            int(parsed["event_index"]),
+            # Del evento, que es lo que se serializa abajo en `event_json`: así
+            # la columna y el JSON no pueden discrepar. `required` porque acá el
+            # evento es nuestro: si no trae índice, se perdió en el camino.
+            market_event_index(event, required=True),
             receipt.get("slot"),
             receipt.get("blockTime"),
             time.time(),
@@ -10217,8 +10469,12 @@ async def mark_stream_recovered():
 def route_market_event(event):
     """Apply an already deduplicated event using the existing live semantics.
 
-    Transport authentication, event identity and retry handling belong to the
+    Transport authentication, deduplication and retry handling belong to the
     caller. Helius remains observational until those contracts are implemented.
+
+    Event identity travels inside the event: the caller sets ``eventIndex``
+    when a transaction carries more than one operation, and this function
+    forwards it alongside the signature.
     """
     wallet = (
         event.get("traderPublicKey")
@@ -10251,6 +10507,8 @@ def route_market_event(event):
         event.get("marketCapSol") or event.get("market_cap_sol") or 0
     )
     signature = event.get("signature") or ""
+    # La otra mitad de la identidad del evento, al lado de la firma.
+    event_index = market_event_index(event)
     raw_balance = event.get("newTokenBalance")
     save_token_history(
         mint=mint, market_cap=market_cap, trader=trader, side=side,
@@ -10259,6 +10517,8 @@ def route_market_event(event):
     update_paper_position(
         mint=mint, trader=trader, side=side, market_cap=market_cap,
         new_token_balance=float(raw_balance or 0),
+        event_signature=signature,
+        event_index=event_index,
     )
     evaluate_live_position_exit(
         mint=mint, trader=trader, side=side, market_cap=market_cap,
@@ -11826,7 +12086,12 @@ def record_helius_webhook_transactions(payload, received_ts=None):
                     """,
                     (
                         signature,
-                        int(parsed_event["event_index"]),
+                        # Del evento, que es lo que se serializa más abajo en
+                        # `event_json`: la columna y el JSON no pueden
+                        # discrepar, y al reconstruir el evento el índice sigue
+                        # estando. `required` porque acá el evento es nuestro:
+                        # si no trae índice, se perdió en el camino.
+                        market_event_index(normalized_event, required=True),
                         "helius",
                         matched_wallet,
                         matched_trader,

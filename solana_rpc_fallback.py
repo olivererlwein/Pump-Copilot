@@ -380,6 +380,14 @@ def parse_watched_wallet_pump_events(receipt, wallet, signature):
         except (ValueError, struct.error):
             continue
         if result is not None:
-            result["event_index"] = log_index
+            # El índice va adentro del evento normalizado, no al lado.
+            #
+            # Lo que se guarda y se vuelve a leer es el evento serializado: si
+            # el índice viajara como hermano, se perdería en ese salto y dos
+            # operaciones de la misma transacción volverían a compartir
+            # identidad, que es justo lo que el índice existe para evitar. La
+            # firma ya viaja adentro; son dos mitades de lo mismo y no tienen
+            # que poder separarse.
+            result["event"]["eventIndex"] = log_index
             parsed.append(result)
     return parsed

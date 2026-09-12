@@ -1285,3 +1285,287 @@ Verificado contra historia real:
 A cambio hay más falsos positivos, que para esto es el error barato: frenar de
 más cuesta un `ALLOW_RISK_PUSH=1` tras mirar el diff; frenar de menos cuesta un
 despliegue no revisado al camino del dinero.
+
+---
+
+# `update_paper_position()` idempotente — 2026-09-11
+
+Bloque aislado pedido por Codex. **Sin commit ni push**: diff listo para
+revisión.
+
+## El problema
+
+`update_paper_position()` descuenta de `remaining_pct` y acumula en
+`realized_pnl_usd`. Aplicar dos veces el mismo evento convierte una venta
+parcial del 25% en una del 50% y suma la ganancia dos veces. Un reintento tras
+un fallo de red bastaba para provocarlo.
+
+## Qué se hizo
+
+**Identidad por evento y posición.** Tabla nueva
+`paper_position_applications(position_id, event_id, applied_ts, action)` con
+clave primaria compuesta. Es por posición **y** evento a propósito: un mismo
+evento puede tocar legítimamente posiciones distintas.
+
+**La marca se escribe en la misma transacción que la actualización.** La
+función abre `BEGIN IMMEDIATE`, verifica la marca, aplica el efecto, inserta la
+marca y confirma. Si el proceso muere en el medio, no queda la posición
+modificada sin su marca — que es el orden peligroso, porque una posición
+modificada sin marca se volvería a modificar en el reintento.
+
+**Parámetro `event_id` opcional.** Los dos llamadores de producción
+(`save_trade` y `route_market_event`) pasan la firma de la transacción. Sin él
+el comportamiento queda igual que antes, para las rutas de demo que no tienen
+identidad que ofrecer.
+
+## Un problema que introdujo el propio arreglo
+
+Al agregar `BEGIN IMMEDIATE`, una excepción entre el inicio de la transacción y
+el commit dejaba la conexión abierta **sosteniendo el lock de escritura**.
+Antes de este cambio una excepción solo filtraba una conexión; ahora podía
+bloquear a los demás escritores hasta que el recolector la liberara.
+
+Lo detectó el propio test de fallo, que no podía limpiar su base temporal.
+Corregido con `try/except/finally`: rollback y cierre en toda salida.
+
+## Tests
+
+`tests/test_paper_idempotency.py`, 5 casos:
+
+- evento repetido se aplica una sola vez;
+- eventos distintos sí se aplican cada uno (la guarda no bloquea de más);
+- sin `event_id` el comportamiento es el anterior;
+- el mismo evento sobre otra posición sí se aplica;
+- **fallo al confirmar**: no queda ni el efecto ni la marca, y el reintento
+  posterior aplica una sola vez.
+
+El último necesitó un proxy de conexión: `sqlite3.Connection.commit` es de solo
+lectura y no se puede parchear.
+
+Suite completa: **176 tests, OK**. `graphify update .` ejecutado.
+
+## Correcciones tras la revisión de Codex
+
+Codex encontró tres bloqueadores. Los tres eran correctos.
+
+**1. La firma sola como identidad (alta).** `event_id=signature` confundía
+varias operaciones dentro de una misma transacción: la segunda se descartaba
+como duplicado y se perdía. No era una limitación, era pérdida de datos.
+
+Corregido: el parámetro pasó a ser `event_signature` + `event_index`, y la
+identidad se construye con `paper_event_identity()` como `firma:indice`. Se
+hizo explícito a propósito — un parámetro opaco permitía volver a pasar la
+firma sola sin que se notara. El esquema de eventos normalizados de Codex ya
+usa `PRIMARY KEY(signature, event_index)`, así que la convención es la misma.
+
+**2. La auditoría fuera de la transacción (alta).** `save_position_event()`
+corría después del commit. Si fallaba, el reintento veía la marca de
+aplicación y el evento de auditoría se perdía para siempre.
+
+Corregido: `save_position_event()` acepta `connection` y escribe dentro de la
+transacción del llamador sin confirmar. El efecto y su auditoría ahora caen o
+sobreviven juntos.
+
+**3. El lock fuera del try/finally (media).** `BEGIN IMMEDIATE` tomaba el lock
+de escritura antes de que empezara la protección, así que una excepción en la
+consulta o en los cálculos dejaba la conexión abierta sosteniéndolo.
+
+Corregido reestructurando: se extrajo `decide_paper_position_action()` como
+función pura —mismo patrón que la pareja ya existente
+`decide_live_position_exit` / `evaluate_live_position_exit`— y
+`update_paper_position()` quedó como un envoltorio transaccional compacto, con
+toda la vida de la conexión dentro del try/finally.
+
+### Tests agregados
+
+- misma firma con índices distintos: ambas operaciones se aplican, y las
+  marcas quedan como `firma-1:0` y `firma-1:1`;
+- fallo al guardar la auditoría: no queda ni el efecto, ni la marca, ni el
+  evento; el reintento posterior aplica y audita una sola vez;
+- excepción después de `BEGIN IMMEDIATE` y antes del `UPDATE`: la base no
+  queda bloqueada, verificado abriendo otra transacción de escritura después.
+
+Suite completa: **179 tests, OK**. `graphify update .` ejecutado.
+
+## Segunda revisión de Codex: dos problemas más
+
+Codex aprobó la auditoría atómica y la protección del lock, y encontró dos
+cosas más. Las dos eran correctas.
+
+**1. El índice no llegaba por las rutas reales (alta).** `update_paper_position()`
+aceptaba `event_index`, pero `save_trade()` y `route_market_event()` mandaban
+siempre 0. La prueba multi-evento llamaba a la función directo, así que no veía
+la pérdida. El parámetro existía y no servía para nada.
+
+Corregido: el índice se lee del evento, al lado de la firma, con
+`market_event_index()`, y se propaga por las dos rutas.
+
+*Una desviación de lo pedido, deliberada.* Codex dijo que las funciones debían
+"recibir y propagar" el índice; lo puse adentro del evento en vez de como
+parámetro aparte. El motivo: cuando la ingesta normalizada tenga cola y
+reintentos, el evento se va a guardar y releer, y un índice que viajara al lado
+se perdería en ese salto mientras la firma sobrevive — que es exactamente la
+clase de pérdida que este bloque existe para cerrar. Firma e índice son dos
+mitades de una misma identidad y conviene que no se puedan separar. El contrato
+para la ingesta de Helius queda: poner `eventIndex` en el evento parseado.
+
+Ausente significa 0, porque PumpPortal entrega una operación por mensaje.
+Presente pero inválido se rechaza.
+
+**2. El cierre podía quedar confirmado y reportarse como fallido (media).**
+`untrack_token_if_unused()` corre después del commit y abre otra conexión. Si
+falla, la posición ya quedó cerrada y marcada.
+
+El caso era peor de lo que parecía desde afuera: el `SELECT` filtra por
+`status = 'open'`, así que el reintento ni siquiera llegaba a la guarda de
+idempotencia — salía antes por `if not position`. La limpieza no se repetía
+nunca y el token quedaba suscripto para siempre sin nada que lo justificara.
+
+Corregido: cuando no hay posición abierta, se pregunta si este mismo evento
+cerró una posición de este mint. Si la cerró, la limpieza se repite. Es
+idempotente, así que repetirla es gratis y no repetirla no se arregla después.
+Para eso se separó `apply_paper_event()` —el núcleo transaccional, que devuelve
+qué pasó— de `update_paper_position()`, que hace el trabajo posterior al commit.
+
+**3. Índices inválidos convertidos en 0 (media).** `int(event_index or 0)` con
+un `except` que caía en 0 podía darle la misma identidad a dos operaciones
+distintas de la misma transacción, y la segunda se perdía como duplicado:
+justo el error que la identidad existe para evitar, pero ahora invisible.
+
+Corregido: `paper_event_identity()` levanta `ValueError`. El índice lo produce
+nuestro propio parser, así que un valor inválido es un bug y conviene que se
+vea.
+
+### Tests agregados (7)
+
+Por el router, que es por donde entran los eventos en producción:
+
+- ruta de billetera vigilada (vía `save_trade()`): dos ventas parciales con la
+  misma firma e índices 0 y 1 se aplican las dos;
+- ruta de token seguido con billetera ajena: dos tramos de take profit, ídem;
+- evento repetido por el router: se aplica una sola vez;
+- evento sin índice: conserva la semántica de PumpPortal;
+- índice roto en el evento: se rechaza;
+- índice inválido en `paper_event_identity()`: `"1"`, `None`, `1.0`, `True`,
+  `-1`, `[1]` — todos rechazados;
+- limpieza que falla después del commit: el reintento la repite.
+
+**Verificados contra el bug, no solo en verde.** Con el índice fijo en 0, 4 de
+las 5 pruebas del router fallan (`0.75 != 0.5` en las dos rutas: la venta
+perdida). Con la limpieza movida detrás del corte por `applied`, la prueba de
+reintento falla. La quinta prueba del router pasa en ambos casos a propósito:
+es la que fija la semántica de PumpPortal.
+
+Suite completa: **186 tests, OK**. `graphify update .` ejecutado.
+
+## Tercera revisión de Codex: el índice se perdía al serializar
+
+Codex aprobó la parte transaccional paper y encontró un bloqueante real: el
+diseño "identidad adentro del evento" era correcto pero estaba a medio aplicar.
+
+**El bloqueante.** El parser guardaba el índice *al lado* del evento
+(`result["event_index"]`), y lo que se serializa a `event_json` es solamente
+`result["event"]`. La columna `event_index` del inbox quedaba bien, pero al
+reconstruir el evento desde el JSON el índice no estaba: `market_event_index()`
+devolvía 0 y las dos operaciones de una transacción volvían a colisionar.
+
+Eran **dos** sitios de serialización, no uno: el inbox y
+`record_rpc_fallback_event()`. Los dos con el mismo agujero.
+
+Corregido en el parser, que es donde nace el dato: el índice se escribe adentro
+del evento normalizado y el hermano se eliminó. Con una sola fuente, los dos
+sitios de serialización lo conservan solos y la columna se deriva del mismo
+evento que se serializa, así que columna y JSON no pueden discrepar.
+
+**Un hallazgo al escribir la prueba.** El evento normalizado no lleva adentro la
+billetera que firmó —el parser la conoce por contexto y no la escribe—, así que
+un evento reconstruido del JSON parece de una billetera ajena y el router lo
+manda por la ruta equivocada. Por eso se agregó
+`market_event_from_inbox_row()`, que vuelve a juntar el JSON con las columnas de
+la fila. Es el contrato que va a necesitar el procesador cuando la cola se
+active; hoy solo lo usan las pruebas.
+
+### Tests agregados (4), en `InboxRoundTripTests`
+
+Webhook → inbox → deserialización → router, con dos operaciones Pump en una
+sola transacción:
+
+- el índice sobrevive la serialización, y columna y JSON coinciden;
+- los dos eventos reconstruidos mantienen identidad distinta atravesando el
+  router: el restante queda en 0.50, no en 0.75;
+- el evento reconstruido recupera la billetera que firmó;
+- un `event_json` con índice roto se rechaza al reconstruir, en vez de volverse
+  0 en silencio.
+
+**Verificados contra el bug exacto.** Reproduciendo el estado que reportó Codex
+—parser escribiendo el hermano, columna leyendo el hermano— el inbox guarda 1 y
+2 correctamente y aun así la prueba del router falla con `0.75 != 0.5`: la
+segunda venta perdida. Es justo el caso que no se ve mirando la base.
+
+## Cuarta revisión: el helper no rechazaba lo que decía rechazar
+
+Codex encontró que `market_event_from_inbox_row()` no fallaba con un índice
+*ausente*, y que la prueba usaba un índice roto (`"1"`), que es otro caso.
+
+Tenía razón, y el error fue de diseño mío: reutilicé `market_event_index()` en
+dos contextos con reglas incompatibles. "Ausente vale 0" es correcto para el
+router en vivo —PumpPortal entrega una operación por mensaje y no manda
+índice— y es exactamente la regla equivocada al reconstruir desde disco, donde
+ausente significa que el índice se perdió. La misma función no podía servir a
+los dos sin decir cuál de los dos contratos se le está pidiendo.
+
+Corregido con `market_event_index(event, required=False)`. `required=True` en
+los dos sitios de serialización y en la reconstrucción, que son los lugares
+donde el evento es nuestro; `False` solo en la ruta en vivo. Así la pérdida se
+detecta también **al guardar**, no recién al reconstruir.
+
+El helper además ahora exige todo, porque cada cosa que falte produce un error
+silencioso distinto:
+
+- **billetera obligatoria y no vacía**: el evento normalizado no lleva adentro
+  quién firmó, así que sin ella el router lo clasifica por la ruta equivocada.
+  No se rompe nada: se aplica mal, que es peor;
+- **firma e índice de la fila**, comparados contra los del JSON. El JSON es la
+  fuente de la identidad y las columnas son una copia derivada; si discrepan,
+  la fila la escribió código viejo o está corrompida, y aplicarla con una de
+  las dos identidades es peor que rechazarla.
+
+### Tests agregados (5), total 9 en `InboxRoundTripTests`
+
+Índice ausente, índice inválido, billetera ausente (`None`, `""`, `"   "`),
+firma discrepante, índice discrepante, y la ruta en vivo que debe seguir
+aceptando ausente como 0.
+
+**Un detalle de la prueba de índice ausente.** Con `event_index=1` la
+rechazaría el chequeo de discrepancia (0 contra 1) y no probaría nada sobre
+`required`. Usa `event_index=0`: ahí columna y ausencia coinciden, y lo único
+que la rechaza es exigir que el campo esté.
+
+**Verificadas contra el bug.** Quitando `required=True` del helper, la prueba de
+índice ausente falla con `ValueError not raised` — literalmente el hallazgo de
+Codex. Quitando el chequeo de billetera, fallan los tres subcasos.
+
+Suite completa: **195 tests, OK**. `graphify update .` ejecutado.
+
+## Límites
+
+- **Punto 2 de Codex, confirmado y abierto.** `evaluate_live_position_exit()`
+  recibe solo la firma, y su clave de idempotencia no distingue operaciones
+  parciales de la misma transacción. Codex pidió corregirlo como cambio
+  aislado; está en el camino del dinero y lo frena el hook de pre-push. No se
+  tocó acá a propósito: mezclarlo con esto haría el diff imposible de revisar.
+  Debe cerrarse antes de que Helius deje de ser observacional.
+- **Punto 3 de Codex, confirmado y abierto.** `apply_paper_event()` toma la
+  última posición abierta sin comparar la fecha del evento contra `opened_ts`.
+  Con webhooks atrasados, una operación vieja puede modificar una posición
+  abierta después. El test `test_same_event_on_another_position_still_applies`
+  documenta el comportamiento actual, no el deseado: hoy la identidad es por
+  evento Y posición, que es correcto para dos posiciones simultáneas pero no
+  alcanza para ordenar en el tiempo. El dato para la guarda ya existe:
+  `market_event_inbox.block_event_ts`, que viene del evento on-chain y no de
+  cuándo llegó. Debe cerrarse antes de activar la cola.
+- `save_token_history()` puede seguir escribiendo filas repetidas en un
+  reintento. No se abordó en este bloque.
+- La limpieza se repite solo cuando el mismo evento vuelve. Si el evento nunca
+  se reintenta, el token queda suscripto igual. Cerrarlo del todo pide una
+  reconciliación periódica, no un rescate en el camino del evento.
