@@ -370,7 +370,7 @@ def parse_watched_wallet_pump_events(receipt, wallet, signature):
         )
     }
     parsed = []
-    for log_index, payload in _event_payloads(receipt):
+    for _, payload in _event_payloads(receipt):
         try:
             result = None
             if PUMP_PROGRAM_ID in invoked_programs:
@@ -392,6 +392,14 @@ def parse_watched_wallet_pump_events(receipt, wallet, signature):
             # identidad, que es justo lo que el índice existe para evitar. La
             # firma ya viaja adentro; son dos mitades de lo mismo y no tienen
             # que poder separarse.
-            result["event"]["eventIndex"] = log_index
+            #
+            # Y cuenta operaciones Pump, no líneas de log. La posición dentro de
+            # `logMessages` es un detalle de cómo encontramos el evento acá, y
+            # depende del proveedor: para una transacción de una sola operación
+            # daría 1 por este camino y 0 por PumpPortal, que no manda índice.
+            # La misma operación tendría dos identidades según quién la trajo, y
+            # se guardaría dos veces. El ordinal entre operaciones parseadas es
+            # independiente del proveedor, que es lo que la identidad necesita.
+            result["event"]["eventIndex"] = len(parsed)
             parsed.append(result)
     return parsed

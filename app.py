@@ -709,11 +709,42 @@ def db():
 
             signature TEXT DEFAULT '',
 
-            source TEXT DEFAULT 'live'
+            source TEXT DEFAULT 'live',
+
+            -- Identidad del evento que originó la fila, `firma:índice`.
+            --
+            -- Deliberadamente no incluye `source`: la misma operación traída
+            -- por PumpPortal y por Helius es una sola y tiene que guardarse una
+            -- sola vez. NULL para las rutas de demo, que no tienen identidad
+            -- que ofrecer, y para las filas anteriores a esta columna.
+            event_id TEXT
 
         )
         """
     )
+
+    # Único solo donde hay identidad. El índice parcial deja fuera las filas
+    # sin `event_id`, que pueden repetirse legítimamente, y además reemplaza el
+    # barrido por `signature` que hacía la deduplicación anterior: esa columna
+    # no tiene índice, así que cada guardado recorría la tabla entera.
+    #
+    # En una base que todavía no tiene la columna —`migrate_database()` llama a
+    # `db()` antes de agregarla— esto no puede correr. Se saltea en silencio y
+    # lo crea la migración; de ahí en adelante es un no-op.
+    #
+    # La columna NO se agrega acá: `db()` abre conexión constantemente y un
+    # `ALTER TABLE` que falla en cada una cuesta una excepción por conexión y
+    # más contención. Va una sola vez, en `migrate_database()`.
+    try:
+        conn.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_token_history_event_id
+            ON token_history(event_id)
+            WHERE event_id IS NOT NULL
+            """
+        )
+    except sqlite3.OperationalError:
+        pass
 
     conn.execute("""
 CREATE TABLE IF NOT EXISTS signal_outcomes(
@@ -4231,6 +4262,131 @@ def migrate_shadow_predictions_for_multiple_models(conn):
     return True
 
 
+def migrate_token_history_identity(conn):
+    """Le da identidad a las filas de historial anteriores a `event_id`.
+
+    Sin esto, reproducir un evento viejo desde la cola escribiría de nuevo una
+    fila que ya existe: las filas anteriores quedaron en NULL y el índice único
+    es parcial, así que no las cubre.
+
+    Migra **una sola fila por firma** a `firma:0`. Si hubiera firmas repetidas
+    de antes de que existiera cualquier deduplicación, migrar todas violaría el
+    índice único; migrando la primera, la identidad queda ocupada y un replay
+    encuentra su duplicado igual. `UPDATE OR IGNORE` cubre el caso restante:
+    una fila vieja cuya identidad ya se la llevó una fila nueva.
+
+    Devuelve cuántas filas recibieron identidad.
+    """
+    columnas = [
+        row[1]
+        for row in conn.execute(
+            "PRAGMA table_info(token_history)"
+        ).fetchall()
+    ]
+
+    if "event_id" not in columnas:
+        conn.execute("ALTER TABLE token_history ADD COLUMN event_id TEXT")
+
+    # Barato de saltear cuando no hay nada que migrar, que es el caso normal:
+    # el backfill recorre la tabla y esto corre en cada arranque.
+    pendiente = conn.execute(
+        """
+        SELECT 1
+        FROM token_history
+        WHERE event_id IS NULL
+        AND COALESCE(signature, '') != ''
+        LIMIT 1
+        """
+    ).fetchone()
+
+    migradas = 0
+
+    if pendiente:
+        cursor = conn.execute(
+            """
+            UPDATE OR IGNORE token_history
+            SET event_id = signature || ':0'
+            WHERE event_id IS NULL
+            AND COALESCE(signature, '') != ''
+            AND id IN (
+                SELECT MIN(id)
+                FROM token_history
+                WHERE COALESCE(signature, '') != ''
+                AND event_id IS NULL
+                GROUP BY signature
+            )
+            """
+        )
+        migradas = cursor.rowcount
+
+    conn.execute(
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_token_history_event_id
+        ON token_history(event_id)
+        WHERE event_id IS NOT NULL
+        """
+    )
+
+    return migradas
+
+
+def migrate_inbox_event_index_to_ordinal(conn):
+    """Renumera el inbox de índice de log a ordinal de operación.
+
+    Las filas guardadas antes de este cambio llevan la posición dentro de
+    `logMessages`, que depende del proveedor: para una transacción de una sola
+    operación da 1 por Helius y 0 por PumpPortal. Dejarlas así significaría que
+    la misma operación tiene dos identidades según quién la trajo, y procesar
+    el inbox histórico duplicaría lo que ya se guardó por el stream.
+
+    Se renumera 0,1,2… por firma, respetando el orden que ya tenían. Como el
+    ordinal nuevo nunca es mayor que el índice viejo, actualizar en orden
+    ascendente no puede chocar con la clave primaria `(signature, event_index)`.
+
+    Devuelve cuántas filas se renumeraron.
+    """
+    filas = conn.execute(
+        """
+        SELECT signature, event_index, event_json
+        FROM market_event_inbox
+        ORDER BY signature, event_index
+        """
+    ).fetchall()
+
+    renumeradas = 0
+    ordinal_por_firma = {}
+
+    for firma, indice_viejo, event_json in filas:
+        ordinal = ordinal_por_firma.get(firma, 0)
+        ordinal_por_firma[firma] = ordinal + 1
+
+        if ordinal == indice_viejo:
+            continue
+
+        try:
+            evento = json.loads(event_json)
+        except (TypeError, ValueError):
+            evento = None
+
+        if isinstance(evento, dict):
+            evento["eventIndex"] = ordinal
+            event_json = json.dumps(
+                evento, sort_keys=True, separators=(",", ":")
+            )
+
+        conn.execute(
+            """
+            UPDATE market_event_inbox
+            SET event_index = ?, event_json = ?
+            WHERE signature = ? AND event_index = ?
+            """,
+            (ordinal, event_json, firma, indice_viejo),
+        )
+        renumeradas += 1
+
+    return renumeradas
+
+
 def migrate_database():
 
     conn = db()
@@ -4240,6 +4396,8 @@ def migrate_database():
     )
 
     migrate_shadow_predictions_for_multiple_models(conn)
+    migrate_token_history_identity(conn)
+    migrate_inbox_event_index_to_ordinal(conn)
 
     existing = [
         row[1]
@@ -4532,8 +4690,20 @@ def save_token_history(
     trader="",
     side="",
     signature="",
-    source="live"
+    source="live",
+    event_index=0
 ):
+    """Guarda un punto de historial de market cap.
+
+    Con firma, la escritura es idempotente por evento: el mismo reintento no
+    agrega una fila más. La identidad es `firma:índice`, así que dos
+    operaciones Pump de una misma transacción son dos filas —antes la segunda
+    se perdía, porque la deduplicación miraba solo la firma— y la misma
+    operación traída por PumpPortal y por Helius es una sola.
+
+    Sin firma se conserva el comportamiento anterior, para las rutas de demo
+    que no tienen identidad que ofrecer.
+    """
 
     if not mint:
         return
@@ -4545,58 +4715,52 @@ def save_token_history(
     if market_cap <= 0:
         return
 
+    event_id = market_event_identity(signature, event_index)
+
     conn = db()
 
-    # Evitar guardar exactamente la misma
-    # transacción dos veces.
-    if signature:
+    # `OR IGNORE` contra el índice único parcial, en vez de consultar y después
+    # insertar: entre esas dos operaciones cabe otro escritor, y acá llegan
+    # reintentos y dos proveedores que pueden traer la misma operación a la vez.
+    # La deduplicación queda dentro de la misma sentencia que escribe.
+    try:
+        conn.execute("BEGIN IMMEDIATE")
 
-        exists = conn.execute(
+        conn.execute(
             """
-            SELECT id
-            FROM token_history
-            WHERE signature = ?
-            LIMIT 1
+            INSERT OR IGNORE INTO token_history(
+                ts,
+                mint,
+                market_cap_sol,
+                trader,
+                side,
+                signature,
+                source,
+                event_id
+            )
+
+            VALUES(
+                ?,?,?,?,?,?,?,?
+            )
             """,
             (
+                time.time(),
+                mint,
+                market_cap,
+                trader,
+                side,
                 signature,
+                source,
+                event_id
             )
-        ).fetchone()
-
-        if exists:
-
-            conn.close()
-            return
-
-    conn.execute(
-        """
-        INSERT INTO token_history(
-            ts,
-            mint,
-            market_cap_sol,
-            trader,
-            side,
-            signature,
-            source
         )
 
-        VALUES(
-            ?,?,?,?,?,?,?
-        )
-        """,
-        (
-            time.time(),
-            mint,
-            market_cap,
-            trader,
-            side,
-            signature,
-            source
-        )
-    )
-
-    conn.commit()
-    conn.close()
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 
 # =========================================================
@@ -9626,7 +9790,8 @@ def save_trade(
         trader=trader,
         side=side,
         signature=signature,
-        source=source
+        source=source,
+        event_index=event_index
     )
 
     # Cada BUY ahora se analiza individualmente.
@@ -10679,6 +10844,7 @@ def route_market_event(event):
     save_token_history(
         mint=mint, market_cap=market_cap, trader=trader, side=side,
         signature=signature, source="token-live",
+        event_index=event_index,
     )
     update_paper_position(
         mint=mint, trader=trader, side=side, market_cap=market_cap,

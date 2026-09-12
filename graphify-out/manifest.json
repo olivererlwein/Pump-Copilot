@@ -6,9 +6,9 @@
     "semantic_hash": "5ebef3dd159986e465ab65e4014107ec"
   },
   "app.py": {
-    "mtime": 1789184717.9793956,
-    "seen": 1789184788.6265068,
-    "ast_hash": "f9b3ea96e3bd92efbac75ce3fa705a41",
+    "mtime": 1789193433.3413022,
+    "seen": 1789193564.4329364,
+    "ast_hash": "89c61e28b9e59c9b3a1feed3786df3b2",
     "semantic_hash": ""
   },
   "models/baseline_v2_shadow.json": {
@@ -252,9 +252,9 @@
     "semantic_hash": ""
   },
   "CLAUDE_NOTES.md": {
-    "mtime": 1789184757.024081,
-    "seen": 1789184788.6266687,
-    "ast_hash": "70a767851e7259afb7d51861fd516f9e",
+    "mtime": 1789193542.4479196,
+    "seen": 1789193564.4330993,
+    "ast_hash": "4c40713a1a356dbe0df6fe9e7fa7ad6d",
     "semantic_hash": ""
   },
   "2026-09-10.md": {
@@ -264,15 +264,15 @@
     "semantic_hash": ""
   },
   "solana_rpc_fallback.py": {
-    "mtime": 1789183772.3980381,
-    "seen": 1789184039.7485952,
-    "ast_hash": "62dbf582cd712d0c0db5f56d0f7f37a4",
+    "mtime": 1789185804.2537372,
+    "seen": 1789186072.4383566,
+    "ast_hash": "d1bfaa32459141c13d44223690727db8",
     "semantic_hash": ""
   },
   "tests/test_rpc_fallback.py": {
-    "mtime": 1789183695.3344553,
-    "seen": 1789184039.7486138,
-    "ast_hash": "24e40a0be09ed714a487e95b9cd7abb3",
+    "mtime": 1789185707.8637679,
+    "seen": 1789186072.4383643,
+    "ast_hash": "6934c3c6bad4082f4588c43196cfa4ab",
     "semantic_hash": ""
   },
   "reports/ablation_report_2026-09-11.json": {
@@ -294,9 +294,9 @@
     "semantic_hash": ""
   },
   "tests/test_paper_idempotency.py": {
-    "mtime": 1789184292.8926978,
-    "seen": 1789184788.6265619,
-    "ast_hash": "2f26b81ef3f8cd386e4b93bc4e187214",
+    "mtime": 1789193482.8550131,
+    "seen": 1789193564.433008,
+    "ast_hash": "94ed97926060c9d08e364d15f6925f22",
     "semantic_hash": ""
   }
 }

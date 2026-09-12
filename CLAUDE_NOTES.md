@@ -1677,6 +1677,122 @@ su ruta y ninguna tapa a la otra.
 
 Suite completa: **215 tests, OK**. `git diff --check` limpio.
 
+Commiteado en `main` como `a301310` y **pusheado** junto con `3bd8353` y
+`9c9636a` (`ab8c487..a301310`). El hook dejó constancia del salto por
+`ALLOW_RISK_PUSH=1` en vez de permitirlo en silencio. Producción sana: stream
+conectado, sin error activo, shadow con 1.234 predicciones y 1.036 completadas.
+
+## `save_token_history()` idempotente
+
+**Un choque con el requisito, encontrado antes de escribir.** Codex pidió que la
+misma operación traída por PumpPortal y por Helius se guarde una sola vez. No
+podía cumplirse: `eventIndex` era la posición dentro de `logMessages`, y para
+una transacción de una sola operación eso da **1** por el parser de Helius —
+después de la línea `invoke`— contra **0** por PumpPortal, que no manda índice.
+Misma operación, dos identidades, dos filas. La prueba existente lo mostraba:
+`assertEqual(rows, [(1,), (2,)])`.
+
+Corregido en el parser: `eventIndex` cuenta **operaciones Pump parseadas**, no
+líneas de log. La posición en el log es un detalle de cómo encontramos el evento
+por ese camino; el ordinal entre operaciones es independiente del proveedor, que
+es lo que la identidad necesita. Los índices del inbox pasan de 1,2 a 0,1.
+
+Las filas del inbox ya escritas en producción conservan la numeración vieja. Es
+aceptable porque el inbox es observacional y todavía no lo consume nada, pero
+conviene saberlo antes de activar la cola: **si se procesa el inbox histórico,
+esas filas tienen índices de log.**
+
+**El cambio en el historial.**
+
+- columna `event_id TEXT` e índice único **parcial** sobre ella, solo donde no
+  es NULL;
+- `event_id = market_event_identity(signature, event_index)`, sin `source`: la
+  identidad es de la operación, no de quién la trajo;
+- `INSERT OR IGNORE` contra ese índice en vez de consultar y después insertar —
+  entre esas dos operaciones cabe otro escritor, y acá llegan reintentos y dos
+  proveedores a la vez. La deduplicación vive adentro de la sentencia que
+  escribe, y todo va en una transacción;
+- sin firma, comportamiento anterior, para demos;
+- el índice se propaga por las dos rutas reales.
+
+**Un efecto secundario bueno.** La deduplicación anterior era
+`SELECT ... WHERE signature = ?` y `signature` no tiene índice: cada guardado
+recorría la tabla entera. Ahora resuelve por índice único.
+
+**Las filas viejas quedan en NULL** y fuera del índice parcial, así que crearlo
+no puede chocar con datos existentes y no hizo falta backfill. El costo es una
+ventana de segundos en el despliegue: un evento guardado justo antes de la
+migración y reintentado justo después podría duplicarse una vez. Una fila, y
+solo en ese instante.
+
+### Tests agregados (11)
+
+Reintento, misma firma con índices distintos, la misma operación por dos
+proveedores, `source` fuera de la identidad, sin firma, firmas distintas, índice
+roto, filas viejas sin identidad que no bloquean, y tres por el router cubriendo
+sus dos rutas más la entrega repetida.
+
+**Verificados contra el bug, en las dos piezas.** Con identidad por firma sola,
+la segunda operación de una transacción se pierde (`['firma-1']` en vez de dos
+filas) y fallan 6 pruebas. Con `eventIndex` de vuelta en índice de log, falla el
+caso de una sola operación (`('helius', 1, …)` contra `('helius', 0, …)`), que
+es exactamente donde divergían los proveedores.
+
+### Segunda revisión: la transición con datos viejos
+
+Codex frenó el commit por tres cosas. Las tres correctas, y ninguna se veía
+mirando solo la lógica nueva.
+
+**1. `ALTER TABLE` en cada `db()`.** Lo había puesto ahí siguiendo el precedente
+de la columna `mode`, para garantizar que la columna existiera antes del índice.
+Pero `db()` abre conexión constantemente, así que era una excepción por
+conexión. **Medido: +0,49 ms por conexión, +8,1%.**
+
+Movido a `migrate_token_history_identity()`, que corre una vez al arrancar. El
+índice sigue en `db()` pero envuelto en `try/except`: en una base que todavía no
+tiene la columna se saltea —`migrate_database()` llama a `db()` antes de
+agregarla— y lo crea la migración. De ahí en adelante es un no-op.
+
+**2. Filas históricas sin identidad.** Quedaban en NULL, fuera del índice
+parcial, así que un replay desde la cola habría duplicado historial existente.
+
+Migradas a `firma:0`, **una sola fila por firma**: si hubiera firmas repetidas
+de antes de que existiera cualquier deduplicación, migrar todas violaría el
+índice único. Migrando la primera, la identidad queda ocupada y el replay
+encuentra su duplicado igual. `UPDATE OR IGNORE` cubre el caso restante —una
+fila vieja cuya identidad ya se la llevó una fila nueva, que es la ventana del
+despliegue— para que la migración no estalle al arrancar.
+
+**3. La renumeración rompía la identidad de las filas de inbox ya guardadas.**
+Las había dejado anotadas como límite; Codex tiene razón en que eso no alcanza.
+`migrate_inbox_event_index_to_ordinal()` las renumera 0,1,2… por firma,
+respetando el orden que tenían, en la columna y adentro del JSON. Como el
+ordinal nuevo nunca es mayor que el índice viejo, actualizar en orden ascendente
+no puede chocar con la clave primaria `(signature, event_index)`.
+
+**3b, y esto sigue abierto.** Codex marcó que la renumeración *no* resuelve con
+certeza transacciones múltiples de PumpPortal, y es así: ese transporte entrega
+una operación por mensaje y no manda índice, así que dos operaciones Pump de una
+misma transacción llegan las dos como 0 y se funden en una fila. No lo arregla
+ningún esquema de numeración nuestro: el dato que las distinguiría nunca llega
+por ahí. Solo lo resuelve la ingesta de Helius, que trae el ordinal real —una
+razón más para migrar. Queda documentado con una prueba que fija la limitación,
+`test_pumpportal_multi_operation_remains_ambiguous`, explícitamente marcada como
+comportamiento conocido y no deseado.
+
+### Tests de migración y replay (9 más)
+
+Fila histórica que recibe identidad y hace que el replay no duplique; firmas
+históricas repetidas que no rompen la migración; identidad ya tomada por una
+fila nueva; filas sin firma que conservan NULL; migración idempotente;
+renumerado del inbox en columna y JSON; renumerado idempotente; filas ya
+ordinales que no se tocan; y la limitación de PumpPortal.
+
+**Verificados contra el bug.** Sin el backfill, la fila histórica queda en NULL
+y el replay duplica. Sin el renumerado, `0 != 3`.
+
+Suite completa: **235 tests, OK**. `git diff --check` limpio.
+
 ## Límites
 
 - **Esto protege paper, no live.** Las salidas live van a necesitar su propia
@@ -1690,8 +1806,6 @@ Suite completa: **215 tests, OK**. `git diff --check` limpio.
   `TRADER_EXIT` tienen claves de idempotencia distintas aunque los dos cierran
   la posición entera. La reserva de tokens evita una segunda venta. A revisar
   aparte.
-- `save_token_history()` puede seguir escribiendo filas repetidas en un
-  reintento. No se abordó en este bloque.
 - La limpieza se repite solo cuando el mismo evento vuelve. Si el evento nunca
   se reintenta, el token queda suscripto igual. Cerrarlo del todo pide una
   reconciliación periódica, no un rescate en el camino del evento.

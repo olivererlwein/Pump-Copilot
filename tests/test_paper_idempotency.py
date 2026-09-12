@@ -1,3 +1,4 @@
+import json
 import sqlite3
 import tempfile
 import unittest
@@ -622,6 +623,452 @@ class RouterEventIndexTests(unittest.TestCase):
             app.route_market_event(roto)
 
         self.assertAlmostEqual(self.restante(), 1.0)
+
+
+class TokenHistoryIdempotencyTests(unittest.TestCase):
+    """El historial alimenta el scoring: una fila repetida lo sesga.
+
+    Con reintentos de Helius y dos proveedores entregando lo mismo, guardar
+    por firma sola no alcanza en ninguna de las dos direcciones: fundía
+    operaciones distintas de una transacción y no podía distinguir un
+    reintento de una operación nueva.
+    """
+
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.original_db = app.DB
+        app.DB = Path(self.temp_dir.name) / "historial.db"
+        app.migrate_database()
+        self.addCleanup(self.restaurar)
+
+    def restaurar(self):
+        app.DB = self.original_db
+        self.temp_dir.cleanup()
+
+    def guardar(self, firma, indice=0, source="live", market_cap=100.0):
+        app.save_token_history(
+            mint=MINT, market_cap=market_cap, trader=TRADER, side="buy",
+            signature=firma, source=source, event_index=indice,
+        )
+
+    def filas(self):
+        conn = app.db()
+        try:
+            return conn.execute(
+                "SELECT event_id, source, market_cap_sol FROM token_history "
+                "ORDER BY id"
+            ).fetchall()
+        finally:
+            conn.close()
+
+    def test_retry_of_the_same_event_writes_one_row(self):
+        self.guardar("firma-1")
+        self.guardar("firma-1")
+        self.guardar("firma-1")
+
+        self.assertEqual(self.filas(), [("firma-1:0", "live", 100.0)])
+
+    def test_same_signature_distinct_indexes_write_both_rows(self):
+        # Dos operaciones Pump de una misma transacción. Con la firma sola, la
+        # segunda se descartaba y el historial quedaba incompleto.
+        self.guardar("firma-1", indice=0)
+        self.guardar("firma-1", indice=1)
+
+        self.assertEqual(
+            [fila[0] for fila in self.filas()],
+            ["firma-1:0", "firma-1:1"],
+        )
+
+    def test_the_same_operation_from_two_providers_is_stored_once(self):
+        # PumpPortal entrega una operación por mensaje y no manda índice, así
+        # que vale 0. El parser de Helius cuenta operaciones Pump, no líneas de
+        # log, así que la primera también es 0. Misma operación, misma
+        # identidad, una sola fila.
+        self.guardar("firma-1", indice=0, source="live")
+        self.guardar("firma-1", indice=0, source="token-live")
+
+        filas = self.filas()
+        self.assertEqual(len(filas), 1)
+        # Gana el primero que llegó; el segundo no pisa nada.
+        self.assertEqual(filas[0][1], "live")
+
+    def test_event_id_excludes_the_source_on_purpose(self):
+        # Si `source` entrara en la identidad, cada proveedor tendría la suya y
+        # la misma operación se guardaría dos veces.
+        self.guardar("firma-1", source="live")
+        self.guardar("firma-1", source="rpc-fallback")
+        self.guardar("firma-1", source="token-live")
+
+        self.assertEqual(len(self.filas()), 1)
+
+    def test_pumpportal_multi_operation_remains_ambiguous(self):
+        """Documenta una limitación abierta, no un comportamiento deseado.
+
+        PumpPortal entrega una operación por mensaje y no manda índice, así
+        que dos operaciones Pump de una misma transacción llegan las dos como
+        índice 0 y se funden en una sola fila. Renumerar el parser no lo
+        arregla: el dato que las distinguiría nunca llega por ese transporte.
+
+        Solo lo resuelve la ingesta de Helius, que sí trae el ordinal. Si
+        alguien hace que esto guarde dos filas, revisar de dónde salió el
+        índice antes de dar la prueba por obsoleta.
+        """
+        self.guardar("firma-1", indice=0, market_cap=100.0)
+        self.guardar("firma-1", indice=0, market_cap=120.0)
+
+        filas = self.filas()
+        self.assertEqual(len(filas), 1)
+        # La segunda operación se pierde: no hay con qué distinguirla.
+        self.assertEqual(filas[0][2], 100.0)
+
+    def test_without_signature_behaviour_is_unchanged(self):
+        # Las rutas de demo no tienen identidad que ofrecer y pueden repetir.
+        self.guardar("")
+        self.guardar("")
+
+        filas = self.filas()
+        self.assertEqual(len(filas), 2)
+        self.assertEqual([fila[0] for fila in filas], [None, None])
+
+    def test_distinct_signatures_each_write_a_row(self):
+        self.guardar("firma-1")
+        self.guardar("firma-2")
+
+        self.assertEqual(len(self.filas()), 2)
+
+    def test_broken_index_is_rejected(self):
+        with self.assertRaises(ValueError):
+            self.guardar("firma-1", indice="1")
+
+        self.assertEqual(self.filas(), [])
+
+    def test_legacy_rows_without_identity_do_not_block_new_ones(self):
+        # Las filas anteriores a la columna quedan en NULL y fuera del índice
+        # único parcial: no pueden bloquear una escritura nueva.
+        conn = app.db()
+        conn.execute(
+            "INSERT INTO token_history(ts, mint, market_cap_sol, trader, "
+            "side, signature, source) VALUES(?,?,?,?,?,?,?)",
+            (1.0, MINT, 50.0, TRADER, "buy", "firma-vieja", "live"),
+        )
+        conn.execute(
+            "INSERT INTO token_history(ts, mint, market_cap_sol, trader, "
+            "side, signature, source) VALUES(?,?,?,?,?,?,?)",
+            (2.0, MINT, 50.0, TRADER, "buy", "firma-vieja", "live"),
+        )
+        conn.commit()
+        conn.close()
+
+        self.guardar("firma-nueva")
+
+        self.assertEqual(len(self.filas()), 3)
+
+
+class LegacyDataMigrationTests(unittest.TestCase):
+    """La transición con datos reales viejos, que es donde esto puede doler.
+
+    Una base de producción ya tiene historial sin `event_id` y filas de inbox
+    numeradas por posición de log. Las pruebas de la lógica nueva no dicen nada
+    sobre ese cruce.
+    """
+
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.original_db = app.DB
+        app.DB = Path(self.temp_dir.name) / "migracion.db"
+        self.addCleanup(self.restaurar)
+
+    def restaurar(self):
+        app.DB = self.original_db
+        self.temp_dir.cleanup()
+
+    def base_vieja(self):
+        """Una base como la de producción antes de este bloque."""
+        conn = sqlite3.connect(app.DB)
+        conn.execute(
+            """
+            CREATE TABLE token_history(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ts REAL, mint TEXT, market_cap_sol REAL,
+                trader TEXT DEFAULT '', side TEXT DEFAULT '',
+                signature TEXT DEFAULT '', source TEXT DEFAULT 'live'
+            )
+            """
+        )
+        conn.commit()
+        conn.close()
+
+    def historial(self):
+        conn = app.db()
+        try:
+            return conn.execute(
+                "SELECT signature, event_id, source FROM token_history "
+                "ORDER BY id"
+            ).fetchall()
+        finally:
+            conn.close()
+
+    def insertar_historial_viejo(self, *filas):
+        conn = sqlite3.connect(app.DB)
+        for indice, (firma, source) in enumerate(filas):
+            conn.execute(
+                "INSERT INTO token_history(ts, mint, market_cap_sol, trader, "
+                "side, signature, source) VALUES(?,?,?,?,?,?,?)",
+                (float(indice), MINT, 100.0, TRADER, "buy", firma, source),
+            )
+        conn.commit()
+        conn.close()
+
+    def test_historical_rows_get_identity_so_a_replay_does_not_duplicate(self):
+        self.base_vieja()
+        self.insertar_historial_viejo(("firma-vieja", "live"))
+
+        app.migrate_database()
+
+        self.assertEqual(
+            self.historial(), [("firma-vieja", "firma-vieja:0", "live")],
+        )
+
+        # El replay del mismo evento desde la cola no agrega nada.
+        app.save_token_history(
+            mint=MINT, market_cap=100.0, trader=TRADER, side="buy",
+            signature="firma-vieja", source="helius-replay", event_index=0,
+        )
+
+        self.assertEqual(len(self.historial()), 1)
+
+    def test_duplicate_historical_signatures_do_not_break_the_migration(self):
+        # Antes de que existiera cualquier deduplicación pudo quedar la misma
+        # firma dos veces. Migrar las dos violaría el índice único.
+        self.base_vieja()
+        self.insertar_historial_viejo(
+            ("firma-repetida", "live"),
+            ("firma-repetida", "live"),
+        )
+
+        app.migrate_database()
+
+        self.assertEqual(
+            [fila[1] for fila in self.historial()],
+            ["firma-repetida:0", None],
+        )
+
+        # Y el replay sigue sin duplicar: la identidad ya está ocupada.
+        app.save_token_history(
+            mint=MINT, market_cap=100.0, trader=TRADER, side="buy",
+            signature="firma-repetida", source="helius-replay", event_index=0,
+        )
+        self.assertEqual(len(self.historial()), 2)
+
+    def test_migration_survives_an_identity_already_taken_by_a_new_row(self):
+        # Ventana del despliegue: el evento se guardó sin identidad, volvió a
+        # llegar ya migrado, y la fila vieja queda sin poder tomar la suya.
+        self.base_vieja()
+        self.insertar_historial_viejo(("firma-1", "live"))
+        app.migrate_database()
+
+        conn = app.db()
+        conn.execute(
+            "UPDATE token_history SET event_id = NULL WHERE signature = ?",
+            ("firma-1",),
+        )
+        conn.commit()
+        conn.close()
+        app.save_token_history(
+            mint=MINT, market_cap=100.0, trader=TRADER, side="buy",
+            signature="firma-1", source="nueva", event_index=0,
+        )
+
+        # La migración no puede estallar por esto.
+        app.migrate_database()
+
+        self.assertEqual(
+            [fila[1] for fila in self.historial()], [None, "firma-1:0"],
+        )
+
+    def test_rows_without_signature_keep_their_null_identity(self):
+        self.base_vieja()
+        self.insertar_historial_viejo(("", "demo"), ("", "demo"))
+
+        app.migrate_database()
+
+        self.assertEqual([fila[1] for fila in self.historial()], [None, None])
+
+    def test_migration_is_idempotent(self):
+        self.base_vieja()
+        self.insertar_historial_viejo(("firma-1", "live"), ("firma-2", "live"))
+
+        app.migrate_database()
+        antes = self.historial()
+        app.migrate_database()
+
+        self.assertEqual(self.historial(), antes)
+
+
+class LegacyInboxRenumberTests(unittest.TestCase):
+    """Las filas de inbox viejas llevan índice de log, no ordinal."""
+
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.original_db = app.DB
+        app.DB = Path(self.temp_dir.name) / "inbox-viejo.db"
+        app.migrate_database()
+        self.addCleanup(self.restaurar)
+
+    def restaurar(self):
+        app.DB = self.original_db
+        self.temp_dir.cleanup()
+
+    def insertar(self, firma, indice):
+        conn = app.db()
+        conn.execute(
+            """
+            INSERT INTO market_event_inbox(
+                signature, event_index, source, wallet, trader, mint, side,
+                pool, block_time, block_event_ts, received_ts, event_json
+            )
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
+            """,
+            (
+                firma, indice, "helius", "wallet", TRADER, MINT, "buy",
+                "pump", 1.0, 1.0, 2.0,
+                json.dumps(
+                    {"signature": firma, "eventIndex": indice, "mint": MINT},
+                    sort_keys=True, separators=(",", ":"),
+                ),
+            ),
+        )
+        conn.commit()
+        conn.close()
+
+    def renumerar(self):
+        conn = app.db()
+        try:
+            renumeradas = app.migrate_inbox_event_index_to_ordinal(conn)
+            conn.commit()
+            return renumeradas
+        finally:
+            conn.close()
+
+    def filas(self):
+        conn = app.db()
+        try:
+            return [
+                (firma, indice, json.loads(cuerpo)["eventIndex"])
+                for firma, indice, cuerpo in conn.execute(
+                    "SELECT signature, event_index, event_json "
+                    "FROM market_event_inbox ORDER BY signature, event_index"
+                ).fetchall()
+            ]
+        finally:
+            conn.close()
+
+    def test_log_indexes_become_ordinals_in_column_and_json(self):
+        # Una operación sola escrita con índice de log 1: por PumpPortal la
+        # misma operación vale 0, así que sin renumerar tendría dos identidades.
+        self.insertar("firma-una", 1)
+        # Y una transacción de dos operaciones, en 1 y 2.
+        self.insertar("firma-dos", 1)
+        self.insertar("firma-dos", 2)
+
+        renumeradas = self.renumerar()
+
+        self.assertEqual(renumeradas, 3)
+        self.assertEqual(
+            self.filas(),
+            [
+                ("firma-dos", 0, 0),
+                ("firma-dos", 1, 1),
+                ("firma-una", 0, 0),
+            ],
+        )
+
+    def test_renumbering_is_idempotent(self):
+        self.insertar("firma-dos", 1)
+        self.insertar("firma-dos", 2)
+        self.renumerar()
+
+        antes = self.filas()
+        renumeradas = self.renumerar()
+
+        self.assertEqual(renumeradas, 0)
+        self.assertEqual(self.filas(), antes)
+
+    def test_rows_already_ordinal_are_left_alone(self):
+        self.insertar("firma-ok", 0)
+        self.insertar("firma-ok", 1)
+
+        self.assertEqual(self.renumerar(), 0)
+
+
+class RouterTokenHistoryTests(unittest.TestCase):
+    """El índice también tiene que llegar al historial por el recorrido real."""
+
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.original_db = app.DB
+        app.DB = Path(self.temp_dir.name) / "router-historial.db"
+        app.migrate_database()
+
+        self.watched_original = app.WATCHED
+        app.WATCHED = {TRADER: WALLET}
+        app.TRACKED_TOKENS.add(MINT)
+        self.addCleanup(self.restaurar)
+
+    def restaurar(self):
+        app.WATCHED = self.watched_original
+        app.TRACKED_TOKENS.discard(MINT)
+        app.DB = self.original_db
+        self.temp_dir.cleanup()
+
+    def identidades(self):
+        conn = app.db()
+        try:
+            return [
+                fila[0] for fila in conn.execute(
+                    "SELECT event_id FROM token_history ORDER BY event_id"
+                ).fetchall()
+            ]
+        finally:
+            conn.close()
+
+    def evento(self, indice, wallet):
+        return {
+            "signature": "firma-compartida",
+            "eventIndex": indice,
+            "mint": MINT,
+            "txType": "sell",
+            "traderPublicKey": wallet,
+            "solAmount": 1.0,
+            "tokenAmount": 1000.0,
+            "newTokenBalance": 500.0,
+            "marketCapSol": 110.0,
+        }
+
+    def test_watched_wallet_route_preserves_the_index(self):
+        app.route_market_event(self.evento(0, WALLET))
+        app.route_market_event(self.evento(1, WALLET))
+
+        self.assertEqual(
+            self.identidades(),
+            ["firma-compartida:0", "firma-compartida:1"],
+        )
+
+    def test_tracked_token_route_preserves_the_index(self):
+        app.route_market_event(self.evento(0, "billetera-ajena"))
+        app.route_market_event(self.evento(1, "billetera-ajena"))
+
+        self.assertEqual(
+            self.identidades(),
+            ["firma-compartida:0", "firma-compartida:1"],
+        )
+
+    def test_repeated_delivery_through_the_router_writes_one_row(self):
+        evento = self.evento(0, WALLET)
+        app.route_market_event(evento)
+        app.route_market_event(evento)
+
+        self.assertEqual(self.identidades(), ["firma-compartida:0"])
 
 
 class RouterPreEntryGuardTests(unittest.TestCase):

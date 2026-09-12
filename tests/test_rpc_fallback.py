@@ -620,8 +620,11 @@ class HeliusWebhookTests(unittest.TestCase):
             ).fetchone()
         finally:
             inbox.close()
+        # Índice 0: es la primera operación Pump de la transacción. Cuenta
+        # operaciones, no líneas de log, así que PumpPortal —que no manda
+        # índice y vale 0— le da la misma identidad a la misma operación.
         self.assertEqual(row[:10], (
-            "helius", 1, WALLET, "trader-a", MINT, "buy",
+            "helius", 0, WALLET, "trader-a", MINT, "buy",
             1_700_000_000, 1_700_000_002, "observed", 0,
         ))
         self.assertEqual(json.loads(row[10])["signature"], SIGNATURE)
@@ -648,7 +651,7 @@ class HeliusWebhookTests(unittest.TestCase):
             ).fetchall()
         finally:
             conn.close()
-        self.assertEqual(rows, [(1,), (2,)])
+        self.assertEqual(rows, [(0,), (1,)])
         with patch.object(app, "APP_TOKEN", "token"):
             report = app.api_helius_webhook_stats("token")
         self.assertEqual(report["normalized_events_observed"], 2)
@@ -815,7 +818,7 @@ class InboxRoundTripTests(unittest.TestCase):
         app.record_helius_webhook_transactions([self.receipt_with_two_events()])
 
         filas = self.inbox_rows()
-        self.assertEqual([fila[0] for fila in filas], [1, 2])
+        self.assertEqual([fila[0] for fila in filas], [0, 1])
 
         # La columna y el JSON no pueden discrepar: la columna se deriva del
         # evento, que es lo mismo que se serializa.
@@ -861,7 +864,7 @@ class InboxRoundTripTests(unittest.TestCase):
         self.assertAlmostEqual(restante, 0.50)
         self.assertEqual(
             identidades,
-            [f"{SIGNATURE}:1", f"{SIGNATURE}:2"],
+            [f"{SIGNATURE}:0", f"{SIGNATURE}:1"],
         )
 
     def test_reconstructed_event_recovers_the_signing_wallet(self):
