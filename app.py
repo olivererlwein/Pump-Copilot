@@ -12811,8 +12811,9 @@ def record_helius_webhook_transactions(payload, received_ts=None):
 
             block_time = receipt.get("blockTime")
 
-            # Una transacción puede tocar varias wallets vigiladas; se
-            # registra la primera que efectivamente la firmó.
+            # Una transacción puede tocar varias wallets vigiladas. El resumen
+            # por transacción conserva la primera, pero el inbox guarda cada
+            # operación atribuida a todas ellas.
             matched_trader = None
             matched_wallet = None
             matched_events_by_index = {}
@@ -12827,8 +12828,9 @@ def record_helius_webhook_transactions(payload, received_ts=None):
                     events = []
 
                 if events:
-                    matched_trader = trader
-                    matched_wallet = wallet
+                    if matched_wallet is None:
+                        matched_trader = trader
+                        matched_wallet = wallet
                     for parsed_event in events:
                         normalized_event = parsed_event["event"]
                         event_index = market_event_index(
@@ -12839,7 +12841,6 @@ def record_helius_webhook_transactions(payload, received_ts=None):
                             wallet,
                             trader,
                         )
-                    break
 
             try:
                 token_events = parse_tracked_token_pump_events(
@@ -12859,7 +12860,11 @@ def record_helius_webhook_transactions(payload, received_ts=None):
                 event_wallet = str(
                     normalized_event.get("traderPublicKey") or ""
                 ).strip()
-                event_trader = trader_for(event_wallet)
+                # Solo las wallets configuradas tienen identidad de trader.
+                # Un prefijo de dirección sería una etiqueta inventada que
+                # podría confundirse con una identidad medida al consumir el
+                # inbox más adelante.
+                event_trader = wallets_by_address.get(event_wallet)
                 matched_events_by_index.setdefault(
                     event_index,
                     (parsed_event, event_wallet, event_trader),
@@ -12896,7 +12901,7 @@ def record_helius_webhook_transactions(payload, received_ts=None):
                         # estando. `required` porque acá el evento es nuestro:
                         # si no trae índice, se perdió en el camino.
                         market_event_index(normalized_event, required=True),
-                        "ordinal-v1",
+                        "ordinal-v2",
                         "helius",
                         event_wallet,
                         event_trader,

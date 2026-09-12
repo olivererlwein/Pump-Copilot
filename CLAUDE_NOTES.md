@@ -1901,3 +1901,30 @@ temporal. También se limpiaron los errores de tipado existentes en el parser.
 Suite completa: **260 tests, OK**. Pyright: **0 errores** en los cuatro archivos
 Python modificados. `git diff --check` limpio. Sin cambio de `DATA_VERSION`, sin
 consumidor funcional y sin cambio en live trading.
+
+## Revisión del ordinal de Helius
+
+La revisión externa detectó que `ordinal-v1` contaba solo los eventos que el
+parser lograba decodificar por completo. Una operación posterior podía cambiar
+de identidad si una operación anterior empezaba a decodificarse al recibir
+balances más completos o después de una mejora del parser.
+
+El parser ahora asigna el ordinal sobre cada payload reconocido por los
+discriminadores oficiales de Pump/PumpSwap, antes de intentar decodificarlo.
+Los eventos nuevos se escriben como `ordinal-v2`; las filas `ordinal-v1`
+existentes no se reescriben porque pertenecen al historial observacional que la
+frontera temporal excluirá de cualquier consumidor futuro.
+
+También se cerraron tres hallazgos relacionados: un balance final de usuario
+ausente queda como `None` sin descartar el precio útil; una transacción firmada
+por varias wallets vigiladas conserva las operaciones de todas; y las wallets
+desconocidas se guardan con `trader = NULL` en lugar de inventar una identidad
+con los primeros seis caracteres de la dirección.
+
+El webhook sigue siendo observacional. Antes de activar un consumidor habrá que
+preservar el significado de `newTokenBalance = None` también al pasar por
+`save_trade()`: hoy esa ruta histórica lo convierte en cero para paper, lo que
+podría parecer falsamente un cierre total. No afecta este bloque porque el inbox
+todavía no se enruta.
+
+Suite completa después de la revisión: **263 tests, OK**.

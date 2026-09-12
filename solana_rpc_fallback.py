@@ -184,13 +184,13 @@ def _token_decimals(balances, mint):
     return values.pop()
 
 
-def _post_token_amount(balances, owner, mint, decimals):
+def _optional_post_token_amount(balances, owner, mint, decimals):
     record = balances["post"].get((owner, mint))
     if record:
         return record["raw"] / (10 ** decimals)
     if (owner, mint) in balances["pre"]:
         return 0.0
-    raise ValueError("USER_TOKEN_BALANCE_UNAVAILABLE")
+    return None
 
 
 def _parse_pump_trade(payload, balances, signature):
@@ -230,7 +230,7 @@ def _parse_pump_trade(payload, balances, signature):
             "traderPublicKey": user,
             "solAmount": sol_lamports / LAMPORTS_PER_SOL,
             "tokenAmount": token_raw / scale,
-            "newTokenBalance": _post_token_amount(
+            "newTokenBalance": _optional_post_token_amount(
                 balances, user, mint, decimals
             ),
             "marketCapSol": market_cap,
@@ -299,7 +299,7 @@ def _parse_pump_amm_trade(payload, balances, signature):
             "traderPublicKey": user,
             "solAmount": sol_lamports / LAMPORTS_PER_SOL,
             "tokenAmount": token_raw / scale,
-            "newTokenBalance": _post_token_amount(
+            "newTokenBalance": _optional_post_token_amount(
                 balances, user, mint, decimals
             ),
             "marketCapSol": market_cap,
@@ -377,17 +377,32 @@ def _parse_official_pump_events(receipt, signature):
         )
     }
     parsed = []
+    recognized_event_count = 0
     for _, payload in _event_payloads(receipt):
+        parser = None
+        if (
+            PUMP_PROGRAM_ID in invoked_programs
+            and payload.startswith(PUMP_TRADE_EVENT)
+        ):
+            parser = _parse_pump_trade
+        elif (
+            PUMP_AMM_PROGRAM_ID in invoked_programs
+            and payload.startswith((PUMP_AMM_BUY_EVENT, PUMP_AMM_SELL_EVENT))
+        ):
+            parser = _parse_pump_amm_trade
+
+        if parser is None:
+            continue
+
+        # La identidad cuenta todos los payloads reconocidos, incluso si uno
+        # no puede decodificarse por balances incompletos. Así, mejorar el
+        # parser o recibir una representación más completa de la misma
+        # transacción no cambia los índices de las operaciones posteriores.
+        event_index = recognized_event_count
+        recognized_event_count += 1
+
         try:
-            result = None
-            if PUMP_PROGRAM_ID in invoked_programs:
-                result = _parse_pump_trade(
-                    payload, balances, signature
-                )
-            if result is None and PUMP_AMM_PROGRAM_ID in invoked_programs:
-                result = _parse_pump_amm_trade(
-                    payload, balances, signature
-                )
+            result = parser(payload, balances, signature)
         except (ValueError, struct.error):
             continue
         if result is not None:
@@ -400,14 +415,11 @@ def _parse_official_pump_events(receipt, signature):
             # firma ya viaja adentro; son dos mitades de lo mismo y no tienen
             # que poder separarse.
             #
-            # Y cuenta operaciones Pump, no líneas de log. La posición dentro de
-            # `logMessages` es un detalle de cómo encontramos el evento acá, y
-            # depende del proveedor: para una transacción de una sola operación
-            # daría 1 por este camino y 0 por PumpPortal, que no manda índice.
-            # La misma operación tendría dos identidades según quién la trajo, y
-            # se guardaría dos veces. El ordinal entre operaciones parseadas es
-            # independiente del proveedor, que es lo que la identidad necesita.
-            result["event"]["eventIndex"] = len(parsed)
+            # Cuenta payloads reconocidos de Pump, no líneas de log. La
+            # posición absoluta en `logMessages` depende del proveedor y haría
+            # que una transacción de una sola operación no coincida con el
+            # índice 0 que representa PumpPortal.
+            result["event"]["eventIndex"] = event_index
             parsed.append(result)
     return parsed
 

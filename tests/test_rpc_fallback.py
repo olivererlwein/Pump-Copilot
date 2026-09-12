@@ -213,6 +213,79 @@ class TrackedTokenParserTests(unittest.TestCase):
             [0, 1],
         )
 
+    def test_ordinal_does_not_depend_on_an_earlier_event_decoding(self):
+        import base64
+
+        other_mint_raw = bytes(range(97, 129))
+        other_mint = _base58_encode(other_mint_raw)
+        prior_payload = (
+            PUMP_TRADE_EVENT
+            + other_mint_raw
+            + struct.pack("<QQ?", 1_000_000_000, 5_000_000, True)
+            + WALLET_RAW
+            + struct.pack(
+                "<qQQ",
+                1_699_999_999,
+                40_000_000_000,
+                200_000_000_000_000,
+            )
+        )
+
+        receipt = pump_receipt()
+        receipt["meta"]["logMessages"].insert(
+            -1,
+            "Program data: "
+            + base64.b64encode(prior_payload).decode("ascii"),
+        )
+
+        without_prior_balances = parse_tracked_token_pump_events(
+            receipt, {MINT}, SIGNATURE
+        )
+
+        receipt["meta"]["preTokenBalances"].append(
+            token_balance(WALLET, other_mint, 10_000_000, index=2)
+        )
+        receipt["meta"]["postTokenBalances"].append(
+            token_balance(WALLET, other_mint, 15_000_000, index=2)
+        )
+        with_prior_balances = parse_tracked_token_pump_events(
+            receipt, {MINT}, SIGNATURE
+        )
+
+        self.assertEqual(
+            [row["event"]["eventIndex"] for row in without_prior_balances],
+            [1],
+        )
+        self.assertEqual(
+            [row["event"]["eventIndex"] for row in with_prior_balances],
+            [1],
+        )
+
+    def test_missing_user_balance_keeps_price_event_with_unknown_balance(self):
+        pump = pump_receipt()
+        pump["meta"]["preTokenBalances"] = [
+            token_balance("pool-owner", MINT, 20_000_000, index=2)
+        ]
+        pump["meta"]["postTokenBalances"] = [
+            token_balance("pool-owner", MINT, 20_000_000, index=2)
+        ]
+
+        pump_amm = pump_amm_receipt()
+        pump_amm["meta"]["postTokenBalances"] = [
+            row
+            for row in pump_amm["meta"]["postTokenBalances"]
+            if row.get("owner") != WALLET
+        ]
+
+        for receipt in (pump, pump_amm):
+            with self.subTest(program=receipt["meta"]["logMessages"][0]):
+                events = parse_tracked_token_pump_events(
+                    receipt, {MINT}, SIGNATURE
+                )
+
+                self.assertEqual(len(events), 1)
+                self.assertIsNone(events[0]["event"]["newTokenBalance"])
+
 
 class RpcFallbackRequestTests(unittest.TestCase):
     def test_retries_rate_limit_then_returns_result(self):
@@ -746,18 +819,74 @@ class HeliusWebhookTests(unittest.TestCase):
         conn = app.db()
         try:
             row = conn.execute(
-                "SELECT wallet, mint, event_json FROM market_event_inbox "
+                "SELECT wallet, trader, mint, event_json "
+                "FROM market_event_inbox "
                 "WHERE signature = ?",
                 (SIGNATURE,),
             ).fetchone()
         finally:
             conn.close()
 
-        self.assertEqual(row[:2], (WALLET, MINT))
+        self.assertEqual(row[:3], (WALLET, None, MINT))
         self.assertEqual(
-            json.loads(row[2])["traderPublicKey"],
+            json.loads(row[3])["traderPublicKey"],
             WALLET,
         )
+
+    def test_all_watched_wallets_in_one_transaction_are_preserved(self):
+        import base64
+
+        second_wallet_raw = bytes(range(129, 161))
+        second_wallet = _base58_encode(second_wallet_raw)
+        second_payload = (
+            PUMP_TRADE_EVENT
+            + MINT_RAW
+            + struct.pack("<QQ?", 1_000_000_000, 5_000_000, False)
+            + second_wallet_raw
+            + struct.pack(
+                "<qQQ",
+                1_700_000_001,
+                45_000_000_000,
+                225_000_000_000_000,
+            )
+        )
+        receipt = self.native_receipt()
+        receipt["transaction"]["message"] = {
+            "accountKeys": [WALLET, second_wallet, MINT],
+            "header": {"numRequiredSignatures": 2},
+        }
+        receipt["meta"]["logMessages"].append(
+            "Program data: "
+            + base64.b64encode(second_payload).decode("ascii")
+        )
+        receipt["meta"]["preTokenBalances"].append(
+            token_balance(second_wallet, MINT, 10_000_000, index=2)
+        )
+        receipt["meta"]["postTokenBalances"].append(
+            token_balance(second_wallet, MINT, 5_000_000, index=2)
+        )
+
+        with patch.object(app, "WATCHED", {
+            "trader-a": WALLET,
+            "trader-b": second_wallet,
+        }), patch.object(app, "TRACKED_TOKENS", set()):
+            result = app.record_helius_webhook_transactions([receipt])
+
+        self.assertEqual(result["parsed_events"], 2)
+        conn = app.db()
+        try:
+            rows = conn.execute(
+                "SELECT event_index, wallet, trader "
+                "FROM market_event_inbox WHERE signature = ? "
+                "ORDER BY event_index",
+                (SIGNATURE,),
+            ).fetchall()
+        finally:
+            conn.close()
+        self.assertEqual(rows, [
+            (0, WALLET, "trader-a"),
+            (1, second_wallet, "trader-b"),
+        ])
 
     def test_wallet_and_token_match_store_one_normalized_event(self):
         with patch.object(app, "WATCHED", {"trader-a": WALLET}), patch.object(
@@ -903,7 +1032,7 @@ class InboxRoundTripTests(unittest.TestCase):
         finally:
             conn.close()
 
-        self.assertEqual(schemes, [("ordinal-v1",)])
+        self.assertEqual(schemes, [("ordinal-v2",)])
 
     def test_rebuilt_event_exposes_its_block_timestamp(self):
         app.record_helius_webhook_transactions([self.receipt_with_two_events()])
