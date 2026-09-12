@@ -1,10 +1,76 @@
 import json
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
 import app
+
+
+class MarketEventDeduplicationTests(unittest.TestCase):
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.original_db = app.DB
+        app.DB = Path(self.temp_dir.name) / "event-dedup.db"
+        app.migrate_database()
+        self.addCleanup(self.restore)
+
+    def restore(self):
+        app.DB = self.original_db
+        self.temp_dir.cleanup()
+
+    def event_ids(self):
+        conn = app.db()
+        try:
+            return [
+                row[0]
+                for row in conn.execute(
+                    "SELECT event_id FROM processed_market_events "
+                    "ORDER BY event_id"
+                ).fetchall()
+            ]
+        finally:
+            conn.close()
+
+    def test_same_signature_distinct_indexes_are_not_duplicates(self):
+        self.assertTrue(app.mark_market_event_processed("sig-1", 0))
+        self.assertTrue(app.mark_market_event_processed("sig-1", 1))
+        self.assertFalse(app.mark_market_event_processed("sig-1", 0))
+        self.assertFalse(app.mark_market_event_processed("sig-1", 1))
+        self.assertEqual(self.event_ids(), ["sig-1:0", "sig-1:1"])
+
+    def test_concurrent_delivery_reserves_the_event_once(self):
+        barrier = threading.Barrier(2)
+        results = []
+
+        def reserve():
+            barrier.wait()
+            results.append(app.mark_market_event_processed("sig-race", 0))
+
+        threads = [threading.Thread(target=reserve) for _ in range(2)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        self.assertEqual(sorted(results), [False, True])
+        self.assertEqual(self.event_ids(), ["sig-race:0"])
+
+    def test_legacy_signature_blocks_index_zero_but_not_later_events(self):
+        conn = app.db()
+        conn.execute(
+            "INSERT INTO processed_signatures(signature, ts, source) "
+            "VALUES(?,?,?)",
+            ("sig-old", 1.0, "live"),
+        )
+        app.migrate_processed_market_events(conn)
+        conn.commit()
+        conn.close()
+
+        self.assertFalse(app.mark_market_event_processed("sig-old", 0))
+        self.assertTrue(app.mark_market_event_processed("sig-old", 1))
+        self.assertEqual(self.event_ids(), ["sig-old:0", "sig-old:1"])
 
 
 class MarketEventInboxValidationTests(unittest.TestCase):

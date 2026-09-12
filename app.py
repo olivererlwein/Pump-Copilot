@@ -440,7 +440,7 @@ SHADOW_REVIEW_MIN_COMPLETED = max(
     int(os.getenv("SHADOW_REVIEW_MIN_COMPLETED", "100"))
 )
 
-SEEN_SIGNATURES = set()
+SEEN_EVENT_IDS = set()
 FORCE_STREAM_ERROR = False
 SHADOW_MODEL = None
 SHADOW_MODEL_LAST_ERROR = ""
@@ -505,6 +505,21 @@ def db():
         """
         CREATE TABLE IF NOT EXISTS processed_signatures(
             signature TEXT PRIMARY KEY,
+            ts REAL,
+            source TEXT DEFAULT 'live'
+        )
+        """
+    )
+
+    # Identidad completa para transportes capaces de entregar más de una
+    # operación Pump dentro de una misma transacción. La tabla anterior se
+    # conserva para una reversión segura y se migra como índice 0.
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS processed_market_events(
+            event_id TEXT PRIMARY KEY,
+            signature TEXT NOT NULL,
+            event_index INTEGER NOT NULL,
             ts REAL,
             source TEXT DEFAULT 'live'
         )
@@ -1087,54 +1102,61 @@ CREATE TABLE IF NOT EXISTS signal_outcomes(
 
 
 
-def mark_signature_processed(
+def mark_market_event_processed(
     signature,
-    source="live"
+    event_index=0,
+    source="live",
 ):
+    """Reserva una operación por identidad completa antes de sus efectos."""
+    event_id = market_event_identity(signature, event_index)
 
-    if not signature:
+    if event_id is None:
         return False
 
     conn = db()
 
-    exists = conn.execute(
-        """
-        SELECT signature
-        FROM processed_signatures
-        WHERE signature = ?
-        LIMIT 1
-        """,
-        (
-            signature,
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        cursor = conn.execute(
+            """
+            INSERT OR IGNORE INTO processed_market_events(
+                event_id, signature, event_index, ts, source
+            )
+            VALUES(?,?,?,?,?)
+            """,
+            (event_id, signature, event_index, time.time(), source),
         )
-    ).fetchone()
 
-    if exists:
+        # Mantener la tabla vieja para que una reversión del despliegue no
+        # vuelva a aplicar los eventos comunes, que PumpPortal representa como
+        # índice 0. El código viejo no puede distinguir índices superiores.
+        if cursor.rowcount and event_index == 0:
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO processed_signatures(
+                    signature, ts, source
+                )
+                VALUES(?,?,?)
+                """,
+                (signature, time.time(), source),
+            )
+
+        conn.commit()
+        return bool(cursor.rowcount)
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
         conn.close()
-        return False
 
-    conn.execute(
-        """
-        INSERT INTO processed_signatures(
-            signature,
-            ts,
-            source
-        )
-        VALUES(
-            ?,?,?
-        )
-        """,
-        (
-            signature,
-            time.time(),
-            source
-        )
+
+def mark_signature_processed(signature, source="live"):
+    """Compatibilidad: una firma sin índice representa la operación cero."""
+    return mark_market_event_processed(
+        signature,
+        event_index=0,
+        source=source,
     )
-
-    conn.commit()
-    conn.close()
-
-    return True
 
 def count_open_positions(
     mode="paper",
@@ -4358,6 +4380,32 @@ def migrate_token_history_identity(conn):
     return migradas
 
 
+def migrate_processed_market_events(conn):
+    """Convierte la deduplicación histórica por firma a identidad completa."""
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS processed_market_events(
+            event_id TEXT PRIMARY KEY,
+            signature TEXT NOT NULL,
+            event_index INTEGER NOT NULL,
+            ts REAL,
+            source TEXT DEFAULT 'live'
+        )
+        """
+    )
+    cursor = conn.execute(
+        """
+        INSERT OR IGNORE INTO processed_market_events(
+            event_id, signature, event_index, ts, source
+        )
+        SELECT signature || ':0', signature, 0, ts, source
+        FROM processed_signatures
+        WHERE COALESCE(signature, '') != ''
+        """
+    )
+    return cursor.rowcount
+
+
 def migrate_inbox_event_index_to_ordinal(conn):
     """Renumera el inbox de índice de log a ordinal de operación.
 
@@ -4454,6 +4502,7 @@ def migrate_database():
     )
 
     migrate_shadow_predictions_for_multiple_models(conn)
+    migrate_processed_market_events(conn)
     migrate_token_history_identity(conn)
     migrate_inbox_event_index_to_ordinal(conn)
     migrate_market_event_inbox_validation(conn)
@@ -11334,26 +11383,32 @@ async def stream():
                     signature = event.get("signature")
 
                     if signature:
+                        event_index = market_event_index(event)
+                        event_id = market_event_identity(
+                            signature,
+                            event_index,
+                        )
 
-                        if signature in SEEN_SIGNATURES:
+                        if event_id in SEEN_EVENT_IDS:
                             print(
-                                f"[DUPLICATE MEMORY] Ignorado {signature[:8]}..."
+                                f"[DUPLICATE MEMORY] Ignorado {event_id[:12]}..."
                             )
                             continue
 
-                        if not mark_signature_processed(
+                        if not mark_market_event_processed(
                             signature,
+                            event_index=event_index,
                             source="live"
                         ):
                             print(
-                                f"[DUPLICATE DB] Ignorado {signature[:8]}..."
+                                f"[DUPLICATE DB] Ignorado {event_id[:12]}..."
                             )
                             continue
 
-                        SEEN_SIGNATURES.add(signature)
+                        SEEN_EVENT_IDS.add(event_id)
 
-                        if len(SEEN_SIGNATURES) > 5000:
-                            SEEN_SIGNATURES.clear()
+                        if len(SEEN_EVENT_IDS) > 5000:
+                            SEEN_EVENT_IDS.clear()
 
                     route_market_event(event)
 

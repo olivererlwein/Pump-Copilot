@@ -60,6 +60,67 @@ class MarketEventRoutingTests(unittest.TestCase):
 
 
 class StreamRoutingTests(unittest.IsolatedAsyncioTestCase):
+    async def test_same_signature_distinct_indexes_both_reach_the_router(self):
+        base_event = {
+            "signature": "multi-operation-signature",
+            "traderPublicKey": "watched-wallet",
+            "mint": "routing-mint",
+            "txType": "sell",
+            "marketCapSol": 100,
+            "solAmount": 1,
+            "newTokenBalance": 10,
+        }
+        events = [
+            {**base_event, "eventIndex": 0},
+            {**base_event, "eventIndex": 1},
+        ]
+        socket = AsyncMock()
+        socket.recv.side_effect = [
+            json.dumps(events[0]),
+            json.dumps(events[1]),
+            asyncio.CancelledError(),
+        ]
+        connection = AsyncMock()
+        connection.__aenter__.return_value = socket
+
+        with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
+            for name, value in {
+                "DB": Path(directory) / "multi-event-routing.db",
+                "API_KEY": "test-key",
+                "WATCHED": {"test-trader": "watched-wallet"},
+                "TRACKED_TOKENS": set(),
+                "SUBSCRIBED_TOKENS": set(),
+                "TOKENS_TO_UNSUBSCRIBE": set(),
+                "SEEN_EVENT_IDS": set(),
+                "FORCE_STREAM_ERROR": False,
+                "STREAM_CONNECTED": False,
+                "LAST_STREAM_MESSAGE_TS": 0,
+                "LAST_STREAM_EVENT_TS": 0,
+            }.items():
+                stack.enter_context(patch.object(app, name, value))
+            stack.enter_context(patch.object(
+                app.websockets, "connect", return_value=connection,
+            ))
+            stack.enter_context(patch.object(
+                app, "mark_stream_recovered", new=AsyncMock(),
+            ))
+            stack.enter_context(patch.object(
+                app.asyncio,
+                "sleep",
+                new=AsyncMock(side_effect=asyncio.CancelledError()),
+            ))
+            route = stack.enter_context(patch.object(app, "route_market_event"))
+            app.migrate_database()
+
+            with self.assertRaises(asyncio.CancelledError):
+                await app.stream()
+
+        self.assertEqual(route.call_count, 2)
+        self.assertEqual(
+            [call.args[0]["eventIndex"] for call in route.call_args_list],
+            [0, 1],
+        )
+
     async def check_routing(self, watched, tracked, real_effects=False):
         event = {
             "signature": "routing-test-signature",
@@ -85,7 +146,7 @@ class StreamRoutingTests(unittest.IsolatedAsyncioTestCase):
                 "TRACKED_TOKENS": {event["mint"]} if tracked else set(),
                 "SUBSCRIBED_TOKENS": set(),
                 "TOKENS_TO_UNSUBSCRIBE": set(),
-                "SEEN_SIGNATURES": set(),
+                "SEEN_EVENT_IDS": set(),
                 "FORCE_STREAM_ERROR": False,
                 "STREAM_CONNECTED": False,
                 "LAST_STREAM_MESSAGE_TS": 0,

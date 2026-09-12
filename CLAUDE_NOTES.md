@@ -1831,3 +1831,24 @@ router, rechazo con error persistido y filas terminales no reclamadas otra vez.
 El siguiente paso, separado y todavía no implementado, es consumir filas
 `validated` mediante otro interruptor. Ese paso sí tocará el pipeline funcional
 y requiere una revisión nueva antes de permitir cualquier efecto.
+
+## Deduplicación global por evento
+
+Antes del despacho apareció otro prerrequisito: el stream reservaba solamente
+la firma en `processed_signatures`. Una transacción con eventos `0` y `1`
+habría descartado el segundo antes de llegar a `route_market_event()`.
+
+Se agregó `processed_market_events`, con `firma:índice` como clave primaria, y
+`mark_market_event_processed()` hace la reserva mediante `INSERT OR IGNORE`
+dentro de una transacción. `stream()` usa esa identidad tanto en memoria como
+en SQLite. Las firmas históricas se migran como índice `0`; el índice `0` nuevo
+también se sigue escribiendo en la tabla vieja para que una reversión no vuelva
+a ejecutar los eventos comunes. `mark_signature_processed()` queda como
+compatibilidad y representa explícitamente el índice `0`.
+
+Pruebas nuevas: dos índices de una misma firma pasan una vez cada uno, dos
+writers concurrentes reservan una sola vez, la firma histórica bloquea el
+índice `0` pero no el `1`, y el websocket entrega ambos índices al router.
+
+Esto todavía no despacha Helius. El próximo bloque puede construir el parser
+por token y la frontera temporal de activación sobre esta identidad completa.

@@ -6,9 +6,9 @@
     "semantic_hash": "5ebef3dd159986e465ab65e4014107ec"
   },
   "app.py": {
-    "mtime": 1789225629.527759,
-    "seen": 1789225644.0015352,
-    "ast_hash": "79944f8661a25a42caf1e6aeb50f2857",
+    "mtime": 1789226708.559728,
+    "seen": 1789226740.8449612,
+    "ast_hash": "538e7cdf4a11e7b1c5d49266307f3cb4",
     "semantic_hash": ""
   },
   "models/baseline_v2_shadow.json": {
@@ -252,9 +252,9 @@
     "semantic_hash": ""
   },
   "CLAUDE_NOTES.md": {
-    "mtime": 1789225576.5335498,
-    "seen": 1789225610.9516778,
-    "ast_hash": "e705116fa00856a74ebe8d6436e0aaeb",
+    "mtime": 1789226612.5061498,
+    "seen": 1789226681.7866483,
+    "ast_hash": "9023027ab63ef2f05382b1f56279d3cd",
     "semantic_hash": ""
   },
   "2026-09-10.md": {
@@ -288,9 +288,9 @@
     "semantic_hash": ""
   },
   "tests/test_stream_routing.py": {
-    "mtime": 1789155226.788299,
-    "seen": 1789155256.7992847,
-    "ast_hash": "f86d039bdcb8cff54fc094306666596f",
+    "mtime": 1789226576.1044874,
+    "seen": 1789226681.786612,
+    "ast_hash": "3c245d67a16a8af4db14c297368b1c49",
     "semantic_hash": ""
   },
   "tests/test_paper_idempotency.py": {
@@ -300,9 +300,9 @@
     "semantic_hash": ""
   },
   "tests/test_market_event_inbox.py": {
-    "mtime": 1789225538.709122,
-    "seen": 1789225610.9516213,
-    "ast_hash": "ed8a25ee419b5aa63a6085e78e626818",
+    "mtime": 1789226556.7586026,
+    "seen": 1789226681.7865946,
+    "ast_hash": "4378500180429a1c2aba815db4249249",
     "semantic_hash": ""
   }
 }
