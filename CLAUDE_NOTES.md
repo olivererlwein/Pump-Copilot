@@ -1976,9 +1976,14 @@ identidad completa `firma:índice`. Los estados terminales del inbox son
 `processed`, `duplicate`, `ignored_pre_activation` y `failed`. Si una excepción
 ocurre después de reservar la identidad global, no se reintenta automáticamente:
 la fila queda `failed` y se alerta por Discord, porque repetir una ruta que pudo
-alcanzar el camino del dinero sería inseguro. El lease permite recuperar un
-worker muerto antes de la reserva global y el token de claim impide que el dueño
-anterior confirme una fila recuperada.
+alcanzar el camino del dinero sería inseguro. La única excepción que se
+reintenta es la de la reserva misma (un error de base al escribir
+`processed_market_events`): ahí no hubo efectos, la fila vuelve a `validated`
+con el error anotado y el siguiente ciclo la vuelve a reclamar; el worker lo
+cuenta como `released`. Una fila que no se puede reconstruir sigue siendo
+`failed`, porque es determinista. El lease permite recuperar un worker muerto
+antes de la reserva global y el token de claim impide que el dueño anterior
+confirme una fila recuperada.
 
 La reconstrucción ahora compara también `block_event_ts` entre la columna y el
 JSON. Firma, índice, wallet y timestamp deben coincidir antes de aplicar el

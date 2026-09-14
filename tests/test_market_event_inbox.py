@@ -1,4 +1,5 @@
 import json
+import sqlite3
 import tempfile
 import threading
 import unittest
@@ -347,6 +348,7 @@ class MarketEventInboxConsumerTests(unittest.TestCase):
             "duplicates": 0,
             "ignored_pre_activation": 0,
             "failed": 0,
+            "released": 0,
             "lost_claims": 0,
         })
         mark.assert_called_once_with("sig-1", 0, source="helius")
@@ -417,6 +419,50 @@ class MarketEventInboxConsumerTests(unittest.TestCase):
         )
         self.assertEqual(self.row()[0], "failed")
         self.assertIn("RuntimeError: boom", self.row()[5])
+
+    def test_reservation_failure_returns_the_row_for_a_safe_retry(self):
+        """Si la reserva lanza, no hubo efectos: la fila vuelve a la cola.
+
+        Solo la reserva se reintenta. Reconstruir la fila es determinista y el
+        enrutado ya reservó; ambos siguen siendo terminales.
+        """
+        self.insert_validated_event()
+        app.establish_market_event_inbox_activation(now=200.5)
+
+        with (
+            patch.object(
+                app,
+                "mark_market_event_processed",
+                side_effect=sqlite3.OperationalError("database is locked"),
+            ),
+            patch.object(app, "route_market_event") as route,
+        ):
+            first = app.consume_market_event_inbox_once(now=205.0)
+
+        route.assert_not_called()
+        self.assertEqual(first["released"], 1)
+        self.assertEqual(first["failed"], 0)
+        status, attempts, claim_token, claimed_ts, processed_ts, error = (
+            self.row()
+        )
+        self.assertEqual(status, "validated")
+        self.assertEqual(attempts, 1)
+        self.assertIsNone(claim_token)
+        self.assertIsNone(claimed_ts)
+        self.assertIsNone(processed_ts)
+        self.assertIn("database is locked", error)
+
+        # La identidad sigue libre: el reintento la reserva y enruta una vez.
+        with patch.object(app, "route_market_event") as route:
+            second = app.consume_market_event_inbox_once(now=206.0)
+
+        route.assert_called_once()
+        self.assertEqual(second["processed"], 1)
+        self.assertEqual(self.row()[0], "processed")
+        self.assertEqual(self.row()[1], 2)
+        self.assertFalse(
+            app.mark_market_event_processed("sig-1", 0, source="live")
+        )
 
     def test_missing_activation_does_not_claim_a_validated_row(self):
         self.insert_validated_event()

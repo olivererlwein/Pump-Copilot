@@ -10040,17 +10040,24 @@ def finish_market_event_inbox_processing(
     error=None,
     now=None,
 ):
-    """Finaliza el consumo solo si el worker todavía posee la reserva."""
+    """Cierra la reserva solo si el worker todavía la posee.
+
+    ``validated`` devuelve la fila a la cola con el error anotado: es para
+    fallas transitorias anteriores a reservar la identidad global, donde no
+    hubo ningún efecto y reintentar es seguro. Los demás estados son finales.
+    """
     final_statuses = {
         "processed",
         "duplicate",
         "ignored_pre_activation",
         "failed",
+        "validated",
     }
     if status not in final_statuses:
         raise ValueError(f"estado final de consumo inválido: {status!r}")
 
     now = float(now if now is not None else time.time())
+    processed_ts = None if status == "validated" else now
     error_text = str(error or "")[:500] or None
     conn = db()
 
@@ -10070,7 +10077,7 @@ def finish_market_event_inbox_processing(
             """,
             (
                 status,
-                now,
+                processed_ts,
                 error_text,
                 signature,
                 event_index,
@@ -10090,6 +10097,11 @@ def consume_market_event_inbox_once(limit=None, now=None):
     stream. Si el router falla, la fila queda terminalmente fallida: reintentar
     una ruta que pudo alcanzar el camino del dinero sería menos seguro que
     hacer visible la pérdida para revisión manual.
+
+    La única falla que se reintenta es la de la reserva misma —un error de base
+    al escribir `processed_market_events`—: ahí no hubo efecto alguno y la fila
+    vuelve a `validated` con el error anotado. Una fila que no se puede
+    reconstruir es determinista y queda fallida; reintentarla no la arregla.
     """
     activation_ts = get_market_event_inbox_activation_ts()
     if activation_ts is None:
@@ -10102,10 +10114,12 @@ def consume_market_event_inbox_once(limit=None, now=None):
         "duplicates": 0,
         "ignored_pre_activation": 0,
         "failed": 0,
+        "released": 0,
         "lost_claims": 0,
     }
 
     for row in rows:
+        reserving = False
         try:
             if not market_event_is_after_activation(
                 received_ts=row["received_ts"],
@@ -10123,11 +10137,15 @@ def consume_market_event_inbox_once(limit=None, now=None):
                     block_event_ts=row["block_event_ts"],
                 )
 
-                if not mark_market_event_processed(
+                reserving = True
+                reserved = mark_market_event_processed(
                     row["signature"],
                     row["event_index"],
                     source="helius",
-                ):
+                )
+                reserving = False
+
+                if not reserved:
                     status = "duplicate"
                     error = None
                 else:
@@ -10141,7 +10159,9 @@ def consume_market_event_inbox_once(limit=None, now=None):
                     status = "processed"
                     error = None
         except Exception as exc:
-            status = "failed"
+            # Si la reserva lanzó, su transacción hizo rollback y la identidad
+            # sigue libre: no hubo efectos y se puede reintentar.
+            status = "validated" if reserving else "failed"
             error = f"{exc.__class__.__name__}: {exc}"
 
         finished = finish_market_event_inbox_processing(
@@ -10157,6 +10177,8 @@ def consume_market_event_inbox_once(limit=None, now=None):
             result["lost_claims"] += 1
         elif status == "duplicate":
             result["duplicates"] += 1
+        elif status == "validated":
+            result["released"] += 1
         else:
             result[status] += 1
 
@@ -10168,6 +10190,11 @@ async def market_event_inbox_consumer_worker():
     while True:
         try:
             result = await asyncio.to_thread(consume_market_event_inbox_once)
+            if result["released"]:
+                print(
+                    "[HELIUS INBOX CONSUMER] "
+                    f"{result['released']} evento(s) devueltos para reintento"
+                )
             if result["failed"]:
                 await send_discord_alert(
                     "Pump Copilot: Helius inbox tuvo "
