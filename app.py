@@ -14010,6 +14010,13 @@ def api_helius_webhook_stats(
     # Latencia de PumpPortal, medida sobre las operaciones que sí entregó:
     # el momento en que las guardamos contra el tiempo de bloque que conocemos
     # por el monitor RPC.
+    #
+    # `trades` no dice qué transporte escribió cada fila, y con el consumidor
+    # del inbox activo Helius también escribe ahí con `ts` igual al tiempo de
+    # bloque: esas filas darían latencia cero y hundirían el promedio. Quién
+    # ganó cada operación queda en `processed_market_events.source`. Una firma
+    # con operaciones ganadas por ambos transportes se descarta entera, porque
+    # `trades` no tiene índice para separar sus filas.
     stream_latency = conn.execute(
         """
         SELECT
@@ -14021,18 +14028,40 @@ def api_helius_webhook_stats(
         JOIN trades ON trades.signature = rpc.signature
         WHERE rpc.block_time IS NOT NULL
         AND trades.ts >= rpc.block_time
+        AND EXISTS(
+            SELECT 1 FROM processed_market_events AS won
+            WHERE won.signature = trades.signature
+            AND won.source = 'live'
+        )
+        AND NOT EXISTS(
+            SELECT 1 FROM processed_market_events AS won
+            WHERE won.signature = trades.signature
+            AND won.source = 'helius'
+        )
         """
     ).fetchone()
 
     # Operaciones que el webhook vio y el stream no.
+    #
+    # La referencia es la reserva de identidad del stream, no `trades`: el
+    # stream reserva toda operación que entrega —también las de tokens
+    # seguidos por wallets no vigiladas, que nunca llegan a `trades`— y el
+    # consumidor del inbox reserva con `source = 'helius'`, así que lo que él
+    # escribe en `trades` no cuenta como entregado por PumpPortal.
+    #
+    # Límite: si el consumidor gana una operación antes que el stream, la
+    # copia del stream se descarta como duplicada sin dejar rastro y acá cuenta
+    # como vista solo por el webhook. Con el sondeo del consumidor en segundos
+    # y PumpPortal en milisegundos, es el caso raro.
     only_webhook = conn.execute(
         """
         SELECT COUNT(*)
         FROM helius_webhook_events AS hook
         WHERE hook.parsed = 1
         AND NOT EXISTS(
-            SELECT 1 FROM trades
-            WHERE trades.signature = hook.signature
+            SELECT 1 FROM processed_market_events AS won
+            WHERE won.signature = hook.signature
+            AND won.source = 'live'
         )
         """
     ).fetchone()[0]

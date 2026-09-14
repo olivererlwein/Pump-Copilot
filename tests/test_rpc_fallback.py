@@ -935,6 +935,93 @@ class HeliusWebhookTests(unittest.TestCase):
         # Sin entrega por el stream, esa operación solo la vio el webhook.
         self.assertEqual(report["parsed_only_in_webhook"], 1)
 
+    def test_stats_attribute_trades_to_the_transport_that_won_them(self):
+        """Lo que el consumidor del inbox escribe en `trades` no es PumpPortal.
+
+        Con el consumidor activo, Helius escribe `trades` con `ts` igual al
+        tiempo de bloque. Si la comparación mirara `trades`, cada operación
+        consumida contaría como entregada por el stream con latencia cero y la
+        comparación dejaría de medir cobertura y latencia de PumpPortal.
+        """
+        block_time = 1_700_000_000
+
+        with patch.object(app, "WATCHED", {"trader-a": WALLET}):
+            app.record_helius_webhook_transactions(
+                [self.native_receipt()],
+                received_ts=block_time + 3,
+            )
+
+        def seed_trade(signature, ts, source):
+            self.assertTrue(
+                app.mark_market_event_processed(signature, 0, source=source)
+            )
+            conn = app.db()
+            try:
+                conn.execute(
+                    """
+                    INSERT INTO trades(
+                        ts, trader, wallet, side, mint, sol, market_cap_sol,
+                        signature, source
+                    )
+                    VALUES(?, 'trader-a', ?, 'buy', ?, 1.0, 30.0, ?, 'live')
+                    """,
+                    (ts, WALLET, MINT, signature),
+                )
+                conn.execute(
+                    """
+                    INSERT INTO rpc_fallback_events(
+                        signature, event_index, slot, block_time, detected_ts,
+                        trader, wallet, program, event_name, side, mint, sol,
+                        market_cap_sol, token_amount, new_token_balance, pool,
+                        event_json, status
+                    )
+                    VALUES(?, 0, 1, ?, ?, 'trader-a', ?, 'pump', 'TradeEvent',
+                           'buy', ?, 1.0, 30.0, 1.0, 1.0, 'pump', '{}',
+                           'pending')
+                    """,
+                    (signature, block_time, ts, WALLET, MINT),
+                )
+                conn.commit()
+            finally:
+                conn.close()
+
+        # Ganada por el consumidor: `ts` es el tiempo de bloque exacto.
+        seed_trade(SIGNATURE, block_time, "helius")
+
+        with patch.object(app, "APP_TOKEN", "token"):
+            report = app.api_helius_webhook_stats("token")
+
+        self.assertEqual(report["parsed_only_in_webhook"], 1)
+        self.assertEqual(report["pumpportal_latency"]["samples"], 0)
+
+        # Ganada por el stream: `ts` es cuándo la guardamos nosotros.
+        seed_trade("stream-only-signature", block_time + 1.5, "live")
+
+        with patch.object(app, "APP_TOKEN", "token"):
+            report = app.api_helius_webhook_stats("token")
+
+        self.assertEqual(report["parsed_only_in_webhook"], 1)
+        self.assertEqual(report["pumpportal_latency"]["samples"], 1)
+        self.assertEqual(report["pumpportal_latency"]["avg_seconds"], 1.5)
+
+    def test_stats_count_stream_delivery_even_without_a_trade_row(self):
+        """Un token seguido de una wallet no vigilada no llega a `trades`.
+
+        El stream igual lo entregó y lo reservó; contarlo como visto solo por
+        el webhook infla la cobertura aparente de Helius.
+        """
+        with patch.object(app, "WATCHED", {"trader-a": WALLET}):
+            app.record_helius_webhook_transactions([self.native_receipt()])
+
+        self.assertTrue(
+            app.mark_market_event_processed(SIGNATURE, 0, source="live")
+        )
+
+        with patch.object(app, "APP_TOKEN", "token"):
+            report = app.api_helius_webhook_stats("token")
+
+        self.assertEqual(report["parsed_only_in_webhook"], 0)
+
 
 class InboxRoundTripTests(unittest.TestCase):
     """El índice tiene que sobrevivir el viaje completo, no solo el parser.

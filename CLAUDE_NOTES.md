@@ -2033,3 +2033,17 @@ enlazan outcomes y predicciones shadow, y asigna índice `0` a las evaluaciones
 históricas. Una misma transacción puede producir varias señales sin confundirlas
 con un reintento del mismo evento. La prueba de migración corre dos veces para
 confirmar idempotencia y conserva un ID histórico explícito.
+
+### Comparación de transportes con el consumidor activo
+
+`/api/helius-webhook-stats` atribuye cada operación al transporte que la ganó
+usando `processed_market_events.source` (`live` para el stream, `helius` para el
+consumidor del inbox), no `trades`. Con el consumidor activo Helius también
+escribe `trades` con `ts` igual al tiempo de bloque; contarlas como PumpPortal
+daría latencia cero y `parsed_only_in_webhook` caería a cero aunque el stream no
+hubiera entregado nada. `pumpportal_latency` descarta firmas ganadas por ambos
+transportes porque `trades` no guarda índice para separar sus filas, y
+`parsed_only_in_webhook` ahora también reconoce entregas del stream que nunca
+llegan a `trades` (tokens seguidos operados por wallets no vigiladas). Límite
+conocido: si el consumidor gana una operación antes que el stream, la copia del
+stream se descarta sin rastro y cuenta como vista solo por el webhook.
