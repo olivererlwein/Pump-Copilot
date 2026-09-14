@@ -250,6 +250,49 @@ LIVE_TRADING = os.getenv(
 
 LIVE_EXECUTION_IMPLEMENTED = False
 
+LIVE_CANARY_ENABLED = os.getenv(
+    "LIVE_CANARY_ENABLED",
+    "false",
+).lower() == "true"
+
+LIVE_APPROVED_MODEL_VERSION = os.getenv(
+    "LIVE_APPROVED_MODEL_VERSION",
+    "",
+).strip()
+
+try:
+    LIVE_CANARY_MAX_BUY_USD = float(
+        os.getenv("LIVE_CANARY_MAX_BUY_USD", "0")
+    )
+except (TypeError, ValueError):
+    LIVE_CANARY_MAX_BUY_USD = 0.0
+
+try:
+    LIVE_CANARY_MAX_BUYS_PER_DAY = int(
+        os.getenv("LIVE_CANARY_MAX_BUYS_PER_DAY", "0")
+    )
+except (TypeError, ValueError):
+    LIVE_CANARY_MAX_BUYS_PER_DAY = 0
+
+try:
+    LIVE_CANARY_MAX_DAILY_NOTIONAL_USD = float(
+        os.getenv("LIVE_CANARY_MAX_DAILY_NOTIONAL_USD", "0")
+    )
+except (TypeError, ValueError):
+    LIVE_CANARY_MAX_DAILY_NOTIONAL_USD = 0.0
+
+LIVE_CANARY_ALLOWED_TRADERS = {
+    trader.strip()
+    for trader in os.getenv("LIVE_CANARY_ALLOWED_TRADERS", "").split(",")
+    if trader.strip()
+}
+
+# Estos topes no son configurables: evitan convertir accidentalmente el
+# canary en operación normal mediante variables de Railway demasiado amplias.
+LIVE_CANARY_HARD_MAX_BUY_USD = 1.0
+LIVE_CANARY_HARD_MAX_BUYS_PER_DAY = 3
+LIVE_CANARY_HARD_MAX_DAILY_NOTIONAL_USD = 3.0
+
 LIVE_BUYS_ENABLED = os.getenv(
     "LIVE_BUYS_ENABLED",
     "false"
@@ -1367,6 +1410,31 @@ def get_daily_live_realized_pnl_sol(connection=None):
     if connection is None:
         conn.close()
     return sum(int(row[0]) for row in rows) / 1_000_000_000
+
+
+def get_local_day_start_ts(now=None):
+    current = time.localtime(now if now is not None else time.time())
+    return time.mktime((
+        current.tm_year, current.tm_mon, current.tm_mday, 0, 0, 0,
+        current.tm_wday, current.tm_yday, current.tm_isdst,
+    ))
+
+
+def get_daily_live_buy_exposure(now=None, connection=None):
+    start_of_day = get_local_day_start_ts(now)
+    conn = connection or db()
+    row = conn.execute(
+        "SELECT COUNT(*), COALESCE(SUM(amount_usd), 0) "
+        "FROM execution_orders WHERE mode = 'live' AND side = 'buy' "
+        "AND ts_created >= ?",
+        (start_of_day,),
+    ).fetchone()
+    if connection is None:
+        conn.close()
+    return {
+        "attempts": int(row[0] or 0),
+        "notional_usd": float(row[1] or 0),
+    }
 
 
 def get_live_position_summary(limit=100):
@@ -2990,7 +3058,11 @@ def execute_pumpportal_lightning_buy(
     except HTTPException as exc:
         return {"ok": False, "reason": exc.detail}
 
-    readiness = get_live_execution_readiness("buy")
+    readiness = get_live_execution_readiness(
+        "buy",
+        trader=origin_trader,
+        amount_usd=amount_usd,
+    )
     if not readiness["ready"]:
         return {
             "ok": False,
@@ -3023,7 +3095,17 @@ def execute_pumpportal_lightning_buy(
         idempotency_key=idempotency_key,
         source="pumpportal_lightning",
         mode="live",
+        canary_limits={
+            "start_of_day_ts": get_local_day_start_ts(),
+            "max_buys": LIVE_CANARY_MAX_BUYS_PER_DAY,
+            "max_notional_usd": LIVE_CANARY_MAX_DAILY_NOTIONAL_USD,
+        },
     )
+    if order.get("blocked"):
+        return {
+            "ok": False,
+            "reason": order["reason"],
+        }
     order_id = order["order_id"]
     if not order["created"]:
         current = get_execution_order_status(order_id)
@@ -3305,7 +3387,8 @@ def create_execution_order_idempotent(
     idempotency_key,
     source="paper",
     parent_order_id=None,
-    mode="paper"
+    mode="paper",
+    canary_limits=None,
 ):
 
     conn = db()
@@ -3337,6 +3420,33 @@ def create_execution_order_idempotent(
                 "created": False,
                 "order_id": order_id
             }
+
+        if canary_limits is not None:
+            exposure = conn.execute(
+                "SELECT COUNT(*), COALESCE(SUM(amount_usd), 0) "
+                "FROM execution_orders "
+                "WHERE mode = 'live' AND side = 'buy' AND ts_created >= ?",
+                (float(canary_limits["start_of_day_ts"]),),
+            ).fetchone()
+            if int(exposure[0] or 0) >= int(canary_limits["max_buys"]):
+                conn.commit()
+                conn.close()
+                return {
+                    "created": False,
+                    "blocked": True,
+                    "reason": "LIVE_CANARY_BUY_LIMIT_REACHED",
+                }
+            if (
+                float(exposure[1] or 0) + float(amount_usd)
+                > float(canary_limits["max_notional_usd"])
+            ):
+                conn.commit()
+                conn.close()
+                return {
+                    "created": False,
+                    "blocked": True,
+                    "reason": "LIVE_CANARY_NOTIONAL_LIMIT_REACHED",
+                }
 
         now = time.time()
 
@@ -7530,7 +7640,117 @@ def get_shadow_stats():
     }
 
 
-def get_live_execution_readiness(execution_side=None):
+def get_live_exit_feed_readiness(now=None):
+    status = get_helius_webhook_sync_status()
+    blockers = []
+    if not MARKET_EVENT_INBOX_CONSUMER_ENABLED:
+        blockers.append("HELIUS_INBOX_CONSUMER_DISABLED")
+    if not status["enabled"] or not status["apply"]:
+        blockers.append("HELIUS_TOKEN_SYNC_NOT_APPLIED")
+    if not status["configured"] or not status["initialized"]:
+        blockers.append("HELIUS_TOKEN_SYNC_NOT_READY")
+    if status["last_error"]:
+        blockers.append("HELIUS_TOKEN_SYNC_UNHEALTHY")
+    if status["pending_tokens"] or status["planned_additions"]:
+        blockers.append("HELIUS_TOKEN_SYNC_PENDING")
+
+    current_ts = float(now if now is not None else time.time())
+    last_success_ts = status["last_success_ts"]
+    maximum_age = max(600, HELIUS_WEBHOOK_SYNC_AUDIT_SECONDS * 2)
+    if (
+        last_success_ts is None
+        or current_ts - float(last_success_ts) > maximum_age
+    ):
+        blockers.append("HELIUS_TOKEN_SYNC_STALE")
+    return {
+        "ready": not blockers,
+        "blockers": blockers,
+        "last_success_ts": last_success_ts,
+        "maximum_age_seconds": maximum_age,
+    }
+
+
+def get_live_canary_blockers(trader=None, amount_usd=None):
+    if not LIVE_CANARY_ENABLED:
+        return ["LIVE_CANARY_DISABLED"]
+
+    blockers = []
+    loaded_model_version = str(
+        getattr(SHADOW_MODEL, "model_version", "") or ""
+    )
+    if not LIVE_APPROVED_MODEL_VERSION:
+        blockers.append("LIVE_APPROVED_MODEL_VERSION_MISSING")
+    elif loaded_model_version != LIVE_APPROVED_MODEL_VERSION:
+        blockers.append("LIVE_APPROVED_MODEL_VERSION_MISMATCH")
+    if not bool(getattr(SHADOW_MODEL, "deployment_ready", False)):
+        blockers.append("LIVE_MODEL_NOT_DEPLOYMENT_READY")
+
+    if (
+        not math.isfinite(LIVE_CANARY_MAX_BUY_USD)
+        or not 0 < LIVE_CANARY_MAX_BUY_USD <= LIVE_CANARY_HARD_MAX_BUY_USD
+    ):
+        blockers.append("LIVE_CANARY_MAX_BUY_USD_INVALID")
+    if not (
+        0 < LIVE_CANARY_MAX_BUYS_PER_DAY
+        <= LIVE_CANARY_HARD_MAX_BUYS_PER_DAY
+    ):
+        blockers.append("LIVE_CANARY_MAX_BUYS_PER_DAY_INVALID")
+    if (
+        not math.isfinite(LIVE_CANARY_MAX_DAILY_NOTIONAL_USD)
+        or not 0 < LIVE_CANARY_MAX_DAILY_NOTIONAL_USD
+        <= LIVE_CANARY_HARD_MAX_DAILY_NOTIONAL_USD
+    ):
+        blockers.append("LIVE_CANARY_MAX_DAILY_NOTIONAL_USD_INVALID")
+
+    try:
+        selected_amount = float(
+            LIVE_BUY_USD if amount_usd is None else amount_usd
+        )
+    except (TypeError, ValueError):
+        selected_amount = 0.0
+    if (
+        not math.isfinite(selected_amount)
+        or selected_amount <= 0
+        or selected_amount > LIVE_CANARY_MAX_BUY_USD
+        or selected_amount > LIVE_CANARY_HARD_MAX_BUY_USD
+    ):
+        blockers.append("LIVE_CANARY_BUY_AMOUNT_INVALID")
+
+    if not LIVE_CANARY_ALLOWED_TRADERS:
+        blockers.append("LIVE_CANARY_TRADERS_MISSING")
+    elif trader is not None and trader not in LIVE_CANARY_ALLOWED_TRADERS:
+        blockers.append("LIVE_CANARY_TRADER_NOT_ALLOWED")
+
+    if not LIVE_SELLS_ENABLED:
+        blockers.append("LIVE_SELLS_REQUIRED_FOR_BUYS")
+    try:
+        exit_feed = get_live_exit_feed_readiness()
+    except Exception:
+        blockers.append("LIVE_EXIT_FEED_STATUS_UNKNOWN")
+    else:
+        if not exit_feed["ready"]:
+            blockers.append("LIVE_EXIT_FEED_NOT_READY")
+
+    try:
+        exposure = get_daily_live_buy_exposure()
+    except Exception:
+        blockers.append("LIVE_CANARY_EXPOSURE_UNKNOWN")
+    else:
+        if exposure["attempts"] >= LIVE_CANARY_MAX_BUYS_PER_DAY:
+            blockers.append("LIVE_CANARY_BUY_LIMIT_REACHED")
+        if (
+            exposure["notional_usd"] + max(selected_amount, 0)
+            > LIVE_CANARY_MAX_DAILY_NOTIONAL_USD
+        ):
+            blockers.append("LIVE_CANARY_NOTIONAL_LIMIT_REACHED")
+    return blockers
+
+
+def get_live_execution_readiness(
+    execution_side=None,
+    trader=None,
+    amount_usd=None,
+):
     execution_side = str(
         execution_side or ""
     ).strip().lower()
@@ -7538,6 +7758,7 @@ def get_live_execution_readiness(execution_side=None):
     shadow_stats = get_shadow_stats()
     assessment = shadow_stats["promotion_assessment"]
     blockers = []
+    canary_blockers = []
 
     if not API_KEY:
         blockers.append("PUMPPORTAL_API_KEY_MISSING")
@@ -7549,10 +7770,6 @@ def get_live_execution_readiness(execution_side=None):
         blockers.append("PUMPPORTAL_BALANCE_UNKNOWN")
     elif PUMPPORTAL_WALLET_BALANCE_SOL < PUMPPORTAL_LOW_BALANCE_SOL:
         blockers.append("PUMPPORTAL_BALANCE_LOW")
-    if not assessment["ready_for_review"]:
-        blockers.extend(assessment["blockers"])
-    elif assessment["leader"] != "challenger":
-        blockers.append("SHADOW_CHALLENGER_NOT_CLEAR_LEADER")
     if KILL_SWITCH:
         blockers.append("KILL_SWITCH_ACTIVE")
     if not LIVE_EXECUTION_IMPLEMENTED:
@@ -7583,6 +7800,22 @@ def get_live_execution_readiness(execution_side=None):
         blockers.append("LIVE_BUY_USD_INVALID")
     if execution_side == "sell" and not LIVE_SELLS_ENABLED:
         blockers.append("LIVE_SELLS_DISABLED")
+    if execution_side == "buy" or (
+        not execution_side and LIVE_BUYS_ENABLED
+    ):
+        canary_blockers = get_live_canary_blockers(trader, amount_usd)
+        blockers.extend(canary_blockers)
+
+    common_execution_ready = bool(
+        API_KEY
+        and PUMPPORTAL_TRADING_WALLET_ADDRESS
+        and STREAM_CONNECTED
+        and PUMPPORTAL_WALLET_BALANCE_SOL is not None
+        and PUMPPORTAL_WALLET_BALANCE_SOL >= PUMPPORTAL_LOW_BALANCE_SOL
+        and not KILL_SWITCH
+        and LIVE_EXECUTION_IMPLEMENTED
+        and LIVE_TRADING
+    )
 
     return {
         "ready": not blockers,
@@ -7598,19 +7831,26 @@ def get_live_execution_readiness(execution_side=None):
         "live_buys_enabled": bool(LIVE_BUYS_ENABLED),
         "live_sells_enabled": bool(LIVE_SELLS_ENABLED),
         "live_buy_usd": LIVE_BUY_USD,
+        "live_canary_enabled": bool(LIVE_CANARY_ENABLED),
+        "live_approved_model_version": LIVE_APPROVED_MODEL_VERSION or None,
+        "live_canary_max_buy_usd": LIVE_CANARY_MAX_BUY_USD,
+        "live_canary_max_buys_per_day": LIVE_CANARY_MAX_BUYS_PER_DAY,
+        "live_canary_max_daily_notional_usd": (
+            LIVE_CANARY_MAX_DAILY_NOTIONAL_USD
+        ),
+        "live_canary_allowed_traders": sorted(
+            LIVE_CANARY_ALLOWED_TRADERS
+        ),
         "live_buy_ready": bool(
-            LIVE_TRADING
-            and LIVE_EXECUTION_IMPLEMENTED
+            common_execution_ready
             and LIVE_BUYS_ENABLED
             and math.isfinite(LIVE_BUY_USD)
             and 0 < LIVE_BUY_USD <= MAX_POSITION_USD
-            and not KILL_SWITCH
+            and not canary_blockers
         ),
         "live_sell_ready": bool(
-            LIVE_TRADING
-            and LIVE_EXECUTION_IMPLEMENTED
+            common_execution_ready
             and LIVE_SELLS_ENABLED
-            and not KILL_SWITCH
         ),
     }
 
@@ -8826,7 +9066,11 @@ def maybe_execute_live_copy(
             "minimum_samples": TRADER_QUALITY_MIN_SAMPLES,
         }
 
-    readiness = get_live_execution_readiness("buy")
+    readiness = get_live_execution_readiness(
+        "buy",
+        trader=trader,
+        amount_usd=LIVE_BUY_USD,
+    )
     if not readiness["ready"]:
         return {
             "attempted": False,

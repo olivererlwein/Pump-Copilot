@@ -164,7 +164,6 @@ class LiveTradingGuardTests(unittest.TestCase):
             readiness["blockers"],
             [
                 "PUMPPORTAL_TRADING_WALLET_MISSING",
-                "paired_completed 42/100",
                 "LIVE_EXECUTION_NOT_IMPLEMENTED",
                 "LIVE_TRADING_DISABLED",
             ],
@@ -192,11 +191,14 @@ class LiveTradingGuardTests(unittest.TestCase):
             patch.object(app, "LIVE_BUYS_ENABLED", True),
             patch.object(app, "LIVE_SELLS_ENABLED", False),
             patch.object(app, "LIVE_BUY_USD", 1.0, create=True),
+            patch.object(app, "get_live_canary_blockers", return_value=[]),
         )
 
         with patches[0], patches[1], patches[2], patches[3], patches[4], (
             patches[5]
-        ), patches[6], patches[7], patches[8], patches[9], patches[10]:
+        ), patches[6], patches[7], patches[8], patches[9], patches[10], (
+            patches[11]
+        ):
             buy = app.get_live_execution_readiness("buy")
             sell = app.get_live_execution_readiness("sell")
 
@@ -270,13 +272,247 @@ class LiveTradingGuardTests(unittest.TestCase):
             "LIVE_BUYS_ENABLED",
             True,
         ), patch.object(app, "LIVE_BUY_USD", 0.0, create=True):
-            readiness = app.get_live_execution_readiness("buy")
+            with patch.object(
+                app,
+                "get_live_canary_blockers",
+                return_value=[],
+            ):
+                readiness = app.get_live_execution_readiness("buy")
 
         self.assertFalse(readiness["ready"])
         self.assertEqual(
             readiness["blockers"],
             ["LIVE_BUY_USD_INVALID"],
         )
+
+
+class LiveCanaryGuardTests(unittest.TestCase):
+    def approved_model(self, version="incumbent-v1"):
+        model = MagicMock()
+        model.model_version = version
+        model.deployment_ready = True
+        return model
+
+    def canary_patches(self):
+        return (
+            patch.object(app, "LIVE_CANARY_ENABLED", True, create=True),
+            patch.object(
+                app,
+                "LIVE_APPROVED_MODEL_VERSION",
+                "incumbent-v1",
+                create=True,
+            ),
+            patch.object(app, "SHADOW_MODEL", self.approved_model()),
+            patch.object(app, "LIVE_CANARY_MAX_BUY_USD", 1.0, create=True),
+            patch.object(app, "LIVE_CANARY_MAX_BUYS_PER_DAY", 1, create=True),
+            patch.object(
+                app,
+                "LIVE_CANARY_MAX_DAILY_NOTIONAL_USD",
+                1.0,
+                create=True,
+            ),
+            patch.object(
+                app,
+                "LIVE_CANARY_ALLOWED_TRADERS",
+                {"marcell"},
+                create=True,
+            ),
+            patch.object(app, "LIVE_SELLS_ENABLED", True),
+            patch.object(
+                app,
+                "get_live_exit_feed_readiness",
+                return_value={"ready": True, "blockers": []},
+                create=True,
+            ),
+            patch.object(
+                app,
+                "get_daily_live_buy_exposure",
+                return_value={"attempts": 0, "notional_usd": 0.0},
+                create=True,
+            ),
+        )
+
+    def test_canary_is_fail_closed_until_explicitly_enabled(self):
+        with patch.object(
+            app,
+            "LIVE_CANARY_ENABLED",
+            False,
+            create=True,
+        ):
+            blockers = app.get_live_canary_blockers(
+                trader="marcell",
+                amount_usd=1.0,
+            )
+
+        self.assertIn("LIVE_CANARY_DISABLED", blockers)
+
+    def test_status_never_reports_buy_ready_when_canary_blocks(self):
+        shadow_stats = {"promotion_assessment": {"blockers": []}}
+        with patch.object(
+            app,
+            "get_shadow_stats",
+            return_value=shadow_stats,
+        ), patch.object(app, "API_KEY", "test-key"), patch.object(
+            app,
+            "PUMPPORTAL_TRADING_WALLET_ADDRESS",
+            "wallet-a",
+        ), patch.object(app, "STREAM_CONNECTED", True), patch.object(
+            app,
+            "PUMPPORTAL_WALLET_BALANCE_SOL",
+            0.05,
+        ), patch.object(app, "KILL_SWITCH", False), patch.object(
+            app,
+            "LIVE_EXECUTION_IMPLEMENTED",
+            True,
+        ), patch.object(app, "LIVE_TRADING", True), patch.object(
+            app,
+            "LIVE_BUYS_ENABLED",
+            True,
+        ), patch.object(app, "LIVE_SELLS_ENABLED", True), patch.object(
+            app,
+            "LIVE_BUY_USD",
+            1.0,
+        ), patch.object(
+            app,
+            "get_live_canary_blockers",
+            return_value=["LIVE_CANARY_DISABLED"],
+        ):
+            readiness = app.get_live_execution_readiness("buy")
+
+        self.assertFalse(readiness["ready"])
+        self.assertFalse(readiness["live_buy_ready"])
+        self.assertTrue(readiness["live_sell_ready"])
+
+    def test_canary_requires_exact_approved_model_and_trader(self):
+        patches = self.canary_patches()
+        with patches[0], patches[1], patches[2], patches[3], patches[4], (
+            patches[5]
+        ), patches[6], patches[7], patches[8], patches[9], patch.object(
+            app,
+            "LIVE_APPROVED_MODEL_VERSION",
+            "other-model",
+        ):
+            wrong_model = app.get_live_canary_blockers("marcell", 1.0)
+
+        patches = self.canary_patches()
+        with patches[0], patches[1], patches[2], patches[3], patches[4], (
+            patches[5]
+        ), patches[6], patches[7], patches[8], patches[9]:
+            wrong_trader = app.get_live_canary_blockers("decu", 1.0)
+
+        self.assertIn("LIVE_APPROVED_MODEL_VERSION_MISMATCH", wrong_model)
+        self.assertIn("LIVE_CANARY_TRADER_NOT_ALLOWED", wrong_trader)
+
+    def test_canary_enforces_hard_and_daily_exposure_limits(self):
+        patches = self.canary_patches()
+        with patches[0], patches[1], patches[2], patches[3], patches[4], (
+            patches[5]
+        ), patches[6], patches[7], patches[8], patch.object(
+            app,
+            "get_daily_live_buy_exposure",
+            return_value={"attempts": 1, "notional_usd": 1.0},
+            create=True,
+        ):
+            exhausted = app.get_live_canary_blockers("marcell", 1.0)
+
+        patches = self.canary_patches()
+        with patches[0], patches[1], patches[2], patch.object(
+            app,
+            "LIVE_CANARY_MAX_BUY_USD",
+            2.0,
+            create=True,
+        ), patches[4], patches[5], patches[6], patches[7], patches[8], (
+            patches[9]
+        ):
+            unsafe_configuration = app.get_live_canary_blockers(
+                "marcell",
+                1.0,
+            )
+
+        self.assertIn("LIVE_CANARY_BUY_LIMIT_REACHED", exhausted)
+        self.assertIn("LIVE_CANARY_NOTIONAL_LIMIT_REACHED", exhausted)
+        self.assertIn("LIVE_CANARY_MAX_BUY_USD_INVALID", unsafe_configuration)
+
+    def test_canary_requires_a_working_exit_path_before_buying(self):
+        patches = self.canary_patches()
+        with patches[0], patches[1], patches[2], patches[3], patches[4], (
+            patches[5]
+        ), patches[6], patch.object(app, "LIVE_SELLS_ENABLED", False), (
+            patches[8]
+        ), patches[9]:
+            blockers = app.get_live_canary_blockers("marcell", 1.0)
+
+        self.assertIn("LIVE_SELLS_REQUIRED_FOR_BUYS", blockers)
+
+    def test_canary_fails_closed_when_health_or_exposure_is_unknown(self):
+        patches = self.canary_patches()
+        with patches[0], patches[1], patches[2], patches[3], patches[4], (
+            patches[5]
+        ), patches[6], patches[7], patch.object(
+            app,
+            "get_live_exit_feed_readiness",
+            side_effect=RuntimeError("health unavailable"),
+        ), patches[9]:
+            unknown_health = app.get_live_canary_blockers("marcell", 1.0)
+
+        patches = self.canary_patches()
+        with patches[0], patches[1], patches[2], patches[3], patches[4], (
+            patches[5]
+        ), patches[6], patches[7], patches[8], patch.object(
+            app,
+            "get_daily_live_buy_exposure",
+            side_effect=RuntimeError("database unavailable"),
+        ):
+            unknown_exposure = app.get_live_canary_blockers("marcell", 1.0)
+
+        self.assertIn("LIVE_EXIT_FEED_STATUS_UNKNOWN", unknown_health)
+        self.assertIn("LIVE_CANARY_EXPOSURE_UNKNOWN", unknown_exposure)
+
+    def test_canary_limits_never_block_an_exit(self):
+        with patch.object(app, "LIVE_CANARY_ENABLED", False, create=True), (
+            patch.object(app, "get_live_canary_blockers")
+        ) as canary:
+            blockers = app.get_live_execution_readiness("sell")["blockers"]
+
+        canary.assert_not_called()
+        self.assertNotIn("LIVE_CANARY_DISABLED", blockers)
+
+    def test_exit_feed_requires_fresh_confirmed_token_sync(self):
+        healthy = {
+            "enabled": True,
+            "apply": True,
+            "configured": True,
+            "initialized": True,
+            "last_error": None,
+            "pending_tokens": 0,
+            "planned_additions": 0,
+            "last_success_ts": 900.0,
+        }
+        with patch.object(
+            app,
+            "MARKET_EVENT_INBOX_CONSUMER_ENABLED",
+            True,
+        ), patch.object(
+            app,
+            "HELIUS_WEBHOOK_SYNC_AUDIT_SECONDS",
+            60,
+        ), patch.object(
+            app,
+            "get_helius_webhook_sync_status",
+            return_value=healthy,
+        ):
+            ready = app.get_live_exit_feed_readiness(now=1000.0)
+            stale_status = {**healthy, "last_success_ts": 100.0}
+            with patch.object(
+                app,
+                "get_helius_webhook_sync_status",
+                return_value=stale_status,
+            ):
+                stale = app.get_live_exit_feed_readiness(now=1000.0)
+
+        self.assertTrue(ready["ready"])
+        self.assertFalse(stale["ready"])
+        self.assertIn("HELIUS_TOKEN_SYNC_STALE", stale["blockers"])
 
 
 class ExecutionAdapterTests(unittest.TestCase):
@@ -300,6 +536,52 @@ class ExecutionAdapterTests(unittest.TestCase):
         self.assertTrue(result["ok"])
         self.assertEqual(result["provider"], "simulation")
         simulate.assert_called_once()
+
+    def test_live_canary_capacity_is_reserved_atomically(self):
+        results = []
+        errors = []
+
+        def create(key):
+            try:
+                results.append(app.create_execution_order_idempotent(
+                    mint=f"mint-{key}",
+                    side="buy",
+                    amount_usd=1.0,
+                    expected_price=1.0,
+                    execution_price=None,
+                    liquidity_sol=20.0,
+                    idempotency_key=key,
+                    source="pumpportal_lightning",
+                    mode="live",
+                    canary_limits={
+                        "start_of_day_ts": 0.0,
+                        "max_buys": 1,
+                        "max_notional_usd": 1.0,
+                    },
+                ))
+            except Exception as exc:
+                errors.append(exc)
+
+        with tempfile.TemporaryDirectory() as temp_dir, patch.object(
+            app,
+            "DB",
+            Path(temp_dir) / "canary.db",
+        ):
+            app.migrate_database()
+            threads = [
+                threading.Thread(target=create, args=(f"canary-{index}",))
+                for index in range(2)
+            ]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join()
+
+        self.assertEqual(errors, [])
+        self.assertEqual(sum(result["created"] for result in results), 1)
+        blocked = [result for result in results if result.get("blocked")]
+        self.assertEqual(len(blocked), 1)
+        self.assertEqual(blocked[0]["reason"], "LIVE_CANARY_BUY_LIMIT_REACHED")
 
     def test_rejects_live_and_unknown_providers(self):
         with patch.object(app, "simulate_execution") as simulate:
@@ -611,6 +893,14 @@ class ExecutionAdapterTests(unittest.TestCase):
             True,
         ), patch.object(
             app,
+            "LIVE_CANARY_MAX_BUYS_PER_DAY",
+            3,
+        ), patch.object(
+            app,
+            "LIVE_CANARY_MAX_DAILY_NOTIONAL_USD",
+            3.0,
+        ), patch.object(
+            app,
             "get_live_execution_readiness",
             return_value={"ready": True, "blockers": []},
         ), patch.object(
@@ -629,6 +919,7 @@ class ExecutionAdapterTests(unittest.TestCase):
             app.migrate_database()
             arguments = {
                 **self.execution_args(),
+                "amount_usd": 1.0,
                 "idempotency_key": "signal-123",
                 "market_cap_sol": 100.0,
                 "origin_trader": "marcell",
@@ -697,6 +988,14 @@ class ExecutionAdapterTests(unittest.TestCase):
             True,
         ), patch.object(
             app,
+            "LIVE_CANARY_MAX_BUYS_PER_DAY",
+            1,
+        ), patch.object(
+            app,
+            "LIVE_CANARY_MAX_DAILY_NOTIONAL_USD",
+            1.0,
+        ), patch.object(
+            app,
             "get_live_execution_readiness",
             return_value={"ready": True, "blockers": []},
         ), patch.object(
@@ -710,7 +1009,7 @@ class ExecutionAdapterTests(unittest.TestCase):
         ):
             app.migrate_database()
             result = app.execute_pumpportal_lightning_buy(
-                **self.execution_args(),
+                **{**self.execution_args(), "amount_usd": 1.0},
                 idempotency_key="signal-unknown",
                 market_cap_sol=100.0,
                 origin_trader="marcell",
