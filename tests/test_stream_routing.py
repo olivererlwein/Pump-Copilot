@@ -151,6 +151,72 @@ class StreamRoutingTests(unittest.IsolatedAsyncioTestCase):
         problem.assert_not_awaited()
         route.assert_called_once_with(valid_event)
 
+    async def test_unusable_balance_becomes_unknown_without_stopping_the_stream(self):
+        """PumpPortal es frontera de confianza: basura no tira la conexión.
+
+        Antes, un `newTokenBalance` inservible lanzaba dentro del router con la
+        identidad ya reservada: el stream reconectaba y el evento se perdía.
+        Ahora pasa a desconocido, que es lo único honesto que se puede decir
+        de un valor así, y el evento sigue su camino.
+        """
+        event = {
+            "signature": "garbage-balance-signature",
+            "traderPublicKey": "watched-wallet",
+            "mint": "routing-mint",
+            "txType": "sell",
+            "marketCapSol": 100,
+            "solAmount": 1,
+            "newTokenBalance": -5,
+        }
+        socket = AsyncMock()
+        socket.recv.side_effect = [
+            json.dumps(event),
+            asyncio.CancelledError(),
+        ]
+        connection = AsyncMock()
+        connection.__aenter__.return_value = socket
+
+        with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
+            for name, value in {
+                "DB": Path(directory) / "garbage-balance.db",
+                "API_KEY": "test-key",
+                "WATCHED": {"test-trader": "watched-wallet"},
+                "TRACKED_TOKENS": set(),
+                "SUBSCRIBED_TOKENS": set(),
+                "TOKENS_TO_UNSUBSCRIBE": set(),
+                "SEEN_EVENT_IDS": set(),
+                "FORCE_STREAM_ERROR": False,
+                "STREAM_CONNECTED": False,
+                "LAST_STREAM_MESSAGE_TS": 0,
+                "LAST_STREAM_EVENT_TS": 0,
+            }.items():
+                stack.enter_context(patch.object(app, name, value))
+            stack.enter_context(patch.object(
+                app.websockets, "connect", return_value=connection,
+            ))
+            stack.enter_context(patch.object(
+                app, "mark_stream_recovered", new=AsyncMock(),
+            ))
+            problem = stack.enter_context(patch.object(
+                app, "mark_stream_problem", new=AsyncMock(),
+            ))
+            stack.enter_context(patch.object(
+                app.asyncio,
+                "sleep",
+                new=AsyncMock(side_effect=asyncio.CancelledError()),
+            ))
+            route = stack.enter_context(patch.object(app, "route_market_event"))
+            app.migrate_database()
+
+            with self.assertRaises(asyncio.CancelledError):
+                await app.stream()
+
+        problem.assert_not_awaited()
+        route.assert_called_once()
+        routed = route.call_args.args[0]
+        self.assertIn("newTokenBalance", routed)
+        self.assertIsNone(routed["newTokenBalance"])
+
     async def test_same_signature_distinct_indexes_both_reach_the_router(self):
         base_event = {
             "signature": "multi-operation-signature",

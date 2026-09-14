@@ -9602,7 +9602,12 @@ def market_event_new_token_balance(event):
     if raw is None:
         return None
 
-    balance = float(raw)
+    try:
+        if isinstance(raw, bool):
+            raise TypeError("bool")
+        balance = float(raw)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("INVALID_NEW_TOKEN_BALANCE") from exc
     if not math.isfinite(balance) or balance < 0:
         raise ValueError("INVALID_NEW_TOKEN_BALANCE")
     return balance
@@ -9711,6 +9716,10 @@ def market_event_from_inbox_row(
             "la billetera de la fila y la del evento no coinciden: "
             f"{wallet!r} contra {wallet_del_json!r}"
         )
+
+    # Un saldo inservible es un parser equivocado: mejor que falle acá, en
+    # validación, que en el consumidor después de reservar la identidad.
+    market_event_new_token_balance(event)
 
     event["traderPublicKey"] = wallet
 
@@ -11345,10 +11354,20 @@ def update_rpc_fallback_wallet_state(
 def record_rpc_fallback_event(trader, wallet, receipt, parsed):
     event = parsed["event"]
     signature = event["signature"]
+    event_index = market_event_index(event, required=True)
     conn = db()
-    stream_row = conn.execute(
-        "SELECT id FROM trades WHERE signature = ? LIMIT 1",
-        (signature,),
+    # La referencia es la reserva de identidad, no `trades`: tiene el índice
+    # —`trades` no— y también cubre lo que aplicó el consumidor de Helius. Lo
+    # que el fallback busca es lo que ningún transporte aplicó; con firma sola,
+    # la segunda operación de una misma transacción quedaba oculta detrás de
+    # la primera.
+    applied_row = conn.execute(
+        """
+        SELECT 1 FROM processed_market_events
+        WHERE signature = ? AND event_index = ?
+        LIMIT 1
+        """,
+        (signature, event_index),
     ).fetchone()
     cursor = conn.execute(
         """
@@ -11365,7 +11384,7 @@ def record_rpc_fallback_event(trader, wallet, receipt, parsed):
             # Del evento, que es lo que se serializa abajo en `event_json`: así
             # la columna y el JSON no pueden discrepar. `required` porque acá el
             # evento es nuestro: si no trae índice, se perdió en el camino.
-            market_event_index(event, required=True),
+            event_index,
             receipt.get("slot"),
             receipt.get("blockTime"),
             time.time(),
@@ -11381,7 +11400,7 @@ def record_rpc_fallback_event(trader, wallet, receipt, parsed):
             float(event["newTokenBalance"]),
             event["pool"],
             json.dumps(event, separators=(",", ":"), sort_keys=True),
-            "matched" if stream_row else "pending",
+            "matched" if applied_row else "pending",
         ),
     )
     conn.commit()
@@ -11411,8 +11430,9 @@ def reconcile_rpc_fallback_events(now=None):
         SET status = 'matched'
         WHERE status NOT IN ('matched', 'discarded_prebaseline')
         AND EXISTS(
-            SELECT 1 FROM trades
-            WHERE trades.signature = rpc_fallback_events.signature
+            SELECT 1 FROM processed_market_events AS applied
+            WHERE applied.signature = rpc_fallback_events.signature
+            AND applied.event_index = rpc_fallback_events.event_index
         )
         """
     )
@@ -11423,8 +11443,9 @@ def reconcile_rpc_fallback_events(now=None):
         WHERE status = 'pending'
         AND detected_ts <= ?
         AND NOT EXISTS(
-            SELECT 1 FROM trades
-            WHERE trades.signature = rpc_fallback_events.signature
+            SELECT 1 FROM processed_market_events AS applied
+            WHERE applied.signature = rpc_fallback_events.signature
+            AND applied.event_index = rpc_fallback_events.event_index
         )
         """,
         (now - RPC_FALLBACK_GRACE_SECONDS,),
@@ -12151,6 +12172,21 @@ async def stream():
                     # =========================================================
                     # PROTECCIÓN CONTRA EVENTOS DUPLICADOS
                     # =========================================================
+
+                    # `newTokenBalance` viene de afuera. Un valor inservible
+                    # no puede tirar el stream ni perder el evento: pasa a
+                    # desconocido, que paper y calidad ya saben tratar sin
+                    # inventar una salida total.
+                    if "newTokenBalance" in event:
+                        try:
+                            market_event_new_token_balance(event)
+                        except ValueError:
+                            print(
+                                "[STREAM] newTokenBalance inservible, se "
+                                "trata como desconocido: "
+                                f"{event.get('newTokenBalance')!r}"
+                            )
+                            event["newTokenBalance"] = None
 
                     signature = event.get("signature")
 

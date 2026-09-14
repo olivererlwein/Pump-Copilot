@@ -279,6 +279,7 @@ class MarketEventInboxConsumerTests(unittest.TestCase):
         received_ts=202.0,
         block_event_ts=202.0,
         stored_block_event_ts=None,
+        event_fields=None,
     ):
         event = {
             "signature": signature,
@@ -286,6 +287,7 @@ class MarketEventInboxConsumerTests(unittest.TestCase):
             "blockEventTs": block_event_ts,
             "mint": "mint-1",
             "txType": "buy",
+            **(event_fields or {}),
         }
         conn = app.db()
         conn.execute(
@@ -387,6 +389,27 @@ class MarketEventInboxConsumerTests(unittest.TestCase):
         self.assertEqual(result["duplicates"], 1)
         route.assert_not_called()
         self.assertEqual(self.row()[0], "duplicate")
+
+    def test_unusable_balance_fails_before_reserving_identity(self):
+        """El parser de Helius es nuestro: un saldo inservible es un bug.
+
+        Tiene que fallar al reconstruir la fila, que corre en validación y
+        antes de reservar la identidad global, no en el consumidor después de
+        haberla reservado.
+        """
+        self.insert_validated_event(event_fields={"newTokenBalance": -1})
+        app.establish_market_event_inbox_activation(now=200.5)
+
+        with (
+            patch.object(app, "mark_market_event_processed") as mark,
+            patch.object(app, "route_market_event") as route,
+        ):
+            result = app.consume_market_event_inbox_once(now=205.0)
+
+        self.assertEqual(result["failed"], 1)
+        mark.assert_not_called()
+        route.assert_not_called()
+        self.assertIn("INVALID_NEW_TOKEN_BALANCE", self.row()[5])
 
     def test_timestamp_mismatch_between_column_and_json_is_rejected(self):
         self.insert_validated_event(

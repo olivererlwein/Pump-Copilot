@@ -2003,7 +2003,17 @@ en `inbox_consumer.affects_live_execution=false`.
 `newTokenBalance=None` ya no se convierte en cero: se guarda como `NULL`, no
 confirma un cierre de trader y en paper produce como máximo una venta parcial.
 La ausencia completa del campo en PumpPortal conserva el valor histórico cero.
-El perfil de calidad tampoco convierte los nuevos `NULL` en cierres.
+Un `null` explícito, venga del transporte que venga, es desconocido: antes se
+convertía en cero y fabricaba una salida total. El perfil de calidad tampoco
+convierte los nuevos `NULL` en cierres.
+
+Un `newTokenBalance` inservible (negativo, no finito, no numérico) se trata
+distinto según quién lo trae. En el stream, PumpPortal es frontera de
+confianza: el valor pasa a desconocido con un log y el evento sigue; antes
+lanzaba dentro del router con la identidad ya reservada, el stream reconectaba
+y el evento se perdía. En el inbox, el parser de Helius es nuestro: la
+reconstrucción de la fila lo rechaza en validación, antes de reservar la
+identidad global, para que nunca llegue al consumidor.
 
 Los eventos normalizados usan `blockEventTs` para `trades.ts`,
 `token_history.ts`, `evaluations.ts`, `signal_outcomes.signal_ts` y los
@@ -2013,6 +2023,17 @@ tardía más cercana puede corregir un checkpoint temprano sin pisar checkpoints
 posteriores; una operación anterior a la señal tampoco puede modificar sus
 extremos. PumpPortal, que no entrega timestamp on-chain, sigue usando la hora de
 recepción.
+
+Límite conocido: eso deja dos relojes en las mismas columnas. La hora de
+recepción de PumpPortal siempre es mayor que el tiempo de bloque, típicamente
+por uno a tres segundos. Para una señal traída por Helius, `ts <= signal_ts`
+excluye las operaciones que PumpPortal recibió en esa ventana aunque on-chain
+sean anteriores; para una señal traída por PumpPortal, una operación Helius con
+tiempo de bloque dentro de esa ventana cuenta como anterior aunque no lo sea. El
+sesgo está acotado por la latencia del stream y no se corrige con una tolerancia:
+la misma tolerancia que recuperaría las excluidas dejaría entrar futuro en la
+otra dirección, que es peor para un modelo de scoring. Se elimina solo con un
+tiempo de bloque para PumpPortal, que el stream no entrega.
 
 Las posiciones paper ahora guardan `last_applied_block_event_ts`. Un webhook
 posterior a la entrada pero anterior al último evento aplicado queda auditado
@@ -2052,3 +2073,16 @@ transportes porque `trades` no guarda índice para separar sus filas, y
 llegan a `trades` (tokens seguidos operados por wallets no vigiladas). Límite
 conocido: si el consumidor gana una operación antes que el stream, la copia del
 stream se descarta sin rastro y cuenta como vista solo por el webhook.
+
+### Fallback RPC con identidad completa
+
+`record_rpc_fallback_event()` y `reconcile_rpc_fallback_events()` emparejan
+contra `processed_market_events` por `(signature, event_index)`, no contra
+`trades` por firma sola. Dos consecuencias. La segunda operación de una
+transacción ya no queda `matched` escondida detrás de la primera: PumpPortal
+reserva índice 0 para todo lo que entrega, así que una operación 1 que nadie
+aplicó ahora se reporta `missing`, y el conteo de faltantes puede subir por
+casos reales que antes no se veían. Y lo que aplicó el consumidor del inbox de
+Helius cuenta como aplicado: `matched` significa "algún transporte lo aplicó",
+que es lo que importa para alertar por Discord. La comparación por transporte
+vive en `/api/helius-webhook-stats`.

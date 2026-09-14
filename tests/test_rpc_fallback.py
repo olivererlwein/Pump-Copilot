@@ -355,6 +355,10 @@ class RpcFallbackPersistenceTests(unittest.TestCase):
             missing = app.reconcile_rpc_fallback_events()
         self.assertEqual(len(missing), 1)
 
+        # El stream reserva la identidad antes de escribir el trade.
+        self.assertTrue(
+            app.mark_market_event_processed(SIGNATURE, 0, source="live")
+        )
         conn = app.db()
         conn.execute(
             """
@@ -374,6 +378,59 @@ class RpcFallbackPersistenceTests(unittest.TestCase):
         self.assertEqual(stats["matched"], 1)
         self.assertEqual(stats["missing"], 0)
         self.assertEqual(stats["matched_identity"], 1)
+
+    def test_second_operation_of_a_transaction_is_not_hidden_by_the_first(self):
+        """Con firma sola, la operación 1 quedaba "matched" por la operación 0.
+
+        PumpPortal reserva índice 0 para todo lo que entrega; si la
+        transacción traía dos operaciones, la segunda nunca se aplicó y el
+        fallback tiene que decirlo.
+        """
+        receipt = pump_receipt()
+        receipt["meta"]["logMessages"].append(
+            receipt["meta"]["logMessages"][-1]
+        )
+        parsed_events = parse_watched_wallet_pump_events(
+            receipt, WALLET, SIGNATURE
+        )
+        self.assertEqual(
+            [item["event"]["eventIndex"] for item in parsed_events], [0, 1]
+        )
+        self.assertTrue(
+            app.mark_market_event_processed(SIGNATURE, 0, source="live")
+        )
+
+        for parsed in parsed_events:
+            app.record_rpc_fallback_event("trader-a", WALLET, receipt, parsed)
+
+        with patch.object(app, "RPC_FALLBACK_GRACE_SECONDS", 0):
+            missing = app.reconcile_rpc_fallback_events()
+
+        self.assertEqual(len(missing), 1)
+        conn = app.db()
+        try:
+            statuses = conn.execute(
+                "SELECT event_index, status FROM rpc_fallback_events "
+                "WHERE signature = ? ORDER BY event_index",
+                (SIGNATURE,),
+            ).fetchall()
+        finally:
+            conn.close()
+        self.assertEqual(statuses, [(0, "matched"), (1, "missing")])
+
+    def test_operation_applied_from_helius_is_not_missing(self):
+        """Lo que el consumidor del inbox aplicó no lo perdió el agente."""
+        self.assertTrue(
+            app.mark_market_event_processed(SIGNATURE, 0, source="helius")
+        )
+        self.assertTrue(
+            app.record_rpc_fallback_event(
+                "trader-a", WALLET, pump_receipt(), self.parsed()
+            )
+        )
+        with patch.object(app, "RPC_FALLBACK_GRACE_SECONDS", 0):
+            self.assertEqual(app.reconcile_rpc_fallback_events(), [])
+        self.assertEqual(app.get_rpc_fallback_stats()["matched"], 1)
 
     def test_poll_does_not_reserve_signature_used_by_live_stream(self):
         signature_row = {
