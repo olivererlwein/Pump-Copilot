@@ -325,11 +325,11 @@ WATCHED_RESUBSCRIBE_SECONDS = max(
 WATCHED_WALLET_ALERTS = set()
 
 # =========================================================
-# PILOTO: WEBHOOK DE HELIUS (OBSERVACIONAL)
+# WEBHOOK DE HELIUS
 # =========================================================
-# Mide si una fuente por push entrega lo que PumpPortal pierde, y con cuánto
-# retraso. No genera señales, scoring ni órdenes: solo registra qué llegó y
-# cuándo, para comparar contra el stream antes de confiarle nada.
+# Registra lo que llega para comparar cobertura y latencia. El consumidor que
+# puede alimentar señales y paper tiene un interruptor independiente y nunca
+# habilita ejecución real desde Helius.
 HELIUS_WEBHOOK_ENABLED = os.getenv(
     "HELIUS_WEBHOOK_ENABLED",
     "false",
@@ -421,6 +421,31 @@ MARKET_EVENT_INBOX_VALIDATION_POLL_SECONDS = max(
 MARKET_EVENT_INBOX_VALIDATION_LEASE_SECONDS = max(
     30,
     int(os.getenv("MARKET_EVENT_INBOX_VALIDATION_LEASE_SECONDS", "120")),
+)
+
+# Segunda etapa: aplica al pipeline los eventos ya validados. Arranca apagada
+# y fija una frontera persistente al habilitarse para no reproducir historia.
+MARKET_EVENT_INBOX_CONSUMER_ENABLED = os.getenv(
+    "MARKET_EVENT_INBOX_CONSUMER_ENABLED",
+    "false",
+).lower() == "true"
+
+MARKET_EVENT_INBOX_CONSUMER_BATCH_SIZE = max(
+    1,
+    min(
+        200,
+        int(os.getenv("MARKET_EVENT_INBOX_CONSUMER_BATCH_SIZE", "25")),
+    ),
+)
+
+MARKET_EVENT_INBOX_CONSUMER_POLL_SECONDS = max(
+    1,
+    int(os.getenv("MARKET_EVENT_INBOX_CONSUMER_POLL_SECONDS", "5")),
+)
+
+MARKET_EVENT_INBOX_CONSUMER_LEASE_SECONDS = max(
+    30,
+    int(os.getenv("MARKET_EVENT_INBOX_CONSUMER_LEASE_SECONDS", "120")),
 )
 
 # Fallback observacional para auditar los eventos de cuenta que PumpPortal no
@@ -685,7 +710,9 @@ def db():
 
             id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-            trade_signature TEXT UNIQUE,
+            trade_signature TEXT,
+
+            event_index INTEGER NOT NULL DEFAULT 0,
 
             ts REAL,
 
@@ -711,7 +738,15 @@ def db():
 
             market_score INTEGER,
 
-            reasons TEXT
+            reasons TEXT,
+
+            market_cap REAL DEFAULT 0,
+
+            sol_amount REAL DEFAULT 0,
+
+            data_version INTEGER DEFAULT 0,
+
+            UNIQUE(trade_signature, event_index)
 
         )
         """
@@ -749,7 +784,12 @@ def db():
         -- conoce: PumpPortal no manda timestamp y las posiciones viejas no lo
         -- tienen. `opened_ts` no sirve para esto, porque mide cuándo
         -- reaccionamos nosotros y no cuándo ocurrió el evento.
-        entry_block_event_ts REAL
+        entry_block_event_ts REAL,
+
+        -- Último evento on-chain aplicado a esta posición. Evita que un
+        -- webhook atrasado haga retroceder su estado después de haber aplicado
+        -- otro evento más nuevo. NULL conserva el comportamiento anterior.
+        last_applied_block_event_ts REAL
 
     )
     """
@@ -1467,6 +1507,7 @@ def create_signal_outcome(
 def update_signal_outcome_10s(
     outcome_id,
     current_price,
+    observed_ts=None,
 ):
     conn = db()
 
@@ -1494,7 +1535,7 @@ def update_signal_outcome_10s(
     else:
         return_10s = 0.0
 
-    now = time.time()
+    now = float(observed_ts if observed_ts is not None else time.time())
 
     conn.execute(
         """
@@ -1538,6 +1579,7 @@ def update_signal_outcome_10s(
 def update_signal_outcome_30s(
     outcome_id,
     current_price,
+    observed_ts=None,
 ):
     conn = db()
 
@@ -1565,7 +1607,7 @@ def update_signal_outcome_30s(
     else:
         return_30s = 0.0
 
-    now = time.time()
+    now = float(observed_ts if observed_ts is not None else time.time())
 
     conn.execute(
         """
@@ -1608,6 +1650,7 @@ def update_signal_outcome_30s(
 def update_signal_outcome_1m(
     outcome_id,
     current_price,
+    observed_ts=None,
 ):
     conn = db()
 
@@ -1635,7 +1678,7 @@ def update_signal_outcome_1m(
     else:
         return_1m = 0.0
 
-    now = time.time()
+    now = float(observed_ts if observed_ts is not None else time.time())
 
     conn.execute(
         """
@@ -1678,6 +1721,7 @@ def update_signal_outcome_1m(
 def update_signal_outcome_5m(
     outcome_id,
     current_price,
+    observed_ts=None,
 ):
     conn = db()
 
@@ -1705,7 +1749,7 @@ def update_signal_outcome_5m(
     else:
         return_5m = 0.0
 
-    now = time.time()
+    now = float(observed_ts if observed_ts is not None else time.time())
 
     conn.execute(
         """
@@ -1748,6 +1792,7 @@ def update_signal_outcome_5m(
 def update_signal_outcome_15m(
     outcome_id,
     current_price,
+    observed_ts=None,
 ):
     conn = db()
 
@@ -1775,7 +1820,7 @@ def update_signal_outcome_15m(
     else:
         return_15m = 0.0
 
-    now = time.time()
+    now = float(observed_ts if observed_ts is not None else time.time())
 
     conn.execute(
         """
@@ -1818,6 +1863,7 @@ def update_signal_outcome_15m(
 def update_signal_outcome_extremes(
     outcome_id,
     current_price,
+    observed_ts=None,
 ):
     conn = db()
 
@@ -1878,7 +1924,7 @@ def update_signal_outcome_extremes(
     hit_tp50 = 1 if max_return >= 50 else 0
     hit_sl10 = 1 if min_return <= -10 else 0
 
-    now = time.time()
+    now = float(observed_ts if observed_ts is not None else time.time())
 
     conn.execute(
         """
@@ -1966,12 +2012,18 @@ def process_signal_outcomes_event(
     else:
         return
 
-    now = time.time()
+    now = market_event_block_ts(event) or time.time()
 
-    LAST_TOKEN_PRICE[mint] = {
-    "price": float(current_price),
-    "ts": now,
-}
+    previous_price = LAST_TOKEN_PRICE.get(mint)
+    previous_ts = None
+    if isinstance(previous_price, dict):
+        previous_ts = stored_block_event_ts(previous_price.get("ts"))
+
+    if previous_ts is None or now >= previous_ts:
+        LAST_TOKEN_PRICE[mint] = {
+            "price": float(current_price),
+            "ts": now,
+        }
 
     conn = db()
 
@@ -1984,7 +2036,12 @@ def process_signal_outcomes_event(
     price_30s,
     price_1m,
     price_5m,
-    price_15m
+    price_15m,
+    observed_10s_ts,
+    observed_30s_ts,
+    observed_1m_ts,
+    observed_5m_ts,
+    observed_15m_ts
 FROM signal_outcomes
 WHERE mint = ?
 AND (
@@ -2002,47 +2059,82 @@ AND (
 
     for row in rows:
         outcome_id = int(row[0])
-        update_signal_outcome_extremes(
-    outcome_id=outcome_id,
-    current_price=current_price
-)
         signal_ts = float(row[1] or 0)
         price_10s = row[2]
         price_30s = row[3]
         price_1m = row[4]
         price_5m = row[5]
         price_15m = row[6]
+        observed_10s_ts = row[7]
+        observed_30s_ts = row[8]
+        observed_1m_ts = row[9]
+        observed_5m_ts = row[10]
+        observed_15m_ts = row[11]
         elapsed = now - signal_ts
 
-        if elapsed >= 10 and price_10s is None:
+        if elapsed < 0:
+            continue
+
+        update_signal_outcome_extremes(
+            outcome_id=outcome_id,
+            current_price=current_price,
+            observed_ts=now,
+        )
+
+        if elapsed >= 10 and (
+            price_10s is None
+            or observed_10s_ts is None
+            or now < float(observed_10s_ts)
+        ):
             update_signal_outcome_10s(
                 outcome_id=outcome_id,
-                current_price=current_price
+                current_price=current_price,
+                observed_ts=now,
             )
 
-        if elapsed >= 30 and price_30s is None:
+        if elapsed >= 30 and (
+            price_30s is None
+            or observed_30s_ts is None
+            or now < float(observed_30s_ts)
+        ):
             update_signal_outcome_30s(
                 outcome_id=outcome_id,
-                current_price=current_price
+                current_price=current_price,
+                observed_ts=now,
             )
 
-        if elapsed >= 60 and price_1m is None:
+        if elapsed >= 60 and (
+            price_1m is None
+            or observed_1m_ts is None
+            or now < float(observed_1m_ts)
+        ):
             update_signal_outcome_1m(
                 outcome_id=outcome_id,
-                current_price=current_price
+                current_price=current_price,
+                observed_ts=now,
             )
 
-        if elapsed >= 300 and price_5m is None:
+        if elapsed >= 300 and (
+            price_5m is None
+            or observed_5m_ts is None
+            or now < float(observed_5m_ts)
+        ):
             update_signal_outcome_5m(
                 outcome_id=outcome_id,
-                current_price=current_price
+                current_price=current_price,
+                observed_ts=now,
             )
 
-        if elapsed >= 900 and price_15m is None:
+        if elapsed >= 900 and (
+            price_15m is None
+            or observed_15m_ts is None
+            or now < float(observed_15m_ts)
+        ):
             update_signal_outcome_15m(
-            outcome_id=outcome_id,
-            current_price=current_price
-    )
+                outcome_id=outcome_id,
+                current_price=current_price,
+                observed_ts=now,
+            )
 
         cleanup_finished_outcome_token(mint)
 
@@ -4619,6 +4711,90 @@ def migrate_market_event_inbox_validation(conn):
     )
 
 
+def migrate_evaluation_event_identity(conn):
+    """Migra evaluaciones de firma única a identidad firma + índice."""
+    columns = {
+        row[1]
+        for row in conn.execute("PRAGMA table_info(evaluations)").fetchall()
+    }
+    if not columns:
+        return
+
+    has_composite_unique = False
+    for index_row in conn.execute("PRAGMA index_list(evaluations)").fetchall():
+        if not index_row[2]:
+            continue
+        index_columns = [
+            row[2]
+            for row in conn.execute(
+                f'PRAGMA index_info("{index_row[1]}")'
+            ).fetchall()
+        ]
+        if index_columns == ["trade_signature", "event_index"]:
+            has_composite_unique = True
+            break
+
+    if "event_index" in columns and has_composite_unique:
+        return
+
+    legacy_event_index = "event_index" if "event_index" in columns else "0"
+
+    conn.commit()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        conn.execute(
+            """
+            CREATE TABLE evaluations_identity_v2(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                trade_signature TEXT,
+                event_index INTEGER NOT NULL DEFAULT 0,
+                ts REAL,
+                trader TEXT,
+                mint TEXT,
+                source TEXT,
+                score INTEGER,
+                decision TEXT,
+                trader_score INTEGER,
+                timing_score INTEGER,
+                size_score INTEGER,
+                token_score INTEGER,
+                consensus_score INTEGER,
+                market_score INTEGER,
+                reasons TEXT,
+                market_cap REAL DEFAULT 0,
+                sol_amount REAL DEFAULT 0,
+                data_version INTEGER DEFAULT 0,
+                UNIQUE(trade_signature, event_index)
+            )
+            """
+        )
+        conn.execute(
+            f"""
+            INSERT INTO evaluations_identity_v2(
+                id, trade_signature, event_index, ts, trader, mint, source,
+                score, decision, trader_score, timing_score, size_score,
+                token_score, consensus_score, market_score, reasons,
+                market_cap, sol_amount, data_version
+            )
+            SELECT
+                id, trade_signature, {legacy_event_index},
+                ts, trader, mint, source,
+                score, decision, trader_score, timing_score, size_score,
+                token_score, consensus_score, market_score, reasons,
+                market_cap, sol_amount, data_version
+            FROM evaluations
+            """
+        )
+        conn.execute("DROP TABLE evaluations")
+        conn.execute(
+            "ALTER TABLE evaluations_identity_v2 RENAME TO evaluations"
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+
+
 def migrate_database():
 
     conn = db()
@@ -4751,7 +4927,10 @@ def migrate_database():
         # que es la verdad —no sabemos su momento on-chain de entrada— y apaga
         # la guarda para ellas en vez de inventarles una referencia.
         "entry_block_event_ts":
-            "ALTER TABLE paper_positions ADD COLUMN entry_block_event_ts REAL"
+            "ALTER TABLE paper_positions ADD COLUMN entry_block_event_ts REAL",
+
+        "last_applied_block_event_ts":
+            "ALTER TABLE paper_positions ADD COLUMN last_applied_block_event_ts REAL"
     }
 
     for column, sql in paper_migrations.items():
@@ -4852,6 +5031,8 @@ def migrate_database():
             except Exception:
                 pass
 
+    migrate_evaluation_event_identity(conn)
+
 
     conn.execute(
         """
@@ -4927,7 +5108,8 @@ def save_token_history(
     side="",
     signature="",
     source="live",
-    event_index=0
+    event_index=0,
+    event_ts=None,
 ):
     """Guarda un punto de historial de market cap.
 
@@ -4937,8 +5119,9 @@ def save_token_history(
     se perdía, porque la deduplicación miraba solo la firma— y la misma
     operación traída por PumpPortal y por Helius es una sola.
 
-    Sin firma se conserva el comportamiento anterior, para las rutas de demo
-    que no tienen identidad que ofrecer.
+    Con timestamp on-chain, el historial conserva el orden real aunque el
+    webhook llegue atrasado. Sin firma o timestamp se conserva el
+    comportamiento anterior para PumpPortal y las rutas de demo.
     """
 
     if not mint:
@@ -4952,6 +5135,9 @@ def save_token_history(
         return
 
     event_id = market_event_identity(signature, event_index)
+    history_ts = validated_block_event_ts(event_ts, origen="event_ts")
+    if history_ts is None:
+        history_ts = time.time()
 
     conn = db()
 
@@ -4980,7 +5166,7 @@ def save_token_history(
             )
             """,
             (
-                time.time(),
+                history_ts,
                 mint,
                 market_cap,
                 trader,
@@ -5560,7 +5746,11 @@ def get_trader_exit_cycles(trader, connection=None):
             "side": str(side or "").lower(),
             "sol": float(sol or 0),
             "market_cap_sol": float(market_cap_sol or 0),
-            "new_token_balance": float(new_token_balance or 0),
+            "new_token_balance": (
+                float(new_token_balance)
+                if new_token_balance is not None
+                else None
+            ),
         })
 
     cycles = []
@@ -5593,12 +5783,18 @@ def get_trader_exit_cycles(trader, connection=None):
 
                 entry = event
 
-                if event["new_token_balance"] > 0:
+                if (
+                    event["new_token_balance"] is not None
+                    and event["new_token_balance"] > 0
+                ):
                     saw_positive_balance = True
 
                 continue
 
-            if event["new_token_balance"] > 0:
+            if (
+                event["new_token_balance"] is not None
+                and event["new_token_balance"] > 0
+            ):
                 saw_positive_balance = True
 
             if event["side"] != "sell":
@@ -5613,7 +5809,8 @@ def get_trader_exit_cycles(trader, connection=None):
             # total). Solo lo tomamos como cierre si antes vimos saldo
             # positivo en este mismo token.
             if (
-                event["new_token_balance"] == 0
+                event["new_token_balance"] is not None
+                and event["new_token_balance"] == 0
                 and saw_positive_balance
             ):
                 closure_confirmed = True
@@ -8038,14 +8235,11 @@ def score_timing(
 
 def score_consensus(
     mint,
-    current_trader
+    current_trader,
+    signal_ts=None,
 ):
-
-    cutoff = (
-        time.time()
-        -
-        WINDOW
-    )
+    signal_ts = float(signal_ts if signal_ts is not None else time.time())
+    cutoff = signal_ts - WINDOW
 
 
     conn = db()
@@ -8058,6 +8252,7 @@ def score_consensus(
 
         WHERE mint = ?
         AND ts > ?
+        AND ts <= ?
         AND (
         side LIKE '%buy%'
         OR side = 'create'
@@ -8065,7 +8260,8 @@ def score_consensus(
         """,
         (
             mint,
-            cutoff
+            cutoff,
+            signal_ts,
         )
     ).fetchall()
 
@@ -8255,11 +8451,12 @@ def get_trader_previous_buy_gap_seconds(
 # =========================================================
 # SCORE: CONTEXTO GENERAL
 # =========================================================
-def score_market_context():
+def score_market_context(signal_ts=None):
 
     conn = db()
 
-    since = time.time() - 120
+    signal_ts = float(signal_ts if signal_ts is not None else time.time())
+    since = signal_ts - 120
 
     rows = conn.execute(
         """
@@ -8271,10 +8468,12 @@ def score_market_context():
         FROM trades
 
         WHERE ts >= ?
+        AND ts <= ?
         AND source = 'live'
         """,
         (
             since,
+            signal_ts,
         )
     ).fetchall()
 
@@ -8590,7 +8789,8 @@ def evaluate_buy(
     trader,
     event,
     source="live",
-    price_at_signal=0.0
+    price_at_signal=0.0,
+    allow_live_execution=True,
 ):
 
     mint = (
@@ -8617,11 +8817,13 @@ def evaluate_buy(
         event.get("signature")
         or "eval-" + uuid.uuid4().hex
     )
+    event_index = market_event_index(event)
 
     # Momento on-chain del evento que puede abrir la posición. Se guarda como
     # referencia de entrada para poder descartar después operaciones anteriores
     # a ella. `opened_ts` no sirve: mide cuándo reaccionamos nosotros.
     entry_block_event_ts = market_event_block_ts(event)
+    signal_ts = entry_block_event_ts or time.time()
 
 
     trader_score = score_trader(
@@ -8647,11 +8849,12 @@ def evaluate_buy(
 
     consensus_score = score_consensus(
         mint,
-        trader
+        trader,
+        signal_ts=signal_ts,
     )
 
 
-    market_score = score_market_context()
+    market_score = score_market_context(signal_ts=signal_ts)
 
 
     score = (
@@ -8730,13 +8933,13 @@ def evaluate_buy(
     conn = db()
 
     try:
-        signal_ts = time.time()
-
         cursor = conn.execute(
             """
             INSERT INTO evaluations(
 
                 trade_signature,
+
+                event_index,
 
                 ts,
 
@@ -8773,11 +8976,13 @@ def evaluate_buy(
             )
 
             VALUES(
-                ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+                ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
             )
             """,
             (
                 signature,
+
+                event_index,
 
                 signal_ts,
 
@@ -8889,16 +9094,22 @@ def evaluate_buy(
         entry_block_event_ts=entry_block_event_ts
     )
 
-    live_execution = maybe_execute_live_copy(
-        signal_id=signal_id,
-        decision=decision,
-        trader=trader,
-        event=event,
-        source=source,
-        price_at_signal=price_at_signal,
-        market_cap=market_cap,
-        model_prediction=model_prediction,
-    )
+    if allow_live_execution:
+        live_execution = maybe_execute_live_copy(
+            signal_id=signal_id,
+            decision=decision,
+            trader=trader,
+            event=event,
+            source=source,
+            price_at_signal=price_at_signal,
+            market_cap=market_cap,
+            model_prediction=model_prediction,
+        )
+    else:
+        live_execution = {
+            "attempted": False,
+            "reason": "TRANSPORT_LIVE_EXECUTION_DISABLED",
+        }
 
     return {
         "score": score,
@@ -9009,10 +9220,11 @@ def open_paper_position(
                 last_action,
                 tp_stage,
                 mode,
-                entry_block_event_ts
+                entry_block_event_ts,
+                last_applied_block_event_ts
             )
             VALUES(
-                ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+                ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
             )
             """,
             (
@@ -9033,6 +9245,7 @@ def open_paper_position(
                 "HOLD",
                 0,
                 mode,
+                entry_block_event_ts,
                 entry_block_event_ts
             )
         )
@@ -9378,6 +9591,23 @@ def market_event_block_ts(event):
     return validated_block_event_ts(raw)
 
 
+def market_event_new_token_balance(event):
+    """Preserva la diferencia entre un saldo desconocido y un cero real.
+
+    PumpPortal históricamente omitió el campo y el pipeline lo interpretó como
+    cero. El parser normalizado de Helius lo incluye con ``None`` cuando no se
+    puede reconstruir; convertir ese valor a cero fabricaría una salida total.
+    """
+    raw = event.get("newTokenBalance")
+    if raw is None:
+        return None
+
+    balance = float(raw)
+    if not math.isfinite(balance) or balance < 0:
+        raise ValueError("INVALID_NEW_TOKEN_BALANCE")
+    return balance
+
+
 def stored_block_event_ts(value):
     """Lee un timestamp que guardamos nosotros; inservible cuenta como ausente.
 
@@ -9401,7 +9631,13 @@ def stored_block_event_ts(value):
     return numero
 
 
-def market_event_from_inbox_row(event_json, wallet, signature, event_index):
+def market_event_from_inbox_row(
+    event_json,
+    wallet,
+    signature,
+    event_index,
+    block_event_ts,
+):
     """Reconstruye el evento normalizado guardado en `market_event_inbox`.
 
     La fila guarda el evento serializado y, al lado, las columnas por las que
@@ -9410,7 +9646,7 @@ def market_event_from_inbox_row(event_json, wallet, signature, event_index):
     son una copia derivada, así que si discrepan hay una fila escrita por
     código viejo o corrompida, y aplicarla sería peor que rechazarla.
 
-    Todo es obligatorio a propósito. La fila siempre tiene las cuatro cosas, y
+    Todo es obligatorio a propósito. La fila siempre tiene las cinco cosas, y
     cada una que falte produce un error silencioso distinto. Las filas viejas
     pueden no llevar la billetera dentro del JSON; las nuevas la llevan y debe
     coincidir con la columna derivada.
@@ -9450,6 +9686,23 @@ def market_event_from_inbox_row(event_json, wallet, signature, event_index):
         raise ValueError(
             "el índice de la fila y el del evento no coinciden: "
             f"{event_index!r} contra {indice_del_json!r}"
+        )
+
+    timestamp_del_json = market_event_block_ts(event)
+    timestamp_de_la_fila = validated_block_event_ts(
+        block_event_ts,
+        origen="market_event_inbox.block_event_ts",
+    )
+
+    if timestamp_del_json is None or timestamp_de_la_fila is None:
+        raise ValueError(
+            "el timestamp on-chain es obligatorio al reconstruir el inbox"
+        )
+
+    if timestamp_del_json != timestamp_de_la_fila:
+        raise ValueError(
+            "el timestamp de la fila y el del evento no coinciden: "
+            f"{timestamp_de_la_fila!r} contra {timestamp_del_json!r}"
         )
 
     wallet_del_json = str(event.get("traderPublicKey") or "").strip()
@@ -9565,7 +9818,7 @@ def claim_market_event_inbox_validation_batch(limit=None, now=None):
         conn.execute("BEGIN IMMEDIATE")
         rows = conn.execute(
             """
-            SELECT signature, event_index, wallet, event_json
+            SELECT signature, event_index, wallet, event_json, block_event_ts
             FROM market_event_inbox
             WHERE status = 'observed'
             OR (
@@ -9578,7 +9831,7 @@ def claim_market_event_inbox_validation_batch(limit=None, now=None):
             (stale_before, limit),
         ).fetchall()
 
-        for signature, event_index, _, _ in rows:
+        for signature, event_index, _, _, _ in rows:
             conn.execute(
                 """
                 UPDATE market_event_inbox
@@ -9606,6 +9859,7 @@ def claim_market_event_inbox_validation_batch(limit=None, now=None):
             "event_index": row[1],
             "wallet": row[2],
             "event_json": row[3],
+            "block_event_ts": row[4],
             "claim_token": claim_token,
         }
         for row in rows
@@ -9674,6 +9928,7 @@ def validate_market_event_inbox_once(limit=None, now=None):
                 wallet=row["wallet"],
                 signature=row["signature"],
                 event_index=row["event_index"],
+                block_event_ts=row["block_event_ts"],
             )
             status = "validated"
             error = None
@@ -9709,6 +9964,221 @@ async def market_event_inbox_validation_worker():
         await asyncio.sleep(MARKET_EVENT_INBOX_VALIDATION_POLL_SECONDS)
 
 
+def claim_market_event_inbox_processing_batch(limit=None, now=None):
+    """Reserva filas validadas para un único consumidor con lease."""
+    limit = int(limit or MARKET_EVENT_INBOX_CONSUMER_BATCH_SIZE)
+    limit = max(1, min(200, limit))
+    now = float(now if now is not None else time.time())
+    stale_before = now - MARKET_EVENT_INBOX_CONSUMER_LEASE_SECONDS
+    claim_token = secrets.token_hex(16)
+    conn = db()
+
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        rows = conn.execute(
+            """
+            SELECT
+                signature,
+                event_index,
+                wallet,
+                event_json,
+                received_ts,
+                block_event_ts
+            FROM market_event_inbox
+            WHERE status = 'validated'
+            OR (
+                status = 'processing'
+                AND COALESCE(claimed_ts, 0) <= ?
+            )
+            ORDER BY received_ts, signature, event_index
+            LIMIT ?
+            """,
+            (stale_before, limit),
+        ).fetchall()
+
+        for signature, event_index, _, _, _, _ in rows:
+            conn.execute(
+                """
+                UPDATE market_event_inbox
+                SET status = 'processing',
+                    attempts = attempts + 1,
+                    claim_token = ?,
+                    claimed_ts = ?,
+                    processed_ts = NULL,
+                    last_error = NULL
+                WHERE signature = ? AND event_index = ?
+                """,
+                (claim_token, now, signature, event_index),
+            )
+
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+    return [
+        {
+            "signature": row[0],
+            "event_index": row[1],
+            "wallet": row[2],
+            "event_json": row[3],
+            "received_ts": row[4],
+            "block_event_ts": row[5],
+            "claim_token": claim_token,
+        }
+        for row in rows
+    ]
+
+
+def finish_market_event_inbox_processing(
+    signature,
+    event_index,
+    claim_token,
+    status,
+    error=None,
+    now=None,
+):
+    """Finaliza el consumo solo si el worker todavía posee la reserva."""
+    final_statuses = {
+        "processed",
+        "duplicate",
+        "ignored_pre_activation",
+        "failed",
+    }
+    if status not in final_statuses:
+        raise ValueError(f"estado final de consumo inválido: {status!r}")
+
+    now = float(now if now is not None else time.time())
+    error_text = str(error or "")[:500] or None
+    conn = db()
+
+    try:
+        cursor = conn.execute(
+            """
+            UPDATE market_event_inbox
+            SET status = ?,
+                processed_ts = ?,
+                last_error = ?,
+                claim_token = NULL,
+                claimed_ts = NULL
+            WHERE signature = ?
+            AND event_index = ?
+            AND status = 'processing'
+            AND claim_token = ?
+            """,
+            (
+                status,
+                now,
+                error_text,
+                signature,
+                event_index,
+                claim_token,
+            ),
+        )
+        conn.commit()
+        return bool(cursor.rowcount)
+    finally:
+        conn.close()
+
+
+def consume_market_event_inbox_once(limit=None, now=None):
+    """Enruta una vez los eventos validados posteriores a la activación.
+
+    La identidad global se reserva antes de ejecutar efectos, igual que en el
+    stream. Si el router falla, la fila queda terminalmente fallida: reintentar
+    una ruta que pudo alcanzar el camino del dinero sería menos seguro que
+    hacer visible la pérdida para revisión manual.
+    """
+    activation_ts = get_market_event_inbox_activation_ts()
+    if activation_ts is None:
+        raise RuntimeError("MARKET_EVENT_INBOX_ACTIVATION_NOT_ESTABLISHED")
+
+    rows = claim_market_event_inbox_processing_batch(limit=limit, now=now)
+    result = {
+        "claimed": len(rows),
+        "processed": 0,
+        "duplicates": 0,
+        "ignored_pre_activation": 0,
+        "failed": 0,
+        "lost_claims": 0,
+    }
+
+    for row in rows:
+        try:
+            if not market_event_is_after_activation(
+                received_ts=row["received_ts"],
+                block_event_ts=row["block_event_ts"],
+                activation_ts=activation_ts,
+            ):
+                status = "ignored_pre_activation"
+                error = "PRE_ACTIVATION_OR_UNTRUSTED_TIMESTAMP"
+            else:
+                event = market_event_from_inbox_row(
+                    row["event_json"],
+                    wallet=row["wallet"],
+                    signature=row["signature"],
+                    event_index=row["event_index"],
+                    block_event_ts=row["block_event_ts"],
+                )
+
+                if not mark_market_event_processed(
+                    row["signature"],
+                    row["event_index"],
+                    source="helius",
+                ):
+                    status = "duplicate"
+                    error = None
+                else:
+                    event_id = market_event_identity(
+                        row["signature"], row["event_index"]
+                    )
+                    SEEN_EVENT_IDS.add(event_id)
+                    if len(SEEN_EVENT_IDS) > 5000:
+                        SEEN_EVENT_IDS.clear()
+                    route_market_event(event, allow_live_execution=False)
+                    status = "processed"
+                    error = None
+        except Exception as exc:
+            status = "failed"
+            error = f"{exc.__class__.__name__}: {exc}"
+
+        finished = finish_market_event_inbox_processing(
+            row["signature"],
+            row["event_index"],
+            row["claim_token"],
+            status,
+            error=error,
+            now=now,
+        )
+
+        if not finished:
+            result["lost_claims"] += 1
+        elif status == "duplicate":
+            result["duplicates"] += 1
+        else:
+            result[status] += 1
+
+    return result
+
+
+async def market_event_inbox_consumer_worker():
+    """Consume continuamente el inbox después de una activación persistente."""
+    while True:
+        try:
+            result = await asyncio.to_thread(consume_market_event_inbox_once)
+            if result["failed"]:
+                await send_discord_alert(
+                    "Pump Copilot: Helius inbox tuvo "
+                    f"{result['failed']} evento(s) fallido(s)."
+                )
+        except Exception as exc:
+            print("[HELIUS INBOX CONSUMER]", repr(exc))
+
+        await asyncio.sleep(MARKET_EVENT_INBOX_CONSUMER_POLL_SECONDS)
+
+
 def decide_paper_position_action(
     change_pct,
     remaining,
@@ -9736,7 +10206,8 @@ def decide_paper_position_action(
     elif (
         "sell" in side
         and trader == origin_trader
-        and float(new_token_balance or 0) <= 0
+        and new_token_balance is not None
+        and float(new_token_balance) <= 0
     ):
         action = "EXIT"
         sell_fraction = remaining
@@ -9811,7 +10282,8 @@ def apply_paper_event(
                 realized_pnl_usd,
                 origin_trader,
                 tp_stage,
-                entry_block_event_ts
+                entry_block_event_ts,
+                last_applied_block_event_ts
             FROM paper_positions
             WHERE mint = ?
             AND status = 'open'
@@ -9892,6 +10364,9 @@ def apply_paper_event(
         # comportamiento previo. Inventar una referencia sería peor que no
         # tenerla.
         entrada_ts = stored_block_event_ts(position[7])
+        ultimo_evento_ts = (
+            stored_block_event_ts(position[8]) or entrada_ts
+        )
 
         if (
             event_block_event_ts is not None
@@ -9909,6 +10384,32 @@ def apply_paper_event(
                     VALUES(?,?,?,?)
                     """,
                     (position_id, event_id, time.time(), "IGNORED_PRE_ENTRY"),
+                )
+                conn.commit()
+            else:
+                conn.rollback()
+
+            return {"applied": False, "needs_untrack": False}
+
+        if (
+            event_block_event_ts is not None
+            and ultimo_evento_ts is not None
+            and event_block_event_ts < ultimo_evento_ts
+        ):
+            if event_id is not None:
+                conn.execute(
+                    """
+                    INSERT INTO paper_position_applications(
+                        position_id, event_id, applied_ts, action
+                    )
+                    VALUES(?,?,?,?)
+                    """,
+                    (
+                        position_id,
+                        event_id,
+                        time.time(),
+                        "IGNORED_OUT_OF_ORDER",
+                    ),
                 )
                 conn.commit()
             else:
@@ -9980,7 +10481,11 @@ def apply_paper_event(
                 status = ?,
                 closed_ts = ?,
                 exit_mc = ?,
-                exit_reason = ?
+                exit_reason = ?,
+                last_applied_block_event_ts = CASE
+                    WHEN ? IS NULL THEN last_applied_block_event_ts
+                    ELSE ?
+                END
             WHERE id = ?
             """,
             (
@@ -9995,6 +10500,8 @@ def apply_paper_event(
                 closed_ts,
                 exit_mc,
                 exit_reason,
+                event_block_event_ts,
+                event_block_event_ts,
                 position_id,
             ),
         )
@@ -10104,7 +10611,8 @@ def save_trade(
     trader,
     wallet,
     event,
-    source="live"
+    source="live",
+    allow_live_execution=True,
 ):
 
     side = str(
@@ -10143,6 +10651,7 @@ def save_trade(
     # para que no puedan separarse.
     event_index = market_event_index(event)
     event_block_event_ts = market_event_block_ts(event)
+    trade_ts = event_block_event_ts or time.time()
 
 
     token_amount = float(
@@ -10170,8 +10679,12 @@ def save_trade(
         price_at_signal = 0.0
 
 
-    raw_new_token_balance = event.get("newTokenBalance")
-    new_token_balance = float(raw_new_token_balance or 0)
+    event_new_token_balance = market_event_new_token_balance(event)
+    paper_new_token_balance = (
+        event_new_token_balance
+        if "newTokenBalance" in event
+        else 0.0
+    )
 
 
     pool = (
@@ -10218,7 +10731,7 @@ def save_trade(
         )
         """,
         (
-            time.time(),
+            trade_ts,
 
             trader,
 
@@ -10238,7 +10751,7 @@ def save_trade(
 
             token_amount,
 
-            new_token_balance,
+            paper_new_token_balance,
 
             pool
         )
@@ -10277,7 +10790,8 @@ def save_trade(
         side=side,
         signature=signature,
         source=source,
-        event_index=event_index
+        event_index=event_index,
+        event_ts=event_block_event_ts,
     )
 
     # Cada BUY ahora se analiza individualmente.
@@ -10296,7 +10810,8 @@ def save_trade(
             trader,
             event,
             source,
-            price_at_signal
+            price_at_signal,
+            allow_live_execution=allow_live_execution,
         )
     
 
@@ -10307,24 +10822,21 @@ def save_trade(
         trader=trader,
         side=side,
         market_cap=market_cap,
-        new_token_balance=new_token_balance,
+        new_token_balance=paper_new_token_balance,
         event_signature=signature,
         event_index=event_index,
         event_block_event_ts=event_block_event_ts,
     )
-    evaluate_live_position_exit(
-        mint=mint,
-        trader=trader,
-        side=side,
-        market_cap=market_cap,
-        new_token_balance=(
-            float(raw_new_token_balance)
-            if raw_new_token_balance is not None
-            else None
-        ),
-        event_signature=signature,
-        event_index=event_index,
-    )
+    if allow_live_execution:
+        evaluate_live_position_exit(
+            mint=mint,
+            trader=trader,
+            side=side,
+            market_cap=market_cap,
+            new_token_balance=event_new_token_balance,
+            event_signature=signature,
+            event_index=event_index,
+        )
 # =========================================================
 # STREAM REAL PUMPPORTAL
 # =========================================================
@@ -11282,7 +11794,7 @@ async def mark_stream_recovered():
             "Pump Copilot: PumpPortal data connection recovered."
         )
 
-def route_market_event(event):
+def route_market_event(event, allow_live_execution=True):
     """Apply an already deduplicated event using the existing live semantics.
 
     Transport authentication, deduplication and retry handling belong to the
@@ -11290,7 +11802,8 @@ def route_market_event(event):
 
     Event identity travels inside the event: the caller sets ``eventIndex``
     when a transaction carries more than one operation, and this function
-    forwards it alongside the signature.
+    forwards it alongside the signature. ``allow_live_execution=False`` keeps
+    signals, outcomes and paper active while blocking both live buys and exits.
     """
     wallet = (
         event.get("traderPublicKey")
@@ -11306,7 +11819,16 @@ def route_market_event(event):
     if is_watched_wallet:
         trader = trader_for(wallet)
         print(f"[TRADE LIVE] {trader}: {event}")
-        save_trade(trader, wallet, event, source="live")
+        if allow_live_execution:
+            save_trade(trader, wallet, event, source="live")
+        else:
+            save_trade(
+                trader,
+                wallet,
+                event,
+                source="live",
+                allow_live_execution=False,
+            )
 
     if not is_tracked_token:
         return
@@ -11326,25 +11848,32 @@ def route_market_event(event):
     # La otra mitad de la identidad del evento, al lado de la firma.
     event_index = market_event_index(event)
     event_block_event_ts = market_event_block_ts(event)
-    raw_balance = event.get("newTokenBalance")
+    event_new_token_balance = market_event_new_token_balance(event)
+    paper_new_token_balance = (
+        event_new_token_balance
+        if "newTokenBalance" in event
+        else 0.0
+    )
     save_token_history(
         mint=mint, market_cap=market_cap, trader=trader, side=side,
         signature=signature, source="token-live",
         event_index=event_index,
+        event_ts=event_block_event_ts,
     )
     update_paper_position(
         mint=mint, trader=trader, side=side, market_cap=market_cap,
-        new_token_balance=float(raw_balance or 0),
+        new_token_balance=paper_new_token_balance,
         event_signature=signature,
         event_index=event_index,
         event_block_event_ts=event_block_event_ts,
     )
-    evaluate_live_position_exit(
-        mint=mint, trader=trader, side=side, market_cap=market_cap,
-        new_token_balance=float(raw_balance) if raw_balance is not None else None,
-        event_signature=signature,
-        event_index=event_index,
-    )
+    if allow_live_execution:
+        evaluate_live_position_exit(
+            mint=mint, trader=trader, side=side, market_cap=market_cap,
+            new_token_balance=event_new_token_balance,
+            event_signature=signature,
+            event_index=event_index,
+        )
 
 
 async def stream():
@@ -11783,6 +12312,16 @@ async def startup():
     if MARKET_EVENT_INBOX_VALIDATION_ENABLED:
         asyncio.create_task(
             market_event_inbox_validation_worker()
+        )
+
+    if MARKET_EVENT_INBOX_CONSUMER_ENABLED:
+        activation_ts = establish_market_event_inbox_activation()
+        print(
+            "[HELIUS INBOX CONSUMER] Activado desde "
+            f"{activation_ts:.3f}"
+        )
+        asyncio.create_task(
+            market_event_inbox_consumer_worker()
         )
 
     if HELIUS_WEBHOOK_SYNC_ENABLED:
@@ -13400,7 +13939,7 @@ async def helius_webhook(
     request: FastAPIRequest,
     authorization: str = Header(default=""),
 ):
-    """Recibe transacciones de Helius. Solo mide; no alimenta decisiones."""
+    """Recibe y preserva transacciones; el consumidor decide si se aplican."""
 
     if not HELIUS_WEBHOOK_ENABLED:
         raise HTTPException(status_code=404, detail="NOT_FOUND")
@@ -13565,8 +14104,8 @@ def api_helius_webhook_stats(
 
     return {
         "enabled": bool(HELIUS_WEBHOOK_ENABLED),
-        "observational": True,
-        "affects_decisions": False,
+        "observational": not MARKET_EVENT_INBOX_CONSUMER_ENABLED,
+        "affects_decisions": bool(MARKET_EVENT_INBOX_CONSUMER_ENABLED),
         "webhook_sync": get_helius_webhook_sync_status(),
         "transactions_received": int(totals[0] or 0),
         "pump_events_parsed": int(totals[1] or 0),
@@ -13582,6 +14121,15 @@ def api_helius_webhook_stats(
             "batch_size": MARKET_EVENT_INBOX_VALIDATION_BATCH_SIZE,
             "poll_seconds": MARKET_EVENT_INBOX_VALIDATION_POLL_SECONDS,
             "lease_seconds": MARKET_EVENT_INBOX_VALIDATION_LEASE_SECONDS,
+        },
+        "inbox_consumer": {
+            "enabled": bool(MARKET_EVENT_INBOX_CONSUMER_ENABLED),
+            "affects_decisions": bool(MARKET_EVENT_INBOX_CONSUMER_ENABLED),
+            "affects_live_execution": False,
+            "activation_ts": get_market_event_inbox_activation_ts(),
+            "batch_size": MARKET_EVENT_INBOX_CONSUMER_BATCH_SIZE,
+            "poll_seconds": MARKET_EVENT_INBOX_CONSUMER_POLL_SECONDS,
+            "lease_seconds": MARKET_EVENT_INBOX_CONSUMER_LEASE_SECONDS,
         },
         "with_block_time": int(totals[2] or 0),
         "webhook_latency": summarize(webhook_latency),

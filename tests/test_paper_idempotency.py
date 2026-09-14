@@ -348,9 +348,9 @@ class PreEntryEventGuardTests(unittest.TestCase):
                 status, pnl_usd, decision, score, origin_trader,
                 current_mc, remaining_pct, realized_pnl_usd,
                 unrealized_pnl_usd, last_action, tp_stage, mode,
-                entry_block_event_ts
+                entry_block_event_ts, last_applied_block_event_ts
             )
-            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """,
             (
                 # `opened_ts` deliberadamente muy posterior al timestamp
@@ -359,7 +359,7 @@ class PreEntryEventGuardTests(unittest.TestCase):
                 self.ENTRADA + 300, MINT, '["trader-a"]', 100.0, 5.0,
                 "open", 0, "COPY", 90, TRADER,
                 100.0, 1.0, 0, 0, "HOLD", 0, "paper",
-                entrada_ts,
+                entrada_ts, entrada_ts,
             ),
         )
         conn.commit()
@@ -405,6 +405,19 @@ class PreEntryEventGuardTests(unittest.TestCase):
         self.assertAlmostEqual(self.restante(), 0.75)
         self.assertEqual(self.marcas()[0][1], "PARTIAL SELL")
 
+    def test_event_older_than_the_last_applied_event_is_ignored(self):
+        self.venta("firma-posterior", self.ENTRADA + 30)
+        self.venta("firma-atrasada", self.ENTRADA + 20)
+
+        self.assertAlmostEqual(self.restante(), 0.75)
+        self.assertEqual(
+            self.marcas(),
+            [
+                ("firma-atrasada:0", "IGNORED_OUT_OF_ORDER"),
+                ("firma-posterior:0", "PARTIAL SELL"),
+            ],
+        )
+
     def test_event_at_the_same_second_as_entry_applies(self):
         # El timestamp on-chain tiene resolución de segundos: dos operaciones
         # distintas del mismo segundo son indistinguibles, y descartarlas sería
@@ -424,7 +437,8 @@ class PreEntryEventGuardTests(unittest.TestCase):
         # NULL. No hay referencia, así que no se rechaza nada.
         conn = app.db()
         conn.execute(
-            "UPDATE paper_positions SET entry_block_event_ts = NULL "
+            "UPDATE paper_positions SET entry_block_event_ts = NULL, "
+            "last_applied_block_event_ts = NULL "
             "WHERE mint = ?", (MINT,),
         )
         conn.commit()
@@ -474,11 +488,12 @@ class PreEntryEventGuardTests(unittest.TestCase):
 
         conn = app.db()
         guardado = conn.execute(
-            "SELECT entry_block_event_ts FROM paper_positions "
+            "SELECT entry_block_event_ts, last_applied_block_event_ts "
+            "FROM paper_positions "
             "WHERE mint = ?", ("otro-mint",),
         ).fetchone()
         conn.close()
-        self.assertEqual(guardado[0], self.ENTRADA)
+        self.assertEqual(guardado, (self.ENTRADA, self.ENTRADA))
 
     def test_open_paper_position_rejects_an_invalid_entry_timestamp(self):
         with self.assertRaises(ValueError):
@@ -623,6 +638,36 @@ class RouterEventIndexTests(unittest.TestCase):
             app.route_market_event(roto)
 
         self.assertAlmostEqual(self.restante(), 1.0)
+
+    def test_unknown_origin_balance_is_a_partial_sell_not_a_full_exit(self):
+        decision = app.decide_paper_position_action(
+            change_pct=0.10,
+            remaining=1.0,
+            tp_stage=0,
+            side="sell",
+            trader=TRADER,
+            origin_trader=TRADER,
+            new_token_balance=None,
+        )
+
+        self.assertEqual(decision["action"], "PARTIAL SELL")
+        self.assertEqual(decision["sell_fraction"], 0.25)
+
+    def test_watched_helius_sell_with_unknown_balance_does_not_close_paper(self):
+        event = self.evento(0, WALLET, 110.0, None)
+
+        app.route_market_event(event)
+
+        self.assertAlmostEqual(self.restante(), 0.75)
+        conn = app.db()
+        try:
+            stored_balance = conn.execute(
+                "SELECT new_token_balance FROM trades WHERE signature = ?",
+                ("firma-compartida",),
+            ).fetchone()[0]
+        finally:
+            conn.close()
+        self.assertIsNone(stored_balance)
 
 
 class TokenHistoryIdempotencyTests(unittest.TestCase):

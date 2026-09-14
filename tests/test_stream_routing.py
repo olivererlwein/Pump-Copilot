@@ -58,6 +58,38 @@ class MarketEventRoutingTests(unittest.TestCase):
         self.assertIsNone(live["new_token_balance"])
         self.assertEqual(self.effects["save_token_history"].call_args.kwargs["source"], "token-live")
 
+    def test_explicit_unknown_balance_is_preserved_for_paper_and_live(self):
+        app.TRACKED_TOKENS.add("mint")
+        event = {
+            "mint": "mint",
+            "user": "other",
+            "type": "SELL",
+            "market_cap_sol": 42,
+            "newTokenBalance": None,
+        }
+
+        app.route_market_event(event)
+
+        paper = self.effects["update_paper_position"].call_args.kwargs
+        live = self.effects["evaluate_live_position_exit"].call_args.kwargs
+        self.assertIsNone(paper["new_token_balance"])
+        self.assertIsNone(live["new_token_balance"])
+
+    def test_observational_transport_cannot_reach_live_exit(self):
+        app.TRACKED_TOKENS.add("mint")
+        event = {
+            "mint": "mint",
+            "user": "other",
+            "type": "SELL",
+            "market_cap_sol": 42,
+            "newTokenBalance": 0,
+        }
+
+        app.route_market_event(event, allow_live_execution=False)
+
+        self.effects["update_paper_position"].assert_called_once()
+        self.effects["evaluate_live_position_exit"].assert_not_called()
+
 
 class StreamRoutingTests(unittest.IsolatedAsyncioTestCase):
     async def test_invalid_signature_is_skipped_without_stopping_the_stream(self):

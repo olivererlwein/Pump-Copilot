@@ -1961,3 +1961,75 @@ frontera de activación, no consume el inbox, no llama a `route_market_event()` 
 no afecta scoring, paper trading ni órdenes live.
 
 Verificación final: **276 tests, OK**. Pyright: **0 errores y 0 warnings**.
+
+## Consumidor seguro del inbox de Helius
+
+Codex implementó la segunda etapa de la migración: filas `validated` pueden
+ser reclamadas con lease y pasar por `route_market_event()`. El worker queda
+apagado por defecto mediante `MARKET_EVENT_INBOX_CONSUMER_ENABLED=false`.
+Cuando se habilita, fija una frontera persistente y solo acepta eventos cuyo
+`received_ts` y `block_event_ts` sean posteriores. El historial anterior queda
+terminalmente como `ignored_pre_activation`.
+
+La exclusión entre PumpPortal y Helius usa `processed_market_events` con la
+identidad completa `firma:índice`. Los estados terminales del inbox son
+`processed`, `duplicate`, `ignored_pre_activation` y `failed`. Si una excepción
+ocurre después de reservar la identidad global, no se reintenta automáticamente:
+la fila queda `failed` y se alerta por Discord, porque repetir una ruta que pudo
+alcanzar el camino del dinero sería inseguro. El lease permite recuperar un
+worker muerto antes de la reserva global y el token de claim impide que el dueño
+anterior confirme una fila recuperada.
+
+La reconstrucción ahora compara también `block_event_ts` entre la columna y el
+JSON. Firma, índice, wallet y timestamp deben coincidir antes de aplicar el
+evento. Esto cierra el caso donde una columna reciente podía hacer pasar un JSON
+viejo por la frontera de activación.
+
+### Barrera de ejecución real
+
+El consumidor llama al router con `allow_live_execution=False`. Helius sí puede
+alimentar trades, scoring, señales, outcomes, historial y paper trading, pero no
+puede ejecutar compras reales ni salidas de posiciones live. PumpPortal conserva
+el comportamiento anterior. `/api/helius-webhook-stats` expone esta distinción
+en `inbox_consumer.affects_live_execution=false`.
+
+### Semántica y cronología de datos
+
+`newTokenBalance=None` ya no se convierte en cero: se guarda como `NULL`, no
+confirma un cierre de trader y en paper produce como máximo una venta parcial.
+La ausencia completa del campo en PumpPortal conserva el valor histórico cero.
+El perfil de calidad tampoco convierte los nuevos `NULL` en cierres.
+
+Los eventos normalizados usan `blockEventTs` para `trades.ts`,
+`token_history.ts`, `evaluations.ts`, `signal_outcomes.signal_ts` y los
+checkpoints de outcomes. Consenso y contexto de mercado excluyen filas futuras
+respecto del evento evaluado. Si los webhooks llegan fuera de orden, una muestra
+tardía más cercana puede corregir un checkpoint temprano sin pisar checkpoints
+posteriores; una operación anterior a la señal tampoco puede modificar sus
+extremos. PumpPortal, que no entrega timestamp on-chain, sigue usando la hora de
+recepción.
+
+Las posiciones paper ahora guardan `last_applied_block_event_ts`. Un webhook
+posterior a la entrada pero anterior al último evento aplicado queda auditado
+como `IGNORED_OUT_OF_ORDER`, por lo que no puede retroceder `current_mc`, etapas
+de take profit ni ventas parciales. La referencia se inicializa con el timestamp
+on-chain de entrada; posiciones antiguas y eventos sin timestamp conservan el
+comportamiento previo. `LAST_TOKEN_PRICE` también avanza de forma monotónica y
+ya no se sobrescribe con precios atrasados.
+
+Pruebas nuevas cubren activación ausente, frontera histórica, discrepancia de
+timestamp, carrera real entre transportes, lease vencido, fallo terminal,
+bloqueo de ejecución live, saldo desconocido, seis casos de cronología y la
+guarda monotónica de posiciones paper.
+Verificación final: **295 tests, OK**; `py_compile` y `git diff --check` limpios.
+El ejecutable CLI de Pyright no está instalado en este entorno, por lo que no se
+repitió ese chequeo estático en esta ronda.
+
+### Identidad de evaluaciones
+
+La tabla `evaluations` ya deduplica por `(trade_signature, event_index)`. La
+migración reconstruye la tabla dentro de una transacción, conserva los IDs que
+enlazan outcomes y predicciones shadow, y asigna índice `0` a las evaluaciones
+históricas. Una misma transacción puede producir varias señales sin confundirlas
+con un reintento del mismo evento. La prueba de migración corre dos veces para
+confirmar idempotencia y conserva un ID histórico explícito.

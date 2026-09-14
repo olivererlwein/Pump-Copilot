@@ -1040,6 +1040,7 @@ class InboxRoundTripTests(unittest.TestCase):
 
         evento = app.market_event_from_inbox_row(
             event_json, wallet=wallet, signature=SIGNATURE, event_index=indice,
+            block_event_ts=1_700_000_000,
         )
 
         self.assertEqual(app.market_event_block_ts(evento), 1_700_000_000.0)
@@ -1066,6 +1067,7 @@ class InboxRoundTripTests(unittest.TestCase):
                 wallet=wallet,
                 signature=SIGNATURE,
                 event_index=indice,
+                block_event_ts=1_700_000_000,
             )
             # Una venta parcial del trader de origen, para que cada evento
             # tenga un efecto visible y acumulable.
@@ -1107,6 +1109,7 @@ class InboxRoundTripTests(unittest.TestCase):
 
         evento = app.market_event_from_inbox_row(
             event_json, wallet=wallet, signature=SIGNATURE, event_index=indice,
+            block_event_ts=1_700_000_000,
         )
         self.assertEqual(evento["traderPublicKey"], WALLET)
         self.assertEqual(app.trader_for(evento["traderPublicKey"]), "trader-a")
@@ -1115,6 +1118,7 @@ class InboxRoundTripTests(unittest.TestCase):
         event_json = json.dumps({
             "signature": SIGNATURE,
             "eventIndex": 1,
+            "blockEventTs": 1_700_000_000,
             "traderPublicKey": "another-wallet",
         })
 
@@ -1126,6 +1130,7 @@ class InboxRoundTripTests(unittest.TestCase):
             "wallet": WALLET,
             "signature": SIGNATURE,
             "event_index": 1,
+            "block_event_ts": 1_700_000_000,
         }
         argumentos.update(cambios)
         return app.market_event_from_inbox_row(event_json, **argumentos)
@@ -1142,13 +1147,21 @@ class InboxRoundTripTests(unittest.TestCase):
         columna diría 0 y la ausencia también daría 0, así que coincidirían.
         Lo único que lo rechaza es exigir que el campo esté.
         """
-        sin_indice = json.dumps({"signature": SIGNATURE, "txType": "sell"})
+        sin_indice = json.dumps({
+            "signature": SIGNATURE,
+            "blockEventTs": 1_700_000_000,
+            "txType": "sell",
+        })
 
         with self.assertRaises(ValueError):
             self.reconstruir(sin_indice, event_index=0)
 
     def test_event_json_with_invalid_index_is_rejected_on_rebuild(self):
-        roto = json.dumps({"signature": SIGNATURE, "eventIndex": "1"})
+        roto = json.dumps({
+            "signature": SIGNATURE,
+            "eventIndex": "1",
+            "blockEventTs": 1_700_000_000,
+        })
 
         with self.assertRaises(ValueError):
             self.reconstruir(roto)
@@ -1157,7 +1170,11 @@ class InboxRoundTripTests(unittest.TestCase):
         # Sin billetera el evento se reconstruye igual, pero el router lo
         # clasifica por la ruta equivocada. Falla silenciosa: nada se rompe,
         # solo se aplica mal.
-        valido = json.dumps({"signature": SIGNATURE, "eventIndex": 1})
+        valido = json.dumps({
+            "signature": SIGNATURE,
+            "eventIndex": 1,
+            "blockEventTs": 1_700_000_000,
+        })
 
         for vacia in (None, "", "   "):
             with self.subTest(wallet=vacia):
@@ -1165,7 +1182,11 @@ class InboxRoundTripTests(unittest.TestCase):
                     self.reconstruir(valido, wallet=vacia)
 
     def test_signature_mismatch_between_column_and_json_is_rejected(self):
-        otro = json.dumps({"signature": "otra-firma", "eventIndex": 1})
+        otro = json.dumps({
+            "signature": "otra-firma",
+            "eventIndex": 1,
+            "blockEventTs": 1_700_000_000,
+        })
 
         with self.assertRaises(ValueError):
             self.reconstruir(otro)
@@ -1173,7 +1194,11 @@ class InboxRoundTripTests(unittest.TestCase):
     def test_index_mismatch_between_column_and_json_is_rejected(self):
         # Si discrepan, la fila la escribió código viejo o está corrompida.
         # Aplicarla con una de las dos identidades es peor que rechazarla.
-        desfasado = json.dumps({"signature": SIGNATURE, "eventIndex": 2})
+        desfasado = json.dumps({
+            "signature": SIGNATURE,
+            "eventIndex": 2,
+            "blockEventTs": 1_700_000_000,
+        })
 
         with self.assertRaises(ValueError):
             self.reconstruir(desfasado, event_index=1)

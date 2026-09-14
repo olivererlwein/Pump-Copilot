@@ -1,5 +1,6 @@
 import json
 import math
+import sqlite3
 import tempfile
 import threading
 import unittest
@@ -1094,14 +1095,89 @@ class LiveCopyDispatchTests(unittest.TestCase):
             execute.assert_not_called()
 
 
+class EvaluationIdentityMigrationTests(unittest.TestCase):
+    def test_legacy_evaluations_keep_ids_and_gain_composite_identity(self):
+        with tempfile.TemporaryDirectory() as temp_dir, patch.object(
+            app,
+            "DB",
+            Path(temp_dir) / "evaluation-migration.db",
+        ):
+            conn = app.db()
+            conn.execute("DROP TABLE evaluations")
+            conn.execute(
+                """
+                CREATE TABLE evaluations(
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    trade_signature TEXT UNIQUE,
+                    ts REAL,
+                    trader TEXT,
+                    mint TEXT,
+                    source TEXT,
+                    score INTEGER,
+                    decision TEXT,
+                    trader_score INTEGER,
+                    timing_score INTEGER,
+                    size_score INTEGER,
+                    token_score INTEGER,
+                    consensus_score INTEGER,
+                    market_score INTEGER,
+                    reasons TEXT
+                )
+                """
+            )
+            conn.execute(
+                """
+                INSERT INTO evaluations(
+                    id, trade_signature, ts, trader, mint, decision
+                )
+                VALUES(42, 'legacy-signature', 1, 'trader', 'mint', 'WATCH')
+                """
+            )
+            conn.commit()
+            conn.close()
+
+            app.migrate_database()
+            app.migrate_database()
+
+            conn = app.db()
+            try:
+                legacy = conn.execute(
+                    "SELECT id, trade_signature, event_index "
+                    "FROM evaluations WHERE id = 42"
+                ).fetchone()
+                conn.execute(
+                    "INSERT INTO evaluations(trade_signature, event_index) "
+                    "VALUES('legacy-signature', 1)"
+                )
+                conn.commit()
+                with self.assertRaises(sqlite3.IntegrityError):
+                    conn.execute(
+                        "INSERT INTO evaluations(trade_signature, event_index) "
+                        "VALUES('legacy-signature', 0)"
+                    )
+                conn.rollback()
+                indexes = conn.execute(
+                    "SELECT event_index FROM evaluations "
+                    "WHERE trade_signature = 'legacy-signature' "
+                    "ORDER BY event_index"
+                ).fetchall()
+            finally:
+                conn.close()
+
+        self.assertEqual(legacy, (42, "legacy-signature", 0))
+        self.assertEqual(indexes, [(0,), (1,)])
+
+
 class EvaluationIdempotencyTests(unittest.TestCase):
-    def test_duplicate_evaluation_does_not_open_paper_position_twice(self):
+    def test_full_event_identity_keeps_distinct_operations_and_deduplicates_retries(self):
         event = {
             "mint": "DEMO-DUPLICATE-EVALUATION",
             "signature": "duplicate-evaluation-signature",
+            "eventIndex": 0,
             "solAmount": 1.0,
             "marketCapSol": 100.0,
         }
+        second_operation = {**event, "eventIndex": 1}
         model_prediction = {
             "model_version": "approved-model-v1",
             "data_version": app.DATA_VERSION,
@@ -1151,19 +1227,26 @@ class EvaluationIdempotencyTests(unittest.TestCase):
                 event,
                 price_at_signal=0.0001,
             )
+            third = app.evaluate_buy(
+                "test-trader",
+                second_operation,
+                price_at_signal=0.0001,
+            )
 
             conn = app.db()
-            evaluation_count = conn.execute(
-                "SELECT COUNT(*) FROM evaluations WHERE trade_signature = ?",
+            evaluation_indexes = conn.execute(
+                "SELECT event_index FROM evaluations "
+                "WHERE trade_signature = ? ORDER BY event_index",
                 (event["signature"],),
-            ).fetchone()[0]
+            ).fetchall()
             conn.close()
 
         self.assertEqual(first["decision"], "COPY")
         self.assertEqual(second["decision"], "COPY")
-        self.assertEqual(evaluation_count, 1)
-        open_position.assert_called_once()
-        live_copy.assert_called_once()
+        self.assertEqual(third["decision"], "COPY")
+        self.assertEqual(evaluation_indexes, [(0,), (1,)])
+        self.assertEqual(open_position.call_count, 2)
+        self.assertEqual(live_copy.call_count, 2)
         self.assertEqual(
             live_copy.call_args.kwargs["model_prediction"],
             model_prediction,
