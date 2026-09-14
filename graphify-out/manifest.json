@@ -322,5 +322,17 @@
     "seen": 1789410087.135079,
     "ast_hash": "f9a47b559b93b5c9c46231767d730b6a",
     "semantic_hash": ""
+  },
+  "scripts/audit_shadow_economics.py": {
+    "mtime": 1789411389.3554387,
+    "seen": 1789411461.2348602,
+    "ast_hash": "6b87a8fab813cf7ceb8e5235e1c7d149",
+    "semantic_hash": ""
+  },
+  "tests/test_shadow_economics_audit.py": {
+    "mtime": 1789411321.73104,
+    "seen": 1789411461.2348845,
+    "ast_hash": "7da5ea6d3642cc9bbd01ebb26cba9fa5",
+    "semantic_hash": ""
   }
 }

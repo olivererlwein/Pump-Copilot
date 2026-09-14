@@ -420,6 +420,19 @@
       "source_location": "L1118"
     },
     {
+      "id": "tests_test_shadow_economics_audit_shadoweconomicsaudittests",
+      "label": "ShadowEconomicsAuditTests",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 53,
+      "community_name": "audit_shadow_economics.py",
+      "file_type": "code",
+      "norm_label": "shadoweconomicsaudittests",
+      "source_file": "tests/test_shadow_economics_audit.py",
+      "source_location": "L29"
+    },
+    {
       "id": "tests_test_shadow_mode_fakeshadowmodel",
       "label": "FakeShadowModel",
       "_callable": true,
@@ -1765,6 +1778,30 @@
       "source_location": "L11157"
     },
     {
+      "id": "app_finish_market_event_inbox_processing",
+      "label": "finish_market_event_inbox_processing()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "ValueError",
+      "file_type": "code",
+      "norm_label": "finish_market_event_inbox_processing()",
+      "source_file": "app.py",
+      "source_location": "L10150"
+    },
+    {
+      "id": "app_finish_market_event_inbox_validation",
+      "label": "finish_market_event_inbox_validation()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "ValueError",
+      "file_type": "code",
+      "norm_label": "finish_market_event_inbox_validation()",
+      "source_file": "app.py",
+      "source_location": "L9984"
+    },
+    {
       "id": "app_normalize_solana_signature",
       "label": "normalize_solana_signature()",
       "_callable": true,
@@ -2437,18 +2474,6 @@
       "source_location": "L19"
     },
     {
-      "id": "app_can_retry_execution",
-      "label": "can_retry_execution()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 25,
-      "community_name": "simulate_execution",
-      "file_type": "code",
-      "norm_label": "can_retry_execution()",
-      "source_file": "app.py",
-      "source_location": "L3681"
-    },
-    {
       "id": "app_check_execution_timeout",
       "label": "check_execution_timeout()",
       "_callable": true,
@@ -2473,28 +2498,16 @@
       "source_location": "L3228"
     },
     {
-      "id": "app_demo_can_retry",
-      "label": "demo_can_retry()",
+      "id": "app_create_execution_order_idempotent",
+      "label": "create_execution_order_idempotent()",
       "_callable": true,
       "_origin": "ast",
       "community": 25,
       "community_name": "simulate_execution",
       "file_type": "code",
-      "norm_label": "demo_can_retry()",
+      "norm_label": "create_execution_order_idempotent()",
       "source_file": "app.py",
-      "source_location": "L15740"
-    },
-    {
-      "id": "app_demo_cannot_retry_risk",
-      "label": "demo_cannot_retry_risk()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 25,
-      "community_name": "simulate_execution",
-      "file_type": "code",
-      "norm_label": "demo_cannot_retry_risk()",
-      "source_file": "app.py",
-      "source_location": "L15757"
+      "source_location": "L3298"
     },
     {
       "id": "app_demo_controlled_retry",
@@ -2545,18 +2558,6 @@
       "source_location": "L15546"
     },
     {
-      "id": "app_demo_mode_save",
-      "label": "demo_mode_save()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 25,
-      "community_name": "simulate_execution",
-      "file_type": "code",
-      "norm_label": "demo_mode_save()",
-      "source_file": "app.py",
-      "source_location": "L16313"
-    },
-    {
       "id": "app_demo_pending_reconciliation",
       "label": "demo_pending_reconciliation()",
       "_callable": true,
@@ -2567,18 +2568,6 @@
       "norm_label": "demo_pending_reconciliation()",
       "source_file": "app.py",
       "source_location": "L15665"
-    },
-    {
-      "id": "app_demo_retry_counter",
-      "label": "demo_retry_counter()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 25,
-      "community_name": "simulate_execution",
-      "file_type": "code",
-      "norm_label": "demo_retry_counter()",
-      "source_file": "app.py",
-      "source_location": "L15804"
     },
     {
       "id": "app_demo_retry_function",
@@ -2687,6 +2676,18 @@
       "norm_label": "retry_execution_order()",
       "source_file": "app.py",
       "source_location": "L3805"
+    },
+    {
+      "id": "app_save_execution_order_event",
+      "label": "save_execution_order_event()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "simulate_execution",
+      "file_type": "code",
+      "norm_label": "save_execution_order_event()",
+      "source_file": "app.py",
+      "source_location": "L3464"
     },
     {
       "id": "app_simulate_execution",
@@ -3529,64 +3530,40 @@
       "source_location": "L5997"
     },
     {
-      "id": "app_api_live_positions",
-      "label": "api_live_positions()",
+      "id": "app_api_helius_webhook_stats",
+      "label": "api_helius_webhook_stats()",
       "_callable": true,
       "_origin": "ast",
       "community": 31,
       "community_name": "db",
       "file_type": "code",
-      "norm_label": "api_live_positions()",
+      "norm_label": "api_helius_webhook_stats()",
       "source_file": "app.py",
-      "source_location": "L14577"
+      "source_location": "L14192"
     },
     {
-      "id": "app_apply_paper_event",
-      "label": "apply_paper_event()",
+      "id": "app_cleanup_finished_outcome_token",
+      "label": "cleanup_finished_outcome_token()",
       "_callable": true,
       "_origin": "ast",
       "community": 31,
       "community_name": "db",
       "file_type": "code",
-      "norm_label": "apply_paper_event()",
+      "norm_label": "cleanup_finished_outcome_token()",
       "source_file": "app.py",
-      "source_location": "L10392"
+      "source_location": "L2409"
     },
     {
-      "id": "app_calculate_copyability_score",
-      "label": "calculate_copyability_score()",
+      "id": "app_complete_finished_signal_outcomes",
+      "label": "complete_finished_signal_outcomes()",
       "_callable": true,
       "_origin": "ast",
       "community": 31,
       "community_name": "db",
       "file_type": "code",
-      "norm_label": "calculate_copyability_score()",
+      "norm_label": "complete_finished_signal_outcomes()",
       "source_file": "app.py",
-      "source_location": "L6825"
-    },
-    {
-      "id": "app_claim_market_event_inbox_processing_batch",
-      "label": "claim_market_event_inbox_processing_batch()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 31,
-      "community_name": "db",
-      "file_type": "code",
-      "norm_label": "claim_market_event_inbox_processing_batch()",
-      "source_file": "app.py",
-      "source_location": "L10082"
-    },
-    {
-      "id": "app_count_open_positions",
-      "label": "count_open_positions()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 31,
-      "community_name": "db",
-      "file_type": "code",
-      "norm_label": "count_open_positions()",
-      "source_file": "app.py",
-      "source_location": "L1277"
+      "source_location": "L2309"
     },
     {
       "id": "app_create_signal_outcome",
@@ -3613,52 +3590,28 @@
       "source_location": "L537"
     },
     {
-      "id": "app_decide_paper_position_action",
-      "label": "decide_paper_position_action()",
+      "id": "app_establish_market_event_inbox_activation",
+      "label": "establish_market_event_inbox_activation()",
       "_callable": true,
       "_origin": "ast",
       "community": 31,
       "community_name": "db",
       "file_type": "code",
-      "norm_label": "decide_paper_position_action()",
+      "norm_label": "establish_market_event_inbox_activation()",
       "source_file": "app.py",
-      "source_location": "L10324"
+      "source_location": "L9861"
     },
     {
-      "id": "app_demo_daily_pnl_isolation",
-      "label": "demo_daily_pnl_isolation()",
+      "id": "app_expire_old_signal_outcomes",
+      "label": "expire_old_signal_outcomes()",
       "_callable": true,
       "_origin": "ast",
       "community": 31,
       "community_name": "db",
       "file_type": "code",
-      "norm_label": "demo_daily_pnl_isolation()",
+      "norm_label": "expire_old_signal_outcomes()",
       "source_file": "app.py",
-      "source_location": "L16566"
-    },
-    {
-      "id": "app_demo_mode_isolation",
-      "label": "demo_mode_isolation()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 31,
-      "community_name": "db",
-      "file_type": "code",
-      "norm_label": "demo_mode_isolation()",
-      "source_file": "app.py",
-      "source_location": "L16505"
-    },
-    {
-      "id": "app_demo_paper_mode_save",
-      "label": "demo_paper_mode_save()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 31,
-      "community_name": "db",
-      "file_type": "code",
-      "norm_label": "demo_paper_mode_save()",
-      "source_file": "app.py",
-      "source_location": "L16454"
+      "source_location": "L2368"
     },
     {
       "id": "app_get_consensus_trader_count",
@@ -3685,52 +3638,28 @@
       "source_location": "L8440"
     },
     {
-      "id": "app_get_daily_live_realized_pnl_sol",
-      "label": "get_daily_live_realized_pnl_sol()",
+      "id": "app_get_market_event_inbox_activation_ts",
+      "label": "get_market_event_inbox_activation_ts()",
       "_callable": true,
       "_origin": "ast",
       "community": 31,
       "community_name": "db",
       "file_type": "code",
-      "norm_label": "get_daily_live_realized_pnl_sol()",
+      "norm_label": "get_market_event_inbox_activation_ts()",
       "source_file": "app.py",
-      "source_location": "L1355"
+      "source_location": "L9835"
     },
     {
-      "id": "app_get_daily_realized_pnl",
-      "label": "get_daily_realized_pnl()",
+      "id": "app_get_persistent_kill_switch",
+      "label": "get_persistent_kill_switch()",
       "_callable": true,
       "_origin": "ast",
       "community": 31,
       "community_name": "db",
       "file_type": "code",
-      "norm_label": "get_daily_realized_pnl()",
+      "norm_label": "get_persistent_kill_switch()",
       "source_file": "app.py",
-      "source_location": "L1307"
-    },
-    {
-      "id": "app_get_execution_latency",
-      "label": "get_execution_latency()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 31,
-      "community_name": "db",
-      "file_type": "code",
-      "norm_label": "get_execution_latency()",
-      "source_file": "app.py",
-      "source_location": "L3886"
-    },
-    {
-      "id": "app_get_live_position_summary",
-      "label": "get_live_position_summary()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 31,
-      "community_name": "db",
-      "file_type": "code",
-      "norm_label": "get_live_position_summary()",
-      "source_file": "app.py",
-      "source_location": "L1372"
+      "source_location": "L12554"
     },
     {
       "id": "app_get_rpc_fallback_wallet_states",
@@ -3769,18 +3698,6 @@
       "source_location": "L8481"
     },
     {
-      "id": "app_get_trader_copyability_stats",
-      "label": "get_trader_copyability_stats()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 31,
-      "community_name": "db",
-      "file_type": "code",
-      "norm_label": "get_trader_copyability_stats()",
-      "source_file": "app.py",
-      "source_location": "L5511"
-    },
-    {
       "id": "app_get_trader_first_hit_stats",
       "label": "get_trader_first_hit_stats()",
       "_callable": true,
@@ -3791,6 +3708,18 @@
       "norm_label": "get_trader_first_hit_stats()",
       "source_file": "app.py",
       "source_location": "L6765"
+    },
+    {
+      "id": "app_get_trader_hit_stats",
+      "label": "get_trader_hit_stats()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 31,
+      "community_name": "db",
+      "file_type": "code",
+      "norm_label": "get_trader_hit_stats()",
+      "source_file": "app.py",
+      "source_location": "L5579"
     },
     {
       "id": "app_get_trader_previous_buy_gap_seconds",
@@ -3817,40 +3746,16 @@
       "source_location": "L8147"
     },
     {
-      "id": "app_get_trader_reliable_returns",
-      "label": "get_trader_reliable_returns()",
+      "id": "app_mark_rpc_fallback_events_alerted",
+      "label": "mark_rpc_fallback_events_alerted()",
       "_callable": true,
       "_origin": "ast",
       "community": 31,
       "community_name": "db",
       "file_type": "code",
-      "norm_label": "get_trader_reliable_returns()",
+      "norm_label": "mark_rpc_fallback_events_alerted()",
       "source_file": "app.py",
-      "source_location": "L6681"
-    },
-    {
-      "id": "app_get_trader_reliable_samples",
-      "label": "get_trader_reliable_samples()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 31,
-      "community_name": "db",
-      "file_type": "code",
-      "norm_label": "get_trader_reliable_samples()",
-      "source_file": "app.py",
-      "source_location": "L6609"
-    },
-    {
-      "id": "app_open_paper_position",
-      "label": "open_paper_position()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 31,
-      "community_name": "db",
-      "file_type": "code",
-      "norm_label": "open_paper_position()",
-      "source_file": "app.py",
-      "source_location": "L9232"
+      "source_location": "L11588"
     },
     {
       "id": "app_process_signal_outcomes_event",
@@ -3865,28 +3770,64 @@
       "source_location": "L2017"
     },
     {
-      "id": "app_risk_check",
-      "label": "risk_check()",
+      "id": "app_pumpportal_execution_reconciliation_worker",
+      "label": "pumpportal_execution_reconciliation_worker()",
       "_callable": true,
       "_origin": "ast",
       "community": 31,
       "community_name": "db",
       "file_type": "code",
-      "norm_label": "risk_check()",
+      "norm_label": "pumpportal_execution_reconciliation_worker()",
       "source_file": "app.py",
-      "source_location": "L4288"
+      "source_location": "L4277"
     },
     {
-      "id": "app_save_position_event",
-      "label": "save_position_event()",
+      "id": "app_reconcile_finished_signal_outcomes",
+      "label": "reconcile_finished_signal_outcomes()",
       "_callable": true,
       "_origin": "ast",
       "community": 31,
       "community_name": "db",
       "file_type": "code",
-      "norm_label": "save_position_event()",
+      "norm_label": "reconcile_finished_signal_outcomes()",
       "source_file": "app.py",
-      "source_location": "L5297"
+      "source_location": "L2342"
+    },
+    {
+      "id": "app_reconcile_pending_pumpportal_execution_orders",
+      "label": "reconcile_pending_pumpportal_execution_orders()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 31,
+      "community_name": "db",
+      "file_type": "code",
+      "norm_label": "reconcile_pending_pumpportal_execution_orders()",
+      "source_file": "app.py",
+      "source_location": "L4256"
+    },
+    {
+      "id": "app_reconcile_rpc_fallback_events",
+      "label": "reconcile_rpc_fallback_events()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 31,
+      "community_name": "db",
+      "file_type": "code",
+      "norm_label": "reconcile_rpc_fallback_events()",
+      "source_file": "app.py",
+      "source_location": "L11520"
+    },
+    {
+      "id": "app_rpc_fallback_shadow_worker",
+      "label": "rpc_fallback_shadow_worker()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 31,
+      "community_name": "db",
+      "file_type": "code",
+      "norm_label": "rpc_fallback_shadow_worker()",
+      "source_file": "app.py",
+      "source_location": "L11768"
     },
     {
       "id": "app_score_consensus",
@@ -3949,16 +3890,16 @@
       "source_location": "L2165"
     },
     {
-      "id": "app_stored_block_event_ts",
-      "label": "stored_block_event_ts()",
+      "id": "app_startup",
+      "label": "startup()",
       "_callable": true,
       "_origin": "ast",
       "community": 31,
       "community_name": "db",
       "file_type": "code",
-      "norm_label": "stored_block_event_ts()",
+      "norm_label": "startup()",
       "source_file": "app.py",
-      "source_location": "L9722"
+      "source_location": "L12357"
     },
     {
       "id": "app_untrack_token_if_unused",
@@ -4057,16 +3998,28 @@
       "source_location": "L1887"
     },
     {
-      "id": "app_api_live_execution_readiness",
-      "label": "api_live_execution_readiness()",
+      "id": "app_api_live_positions",
+      "label": "api_live_positions()",
       "_callable": true,
       "_origin": "ast",
       "community": 34,
       "community_name": "app.py",
       "file_type": "code",
-      "norm_label": "api_live_execution_readiness()",
+      "norm_label": "api_live_positions()",
       "source_file": "app.py",
-      "source_location": "L14569"
+      "source_location": "L14577"
+    },
+    {
+      "id": "app_api_rpc_fallback_stats",
+      "label": "api_rpc_fallback_stats()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 34,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "api_rpc_fallback_stats()",
+      "source_file": "app.py",
+      "source_location": "L14457"
     },
     {
       "id": "app_api_shadow_predictions",
@@ -4079,18 +4032,6 @@
       "norm_label": "api_shadow_predictions()",
       "source_file": "app.py",
       "source_location": "L14548"
-    },
-    {
-      "id": "app_api_shadow_stats",
-      "label": "api_shadow_stats()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 34,
-      "community_name": "app.py",
-      "file_type": "code",
-      "norm_label": "api_shadow_stats()",
-      "source_file": "app.py",
-      "source_location": "L14561"
     },
     {
       "id": "app_api_training_checkpoint_freshness",
@@ -4165,28 +4106,16 @@
       "source_location": "L14491"
     },
     {
-      "id": "app_assess_live_model_approval",
-      "label": "assess_live_model_approval()",
+      "id": "app_api_watched_wallets",
+      "label": "api_watched_wallets()",
       "_callable": true,
       "_origin": "ast",
       "community": 34,
       "community_name": "app.py",
       "file_type": "code",
-      "norm_label": "assess_live_model_approval()",
+      "norm_label": "api_watched_wallets()",
       "source_file": "app.py",
-      "source_location": "L8705"
-    },
-    {
-      "id": "app_assess_shadow_challenger",
-      "label": "assess_shadow_challenger()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 34,
-      "community_name": "app.py",
-      "file_type": "code",
-      "norm_label": "assess_shadow_challenger()",
-      "source_file": "app.py",
-      "source_location": "L7394"
+      "source_location": "L14427"
     },
     {
       "id": "app_build_model_features",
@@ -4213,76 +4142,28 @@
       "source_location": "L2632"
     },
     {
-      "id": "app_compare_shadow_models",
-      "label": "compare_shadow_models()",
+      "id": "app_calculate_copyability_score",
+      "label": "calculate_copyability_score()",
       "_callable": true,
       "_origin": "ast",
       "community": 34,
       "community_name": "app.py",
       "file_type": "code",
-      "norm_label": "compare_shadow_models()",
+      "norm_label": "calculate_copyability_score()",
       "source_file": "app.py",
-      "source_location": "L7271"
+      "source_location": "L6825"
     },
     {
-      "id": "app_create_execution_order_idempotent",
-      "label": "create_execution_order_idempotent()",
+      "id": "app_check_watched_wallet_silence",
+      "label": "check_watched_wallet_silence()",
       "_callable": true,
       "_origin": "ast",
       "community": 34,
       "community_name": "app.py",
       "file_type": "code",
-      "norm_label": "create_execution_order_idempotent()",
+      "norm_label": "check_watched_wallet_silence()",
       "source_file": "app.py",
-      "source_location": "L3298"
-    },
-    {
-      "id": "app_demo_liquidity_check",
-      "label": "demo_liquidity_check()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 34,
-      "community_name": "app.py",
-      "file_type": "code",
-      "norm_label": "demo_liquidity_check()",
-      "source_file": "app.py",
-      "source_location": "L15107"
-    },
-    {
-      "id": "app_demo_live_guard",
-      "label": "demo_live_guard()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 34,
-      "community_name": "app.py",
-      "file_type": "code",
-      "norm_label": "demo_live_guard()",
-      "source_file": "app.py",
-      "source_location": "L16269"
-    },
-    {
-      "id": "app_execute_pumpportal_lightning_buy",
-      "label": "execute_pumpportal_lightning_buy()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 34,
-      "community_name": "app.py",
-      "file_type": "code",
-      "norm_label": "execute_pumpportal_lightning_buy()",
-      "source_file": "app.py",
-      "source_location": "L2978"
-    },
-    {
-      "id": "app_execute_pumpportal_lightning_sell",
-      "label": "execute_pumpportal_lightning_sell()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 34,
-      "community_name": "app.py",
-      "file_type": "code",
-      "norm_label": "execute_pumpportal_lightning_sell()",
-      "source_file": "app.py",
-      "source_location": "L3112"
+      "source_location": "L11328"
     },
     {
       "id": "app_fetch_sol_usd_quote",
@@ -4309,28 +4190,40 @@
       "source_location": "L11120"
     },
     {
-      "id": "app_get_execution_order_status",
-      "label": "get_execution_order_status()",
+      "id": "app_get_daily_live_realized_pnl_sol",
+      "label": "get_daily_live_realized_pnl_sol()",
       "_callable": true,
       "_origin": "ast",
       "community": 34,
       "community_name": "app.py",
       "file_type": "code",
-      "norm_label": "get_execution_order_status()",
+      "norm_label": "get_daily_live_realized_pnl_sol()",
       "source_file": "app.py",
-      "source_location": "L3559"
+      "source_location": "L1355"
     },
     {
-      "id": "app_get_live_execution_readiness",
-      "label": "get_live_execution_readiness()",
+      "id": "app_get_live_position_summary",
+      "label": "get_live_position_summary()",
       "_callable": true,
       "_origin": "ast",
       "community": 34,
       "community_name": "app.py",
       "file_type": "code",
-      "norm_label": "get_live_execution_readiness()",
+      "norm_label": "get_live_position_summary()",
       "source_file": "app.py",
-      "source_location": "L7533"
+      "source_location": "L1372"
+    },
+    {
+      "id": "app_get_rpc_fallback_stats",
+      "label": "get_rpc_fallback_stats()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 34,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "get_rpc_fallback_stats()",
+      "source_file": "app.py",
+      "source_location": "L11799"
     },
     {
       "id": "app_get_shadow_predictions",
@@ -4343,18 +4236,6 @@
       "norm_label": "get_shadow_predictions()",
       "source_file": "app.py",
       "source_location": "L7169"
-    },
-    {
-      "id": "app_get_shadow_stats",
-      "label": "get_shadow_stats()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 34,
-      "community_name": "app.py",
-      "file_type": "code",
-      "norm_label": "get_shadow_stats()",
-      "source_file": "app.py",
-      "source_location": "L7442"
     },
     {
       "id": "app_get_signal_checkpoint_lags",
@@ -4381,28 +4262,40 @@
       "source_location": "L6560"
     },
     {
-      "id": "app_get_trader_hit_stats",
-      "label": "get_trader_hit_stats()",
+      "id": "app_get_trader_copyability_stats",
+      "label": "get_trader_copyability_stats()",
       "_callable": true,
       "_origin": "ast",
       "community": 34,
       "community_name": "app.py",
       "file_type": "code",
-      "norm_label": "get_trader_hit_stats()",
+      "norm_label": "get_trader_copyability_stats()",
       "source_file": "app.py",
-      "source_location": "L5579"
+      "source_location": "L5511"
     },
     {
-      "id": "app_get_trader_quality_assessment",
-      "label": "get_trader_quality_assessment()",
+      "id": "app_get_trader_reliable_returns",
+      "label": "get_trader_reliable_returns()",
       "_callable": true,
       "_origin": "ast",
       "community": 34,
       "community_name": "app.py",
       "file_type": "code",
-      "norm_label": "get_trader_quality_assessment()",
+      "norm_label": "get_trader_reliable_returns()",
       "source_file": "app.py",
-      "source_location": "L5441"
+      "source_location": "L6681"
+    },
+    {
+      "id": "app_get_trader_reliable_samples",
+      "label": "get_trader_reliable_samples()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 34,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "get_trader_reliable_samples()",
+      "source_file": "app.py",
+      "source_location": "L6609"
     },
     {
       "id": "app_get_training_checkpoint_freshness",
@@ -4465,6 +4358,30 @@
       "source_location": "L7855"
     },
     {
+      "id": "app_get_watched_wallet_activity",
+      "label": "get_watched_wallet_activity()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 34,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "get_watched_wallet_activity()",
+      "source_file": "app.py",
+      "source_location": "L11265"
+    },
+    {
+      "id": "app_helius_webhook_sync_worker",
+      "label": "helius_webhook_sync_worker()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 34,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "helius_webhook_sync_worker()",
+      "source_file": "app.py",
+      "source_location": "L13941"
+    },
+    {
       "id": "app_mark_signature_processed",
       "label": "mark_signature_processed()",
       "_callable": true,
@@ -4477,28 +4394,40 @@
       "source_location": "L1269"
     },
     {
-      "id": "app_maybe_execute_live_copy",
-      "label": "maybe_execute_live_copy()",
+      "id": "app_mark_stream_problem",
+      "label": "mark_stream_problem()",
       "_callable": true,
       "_origin": "ast",
       "community": 34,
       "community_name": "app.py",
       "file_type": "code",
-      "norm_label": "maybe_execute_live_copy()",
+      "norm_label": "mark_stream_problem()",
       "source_file": "app.py",
-      "source_location": "L8790"
+      "source_location": "L11908"
     },
     {
-      "id": "app_maybe_send_shadow_review_alert",
-      "label": "maybe_send_shadow_review_alert()",
+      "id": "app_mark_stream_recovered",
+      "label": "mark_stream_recovered()",
       "_callable": true,
       "_origin": "ast",
       "community": 34,
       "community_name": "app.py",
       "file_type": "code",
-      "norm_label": "maybe_send_shadow_review_alert()",
+      "norm_label": "mark_stream_recovered()",
       "source_file": "app.py",
-      "source_location": "L11048"
+      "source_location": "L11936"
+    },
+    {
+      "id": "app_market_event_inbox_consumer_worker",
+      "label": "market_event_inbox_consumer_worker()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 34,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "market_event_inbox_consumer_worker()",
+      "source_file": "app.py",
+      "source_location": "L10303"
     },
     {
       "id": "app_observe_shadow_signal",
@@ -4511,6 +4440,18 @@
       "norm_label": "observe_shadow_signal()",
       "source_file": "app.py",
       "source_location": "L7147"
+    },
+    {
+      "id": "app_post_discord_alert",
+      "label": "post_discord_alert()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 34,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "post_discord_alert()",
+      "source_file": "app.py",
+      "source_location": "L11009"
     },
     {
       "id": "app_prepare_pumpportal_lightning_buy",
@@ -4561,100 +4502,40 @@
       "source_location": "L7082"
     },
     {
-      "id": "app_require_live_trading",
-      "label": "require_live_trading()",
+      "id": "app_send_discord_alert",
+      "label": "send_discord_alert()",
       "_callable": true,
       "_origin": "ast",
       "community": 34,
       "community_name": "app.py",
       "file_type": "code",
-      "norm_label": "require_live_trading()",
+      "norm_label": "send_discord_alert()",
       "source_file": "app.py",
-      "source_location": "L12524"
+      "source_location": "L11031"
     },
     {
-      "id": "app_save_execution_order_event",
-      "label": "save_execution_order_event()",
+      "id": "app_update_helius_webhook_sync_alert",
+      "label": "update_helius_webhook_sync_alert()",
       "_callable": true,
       "_origin": "ast",
       "community": 34,
       "community_name": "app.py",
       "file_type": "code",
-      "norm_label": "save_execution_order_event()",
+      "norm_label": "update_helius_webhook_sync_alert()",
       "source_file": "app.py",
-      "source_location": "L3464"
+      "source_location": "L13909"
     },
     {
-      "id": "app_score_trader",
-      "label": "score_trader()",
+      "id": "app_watched_wallet_monitor",
+      "label": "watched_wallet_monitor()",
       "_callable": true,
       "_origin": "ast",
       "community": 34,
       "community_name": "app.py",
       "file_type": "code",
-      "norm_label": "score_trader()",
+      "norm_label": "watched_wallet_monitor()",
       "source_file": "app.py",
-      "source_location": "L5375"
-    },
-    {
-      "id": "app_set_execution_order_external_signature",
-      "label": "set_execution_order_external_signature()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 34,
-      "community_name": "app.py",
-      "file_type": "code",
-      "norm_label": "set_execution_order_external_signature()",
-      "source_file": "app.py",
-      "source_location": "L3445"
-    },
-    {
-      "id": "app_submit_pumpportal_lightning_trade",
-      "label": "submit_pumpportal_lightning_trade()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 34,
-      "community_name": "app.py",
-      "file_type": "code",
-      "norm_label": "submit_pumpportal_lightning_trade()",
-      "source_file": "app.py",
-      "source_location": "L2900"
-    },
-    {
-      "id": "app_summarize_shadow_predictions",
-      "label": "summarize_shadow_predictions()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 34,
-      "community_name": "app.py",
-      "file_type": "code",
-      "norm_label": "summarize_shadow_predictions()",
-      "source_file": "app.py",
-      "source_location": "L7227"
-    },
-    {
-      "id": "app_trader_stats",
-      "label": "trader_stats()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 34,
-      "community_name": "app.py",
-      "file_type": "code",
-      "norm_label": "trader_stats()",
-      "source_file": "app.py",
-      "source_location": "L13347"
-    },
-    {
-      "id": "app_validate_liquidity",
-      "label": "validate_liquidity()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 34,
-      "community_name": "app.py",
-      "file_type": "code",
-      "norm_label": "validate_liquidity()",
-      "source_file": "app.py",
-      "source_location": "L1465"
+      "source_location": "L11382"
     },
     {
       "id": "tests_test_trader_quality_traderqualitycandidatetests_insert_outcomes",
@@ -5329,268 +5210,172 @@
       "source_location": "L373"
     },
     {
-      "id": "app_api_watched_wallets",
-      "label": "api_watched_wallets()",
+      "id": "app_apply_paper_event",
+      "label": "apply_paper_event()",
       "_callable": true,
       "_origin": "ast",
       "community": 43,
-      "community_name": "startup",
+      "community_name": "open_paper_position",
       "file_type": "code",
-      "norm_label": "api_watched_wallets()",
+      "norm_label": "apply_paper_event()",
       "source_file": "app.py",
-      "source_location": "L14427"
+      "source_location": "L10392"
     },
     {
-      "id": "app_check_watched_wallet_silence",
-      "label": "check_watched_wallet_silence()",
+      "id": "app_count_open_positions",
+      "label": "count_open_positions()",
       "_callable": true,
       "_origin": "ast",
       "community": 43,
-      "community_name": "startup",
+      "community_name": "open_paper_position",
       "file_type": "code",
-      "norm_label": "check_watched_wallet_silence()",
+      "norm_label": "count_open_positions()",
       "source_file": "app.py",
-      "source_location": "L11328"
+      "source_location": "L1277"
     },
     {
-      "id": "app_cleanup_finished_outcome_token",
-      "label": "cleanup_finished_outcome_token()",
+      "id": "app_decide_paper_position_action",
+      "label": "decide_paper_position_action()",
       "_callable": true,
       "_origin": "ast",
       "community": 43,
-      "community_name": "startup",
+      "community_name": "open_paper_position",
       "file_type": "code",
-      "norm_label": "cleanup_finished_outcome_token()",
+      "norm_label": "decide_paper_position_action()",
       "source_file": "app.py",
-      "source_location": "L2409"
+      "source_location": "L10324"
     },
     {
-      "id": "app_complete_finished_signal_outcomes",
-      "label": "complete_finished_signal_outcomes()",
+      "id": "app_demo_daily_pnl_isolation",
+      "label": "demo_daily_pnl_isolation()",
       "_callable": true,
       "_origin": "ast",
       "community": 43,
-      "community_name": "startup",
+      "community_name": "open_paper_position",
       "file_type": "code",
-      "norm_label": "complete_finished_signal_outcomes()",
+      "norm_label": "demo_daily_pnl_isolation()",
       "source_file": "app.py",
-      "source_location": "L2309"
+      "source_location": "L16566"
     },
     {
-      "id": "app_expire_old_signal_outcomes",
-      "label": "expire_old_signal_outcomes()",
+      "id": "app_demo_mode_isolation",
+      "label": "demo_mode_isolation()",
       "_callable": true,
       "_origin": "ast",
       "community": 43,
-      "community_name": "startup",
+      "community_name": "open_paper_position",
       "file_type": "code",
-      "norm_label": "expire_old_signal_outcomes()",
+      "norm_label": "demo_mode_isolation()",
       "source_file": "app.py",
-      "source_location": "L2368"
+      "source_location": "L16505"
     },
     {
-      "id": "app_get_persistent_kill_switch",
-      "label": "get_persistent_kill_switch()",
+      "id": "app_demo_paper_mode_save",
+      "label": "demo_paper_mode_save()",
       "_callable": true,
       "_origin": "ast",
       "community": 43,
-      "community_name": "startup",
+      "community_name": "open_paper_position",
       "file_type": "code",
-      "norm_label": "get_persistent_kill_switch()",
+      "norm_label": "demo_paper_mode_save()",
       "source_file": "app.py",
-      "source_location": "L12554"
+      "source_location": "L16454"
     },
     {
-      "id": "app_get_watched_wallet_activity",
-      "label": "get_watched_wallet_activity()",
+      "id": "app_demo_slippage_check",
+      "label": "demo_slippage_check()",
       "_callable": true,
       "_origin": "ast",
       "community": 43,
-      "community_name": "startup",
+      "community_name": "open_paper_position",
       "file_type": "code",
-      "norm_label": "get_watched_wallet_activity()",
+      "norm_label": "demo_slippage_check()",
       "source_file": "app.py",
-      "source_location": "L11265"
+      "source_location": "L15081"
     },
     {
-      "id": "app_helius_webhook_sync_worker",
-      "label": "helius_webhook_sync_worker()",
+      "id": "app_get_daily_realized_pnl",
+      "label": "get_daily_realized_pnl()",
       "_callable": true,
       "_origin": "ast",
       "community": 43,
-      "community_name": "startup",
+      "community_name": "open_paper_position",
       "file_type": "code",
-      "norm_label": "helius_webhook_sync_worker()",
+      "norm_label": "get_daily_realized_pnl()",
       "source_file": "app.py",
-      "source_location": "L13941"
+      "source_location": "L1307"
     },
     {
-      "id": "app_mark_rpc_fallback_events_alerted",
-      "label": "mark_rpc_fallback_events_alerted()",
+      "id": "app_open_paper_position",
+      "label": "open_paper_position()",
       "_callable": true,
       "_origin": "ast",
       "community": 43,
-      "community_name": "startup",
+      "community_name": "open_paper_position",
       "file_type": "code",
-      "norm_label": "mark_rpc_fallback_events_alerted()",
+      "norm_label": "open_paper_position()",
       "source_file": "app.py",
-      "source_location": "L11588"
+      "source_location": "L9232"
     },
     {
-      "id": "app_mark_stream_problem",
-      "label": "mark_stream_problem()",
+      "id": "app_risk_check",
+      "label": "risk_check()",
       "_callable": true,
       "_origin": "ast",
       "community": 43,
-      "community_name": "startup",
+      "community_name": "open_paper_position",
       "file_type": "code",
-      "norm_label": "mark_stream_problem()",
+      "norm_label": "risk_check()",
       "source_file": "app.py",
-      "source_location": "L11908"
+      "source_location": "L4288"
     },
     {
-      "id": "app_mark_stream_recovered",
-      "label": "mark_stream_recovered()",
+      "id": "app_save_position_event",
+      "label": "save_position_event()",
       "_callable": true,
       "_origin": "ast",
       "community": 43,
-      "community_name": "startup",
+      "community_name": "open_paper_position",
       "file_type": "code",
-      "norm_label": "mark_stream_recovered()",
+      "norm_label": "save_position_event()",
       "source_file": "app.py",
-      "source_location": "L11936"
+      "source_location": "L5297"
     },
     {
-      "id": "app_market_event_inbox_consumer_worker",
-      "label": "market_event_inbox_consumer_worker()",
+      "id": "app_stored_block_event_ts",
+      "label": "stored_block_event_ts()",
       "_callable": true,
       "_origin": "ast",
       "community": 43,
-      "community_name": "startup",
+      "community_name": "open_paper_position",
       "file_type": "code",
-      "norm_label": "market_event_inbox_consumer_worker()",
+      "norm_label": "stored_block_event_ts()",
       "source_file": "app.py",
-      "source_location": "L10303"
+      "source_location": "L9722"
     },
     {
-      "id": "app_post_discord_alert",
-      "label": "post_discord_alert()",
+      "id": "app_validate_liquidity",
+      "label": "validate_liquidity()",
       "_callable": true,
       "_origin": "ast",
       "community": 43,
-      "community_name": "startup",
+      "community_name": "open_paper_position",
       "file_type": "code",
-      "norm_label": "post_discord_alert()",
+      "norm_label": "validate_liquidity()",
       "source_file": "app.py",
-      "source_location": "L11009"
+      "source_location": "L1465"
     },
     {
-      "id": "app_pumpportal_execution_reconciliation_worker",
-      "label": "pumpportal_execution_reconciliation_worker()",
+      "id": "app_validate_slippage",
+      "label": "validate_slippage()",
       "_callable": true,
       "_origin": "ast",
       "community": 43,
-      "community_name": "startup",
+      "community_name": "open_paper_position",
       "file_type": "code",
-      "norm_label": "pumpportal_execution_reconciliation_worker()",
+      "norm_label": "validate_slippage()",
       "source_file": "app.py",
-      "source_location": "L4277"
-    },
-    {
-      "id": "app_reconcile_finished_signal_outcomes",
-      "label": "reconcile_finished_signal_outcomes()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 43,
-      "community_name": "startup",
-      "file_type": "code",
-      "norm_label": "reconcile_finished_signal_outcomes()",
-      "source_file": "app.py",
-      "source_location": "L2342"
-    },
-    {
-      "id": "app_reconcile_pending_pumpportal_execution_orders",
-      "label": "reconcile_pending_pumpportal_execution_orders()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 43,
-      "community_name": "startup",
-      "file_type": "code",
-      "norm_label": "reconcile_pending_pumpportal_execution_orders()",
-      "source_file": "app.py",
-      "source_location": "L4256"
-    },
-    {
-      "id": "app_reconcile_rpc_fallback_events",
-      "label": "reconcile_rpc_fallback_events()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 43,
-      "community_name": "startup",
-      "file_type": "code",
-      "norm_label": "reconcile_rpc_fallback_events()",
-      "source_file": "app.py",
-      "source_location": "L11520"
-    },
-    {
-      "id": "app_rpc_fallback_shadow_worker",
-      "label": "rpc_fallback_shadow_worker()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 43,
-      "community_name": "startup",
-      "file_type": "code",
-      "norm_label": "rpc_fallback_shadow_worker()",
-      "source_file": "app.py",
-      "source_location": "L11768"
-    },
-    {
-      "id": "app_send_discord_alert",
-      "label": "send_discord_alert()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 43,
-      "community_name": "startup",
-      "file_type": "code",
-      "norm_label": "send_discord_alert()",
-      "source_file": "app.py",
-      "source_location": "L11031"
-    },
-    {
-      "id": "app_startup",
-      "label": "startup()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 43,
-      "community_name": "startup",
-      "file_type": "code",
-      "norm_label": "startup()",
-      "source_file": "app.py",
-      "source_location": "L12357"
-    },
-    {
-      "id": "app_update_helius_webhook_sync_alert",
-      "label": "update_helius_webhook_sync_alert()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 43,
-      "community_name": "startup",
-      "file_type": "code",
-      "norm_label": "update_helius_webhook_sync_alert()",
-      "source_file": "app.py",
-      "source_location": "L13909"
-    },
-    {
-      "id": "app_watched_wallet_monitor",
-      "label": "watched_wallet_monitor()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 43,
-      "community_name": "startup",
-      "file_type": "code",
-      "norm_label": "watched_wallet_monitor()",
-      "source_file": "app.py",
-      "source_location": "L11382"
+      "source_location": "L1432"
     },
     {
       "id": "solana_rpc_fallback_is_signed_by",
@@ -6529,40 +6314,148 @@
       "source_location": "L1162"
     },
     {
-      "id": "app_api_helius_webhook_stats",
-      "label": "api_helius_webhook_stats()",
+      "id": "scripts_audit_shadow_economics_audit_model",
+      "label": "_audit_model()",
       "_callable": true,
       "_origin": "ast",
       "community": 53,
-      "community_name": "api_helius_webhook_stats",
+      "community_name": "audit_shadow_economics.py",
       "file_type": "code",
-      "norm_label": "api_helius_webhook_stats()",
-      "source_file": "app.py",
-      "source_location": "L14192"
+      "norm_label": "_audit_model()",
+      "source_file": "scripts/audit_shadow_economics.py",
+      "source_location": "L99"
     },
     {
-      "id": "app_establish_market_event_inbox_activation",
-      "label": "establish_market_event_inbox_activation()",
+      "id": "scripts_audit_shadow_economics_audit_shadow_models",
+      "label": "audit_shadow_models()",
       "_callable": true,
       "_origin": "ast",
       "community": 53,
-      "community_name": "api_helius_webhook_stats",
+      "community_name": "audit_shadow_economics.py",
       "file_type": "code",
-      "norm_label": "establish_market_event_inbox_activation()",
-      "source_file": "app.py",
-      "source_location": "L9861"
+      "norm_label": "audit_shadow_models()",
+      "source_file": "scripts/audit_shadow_economics.py",
+      "source_location": "L175"
     },
     {
-      "id": "app_get_market_event_inbox_activation_ts",
-      "label": "get_market_event_inbox_activation_ts()",
+      "id": "scripts_audit_shadow_economics_fetch_json",
+      "label": "_fetch_json()",
       "_callable": true,
       "_origin": "ast",
       "community": 53,
-      "community_name": "api_helius_webhook_stats",
+      "community_name": "audit_shadow_economics.py",
       "file_type": "code",
-      "norm_label": "get_market_event_inbox_activation_ts()",
-      "source_file": "app.py",
-      "source_location": "L9835"
+      "norm_label": "_fetch_json()",
+      "source_file": "scripts/audit_shadow_economics.py",
+      "source_location": "L225"
+    },
+    {
+      "id": "scripts_audit_shadow_economics_main",
+      "label": "main()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 53,
+      "community_name": "audit_shadow_economics.py",
+      "file_type": "code",
+      "norm_label": "main()",
+      "source_file": "scripts/audit_shadow_economics.py",
+      "source_location": "L234"
+    },
+    {
+      "id": "scripts_audit_shadow_economics_pair_completed_predictions",
+      "label": "pair_completed_predictions()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 53,
+      "community_name": "audit_shadow_economics.py",
+      "file_type": "code",
+      "norm_label": "pair_completed_predictions()",
+      "source_file": "scripts/audit_shadow_economics.py",
+      "source_location": "L19"
+    },
+    {
+      "id": "scripts_audit_shadow_economics_payoff",
+      "label": "_payoff()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 53,
+      "community_name": "audit_shadow_economics.py",
+      "file_type": "code",
+      "norm_label": "_payoff()",
+      "source_file": "scripts/audit_shadow_economics.py",
+      "source_location": "L61"
+    },
+    {
+      "id": "scripts_audit_shadow_economics_temporal_windows",
+      "label": "_temporal_windows()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 53,
+      "community_name": "audit_shadow_economics.py",
+      "file_type": "code",
+      "norm_label": "_temporal_windows()",
+      "source_file": "scripts/audit_shadow_economics.py",
+      "source_location": "L79"
+    },
+    {
+      "id": "tests_test_shadow_economics_audit_prediction",
+      "label": "prediction()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 53,
+      "community_name": "audit_shadow_economics.py",
+      "file_type": "code",
+      "norm_label": "prediction()",
+      "source_file": "tests/test_shadow_economics_audit.py",
+      "source_location": "L9"
+    },
+    {
+      "id": "tests_test_shadow_economics_audit_shadoweconomicsaudittests_test_canary_gate_accepts_diverse_profitable_temporal_results",
+      "label": ".test_canary_gate_accepts_diverse_profitable_temporal_results()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 53,
+      "community_name": "audit_shadow_economics.py",
+      "file_type": "code",
+      "norm_label": ".test_canary_gate_accepts_diverse_profitable_temporal_results()",
+      "source_file": "tests/test_shadow_economics_audit.py",
+      "source_location": "L81"
+    },
+    {
+      "id": "tests_test_shadow_economics_audit_shadoweconomicsaudittests_test_canary_gate_rejects_a_profitable_concentrated_model",
+      "label": ".test_canary_gate_rejects_a_profitable_concentrated_model()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 53,
+      "community_name": "audit_shadow_economics.py",
+      "file_type": "code",
+      "norm_label": ".test_canary_gate_rejects_a_profitable_concentrated_model()",
+      "source_file": "tests/test_shadow_economics_audit.py",
+      "source_location": "L54"
+    },
+    {
+      "id": "tests_test_shadow_economics_audit_shadoweconomicsaudittests_test_pairs_only_completed_predictions_shared_by_both_models",
+      "label": ".test_pairs_only_completed_predictions_shared_by_both_models()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 53,
+      "community_name": "audit_shadow_economics.py",
+      "file_type": "code",
+      "norm_label": ".test_pairs_only_completed_predictions_shared_by_both_models()",
+      "source_file": "tests/test_shadow_economics_audit.py",
+      "source_location": "L30"
+    },
+    {
+      "id": "tests_test_shadow_economics_audit_shadoweconomicsaudittests_test_rejects_disagreement_about_the_actual_target",
+      "label": ".test_rejects_disagreement_about_the_actual_target()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 53,
+      "community_name": "audit_shadow_economics.py",
+      "file_type": "code",
+      "norm_label": ".test_rejects_disagreement_about_the_actual_target()",
+      "source_file": "tests/test_shadow_economics_audit.py",
+      "source_location": "L45"
     },
     {
       "id": "tests_test_shadow_mode_fakeshadowmodel_init",
@@ -7777,6 +7670,174 @@
       "source_location": "L15"
     },
     {
+      "id": "app_api_live_execution_readiness",
+      "label": "api_live_execution_readiness()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 58,
+      "community_name": "execute_pumpportal_lightning_buy",
+      "file_type": "code",
+      "norm_label": "api_live_execution_readiness()",
+      "source_file": "app.py",
+      "source_location": "L14569"
+    },
+    {
+      "id": "app_api_shadow_stats",
+      "label": "api_shadow_stats()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 58,
+      "community_name": "execute_pumpportal_lightning_buy",
+      "file_type": "code",
+      "norm_label": "api_shadow_stats()",
+      "source_file": "app.py",
+      "source_location": "L14561"
+    },
+    {
+      "id": "app_assess_shadow_challenger",
+      "label": "assess_shadow_challenger()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 58,
+      "community_name": "execute_pumpportal_lightning_buy",
+      "file_type": "code",
+      "norm_label": "assess_shadow_challenger()",
+      "source_file": "app.py",
+      "source_location": "L7394"
+    },
+    {
+      "id": "app_compare_shadow_models",
+      "label": "compare_shadow_models()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 58,
+      "community_name": "execute_pumpportal_lightning_buy",
+      "file_type": "code",
+      "norm_label": "compare_shadow_models()",
+      "source_file": "app.py",
+      "source_location": "L7271"
+    },
+    {
+      "id": "app_execute_pumpportal_lightning_buy",
+      "label": "execute_pumpportal_lightning_buy()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 58,
+      "community_name": "execute_pumpportal_lightning_buy",
+      "file_type": "code",
+      "norm_label": "execute_pumpportal_lightning_buy()",
+      "source_file": "app.py",
+      "source_location": "L2978"
+    },
+    {
+      "id": "app_execute_pumpportal_lightning_sell",
+      "label": "execute_pumpportal_lightning_sell()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 58,
+      "community_name": "execute_pumpportal_lightning_buy",
+      "file_type": "code",
+      "norm_label": "execute_pumpportal_lightning_sell()",
+      "source_file": "app.py",
+      "source_location": "L3112"
+    },
+    {
+      "id": "app_get_execution_order_status",
+      "label": "get_execution_order_status()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 58,
+      "community_name": "execute_pumpportal_lightning_buy",
+      "file_type": "code",
+      "norm_label": "get_execution_order_status()",
+      "source_file": "app.py",
+      "source_location": "L3559"
+    },
+    {
+      "id": "app_get_live_execution_readiness",
+      "label": "get_live_execution_readiness()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 58,
+      "community_name": "execute_pumpportal_lightning_buy",
+      "file_type": "code",
+      "norm_label": "get_live_execution_readiness()",
+      "source_file": "app.py",
+      "source_location": "L7533"
+    },
+    {
+      "id": "app_get_shadow_stats",
+      "label": "get_shadow_stats()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 58,
+      "community_name": "execute_pumpportal_lightning_buy",
+      "file_type": "code",
+      "norm_label": "get_shadow_stats()",
+      "source_file": "app.py",
+      "source_location": "L7442"
+    },
+    {
+      "id": "app_maybe_send_shadow_review_alert",
+      "label": "maybe_send_shadow_review_alert()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 58,
+      "community_name": "execute_pumpportal_lightning_buy",
+      "file_type": "code",
+      "norm_label": "maybe_send_shadow_review_alert()",
+      "source_file": "app.py",
+      "source_location": "L11048"
+    },
+    {
+      "id": "app_require_live_trading",
+      "label": "require_live_trading()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 58,
+      "community_name": "execute_pumpportal_lightning_buy",
+      "file_type": "code",
+      "norm_label": "require_live_trading()",
+      "source_file": "app.py",
+      "source_location": "L12524"
+    },
+    {
+      "id": "app_set_execution_order_external_signature",
+      "label": "set_execution_order_external_signature()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 58,
+      "community_name": "execute_pumpportal_lightning_buy",
+      "file_type": "code",
+      "norm_label": "set_execution_order_external_signature()",
+      "source_file": "app.py",
+      "source_location": "L3445"
+    },
+    {
+      "id": "app_submit_pumpportal_lightning_trade",
+      "label": "submit_pumpportal_lightning_trade()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 58,
+      "community_name": "execute_pumpportal_lightning_buy",
+      "file_type": "code",
+      "norm_label": "submit_pumpportal_lightning_trade()",
+      "source_file": "app.py",
+      "source_location": "L2900"
+    },
+    {
+      "id": "app_summarize_shadow_predictions",
+      "label": "summarize_shadow_predictions()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 58,
+      "community_name": "execute_pumpportal_lightning_buy",
+      "file_type": "code",
+      "norm_label": "summarize_shadow_predictions()",
+      "source_file": "app.py",
+      "source_location": "L7227"
+    },
+    {
       "id": "solana_rpc_fallback_parse_tracked_token_pump_events",
       "label": "parse_tracked_token_pump_events()",
       "_callable": true,
@@ -8353,30 +8414,6 @@
       "source_location": "L1002"
     },
     {
-      "id": "app_api_rpc_fallback_stats",
-      "label": "api_rpc_fallback_stats()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 61,
-      "community_name": "api_rpc_fallback_stats",
-      "file_type": "code",
-      "norm_label": "api_rpc_fallback_stats()",
-      "source_file": "app.py",
-      "source_location": "L14457"
-    },
-    {
-      "id": "app_get_rpc_fallback_stats",
-      "label": "get_rpc_fallback_stats()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 61,
-      "community_name": "api_rpc_fallback_stats",
-      "file_type": "code",
-      "norm_label": "get_rpc_fallback_stats()",
-      "source_file": "app.py",
-      "source_location": "L11799"
-    },
-    {
       "id": "tests_test_rpc_fallback_rpcfallbackbaselinetests_event_status",
       "label": ".event_status()",
       "_callable": true,
@@ -8665,6 +8702,30 @@
       "source_location": "L291"
     },
     {
+      "id": "app_assess_live_model_approval",
+      "label": "assess_live_model_approval()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 64,
+      "community_name": "evaluate_buy",
+      "file_type": "code",
+      "norm_label": "assess_live_model_approval()",
+      "source_file": "app.py",
+      "source_location": "L8705"
+    },
+    {
+      "id": "app_claim_market_event_inbox_processing_batch",
+      "label": "claim_market_event_inbox_processing_batch()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 64,
+      "community_name": "evaluate_buy",
+      "file_type": "code",
+      "norm_label": "claim_market_event_inbox_processing_batch()",
+      "source_file": "app.py",
+      "source_location": "L10082"
+    },
+    {
       "id": "app_claim_market_event_inbox_validation_batch",
       "label": "claim_market_event_inbox_validation_batch()",
       "_callable": true,
@@ -8737,28 +8798,16 @@
       "source_location": "L9489"
     },
     {
-      "id": "app_finish_market_event_inbox_processing",
-      "label": "finish_market_event_inbox_processing()",
+      "id": "app_get_trader_quality_assessment",
+      "label": "get_trader_quality_assessment()",
       "_callable": true,
       "_origin": "ast",
       "community": 64,
       "community_name": "evaluate_buy",
       "file_type": "code",
-      "norm_label": "finish_market_event_inbox_processing()",
+      "norm_label": "get_trader_quality_assessment()",
       "source_file": "app.py",
-      "source_location": "L10150"
-    },
-    {
-      "id": "app_finish_market_event_inbox_validation",
-      "label": "finish_market_event_inbox_validation()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 64,
-      "community_name": "evaluate_buy",
-      "file_type": "code",
-      "norm_label": "finish_market_event_inbox_validation()",
-      "source_file": "app.py",
-      "source_location": "L9984"
+      "source_location": "L5441"
     },
     {
       "id": "app_helius_webhook",
@@ -8881,6 +8930,18 @@
       "source_location": "L9700"
     },
     {
+      "id": "app_maybe_execute_live_copy",
+      "label": "maybe_execute_live_copy()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 64,
+      "community_name": "evaluate_buy",
+      "file_type": "code",
+      "norm_label": "maybe_execute_live_copy()",
+      "source_file": "app.py",
+      "source_location": "L8790"
+    },
+    {
       "id": "app_record_helius_webhook_transactions",
       "label": "record_helius_webhook_transactions()",
       "_callable": true,
@@ -8963,6 +9024,18 @@
       "norm_label": "score_trade_size()",
       "source_file": "app.py",
       "source_location": "L8220"
+    },
+    {
+      "id": "app_score_trader",
+      "label": "score_trader()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 64,
+      "community_name": "evaluate_buy",
+      "file_type": "code",
+      "norm_label": "score_trader()",
+      "source_file": "app.py",
+      "source_location": "L5375"
     },
     {
       "id": "app_stream",
@@ -9217,6 +9290,18 @@
       "source_location": "L12507"
     },
     {
+      "id": "app_can_retry_execution",
+      "label": "can_retry_execution()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 7,
+      "community_name": "auth",
+      "file_type": "code",
+      "norm_label": "can_retry_execution()",
+      "source_file": "app.py",
+      "source_location": "L3681"
+    },
+    {
       "id": "app_demo",
       "label": "demo()",
       "_callable": true,
@@ -9227,6 +9312,30 @@
       "norm_label": "demo()",
       "source_file": "app.py",
       "source_location": "L14590"
+    },
+    {
+      "id": "app_demo_can_retry",
+      "label": "demo_can_retry()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 7,
+      "community_name": "auth",
+      "file_type": "code",
+      "norm_label": "demo_can_retry()",
+      "source_file": "app.py",
+      "source_location": "L15740"
+    },
+    {
+      "id": "app_demo_cannot_retry_risk",
+      "label": "demo_cannot_retry_risk()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 7,
+      "community_name": "auth",
+      "file_type": "code",
+      "norm_label": "demo_cannot_retry_risk()",
+      "source_file": "app.py",
+      "source_location": "L15757"
     },
     {
       "id": "app_demo_close_old",
@@ -9409,6 +9518,30 @@
       "source_location": "L14984"
     },
     {
+      "id": "app_demo_liquidity_check",
+      "label": "demo_liquidity_check()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 7,
+      "community_name": "auth",
+      "file_type": "code",
+      "norm_label": "demo_liquidity_check()",
+      "source_file": "app.py",
+      "source_location": "L15107"
+    },
+    {
+      "id": "app_demo_live_guard",
+      "label": "demo_live_guard()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 7,
+      "community_name": "auth",
+      "file_type": "code",
+      "norm_label": "demo_live_guard()",
+      "source_file": "app.py",
+      "source_location": "L16269"
+    },
+    {
       "id": "app_demo_live_position",
       "label": "demo_live_position()",
       "_callable": true,
@@ -9431,6 +9564,18 @@
       "norm_label": "demo_mode_column()",
       "source_file": "app.py",
       "source_location": "L16284"
+    },
+    {
+      "id": "app_demo_mode_save",
+      "label": "demo_mode_save()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 7,
+      "community_name": "auth",
+      "file_type": "code",
+      "norm_label": "demo_mode_save()",
+      "source_file": "app.py",
+      "source_location": "L16313"
     },
     {
       "id": "app_demo_paper_mode_column",
@@ -9565,6 +9710,18 @@
       "source_location": "L15775"
     },
     {
+      "id": "app_demo_retry_counter",
+      "label": "demo_retry_counter()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 7,
+      "community_name": "auth",
+      "file_type": "code",
+      "norm_label": "demo_retry_counter()",
+      "source_file": "app.py",
+      "source_location": "L15804"
+    },
+    {
       "id": "app_demo_risk_mode_isolation",
       "label": "demo_risk_mode_isolation()",
       "_callable": true,
@@ -9575,18 +9732,6 @@
       "norm_label": "demo_risk_mode_isolation()",
       "source_file": "app.py",
       "source_location": "L16702"
-    },
-    {
-      "id": "app_demo_slippage_check",
-      "label": "demo_slippage_check()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 7,
-      "community_name": "auth",
-      "file_type": "code",
-      "norm_label": "demo_slippage_check()",
-      "source_file": "app.py",
-      "source_location": "L15081"
     },
     {
       "id": "app_demo_stop",
@@ -9659,6 +9804,18 @@
       "norm_label": "evaluations()",
       "source_file": "app.py",
       "source_location": "L12887"
+    },
+    {
+      "id": "app_get_execution_latency",
+      "label": "get_execution_latency()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 7,
+      "community_name": "auth",
+      "file_type": "code",
+      "norm_label": "get_execution_latency()",
+      "source_file": "app.py",
+      "source_location": "L3886"
     },
     {
       "id": "app_home",
@@ -9769,6 +9926,18 @@
       "source_location": "L13222"
     },
     {
+      "id": "app_trader_stats",
+      "label": "trader_stats()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 7,
+      "community_name": "auth",
+      "file_type": "code",
+      "norm_label": "trader_stats()",
+      "source_file": "app.py",
+      "source_location": "L13347"
+    },
+    {
       "id": "app_trades",
       "label": "trades()",
       "_callable": true,
@@ -9791,18 +9960,6 @@
       "norm_label": "update_paper_position()",
       "source_file": "app.py",
       "source_location": "L10695"
-    },
-    {
-      "id": "app_validate_slippage",
-      "label": "validate_slippage()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 7,
-      "community_name": "auth",
-      "file_type": "code",
-      "norm_label": "validate_slippage()",
-      "source_file": "app.py",
-      "source_location": "L1432"
     },
     {
       "id": "app_decode_helius_sync_addresses",
@@ -10637,6 +10794,28 @@
       "source_location": ""
     },
     {
+      "id": "app_rationale_10158",
+      "label": "Cierra la reserva solo si el worker todav\u00eda la posee. ``validated`` devuelve la\u2026",
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "ValueError",
+      "file_type": "rationale",
+      "norm_label": "cierra la reserva solo si el worker todavia la posee. ``validated`` devuelve la...",
+      "source_file": "app.py",
+      "source_location": "L10158"
+    },
+    {
+      "id": "app_rationale_9992",
+      "label": "Finaliza una reserva solo si todav\u00eda pertenece al mismo worker.",
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "ValueError",
+      "file_type": "rationale",
+      "norm_label": "finaliza una reserva solo si todavia pertenece al mismo worker.",
+      "source_file": "app.py",
+      "source_location": "L9992"
+    },
+    {
       "id": "solana_receipts_rationale_1",
       "label": "Conservative accounting of finalized buys from Solana jsonParsed receipts.",
       "_origin": "ast",
@@ -11469,59 +11648,48 @@
       "source_location": "L6415"
     },
     {
-      "id": "app_rationale_10083",
-      "label": "Reserva filas validadas para un \u00fanico consumidor con lease.",
+      "id": "on_event",
+      "label": "on_event",
       "_origin": "ast",
       "community": 31,
       "community_name": "db",
-      "file_type": "rationale",
-      "norm_label": "reserva filas validadas para un unico consumidor con lease.",
-      "source_file": "app.py",
-      "source_location": "L10083"
+      "file_type": "code",
+      "norm_label": "on_event",
+      "source_file": "",
+      "source_location": ""
     },
     {
-      "id": "app_rationale_10333",
-      "label": "Decide qu\u00e9 hacer con una posici\u00f3n paper. No toca la base de datos. Separado de\u2026",
+      "id": "app_rationale_14195",
+      "label": "Comparaci\u00f3n de entrega y latencia entre el webhook y PumpPortal.",
       "_origin": "ast",
       "community": 31,
       "community_name": "db",
       "file_type": "rationale",
-      "norm_label": "decide que hacer con una posicion paper. no toca la base de datos. separado de...",
+      "norm_label": "comparacion de entrega y latencia entre el webhook y pumpportal.",
       "source_file": "app.py",
-      "source_location": "L10333"
+      "source_location": "L14195"
     },
     {
-      "id": "app_rationale_10401",
-      "label": "Aplica el evento en una sola transacci\u00f3n y describe qu\u00e9 pas\u00f3. Deliberadamente\u2026",
+      "id": "app_rationale_9836",
+      "label": "Lee la frontera persistida del consumidor, o ``None`` si no se activ\u00f3.",
       "_origin": "ast",
       "community": 31,
       "community_name": "db",
       "file_type": "rationale",
-      "norm_label": "aplica el evento en una sola transaccion y describe que paso. deliberadamente...",
+      "norm_label": "lee la frontera persistida del consumidor, o ``none`` si no se activo.",
       "source_file": "app.py",
-      "source_location": "L10401"
+      "source_location": "L9836"
     },
     {
-      "id": "app_rationale_5306",
-      "label": "Registra un evento de posici\u00f3n. Con ``connection`` escribe dentro de la\u2026",
+      "id": "app_rationale_9862",
+      "label": "Fija una sola vez desde cu\u00e1ndo el inbox puede producir efectos.",
       "_origin": "ast",
       "community": 31,
       "community_name": "db",
       "file_type": "rationale",
-      "norm_label": "registra un evento de posicion. con ``connection`` escribe dentro de la...",
+      "norm_label": "fija una sola vez desde cuando el inbox puede producir efectos.",
       "source_file": "app.py",
-      "source_location": "L5306"
-    },
-    {
-      "id": "app_rationale_9723",
-      "label": "Lee un timestamp que guardamos nosotros; inservible cuenta como ausente.\u2026",
-      "_origin": "ast",
-      "community": 31,
-      "community_name": "db",
-      "file_type": "rationale",
-      "norm_label": "lee un timestamp que guardamos nosotros; inservible cuenta como ausente....",
-      "source_file": "app.py",
-      "source_location": "L9723"
+      "source_location": "L9862"
     },
     {
       "id": "claude_notes",
@@ -11703,6 +11871,39 @@
       "source_location": "L1"
     },
     {
+      "id": "app_rationale_10304",
+      "label": "Consume continuamente el inbox despu\u00e9s de una activaci\u00f3n persistente.",
+      "_origin": "ast",
+      "community": 34,
+      "community_name": "app.py",
+      "file_type": "rationale",
+      "norm_label": "consume continuamente el inbox despues de una activacion persistente.",
+      "source_file": "app.py",
+      "source_location": "L10304"
+    },
+    {
+      "id": "app_rationale_11266",
+      "label": "Estado de entrega de cada wallet vigilada. Una wallet puede dejar de entregar\u2026",
+      "_origin": "ast",
+      "community": 34,
+      "community_name": "app.py",
+      "file_type": "rationale",
+      "norm_label": "estado de entrega de cada wallet vigilada. una wallet puede dejar de entregar...",
+      "source_file": "app.py",
+      "source_location": "L11266"
+    },
+    {
+      "id": "app_rationale_11329",
+      "label": "Avisa cuando una wallet vigilada deja de entregar con el stream sano. Solo se\u2026",
+      "_origin": "ast",
+      "community": 34,
+      "community_name": "app.py",
+      "file_type": "rationale",
+      "norm_label": "avisa cuando una wallet vigilada deja de entregar con el stream sano. solo se...",
+      "source_file": "app.py",
+      "source_location": "L11329"
+    },
+    {
       "id": "app_rationale_1270",
       "label": "Compatibilidad: una firma sin \u00edndice representa la operaci\u00f3n cero.",
       "_origin": "ast",
@@ -11712,6 +11913,39 @@
       "norm_label": "compatibilidad: una firma sin indice representa la operacion cero.",
       "source_file": "app.py",
       "source_location": "L1270"
+    },
+    {
+      "id": "app_rationale_13910",
+      "label": "Notify once while dynamic webhook synchronization is unhealthy.",
+      "_origin": "ast",
+      "community": 34,
+      "community_name": "app.py",
+      "file_type": "rationale",
+      "norm_label": "notify once while dynamic webhook synchronization is unhealthy.",
+      "source_file": "app.py",
+      "source_location": "L13910"
+    },
+    {
+      "id": "app_rationale_14430",
+      "label": "Entrega de datos por wallet vigilada: detecta silencios individuales.",
+      "_origin": "ast",
+      "community": 34,
+      "community_name": "app.py",
+      "file_type": "rationale",
+      "norm_label": "entrega de datos por wallet vigilada: detecta silencios individuales.",
+      "source_file": "app.py",
+      "source_location": "L14430"
+    },
+    {
+      "id": "app_rationale_14460",
+      "label": "Auditor\u00eda RPC de trades Pump ausentes del stream de PumpPortal.",
+      "_origin": "ast",
+      "community": 34,
+      "community_name": "app.py",
+      "file_type": "rationale",
+      "norm_label": "auditoria rpc de trades pump ausentes del stream de pumpportal.",
+      "source_file": "app.py",
+      "source_location": "L14460"
     },
     {
       "id": "tests_test_trader_quality",
@@ -12522,70 +12756,48 @@
       "source_location": "L155"
     },
     {
-      "id": "on_event",
-      "label": "on_event",
+      "id": "app_rationale_10333",
+      "label": "Decide qu\u00e9 hacer con una posici\u00f3n paper. No toca la base de datos. Separado de\u2026",
       "_origin": "ast",
       "community": 43,
-      "community_name": "startup",
-      "file_type": "code",
-      "norm_label": "on_event",
-      "source_file": "",
-      "source_location": ""
+      "community_name": "open_paper_position",
+      "file_type": "rationale",
+      "norm_label": "decide que hacer con una posicion paper. no toca la base de datos. separado de...",
+      "source_file": "app.py",
+      "source_location": "L10333"
     },
     {
-      "id": "app_rationale_10304",
-      "label": "Consume continuamente el inbox despu\u00e9s de una activaci\u00f3n persistente.",
+      "id": "app_rationale_10401",
+      "label": "Aplica el evento en una sola transacci\u00f3n y describe qu\u00e9 pas\u00f3. Deliberadamente\u2026",
       "_origin": "ast",
       "community": 43,
-      "community_name": "startup",
+      "community_name": "open_paper_position",
       "file_type": "rationale",
-      "norm_label": "consume continuamente el inbox despues de una activacion persistente.",
+      "norm_label": "aplica el evento en una sola transaccion y describe que paso. deliberadamente...",
       "source_file": "app.py",
-      "source_location": "L10304"
+      "source_location": "L10401"
     },
     {
-      "id": "app_rationale_11266",
-      "label": "Estado de entrega de cada wallet vigilada. Una wallet puede dejar de entregar\u2026",
+      "id": "app_rationale_5306",
+      "label": "Registra un evento de posici\u00f3n. Con ``connection`` escribe dentro de la\u2026",
       "_origin": "ast",
       "community": 43,
-      "community_name": "startup",
+      "community_name": "open_paper_position",
       "file_type": "rationale",
-      "norm_label": "estado de entrega de cada wallet vigilada. una wallet puede dejar de entregar...",
+      "norm_label": "registra un evento de posicion. con ``connection`` escribe dentro de la...",
       "source_file": "app.py",
-      "source_location": "L11266"
+      "source_location": "L5306"
     },
     {
-      "id": "app_rationale_11329",
-      "label": "Avisa cuando una wallet vigilada deja de entregar con el stream sano. Solo se\u2026",
+      "id": "app_rationale_9723",
+      "label": "Lee un timestamp que guardamos nosotros; inservible cuenta como ausente.\u2026",
       "_origin": "ast",
       "community": 43,
-      "community_name": "startup",
+      "community_name": "open_paper_position",
       "file_type": "rationale",
-      "norm_label": "avisa cuando una wallet vigilada deja de entregar con el stream sano. solo se...",
+      "norm_label": "lee un timestamp que guardamos nosotros; inservible cuenta como ausente....",
       "source_file": "app.py",
-      "source_location": "L11329"
-    },
-    {
-      "id": "app_rationale_13910",
-      "label": "Notify once while dynamic webhook synchronization is unhealthy.",
-      "_origin": "ast",
-      "community": 43,
-      "community_name": "startup",
-      "file_type": "rationale",
-      "norm_label": "notify once while dynamic webhook synchronization is unhealthy.",
-      "source_file": "app.py",
-      "source_location": "L13910"
-    },
-    {
-      "id": "app_rationale_14430",
-      "label": "Entrega de datos por wallet vigilada: detecta silencios individuales.",
-      "_origin": "ast",
-      "community": 43,
-      "community_name": "startup",
-      "file_type": "rationale",
-      "norm_label": "entrega de datos por wallet vigilada: detecta silencios individuales.",
-      "source_file": "app.py",
-      "source_location": "L14430"
+      "source_location": "L9723"
     },
     {
       "id": "claude_notes_cambio_implementado",
@@ -13635,37 +13847,26 @@
       "source_location": "L511"
     },
     {
-      "id": "app_rationale_14195",
-      "label": "Comparaci\u00f3n de entrega y latencia entre el webhook y PumpPortal.",
+      "id": "scripts_audit_shadow_economics",
+      "label": "audit_shadow_economics.py",
       "_origin": "ast",
       "community": 53,
-      "community_name": "api_helius_webhook_stats",
-      "file_type": "rationale",
-      "norm_label": "comparacion de entrega y latencia entre el webhook y pumpportal.",
-      "source_file": "app.py",
-      "source_location": "L14195"
+      "community_name": "audit_shadow_economics.py",
+      "file_type": "code",
+      "norm_label": "audit_shadow_economics.py",
+      "source_file": "scripts/audit_shadow_economics.py",
+      "source_location": "L1"
     },
     {
-      "id": "app_rationale_9836",
-      "label": "Lee la frontera persistida del consumidor, o ``None`` si no se activ\u00f3.",
+      "id": "tests_test_shadow_economics_audit",
+      "label": "test_shadow_economics_audit.py",
       "_origin": "ast",
       "community": 53,
-      "community_name": "api_helius_webhook_stats",
-      "file_type": "rationale",
-      "norm_label": "lee la frontera persistida del consumidor, o ``none`` si no se activo.",
-      "source_file": "app.py",
-      "source_location": "L9836"
-    },
-    {
-      "id": "app_rationale_9862",
-      "label": "Fija una sola vez desde cu\u00e1ndo el inbox puede producir efectos.",
-      "_origin": "ast",
-      "community": 53,
-      "community_name": "api_helius_webhook_stats",
-      "file_type": "rationale",
-      "norm_label": "fija una sola vez desde cuando el inbox puede producir efectos.",
-      "source_file": "app.py",
-      "source_location": "L9862"
+      "community_name": "audit_shadow_economics.py",
+      "file_type": "code",
+      "norm_label": "test_shadow_economics_audit.py",
+      "source_file": "tests/test_shadow_economics_audit.py",
+      "source_location": "L1"
     },
     {
       "id": "tests_test_shadow_mode",
@@ -13833,17 +14034,6 @@
       "source_location": "L892"
     },
     {
-      "id": "app_rationale_14460",
-      "label": "Auditor\u00eda RPC de trades Pump ausentes del stream de PumpPortal.",
-      "_origin": "ast",
-      "community": 61,
-      "community_name": "api_rpc_fallback_stats",
-      "file_type": "rationale",
-      "norm_label": "auditoria rpc de trades pump ausentes del stream de pumpportal.",
-      "source_file": "app.py",
-      "source_location": "L14460"
-    },
-    {
       "id": "tests_test_rpc_fallback_rationale_759",
       "label": "La l\u00ednea de base decide qu\u00e9 observaciones cuentan como evidencia. Un fallo de\u2026",
       "_origin": "ast",
@@ -13921,15 +14111,15 @@
       "source_location": "L10072"
     },
     {
-      "id": "app_rationale_10158",
-      "label": "Cierra la reserva solo si el worker todav\u00eda la posee. ``validated`` devuelve la\u2026",
+      "id": "app_rationale_10083",
+      "label": "Reserva filas validadas para un \u00fanico consumidor con lease.",
       "_origin": "ast",
       "community": 64,
       "community_name": "evaluate_buy",
       "file_type": "rationale",
-      "norm_label": "cierra la reserva solo si el worker todavia la posee. ``validated`` devuelve la...",
+      "norm_label": "reserva filas validadas para un unico consumidor con lease.",
       "source_file": "app.py",
-      "source_location": "L10158"
+      "source_location": "L10083"
     },
     {
       "id": "app_rationale_10209",
@@ -14084,17 +14274,6 @@
       "norm_label": "reserva eventos observados para validarlos sin ejecutar sus efectos. la reserva...",
       "source_file": "app.py",
       "source_location": "L9919"
-    },
-    {
-      "id": "app_rationale_9992",
-      "label": "Finaliza una reserva solo si todav\u00eda pertenece al mismo worker.",
-      "_origin": "ast",
-      "community": 64,
-      "community_name": "evaluate_buy",
-      "file_type": "rationale",
-      "norm_label": "finaliza una reserva solo si todavia pertenece al mismo worker.",
-      "source_file": "app.py",
-      "source_location": "L9992"
     },
     {
       "id": "tests_test_rpc_fallback_rationale_383",
@@ -21616,6 +21795,102 @@
       "weight": 1.0
     },
     {
+      "source": "scripts_audit_shadow_economics_audit_model",
+      "target": "scripts_audit_shadow_economics_temporal_windows",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "scripts/audit_shadow_economics.py",
+      "source_location": "L118",
+      "weight": 1.0
+    },
+    {
+      "source": "scripts_audit_shadow_economics_audit_model",
+      "target": "scripts_audit_shadow_economics_payoff",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "scripts/audit_shadow_economics.py",
+      "source_location": "L127",
+      "weight": 1.0
+    },
+    {
+      "source": "scripts_audit_shadow_economics_audit_shadow_models",
+      "target": "scripts_audit_shadow_economics_pair_completed_predictions",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "scripts/audit_shadow_economics.py",
+      "source_location": "L186",
+      "weight": 1.0
+    },
+    {
+      "source": "scripts_audit_shadow_economics_audit_shadow_models",
+      "target": "scripts_audit_shadow_economics_audit_model",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "scripts/audit_shadow_economics.py",
+      "source_location": "L208",
+      "weight": 1.0
+    },
+    {
+      "source": "scripts_audit_shadow_economics_main",
+      "target": "scripts_audit_shadow_economics_fetch_json",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "scripts/audit_shadow_economics.py",
+      "source_location": "L246",
+      "weight": 1.0
+    },
+    {
+      "source": "scripts_audit_shadow_economics_main",
+      "target": "scripts_audit_shadow_economics_audit_shadow_models",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "scripts/audit_shadow_economics.py",
+      "source_location": "L258",
+      "weight": 1.0
+    },
+    {
+      "source": "scripts_audit_shadow_economics_payoff",
+      "target": "scripts_compare_model_economics_simulate_payoff",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "scripts/audit_shadow_economics.py",
+      "source_location": "L70",
+      "weight": 1.0
+    },
+    {
+      "source": "scripts_audit_shadow_economics_temporal_windows",
+      "target": "scripts_audit_shadow_economics_payoff",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "scripts/audit_shadow_economics.py",
+      "source_location": "L85",
+      "weight": 1.0
+    },
+    {
       "source": "scripts_compare_model_economics_evaluate_strategy",
       "target": "scripts_train_baseline_model_temporal_group_validation_folds",
       "relation": "calls",
@@ -25876,6 +26151,102 @@
       "weight": 1.0
     },
     {
+      "source": "tests_test_shadow_economics_audit_shadoweconomicsaudittests_test_canary_gate_accepts_diverse_profitable_temporal_results",
+      "target": "tests_test_shadow_economics_audit_prediction",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "tests/test_shadow_economics_audit.py",
+      "source_location": "L87",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_shadow_economics_audit_shadoweconomicsaudittests_test_canary_gate_accepts_diverse_profitable_temporal_results",
+      "target": "scripts_audit_shadow_economics_audit_shadow_models",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "tests/test_shadow_economics_audit.py",
+      "source_location": "L91",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_shadow_economics_audit_shadoweconomicsaudittests_test_canary_gate_rejects_a_profitable_concentrated_model",
+      "target": "tests_test_shadow_economics_audit_prediction",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "tests/test_shadow_economics_audit.py",
+      "source_location": "L59",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_shadow_economics_audit_shadoweconomicsaudittests_test_canary_gate_rejects_a_profitable_concentrated_model",
+      "target": "scripts_audit_shadow_economics_audit_shadow_models",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "tests/test_shadow_economics_audit.py",
+      "source_location": "L63",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_shadow_economics_audit_shadoweconomicsaudittests_test_pairs_only_completed_predictions_shared_by_both_models",
+      "target": "tests_test_shadow_economics_audit_prediction",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "tests/test_shadow_economics_audit.py",
+      "source_location": "L32",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_shadow_economics_audit_shadoweconomicsaudittests_test_pairs_only_completed_predictions_shared_by_both_models",
+      "target": "scripts_audit_shadow_economics_pair_completed_predictions",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "tests/test_shadow_economics_audit.py",
+      "source_location": "L39",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_shadow_economics_audit_shadoweconomicsaudittests_test_rejects_disagreement_about_the_actual_target",
+      "target": "tests_test_shadow_economics_audit_prediction",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "tests/test_shadow_economics_audit.py",
+      "source_location": "L47",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_shadow_economics_audit_shadoweconomicsaudittests_test_rejects_disagreement_about_the_actual_target",
+      "target": "scripts_audit_shadow_economics_pair_completed_predictions",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "tests/test_shadow_economics_audit.py",
+      "source_location": "L52",
+      "weight": 1.0
+    },
+    {
       "source": "tests_test_shadow_mode_shadowpredictiontests_setup",
       "target": "tests_test_shadow_mode_fakeshadowmodel",
       "relation": "calls",
@@ -28780,6 +29151,18 @@
       "weight": 1.0
     },
     {
+      "source": "scripts_audit_shadow_economics",
+      "target": "scripts_compare_model_economics_simulate_payoff",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "scripts/audit_shadow_economics.py",
+      "source_location": "L11",
+      "weight": 1.0
+    },
+    {
       "source": "scripts_compare_model_economics",
       "target": "scripts_train_baseline_model_build_matrix",
       "relation": "imports",
@@ -29053,6 +29436,30 @@
       "context": "import",
       "source_file": "tests/test_rpc_fallback.py",
       "source_location": "L12",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_shadow_economics_audit",
+      "target": "scripts_audit_shadow_economics_audit_shadow_models",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "tests/test_shadow_economics_audit.py",
+      "source_location": "L3",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_shadow_economics_audit",
+      "target": "scripts_audit_shadow_economics_pair_completed_predictions",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "tests/test_shadow_economics_audit.py",
+      "source_location": "L3",
       "weight": 1.0
     },
     {
@@ -29368,6 +29775,18 @@
       "weight": 1.0
     },
     {
+      "source": "scripts_audit_shadow_economics",
+      "target": "scripts_compare_model_economics",
+      "relation": "imports_from",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "scripts/audit_shadow_economics.py",
+      "source_location": "L11",
+      "weight": 1.0
+    },
+    {
       "source": "scripts_compare_model_economics",
       "target": "scripts_train_baseline_model",
       "relation": "imports_from",
@@ -29413,6 +29832,18 @@
       "context": "import",
       "source_file": "tests/test_rpc_fallback.py",
       "source_location": "L12",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_shadow_economics_audit",
+      "target": "scripts_audit_shadow_economics",
+      "relation": "imports_from",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "tests/test_shadow_economics_audit.py",
+      "source_location": "L3",
       "weight": 1.0
     },
     {
@@ -34887,6 +35318,83 @@
       "weight": 1.0
     },
     {
+      "source": "scripts_audit_shadow_economics",
+      "target": "scripts_audit_shadow_economics_audit_shadow_models",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "scripts/audit_shadow_economics.py",
+      "source_location": "L175",
+      "weight": 1.0
+    },
+    {
+      "source": "scripts_audit_shadow_economics",
+      "target": "scripts_audit_shadow_economics_pair_completed_predictions",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "scripts/audit_shadow_economics.py",
+      "source_location": "L19",
+      "weight": 1.0
+    },
+    {
+      "source": "scripts_audit_shadow_economics",
+      "target": "scripts_audit_shadow_economics_fetch_json",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "scripts/audit_shadow_economics.py",
+      "source_location": "L225",
+      "weight": 1.0
+    },
+    {
+      "source": "scripts_audit_shadow_economics",
+      "target": "scripts_audit_shadow_economics_main",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "scripts/audit_shadow_economics.py",
+      "source_location": "L234",
+      "weight": 1.0
+    },
+    {
+      "source": "scripts_audit_shadow_economics",
+      "target": "scripts_audit_shadow_economics_payoff",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "scripts/audit_shadow_economics.py",
+      "source_location": "L61",
+      "weight": 1.0
+    },
+    {
+      "source": "scripts_audit_shadow_economics",
+      "target": "scripts_audit_shadow_economics_temporal_windows",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "scripts/audit_shadow_economics.py",
+      "source_location": "L79",
+      "weight": 1.0
+    },
+    {
+      "source": "scripts_audit_shadow_economics",
+      "target": "scripts_audit_shadow_economics_audit_model",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "scripts/audit_shadow_economics.py",
+      "source_location": "L99",
+      "weight": 1.0
+    },
+    {
       "source": "scripts_compare_model_economics",
       "target": "scripts_compare_model_economics_main",
       "relation": "contains",
@@ -35863,6 +36371,28 @@
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
       "source_location": "L98",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_shadow_economics_audit",
+      "target": "tests_test_shadow_economics_audit_shadoweconomicsaudittests",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tests/test_shadow_economics_audit.py",
+      "source_location": "L29",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_shadow_economics_audit",
+      "target": "tests_test_shadow_economics_audit_prediction",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tests/test_shadow_economics_audit.py",
+      "source_location": "L9",
       "weight": 1.0
     },
     {
@@ -39320,6 +39850,50 @@
       "weight": 1.0
     },
     {
+      "source": "tests_test_shadow_economics_audit_shadoweconomicsaudittests",
+      "target": "tests_test_shadow_economics_audit_shadoweconomicsaudittests_test_pairs_only_completed_predictions_shared_by_both_models",
+      "relation": "method",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tests/test_shadow_economics_audit.py",
+      "source_location": "L30",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_shadow_economics_audit_shadoweconomicsaudittests",
+      "target": "tests_test_shadow_economics_audit_shadoweconomicsaudittests_test_rejects_disagreement_about_the_actual_target",
+      "relation": "method",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tests/test_shadow_economics_audit.py",
+      "source_location": "L45",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_shadow_economics_audit_shadoweconomicsaudittests",
+      "target": "tests_test_shadow_economics_audit_shadoweconomicsaudittests_test_canary_gate_rejects_a_profitable_concentrated_model",
+      "relation": "method",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tests/test_shadow_economics_audit.py",
+      "source_location": "L54",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_shadow_economics_audit_shadoweconomicsaudittests",
+      "target": "tests_test_shadow_economics_audit_shadoweconomicsaudittests_test_canary_gate_accepts_diverse_profitable_temporal_results",
+      "relation": "method",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tests/test_shadow_economics_audit.py",
+      "source_location": "L81",
+      "weight": 1.0
+    },
+    {
       "source": "tests_test_shadow_mode_fakeshadowmodel",
       "target": "tests_test_shadow_mode_fakeshadowmodel_init",
       "relation": "method",
@@ -42651,6 +43225,18 @@
       "weight": 1.0
     },
     {
+      "source": "scripts_audit_shadow_economics_pair_completed_predictions",
+      "target": "valueerror",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "context": "call",
+      "source_file": "scripts/audit_shadow_economics.py",
+      "source_location": "L43",
+      "weight": 1.0
+    },
+    {
       "source": "scripts_compare_model_economics_simulate_payoff",
       "target": "valueerror",
       "relation": "calls",
@@ -42926,5 +43512,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "1c0e1a16f784cbad77e352412c2f27a1811ed89e"
+  "built_at_commit": "99b498ebb11e6d1d49c0c63ae66e3ae019da4d81"
 }
