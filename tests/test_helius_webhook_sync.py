@@ -1,7 +1,10 @@
 import json
+import io
 import tempfile
 import unittest
+from email.message import Message
 from pathlib import Path
+from urllib.error import HTTPError
 from unittest.mock import AsyncMock, Mock, patch
 
 import app
@@ -40,6 +43,65 @@ class FakeResponse:
 
 
 class HeliusWebhookPlanningTests(unittest.TestCase):
+    def test_http_error_preserves_safe_rate_limit_diagnostics(self):
+        headers = Message()
+        headers["Retry-After"] = "900"
+        error = HTTPError(
+            "https://helius.test",
+            429,
+            "Too Many Requests",
+            headers,
+            io.BytesIO(
+                b'{"error":"monthly quota exhausted for api-key"}'
+            ),
+        )
+
+        with patch.object(
+            helius_webhook_sync,
+            "urlopen",
+            side_effect=error,
+        ):
+            with self.assertRaises(
+                helius_webhook_sync.HeliusWebhookSyncError
+            ) as raised:
+                helius_webhook_sync.fetch_helius_webhook(
+                    "api-key",
+                    "webhook-id",
+                )
+
+        message = str(raised.exception)
+        self.assertIn("HELIUS_WEBHOOK_HTTP_429", message)
+        self.assertIn("retry_after_seconds=900", message)
+        self.assertIn("monthly quota exhausted", message)
+        self.assertNotIn("api-key", message)
+
+    def test_update_error_redacts_preserved_auth_header(self):
+        error = HTTPError(
+            "https://helius.test",
+            400,
+            "Bad Request",
+            Message(),
+            io.BytesIO(b'{"error":"invalid auth value secret"}'),
+        )
+
+        with patch.object(
+            helius_webhook_sync,
+            "urlopen",
+            side_effect=error,
+        ):
+            with self.assertRaises(
+                helius_webhook_sync.HeliusWebhookSyncError
+            ) as raised:
+                helius_webhook_sync.update_helius_webhook_addresses(
+                    "api-key",
+                    "webhook-id",
+                    webhook([BASE_ADDRESS]),
+                    [BASE_ADDRESS, TOKEN_ADDRESS],
+                )
+
+        self.assertIn("invalid auth value [redacted]", str(raised.exception))
+        self.assertNotIn("secret", str(raised.exception))
+
     def test_preserves_remote_base_and_adds_tracked_tokens(self):
         plan = helius_webhook_sync.plan_webhook_address_sync(
             [BASE_ADDRESS],
@@ -347,7 +409,7 @@ class HeliusWebhookSyncIntegrationTests(unittest.TestCase):
     def test_rate_limit_uses_longer_backoff(self):
         fetch = Mock(side_effect=[
             helius_webhook_sync.HeliusWebhookSyncError(
-                "HELIUS_WEBHOOK_HTTP_429"
+                "HELIUS_WEBHOOK_HTTP_429|retry_after_seconds=900"
             ),
             webhook([BASE_ADDRESS]),
         ])
@@ -362,16 +424,19 @@ class HeliusWebhookSyncIntegrationTests(unittest.TestCase):
                         fetch_webhook_fn=fetch,
                     )
                     backed_off = app.sync_helius_webhook_tokens_once(
-                        now=161,
+                        now=401,
                         fetch_webhook_fn=fetch,
                     )
                     recovered = app.sync_helius_webhook_tokens_once(
-                        now=401,
+                        now=1001,
                         fetch_webhook_fn=fetch,
                     )
 
         self.assertEqual(failed["status"], "error")
+        self.assertEqual(failed["retry_seconds"], 900)
+        self.assertEqual(failed["next_retry_ts"], 1000)
         self.assertEqual(backed_off["status"], "error_backoff")
+        self.assertEqual(backed_off["next_retry_ts"], 1000)
         self.assertEqual(recovered["status"], "current")
         self.assertEqual(fetch.call_count, 2)
 

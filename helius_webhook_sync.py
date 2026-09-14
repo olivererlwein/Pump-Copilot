@@ -14,6 +14,60 @@ class HeliusWebhookSyncError(RuntimeError):
     """A webhook configuration request failed or returned invalid data."""
 
 
+def _http_error_retry_after_seconds(error):
+    raw_value = str((error.headers or {}).get("Retry-After") or "").strip()
+    try:
+        value = float(raw_value)
+    except ValueError:
+        return None
+    if value < 0:
+        return None
+    return int(value) if value.is_integer() else value
+
+
+def _http_error_detail(error, secrets=()):
+    try:
+        body = error.read(4096)
+    except Exception:
+        return None
+    if not body:
+        return None
+
+    text = body.decode("utf-8", errors="replace")
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        parsed = None
+    if isinstance(parsed, dict):
+        for key in ("error", "message", "detail", "details"):
+            value = parsed.get(key)
+            if value:
+                text = (
+                    value
+                    if isinstance(value, str)
+                    else json.dumps(value, separators=(",", ":"))
+                )
+                break
+
+    text = " ".join(str(text).split())
+    for secret in secrets:
+        secret = str(secret or "").strip()
+        if secret:
+            text = text.replace(secret, "[redacted]")
+    return text[:300] or None
+
+
+def _http_error_message(error, secrets=()):
+    parts = [f"HELIUS_WEBHOOK_HTTP_{error.code}"]
+    retry_after = _http_error_retry_after_seconds(error)
+    if retry_after is not None:
+        parts.append(f"retry_after_seconds={retry_after}")
+    detail = _http_error_detail(error, secrets=secrets)
+    if detail:
+        parts.append(f"detail={detail}")
+    return "|".join(parts)
+
+
 def normalize_addresses(addresses):
     """Return unique, non-empty addresses in deterministic order."""
     return sorted({
@@ -140,9 +194,13 @@ def _request_json(
         with urlopen(request, timeout=timeout) as response:
             result = json.load(response)
     except HTTPError as exc:
-        raise HeliusWebhookSyncError(
-            f"HELIUS_WEBHOOK_HTTP_{exc.code}"
-        ) from exc
+        sensitive_values = [api_key, webhook_id]
+        if isinstance(payload, dict):
+            sensitive_values.append(payload.get("authHeader"))
+        raise HeliusWebhookSyncError(_http_error_message(
+            exc,
+            secrets=sensitive_values,
+        )) from exc
     except (TimeoutError, URLError, json.JSONDecodeError) as exc:
         raise HeliusWebhookSyncError(
             f"HELIUS_WEBHOOK_REQUEST_FAILED:{exc.__class__.__name__}"

@@ -13927,6 +13927,17 @@ def get_helius_webhook_sync_status():
         managed_tokens=state["managed_tokens"],
         pending_tokens=state["pending_tokens"],
     )
+    effective_error = state_error or state["last_error"]
+    retry_seconds = (
+        _helius_webhook_sync_retry_seconds(effective_error)
+        if effective_error
+        else None
+    )
+    next_retry_ts = (
+        float(state["last_check_ts"]) + retry_seconds
+        if state["last_check_ts"] is not None and retry_seconds is not None
+        else None
+    )
     return {
         "enabled": bool(HELIUS_WEBHOOK_SYNC_ENABLED),
         "apply": bool(HELIUS_WEBHOOK_SYNC_APPLY),
@@ -13955,9 +13966,28 @@ def get_helius_webhook_sync_status():
         "last_check_ts": state["last_check_ts"],
         "last_success_ts": state["last_success_ts"],
         "last_update_ts": state["last_update_ts"],
-        "last_error": state_error or state["last_error"],
+        "last_error": effective_error,
+        "retry_seconds": retry_seconds,
+        "next_retry_ts": next_retry_ts,
         "updates": state["updates"],
     }
+
+
+def _helius_webhook_sync_retry_seconds(last_error):
+    error = str(last_error or "")
+    if "HTTP_429" not in error:
+        return HELIUS_WEBHOOK_SYNC_ERROR_RETRY_SECONDS
+
+    retry_seconds = float(HELIUS_WEBHOOK_SYNC_RATE_LIMIT_RETRY_SECONDS)
+    marker = "retry_after_seconds="
+    if marker not in error:
+        return retry_seconds
+    raw_value = error.split(marker, 1)[1].split("|", 1)[0]
+    try:
+        server_retry_seconds = float(raw_value)
+    except ValueError:
+        return retry_seconds
+    return max(retry_seconds, server_retry_seconds)
 
 
 def sync_helius_webhook_tokens_once(
@@ -14008,10 +14038,8 @@ def sync_helius_webhook_tokens_once(
             if (
                 state["last_error"]
                 and check_age is not None
-                and check_age < (
-                    HELIUS_WEBHOOK_SYNC_RATE_LIMIT_RETRY_SECONDS
-                    if "HTTP_429" in state["last_error"]
-                    else HELIUS_WEBHOOK_SYNC_ERROR_RETRY_SECONDS
+                and check_age < _helius_webhook_sync_retry_seconds(
+                    state["last_error"]
                 )
             ):
                 return {
