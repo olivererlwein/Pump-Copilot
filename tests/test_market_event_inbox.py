@@ -512,14 +512,21 @@ class MarketEventChronologyTests(unittest.TestCase):
             patch.object(app, "score_token_structure", return_value=0),
             patch.object(app, "score_consensus", return_value=0) as consensus,
             patch.object(app, "score_market_context", return_value=0) as market,
+            patch.object(app, "maybe_execute_live_copy") as live_copy,
         ):
-            app.evaluate_buy(
+            result = app.evaluate_buy(
                 "trader-1",
                 event,
                 source="live",
                 price_at_signal=0.0001,
                 allow_live_execution=False,
             )
+
+        live_copy.assert_not_called()
+        self.assertEqual(
+            result["live_execution"]["reason"],
+            "TRANSPORT_LIVE_EXECUTION_DISABLED",
+        )
 
         conn = app.db()
         try:
