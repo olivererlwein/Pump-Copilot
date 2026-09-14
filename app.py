@@ -602,6 +602,24 @@ def db():
         """
     )
 
+    # La clave primaria es `event_id`; las consultas que preguntan "¿algún
+    # transporte aplicó esta firma?" —stats del webhook, fallback RPC— buscan
+    # por firma. Sin este índice cada una recorre la tabla entera por fila
+    # evaluada, y la tabla crece con cada evento del stream.
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_processed_market_events_signature
+        ON processed_market_events(signature)
+        """
+    )
+
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_trades_signature
+        ON trades(signature)
+        """
+    )
+
     conn.execute(
     """
     CREATE TABLE IF NOT EXISTS app_state(

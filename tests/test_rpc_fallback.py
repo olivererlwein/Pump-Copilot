@@ -1061,6 +1061,37 @@ class HeliusWebhookTests(unittest.TestCase):
         self.assertEqual(report["pumpportal_latency"]["samples"], 1)
         self.assertEqual(report["pumpportal_latency"]["avg_seconds"], 1.5)
 
+    def test_transport_attribution_lookups_are_indexed(self):
+        """Las consultas por firma recorren tablas que crecen con cada evento.
+
+        Sin índice, `parsed_only_in_webhook` tardó más de tres minutos con
+        300k identidades reservadas y el endpoint venció en producción.
+        """
+        conn = app.db()
+        try:
+            indexes = {
+                row[1]
+                for table in ("processed_market_events", "trades")
+                for row in conn.execute(f"PRAGMA index_list({table})")
+            }
+            plan = " ".join(
+                row[3]
+                for row in conn.execute(
+                    """
+                    EXPLAIN QUERY PLAN
+                    SELECT 1 FROM processed_market_events
+                    WHERE signature = ? AND source = 'live'
+                    """,
+                    ("sig",),
+                )
+            )
+        finally:
+            conn.close()
+
+        self.assertIn("idx_processed_market_events_signature", indexes)
+        self.assertIn("idx_trades_signature", indexes)
+        self.assertIn("idx_processed_market_events_signature", plan)
+
     def test_stats_count_stream_delivery_even_without_a_trade_row(self):
         """Un token seguido de una wallet no vigilada no llega a `trades`.
 
