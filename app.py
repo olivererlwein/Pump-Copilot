@@ -4813,6 +4813,82 @@ def migrate_evaluation_event_identity(conn):
         raise
 
 
+def migrate_rpc_fallback_balance_nullable(conn):
+    """Permite `NULL` en `rpc_fallback_events.new_token_balance`.
+
+    La columna nació `NOT NULL` cuando el parser todavía convertía un saldo
+    irrecuperable en cero. Desde que lo entrega como ``None``, cada evento con
+    saldo desconocido hacía fallar el worker del fallback en producción y la
+    auditoría quedaba ciega. SQLite no cambia restricciones con ALTER, así que
+    se reconstruye la tabla conservando IDs; idempotente.
+    """
+    columns = conn.execute(
+        "PRAGMA table_info(rpc_fallback_events)"
+    ).fetchall()
+    if not columns:
+        return
+
+    not_null = {row[1]: bool(row[3]) for row in columns}
+    if not not_null.get("new_token_balance", False):
+        return
+
+    conn.commit()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        conn.execute(
+            """
+            CREATE TABLE rpc_fallback_events_nullable_balance(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                signature TEXT NOT NULL,
+                event_index INTEGER NOT NULL,
+                slot INTEGER,
+                block_time REAL,
+                detected_ts REAL NOT NULL,
+                trader TEXT NOT NULL,
+                wallet TEXT NOT NULL,
+                program TEXT NOT NULL,
+                event_name TEXT NOT NULL,
+                side TEXT NOT NULL,
+                mint TEXT NOT NULL,
+                sol REAL NOT NULL,
+                market_cap_sol REAL NOT NULL,
+                token_amount REAL NOT NULL,
+                new_token_balance REAL,
+                pool TEXT NOT NULL,
+                event_json TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending',
+                alerted_ts REAL,
+                UNIQUE(signature, event_index, wallet)
+            )
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO rpc_fallback_events_nullable_balance(
+                id, signature, event_index, slot, block_time, detected_ts,
+                trader, wallet, program, event_name, side, mint, sol,
+                market_cap_sol, token_amount, new_token_balance, pool,
+                event_json, status, alerted_ts
+            )
+            SELECT
+                id, signature, event_index, slot, block_time, detected_ts,
+                trader, wallet, program, event_name, side, mint, sol,
+                market_cap_sol, token_amount, new_token_balance, pool,
+                event_json, status, alerted_ts
+            FROM rpc_fallback_events
+            """
+        )
+        conn.execute("DROP TABLE rpc_fallback_events")
+        conn.execute(
+            "ALTER TABLE rpc_fallback_events_nullable_balance "
+            "RENAME TO rpc_fallback_events"
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+
+
 def migrate_database():
 
     conn = db()
@@ -5090,7 +5166,9 @@ def migrate_database():
             sol REAL NOT NULL,
             market_cap_sol REAL NOT NULL,
             token_amount REAL NOT NULL,
-            new_token_balance REAL NOT NULL,
+            -- NULL es saldo desconocido: el parser no siempre puede
+            -- reconstruirlo y convertirlo en cero fabricaría una salida total.
+            new_token_balance REAL,
             pool TEXT NOT NULL,
             event_json TEXT NOT NULL,
             status TEXT NOT NULL DEFAULT 'pending',
@@ -5099,6 +5177,10 @@ def migrate_database():
         )
         """
     )
+
+    # Antes de recrear el índice: la migración reconstruye la tabla y el DROP
+    # se lleva el índice viejo.
+    migrate_rpc_fallback_balance_nullable(conn)
 
     conn.execute(
         """
@@ -11415,7 +11497,9 @@ def record_rpc_fallback_event(trader, wallet, receipt, parsed):
             float(event["solAmount"]),
             float(event["marketCapSol"]),
             float(event["tokenAmount"]),
-            float(event["newTokenBalance"]),
+            # ``None`` es desconocido y se guarda como NULL; un valor presente
+            # pero inservible es un bug del parser y conviene que estalle.
+            market_event_new_token_balance(event),
             event["pool"],
             json.dumps(event, separators=(",", ":"), sort_keys=True),
             "matched" if applied_row else "pending",

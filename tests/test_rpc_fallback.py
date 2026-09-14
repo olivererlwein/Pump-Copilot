@@ -432,6 +432,114 @@ class RpcFallbackPersistenceTests(unittest.TestCase):
             self.assertEqual(app.reconcile_rpc_fallback_events(), [])
         self.assertEqual(app.get_rpc_fallback_stats()["matched"], 1)
 
+    def test_unknown_balance_is_recorded_as_null(self):
+        """El parser entrega ``None`` cuando no puede reconstruir el saldo.
+
+        En producción eso hacía `float(None)` en cada poll y el fallback no
+        registraba nada. Desconocido se guarda como NULL, no como cero ni como
+        error.
+        """
+        parsed = self.parsed()
+        parsed["event"]["newTokenBalance"] = None
+
+        self.assertTrue(
+            app.record_rpc_fallback_event(
+                "trader-a", WALLET, pump_receipt(), parsed
+            )
+        )
+
+        conn = app.db()
+        try:
+            row = conn.execute(
+                "SELECT new_token_balance, status FROM rpc_fallback_events "
+                "WHERE signature = ?",
+                (SIGNATURE,),
+            ).fetchone()
+        finally:
+            conn.close()
+        self.assertEqual(row, (None, "pending"))
+
+    def test_legacy_not_null_balance_column_is_relaxed_keeping_rows(self):
+        conn = app.db()
+        try:
+            conn.execute("DROP INDEX IF EXISTS idx_rpc_fallback_events_status")
+            conn.execute("DROP TABLE rpc_fallback_events")
+            conn.execute(
+                """
+                CREATE TABLE rpc_fallback_events(
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    signature TEXT NOT NULL,
+                    event_index INTEGER NOT NULL,
+                    slot INTEGER,
+                    block_time REAL,
+                    detected_ts REAL NOT NULL,
+                    trader TEXT NOT NULL,
+                    wallet TEXT NOT NULL,
+                    program TEXT NOT NULL,
+                    event_name TEXT NOT NULL,
+                    side TEXT NOT NULL,
+                    mint TEXT NOT NULL,
+                    sol REAL NOT NULL,
+                    market_cap_sol REAL NOT NULL,
+                    token_amount REAL NOT NULL,
+                    new_token_balance REAL NOT NULL,
+                    pool TEXT NOT NULL,
+                    event_json TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'pending',
+                    alerted_ts REAL,
+                    UNIQUE(signature, event_index, wallet)
+                )
+                """
+            )
+            conn.execute(
+                """
+                INSERT INTO rpc_fallback_events(
+                    id, signature, event_index, detected_ts, trader, wallet,
+                    program, event_name, side, mint, sol, market_cap_sol,
+                    token_amount, new_token_balance, pool, event_json, status
+                )
+                VALUES(41, 'legacy-sig', 0, 1.0, 'trader-a', ?, 'pump',
+                       'TradeEvent', 'buy', ?, 1.0, 30.0, 1.0, 5.0, 'pump',
+                       '{}', 'matched')
+                """,
+                (WALLET, MINT),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        app.migrate_database()
+        app.migrate_database()
+
+        conn = app.db()
+        try:
+            not_null = {
+                row[1]: bool(row[3])
+                for row in conn.execute("PRAGMA table_info(rpc_fallback_events)")
+            }
+            legacy = conn.execute(
+                "SELECT id, new_token_balance, status FROM rpc_fallback_events"
+            ).fetchall()
+            indexes = {
+                row[1]
+                for row in conn.execute("PRAGMA index_list(rpc_fallback_events)")
+            }
+        finally:
+            conn.close()
+
+        self.assertFalse(not_null["new_token_balance"])
+        self.assertTrue(not_null["token_amount"])
+        self.assertEqual(legacy, [(41, 5.0, "matched")])
+        self.assertIn("idx_rpc_fallback_events_status", indexes)
+
+        parsed = self.parsed()
+        parsed["event"]["newTokenBalance"] = None
+        self.assertTrue(
+            app.record_rpc_fallback_event(
+                "trader-a", WALLET, pump_receipt(), parsed
+            )
+        )
+
     def test_poll_does_not_reserve_signature_used_by_live_stream(self):
         signature_row = {
             "signature": SIGNATURE,

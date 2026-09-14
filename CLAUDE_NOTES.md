@@ -2086,3 +2086,13 @@ casos reales que antes no se veían. Y lo que aplicó el consumidor del inbox de
 Helius cuenta como aplicado: `matched` significa "algún transporte lo aplicó",
 que es lo que importa para alertar por Discord. La comparación por transporte
 vive en `/api/helius-webhook-stats`.
+
+### Saldo desconocido en el fallback RPC
+
+`rpc_fallback_events.new_token_balance` admite `NULL`. La columna nació
+`NOT NULL` cuando el parser convertía un saldo irrecuperable en cero; desde que
+lo entrega como `None`, `record_rpc_fallback_event()` hacía `float(None)` en
+cada poll, el worker no registraba nada (`rpc_fallback_last_success_ts` nulo en
+producción) y la auditoría de cobertura quedaba ciega. La migración reconstruye
+la tabla conservando IDs y corre antes de recrear el índice; es idempotente.
+Nada lee esa columna: el consumidor usa `event_json`.
