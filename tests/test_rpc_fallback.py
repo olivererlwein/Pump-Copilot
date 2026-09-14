@@ -418,6 +418,52 @@ class RpcFallbackPersistenceTests(unittest.TestCase):
             conn.close()
         self.assertEqual(statuses, [(0, "matched"), (1, "missing")])
 
+    def test_identity_stats_match_event_index_and_live_transport(self):
+        """Un trade del índice cero no prueba que PumpPortal entregó el uno."""
+        receipt = pump_receipt()
+        receipt["meta"]["logMessages"].append(
+            receipt["meta"]["logMessages"][-1]
+        )
+        parsed_events = parse_watched_wallet_pump_events(
+            receipt, WALLET, SIGNATURE
+        )
+
+        self.assertTrue(
+            app.mark_market_event_processed(SIGNATURE, 0, source="live")
+        )
+        self.assertTrue(
+            app.mark_market_event_processed(SIGNATURE, 1, source="helius")
+        )
+        for parsed in parsed_events:
+            self.assertTrue(
+                app.record_rpc_fallback_event(
+                    "trader-a", WALLET, receipt, parsed
+                )
+            )
+
+        conn = app.db()
+        try:
+            conn.execute(
+                """
+                INSERT INTO trades(
+                    ts, trader, wallet, side, mint, sol,
+                    market_cap_sol, signature, source
+                ) VALUES(?,?,?,?,?,?,?,?,?)
+                """,
+                (
+                    1.0, "trader-a", WALLET, "buy", MINT, 2.5, 200.0,
+                    SIGNATURE, "live",
+                ),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        stats = app.get_rpc_fallback_stats()
+        self.assertEqual(stats["matched"], 2)
+        self.assertEqual(stats["matched_identity"], 1)
+        self.assertEqual(stats["identity_match_rate"], 0.5)
+
     def test_operation_applied_from_helius_is_not_missing(self):
         """Lo que el consumidor del inbox aplicó no lo perdió el agente."""
         self.assertTrue(

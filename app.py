@@ -11804,10 +11804,11 @@ def get_rpc_fallback_stats():
         """
         SELECT COUNT(*)
         FROM rpc_fallback_events AS rpc
-        JOIN trades AS stream ON stream.signature = rpc.signature
+        JOIN processed_market_events AS stream
+          ON stream.signature = rpc.signature
+         AND stream.event_index = rpc.event_index
         WHERE rpc.status = 'matched'
-        AND LOWER(stream.side) = LOWER(rpc.side)
-        AND stream.mint = rpc.mint
+        AND stream.source = 'live'
         """
     ).fetchone()[0]
     # DISTINCT por evento: con una tolerancia de ±300s una misma observación
