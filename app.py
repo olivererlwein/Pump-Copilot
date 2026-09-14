@@ -1424,7 +1424,11 @@ def get_daily_live_buy_exposure(now=None, connection=None):
     start_of_day = get_local_day_start_ts(now)
     conn = connection or db()
     row = conn.execute(
-        "SELECT COUNT(*), COALESCE(SUM(amount_usd), 0) "
+        "SELECT COUNT(*), COALESCE(SUM(amount_usd), 0), "
+        "(SELECT COUNT(*) FROM execution_orders "
+        " WHERE mode = 'live' AND source = 'pumpportal_lightning' "
+        " AND status IN ('SENT', 'PENDING_RECONCILIATION') "
+        " AND external_signature IS NULL) "
         "FROM execution_orders WHERE mode = 'live' AND side = 'buy' "
         "AND ts_created >= ?",
         (start_of_day,),
@@ -1434,6 +1438,7 @@ def get_daily_live_buy_exposure(now=None, connection=None):
     return {
         "attempts": int(row[0] or 0),
         "notional_usd": float(row[1] or 0),
+        "unresolved_without_signature": int(row[2] or 0),
     }
 
 
@@ -3422,6 +3427,20 @@ def create_execution_order_idempotent(
             }
 
         if canary_limits is not None:
+            ambiguous = conn.execute(
+                "SELECT COUNT(*) FROM execution_orders "
+                "WHERE mode = 'live' AND source = 'pumpportal_lightning' "
+                "AND status IN ('SENT', 'PENDING_RECONCILIATION') "
+                "AND external_signature IS NULL"
+            ).fetchone()
+            if int(ambiguous[0] or 0):
+                conn.commit()
+                conn.close()
+                return {
+                    "created": False,
+                    "blocked": True,
+                    "reason": "LIVE_AMBIGUOUS_ORDER_PENDING",
+                }
             exposure = conn.execute(
                 "SELECT COUNT(*), COALESCE(SUM(amount_usd), 0) "
                 "FROM execution_orders "
@@ -7736,6 +7755,8 @@ def get_live_canary_blockers(trader=None, amount_usd=None):
     except Exception:
         blockers.append("LIVE_CANARY_EXPOSURE_UNKNOWN")
     else:
+        if int(exposure.get("unresolved_without_signature") or 0):
+            blockers.append("LIVE_AMBIGUOUS_ORDER_PENDING")
         if exposure["attempts"] >= LIVE_CANARY_MAX_BUYS_PER_DAY:
             blockers.append("LIVE_CANARY_BUY_LIMIT_REACHED")
         if (

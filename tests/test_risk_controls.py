@@ -3,6 +3,7 @@ import math
 import sqlite3
 import tempfile
 import threading
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -467,6 +468,73 @@ class LiveCanaryGuardTests(unittest.TestCase):
 
         self.assertIn("LIVE_EXIT_FEED_STATUS_UNKNOWN", unknown_health)
         self.assertIn("LIVE_CANARY_EXPOSURE_UNKNOWN", unknown_exposure)
+
+    def test_canary_blocks_when_a_live_order_has_no_signature(self):
+        patches = self.canary_patches()
+        with patches[0], patches[1], patches[2], patches[3], patches[4], (
+            patches[5]
+        ), patches[6], patches[7], patches[8], patch.object(
+            app,
+            "get_daily_live_buy_exposure",
+            return_value={
+                "attempts": 0,
+                "notional_usd": 0.0,
+                "unresolved_without_signature": 1,
+            },
+        ):
+            blockers = app.get_live_canary_blockers("marcell", 1.0)
+
+        self.assertIn("LIVE_AMBIGUOUS_ORDER_PENDING", blockers)
+
+    def test_live_exposure_counts_ambiguous_orders_across_days(self):
+        with tempfile.TemporaryDirectory() as temp_dir, patch.object(
+            app,
+            "DB",
+            Path(temp_dir) / "ambiguous-live-order.db",
+        ):
+            app.migrate_database()
+            order = app.create_execution_order_idempotent(
+                mint="mint-ambiguous",
+                side="buy",
+                amount_usd=1.0,
+                expected_price=1.0,
+                execution_price=1.0,
+                liquidity_sol=20.0,
+                idempotency_key="ambiguous-order",
+                source="pumpportal_lightning",
+                mode="live",
+            )
+            conn = app.db()
+            conn.execute(
+                "UPDATE execution_orders SET status = 'PENDING_RECONCILIATION', "
+                "ts_created = 1 WHERE id = ?",
+                (order["order_id"],),
+            )
+            conn.commit()
+            conn.close()
+
+            exposure = app.get_daily_live_buy_exposure(now=time.time())
+            blocked = app.create_execution_order_idempotent(
+                mint="mint-second",
+                side="buy",
+                amount_usd=1.0,
+                expected_price=1.0,
+                execution_price=1.0,
+                liquidity_sol=20.0,
+                idempotency_key="second-order",
+                source="pumpportal_lightning",
+                mode="live",
+                canary_limits={
+                    "start_of_day_ts": app.get_local_day_start_ts(),
+                    "max_buys": 1,
+                    "max_notional_usd": 1.0,
+                },
+            )
+
+        self.assertEqual(exposure["attempts"], 0)
+        self.assertEqual(exposure["unresolved_without_signature"], 1)
+        self.assertTrue(blocked["blocked"])
+        self.assertEqual(blocked["reason"], "LIVE_AMBIGUOUS_ORDER_PENDING")
 
     def test_canary_limits_never_block_an_exit(self):
         with patch.object(app, "LIVE_CANARY_ENABLED", False, create=True), (
