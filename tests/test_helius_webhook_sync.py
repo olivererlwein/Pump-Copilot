@@ -2,7 +2,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import app
 import helius_webhook_sync
@@ -308,6 +308,73 @@ class HeliusWebhookSyncIntegrationTests(unittest.TestCase):
             [],
         )
 
+    def test_status_reports_stale_managed_token_when_remote_fetch_fails(self):
+        remote_addresses = [BASE_ADDRESS]
+
+        def fetch(*args, **kwargs):
+            return webhook(remote_addresses)
+
+        def update(api_key, webhook_id, remote, desired, timeout):
+            remote_addresses[:] = list(desired)
+            return webhook(remote_addresses)
+
+        tracked = {TOKEN_ADDRESS}
+        with patch.object(app, "TRACKED_TOKENS", tracked):
+            with self.enter_patches(self.sync_config(apply=True)):
+                added = app.sync_helius_webhook_tokens_once(
+                    now=100,
+                    fetch_webhook_fn=fetch,
+                    update_webhook_fn=update,
+                )
+                tracked.clear()
+                failed = app.sync_helius_webhook_tokens_once(
+                    now=1000,
+                    fetch_webhook_fn=Mock(
+                        side_effect=helius_webhook_sync.HeliusWebhookSyncError(
+                            "HELIUS_WEBHOOK_HTTP_429"
+                        )
+                    ),
+                    update_webhook_fn=update,
+                )
+
+        self.assertEqual(added["status"], "updated")
+        self.assertEqual(failed["status"], "error")
+        self.assertEqual(failed["tracked_tokens"], 0)
+        self.assertEqual(failed["managed_tokens"], 1)
+        self.assertEqual(failed["planned_additions"], 0)
+        self.assertEqual(failed["planned_removals"], 1)
+
+    def test_rate_limit_uses_longer_backoff(self):
+        fetch = Mock(side_effect=[
+            helius_webhook_sync.HeliusWebhookSyncError(
+                "HELIUS_WEBHOOK_HTTP_429"
+            ),
+            webhook([BASE_ADDRESS]),
+        ])
+
+        with patch.object(app, "TRACKED_TOKENS", set()):
+            with self.enter_patches(self.sync_config(apply=True)):
+                with patch.object(
+                    app, "HELIUS_WEBHOOK_SYNC_RATE_LIMIT_RETRY_SECONDS", 300
+                ):
+                    failed = app.sync_helius_webhook_tokens_once(
+                        now=100,
+                        fetch_webhook_fn=fetch,
+                    )
+                    backed_off = app.sync_helius_webhook_tokens_once(
+                        now=161,
+                        fetch_webhook_fn=fetch,
+                    )
+                    recovered = app.sync_helius_webhook_tokens_once(
+                        now=401,
+                        fetch_webhook_fn=fetch,
+                    )
+
+        self.assertEqual(failed["status"], "error")
+        self.assertEqual(backed_off["status"], "error_backoff")
+        self.assertEqual(recovered["status"], "current")
+        self.assertEqual(fetch.call_count, 2)
+
     def test_stats_do_not_expose_credentials(self):
         with self.enter_patches(self.sync_config(apply=False)):
             with patch.object(app, "APP_TOKEN", "app-token"):
@@ -332,6 +399,35 @@ class HeliusWebhookSyncIntegrationTests(unittest.TestCase):
                 return False
 
         return PatchGroup()
+
+
+class HeliusWebhookSyncAlertTests(unittest.IsolatedAsyncioTestCase):
+    def tearDown(self):
+        app.HELIUS_WEBHOOK_SYNC_ALERT_ACTIVE = False
+
+    async def test_alerts_once_during_failure_and_once_on_recovery(self):
+        with patch.object(
+            app, "DISCORD_ALERT_WEBHOOK_URL", "https://discord.test/webhook"
+        ), patch.object(
+            app, "send_discord_alert", new_callable=AsyncMock,
+            return_value=True,
+        ) as send_alert:
+            await app.update_helius_webhook_sync_alert({
+                "status": "error",
+                "last_error": "HeliusWebhookSyncError:HELIUS_WEBHOOK_HTTP_429",
+            })
+            await app.update_helius_webhook_sync_alert({
+                "status": "error_backoff",
+                "last_error": "HeliusWebhookSyncError:HELIUS_WEBHOOK_HTTP_429",
+            })
+            await app.update_helius_webhook_sync_alert({
+                "status": "current",
+                "last_error": None,
+            })
+
+        self.assertEqual(send_alert.await_count, 2)
+        self.assertIn("429", send_alert.await_args_list[0].args[0])
+        self.assertIn("recovered", send_alert.await_args_list[1].args[0])
 
 
 if __name__ == "__main__":

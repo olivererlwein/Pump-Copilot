@@ -386,12 +386,18 @@ HELIUS_WEBHOOK_SYNC_ERROR_RETRY_SECONDS = max(
     int(os.getenv("HELIUS_WEBHOOK_SYNC_ERROR_RETRY_SECONDS", "60")),
 )
 
+HELIUS_WEBHOOK_SYNC_RATE_LIMIT_RETRY_SECONDS = max(
+    HELIUS_WEBHOOK_SYNC_ERROR_RETRY_SECONDS,
+    int(os.getenv("HELIUS_WEBHOOK_SYNC_RATE_LIMIT_RETRY_SECONDS", "300")),
+)
+
 HELIUS_WEBHOOK_SYNC_TIMEOUT_SECONDS = max(
     1,
     int(os.getenv("HELIUS_WEBHOOK_SYNC_TIMEOUT_SECONDS", "15")),
 )
 
 HELIUS_WEBHOOK_SYNC_LOCK = threading.Lock()
+HELIUS_WEBHOOK_SYNC_ALERT_ACTIVE = False
 
 MARKET_EVENT_INBOX_ACTIVATION_STATE_KEY = (
     "market_event_inbox_processing_activation_ts"
@@ -13670,8 +13676,13 @@ def get_helius_webhook_sync_status():
         }
         state_error = f"{exc.__class__.__name__}:{exc}"
 
-    remote = set(state["last_remote_addresses"])
-    desired = set(state["last_desired_addresses"])
+    tracked = _tracked_tokens_snapshot()
+    cached_plan = plan_webhook_address_sync(
+        state["last_remote_addresses"],
+        tracked,
+        managed_tokens=state["managed_tokens"],
+        pending_tokens=state["pending_tokens"],
+    )
     return {
         "enabled": bool(HELIUS_WEBHOOK_SYNC_ENABLED),
         "apply": bool(HELIUS_WEBHOOK_SYNC_APPLY),
@@ -13685,15 +13696,18 @@ def get_helius_webhook_sync_status():
         "poll_seconds": HELIUS_WEBHOOK_SYNC_POLL_SECONDS,
         "audit_seconds": HELIUS_WEBHOOK_SYNC_AUDIT_SECONDS,
         "error_retry_seconds": HELIUS_WEBHOOK_SYNC_ERROR_RETRY_SECONDS,
+        "rate_limit_retry_seconds": (
+            HELIUS_WEBHOOK_SYNC_RATE_LIMIT_RETRY_SECONDS
+        ),
         "initialized": state["initialized"],
-        "tracked_tokens": len(_tracked_tokens_snapshot()),
+        "tracked_tokens": len(tracked),
         "base_addresses": len(state["base_addresses"]),
         "managed_tokens": len(state["managed_tokens"]),
         "pending_tokens": len(state["pending_tokens"]),
-        "last_remote_addresses": len(remote),
-        "last_desired_addresses": len(desired),
-        "planned_additions": len(desired - remote),
-        "planned_removals": len(remote - desired),
+        "last_remote_addresses": len(state["last_remote_addresses"]),
+        "last_desired_addresses": len(state["last_desired_addresses"]),
+        "planned_additions": len(cached_plan["additions"]),
+        "planned_removals": len(cached_plan["removals"]),
         "last_check_ts": state["last_check_ts"],
         "last_success_ts": state["last_success_ts"],
         "last_update_ts": state["last_update_ts"],
@@ -13750,7 +13764,11 @@ def sync_helius_webhook_tokens_once(
             if (
                 state["last_error"]
                 and check_age is not None
-                and check_age < HELIUS_WEBHOOK_SYNC_ERROR_RETRY_SECONDS
+                and check_age < (
+                    HELIUS_WEBHOOK_SYNC_RATE_LIMIT_RETRY_SECONDS
+                    if "HTTP_429" in state["last_error"]
+                    else HELIUS_WEBHOOK_SYNC_ERROR_RETRY_SECONDS
+                )
             ):
                 return {
                     "status": "error_backoff",
@@ -13888,11 +13906,44 @@ def sync_helius_webhook_tokens_once(
         HELIUS_WEBHOOK_SYNC_LOCK.release()
 
 
+async def update_helius_webhook_sync_alert(result):
+    """Notify once while dynamic webhook synchronization is unhealthy."""
+    global HELIUS_WEBHOOK_SYNC_ALERT_ACTIVE
+
+    status = str(result.get("status") or "")
+    error = str(result.get("last_error") or "")
+    unhealthy = status in {"error", "error_backoff"} and bool(error)
+    healthy = status in {
+        "cached",
+        "current",
+        "updated",
+        "dry_run_changed",
+        "dry_run_current",
+    }
+
+    if unhealthy and not HELIUS_WEBHOOK_SYNC_ALERT_ACTIVE:
+        HELIUS_WEBHOOK_SYNC_ALERT_ACTIVE = True
+        if DISCORD_ALERT_WEBHOOK_URL:
+            await send_discord_alert(
+                "Pump Copilot: Helius token synchronization failed.\n"
+                f"Reason: {error}\n"
+                "Existing subscriptions remain active, but newly tracked "
+                "tokens may be incomplete."
+            )
+    elif healthy and HELIUS_WEBHOOK_SYNC_ALERT_ACTIVE:
+        HELIUS_WEBHOOK_SYNC_ALERT_ACTIVE = False
+        if DISCORD_ALERT_WEBHOOK_URL:
+            await send_discord_alert(
+                "Pump Copilot: Helius token synchronization recovered."
+            )
+
+
 async def helius_webhook_sync_worker():
     while True:
         result = await asyncio.to_thread(sync_helius_webhook_tokens_once)
         if result.get("status") == "error":
             print("[HELIUS SYNC]", result.get("last_error"))
+        await update_helius_webhook_sync_alert(result)
         await asyncio.sleep(HELIUS_WEBHOOK_SYNC_POLL_SECONDS)
 
 
