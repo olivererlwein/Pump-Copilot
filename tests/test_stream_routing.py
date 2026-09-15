@@ -33,8 +33,33 @@ class MarketEventRoutingTests(unittest.TestCase):
         event = {"mint": "new", "traderPublicKey": "wallet", "txType": "buy"}
         self.effects["save_trade"].side_effect = lambda *a, **k: app.TRACKED_TOKENS.add("new")
         app.route_market_event(event)
-        self.effects["save_trade"].assert_called_once_with("trader", "wallet", event, source="live")
+        self.effects["save_trade"].assert_called_once_with(
+            "trader",
+            "wallet",
+            event,
+            source="live",
+            allow_live_buys=True,
+            allow_live_exits=True,
+        )
         self.effects["process_signal_outcomes_event"].assert_not_called()
+
+    def test_watched_wallet_transport_permissions_reach_save_trade(self):
+        event = {"mint": "mint", "traderPublicKey": "wallet", "txType": "buy"}
+
+        app.route_market_event(
+            event,
+            allow_live_buys=False,
+            allow_live_exits=True,
+        )
+
+        self.effects["save_trade"].assert_called_once_with(
+            "trader",
+            "wallet",
+            event,
+            source="live",
+            allow_live_buys=False,
+            allow_live_exits=True,
+        )
 
     def test_tracking_removed_by_wallet_update_still_records_outcome(self):
         app.TRACKED_TOKENS.add("mint")
@@ -75,7 +100,7 @@ class MarketEventRoutingTests(unittest.TestCase):
         self.assertIsNone(paper["new_token_balance"])
         self.assertIsNone(live["new_token_balance"])
 
-    def test_observational_transport_cannot_reach_live_exit(self):
+    def test_transport_can_allow_live_exits_while_blocking_live_buys(self):
         app.TRACKED_TOKENS.add("mint")
         event = {
             "mint": "mint",
@@ -85,7 +110,30 @@ class MarketEventRoutingTests(unittest.TestCase):
             "newTokenBalance": 0,
         }
 
-        app.route_market_event(event, allow_live_execution=False)
+        app.route_market_event(
+            event,
+            allow_live_buys=False,
+            allow_live_exits=True,
+        )
+
+        self.effects["update_paper_position"].assert_called_once()
+        self.effects["evaluate_live_position_exit"].assert_called_once()
+
+    def test_transport_can_disable_live_exits_explicitly(self):
+        app.TRACKED_TOKENS.add("mint")
+        event = {
+            "mint": "mint",
+            "user": "other",
+            "type": "SELL",
+            "market_cap_sol": 42,
+            "newTokenBalance": 0,
+        }
+
+        app.route_market_event(
+            event,
+            allow_live_buys=False,
+            allow_live_exits=False,
+        )
 
         self.effects["update_paper_position"].assert_called_once()
         self.effects["evaluate_live_position_exit"].assert_not_called()

@@ -9172,7 +9172,7 @@ def evaluate_buy(
     event,
     source="live",
     price_at_signal=0.0,
-    allow_live_execution=True,
+    allow_live_buys=True,
 ):
 
     mint = (
@@ -9476,7 +9476,7 @@ def evaluate_buy(
         entry_block_event_ts=entry_block_event_ts
     )
 
-    if allow_live_execution:
+    if allow_live_buys:
         live_execution = maybe_execute_live_copy(
             signal_id=signal_id,
             decision=decision,
@@ -9490,7 +9490,7 @@ def evaluate_buy(
     else:
         live_execution = {
             "attempted": False,
-            "reason": "TRANSPORT_LIVE_EXECUTION_DISABLED",
+            "reason": "TRANSPORT_LIVE_BUYS_DISABLED",
         }
 
     return {
@@ -10546,7 +10546,11 @@ def consume_market_event_inbox_once(limit=None, now=None):
                     SEEN_EVENT_IDS.add(event_id)
                     if len(SEEN_EVENT_IDS) > 5000:
                         SEEN_EVENT_IDS.clear()
-                    route_market_event(event, allow_live_execution=False)
+                    route_market_event(
+                        event,
+                        allow_live_buys=False,
+                        allow_live_exits=True,
+                    )
                     status = "processed"
                     error = None
         except Exception as exc:
@@ -11030,7 +11034,8 @@ def save_trade(
     wallet,
     event,
     source="live",
-    allow_live_execution=True,
+    allow_live_buys=True,
+    allow_live_exits=True,
 ):
 
     side = str(
@@ -11229,7 +11234,7 @@ def save_trade(
             event,
             source,
             price_at_signal,
-            allow_live_execution=allow_live_execution,
+            allow_live_buys=allow_live_buys,
         )
     
 
@@ -11245,7 +11250,7 @@ def save_trade(
         event_index=event_index,
         event_block_event_ts=event_block_event_ts,
     )
-    if allow_live_execution:
+    if allow_live_exits:
         evaluate_live_position_exit(
             mint=mint,
             trader=trader,
@@ -12227,16 +12232,17 @@ async def mark_stream_recovered():
             "Pump Copilot: PumpPortal data connection recovered."
         )
 
-def route_market_event(event, allow_live_execution=True):
+def route_market_event(event, allow_live_buys=True, allow_live_exits=True):
     """Apply an already deduplicated event using the existing live semantics.
 
     Transport authentication, deduplication and retry handling belong to the
-    caller. Helius remains observational until those contracts are implemented.
+    caller.
 
     Event identity travels inside the event: the caller sets ``eventIndex``
     when a transaction carries more than one operation, and this function
-    forwards it alongside the signature. ``allow_live_execution=False`` keeps
-    signals, outcomes and paper active while blocking both live buys and exits.
+    forwards it alongside the signature. Transport permissions distinguish
+    opening new live exposure from reducing existing exposure: Helius disables
+    live buys while retaining live exits, and PumpPortal allows both.
     """
     wallet = (
         event.get("traderPublicKey")
@@ -12252,16 +12258,14 @@ def route_market_event(event, allow_live_execution=True):
     if is_watched_wallet:
         trader = trader_for(wallet)
         print(f"[TRADE LIVE] {trader}: {event}")
-        if allow_live_execution:
-            save_trade(trader, wallet, event, source="live")
-        else:
-            save_trade(
-                trader,
-                wallet,
-                event,
-                source="live",
-                allow_live_execution=False,
-            )
+        save_trade(
+            trader,
+            wallet,
+            event,
+            source="live",
+            allow_live_buys=allow_live_buys,
+            allow_live_exits=allow_live_exits,
+        )
 
     if not is_tracked_token:
         return
@@ -12300,7 +12304,7 @@ def route_market_event(event, allow_live_execution=True):
         event_index=event_index,
         event_block_event_ts=event_block_event_ts,
     )
-    if allow_live_execution:
+    if allow_live_exits:
         evaluate_live_position_exit(
             mint=mint, trader=trader, side=side, market_cap=market_cap,
             new_token_balance=event_new_token_balance,
@@ -14675,7 +14679,9 @@ def api_helius_webhook_stats(
         "inbox_consumer": {
             "enabled": bool(MARKET_EVENT_INBOX_CONSUMER_ENABLED),
             "affects_decisions": bool(MARKET_EVENT_INBOX_CONSUMER_ENABLED),
-            "affects_live_execution": False,
+            "affects_live_execution": bool(MARKET_EVENT_INBOX_CONSUMER_ENABLED),
+            "affects_live_buys": False,
+            "affects_live_exits": bool(MARKET_EVENT_INBOX_CONSUMER_ENABLED),
             "activation_ts": get_market_event_inbox_activation_ts(),
             "batch_size": MARKET_EVENT_INBOX_CONSUMER_BATCH_SIZE,
             "poll_seconds": MARKET_EVENT_INBOX_CONSUMER_POLL_SECONDS,

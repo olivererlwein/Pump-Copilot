@@ -359,7 +359,7 @@ class MarketEventInboxConsumerTests(unittest.TestCase):
         self.assertEqual(routed["eventIndex"], 0)
         self.assertEqual(
             route.call_args.kwargs,
-            {"allow_live_execution": False},
+            {"allow_live_buys": False, "allow_live_exits": True},
         )
         self.assertEqual(self.row()[0], "processed")
 
@@ -549,7 +549,7 @@ class MarketEventChronologyTests(unittest.TestCase):
                 "wallet-1",
                 event,
                 source="live",
-                allow_live_execution=False,
+                allow_live_exits=False,
             )
 
         conn = app.db()
@@ -588,13 +588,13 @@ class MarketEventChronologyTests(unittest.TestCase):
                 event,
                 source="live",
                 price_at_signal=0.0001,
-                allow_live_execution=False,
+                allow_live_buys=False,
             )
 
         live_copy.assert_not_called()
         self.assertEqual(
             result["live_execution"]["reason"],
-            "TRANSPORT_LIVE_EXECUTION_DISABLED",
+            "TRANSPORT_LIVE_BUYS_DISABLED",
         )
 
         conn = app.db()

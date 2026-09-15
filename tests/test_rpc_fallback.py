@@ -1146,6 +1146,18 @@ class HeliusWebhookTests(unittest.TestCase):
         # Sin entrega por el stream, esa operación solo la vio el webhook.
         self.assertEqual(report["parsed_only_in_webhook"], 1)
 
+    def test_stats_report_inbox_live_permissions_separately(self):
+        with (
+            patch.object(app, "APP_TOKEN", "token"),
+            patch.object(app, "MARKET_EVENT_INBOX_CONSUMER_ENABLED", True),
+        ):
+            report = app.api_helius_webhook_stats("token")
+
+        consumer = report["inbox_consumer"]
+        self.assertTrue(consumer["affects_live_execution"])
+        self.assertFalse(consumer["affects_live_buys"])
+        self.assertTrue(consumer["affects_live_exits"])
+
     def test_stats_attribute_trades_to_the_transport_that_won_them(self):
         """Lo que el consumidor del inbox escribe en `trades` no es PumpPortal.
 
