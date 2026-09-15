@@ -7785,6 +7785,11 @@ def get_live_execution_readiness(
         blockers.append("PUMPPORTAL_API_KEY_MISSING")
     if not PUMPPORTAL_TRADING_WALLET_ADDRESS:
         blockers.append("PUMPPORTAL_TRADING_WALLET_MISSING")
+    elif (
+        not PUMPPORTAL_WALLET_ADDRESS
+        or PUMPPORTAL_TRADING_WALLET_ADDRESS != PUMPPORTAL_WALLET_ADDRESS
+    ):
+        blockers.append("PUMPPORTAL_WALLET_MISMATCH")
     if not STREAM_CONNECTED:
         blockers.append("STREAM_DISCONNECTED")
     if PUMPPORTAL_WALLET_BALANCE_SOL is None:
@@ -7830,6 +7835,7 @@ def get_live_execution_readiness(
     common_execution_ready = bool(
         API_KEY
         and PUMPPORTAL_TRADING_WALLET_ADDRESS
+        and PUMPPORTAL_TRADING_WALLET_ADDRESS == PUMPPORTAL_WALLET_ADDRESS
         and STREAM_CONNECTED
         and PUMPPORTAL_WALLET_BALANCE_SOL is not None
         and PUMPPORTAL_WALLET_BALANCE_SOL >= PUMPPORTAL_LOW_BALANCE_SOL
@@ -7846,6 +7852,11 @@ def get_live_execution_readiness(
         "stream_connected": bool(STREAM_CONNECTED),
         "pumpportal_wallet_balance_sol": PUMPPORTAL_WALLET_BALANCE_SOL,
         "pumpportal_low_balance_threshold_sol": PUMPPORTAL_LOW_BALANCE_SOL,
+        "pumpportal_wallet_matches": bool(
+            PUMPPORTAL_TRADING_WALLET_ADDRESS
+            and PUMPPORTAL_TRADING_WALLET_ADDRESS
+            == PUMPPORTAL_WALLET_ADDRESS
+        ),
         "kill_switch": bool(KILL_SWITCH),
         "live_execution_implemented": bool(LIVE_EXECUTION_IMPLEMENTED),
         "live_trading_enabled": bool(LIVE_TRADING),

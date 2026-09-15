@@ -70,6 +70,38 @@ class NumericRiskValidationTests(unittest.TestCase):
 
 
 class LiveTradingGuardTests(unittest.TestCase):
+    def test_live_readiness_rejects_a_different_balance_wallet(self):
+        shadow_stats = {"promotion_assessment": {"blockers": []}}
+        with patch.object(
+            app,
+            "get_shadow_stats",
+            return_value=shadow_stats,
+        ), patch.object(app, "API_KEY", "test-key"), patch.object(
+            app,
+            "PUMPPORTAL_WALLET_ADDRESS",
+            "balance-wallet",
+        ), patch.object(
+            app,
+            "PUMPPORTAL_TRADING_WALLET_ADDRESS",
+            "trading-wallet",
+        ), patch.object(app, "STREAM_CONNECTED", True), patch.object(
+            app,
+            "PUMPPORTAL_WALLET_BALANCE_SOL",
+            0.05,
+        ), patch.object(app, "KILL_SWITCH", False), patch.object(
+            app,
+            "LIVE_EXECUTION_IMPLEMENTED",
+            True,
+        ), patch.object(app, "LIVE_TRADING", True), patch.object(
+            app,
+            "LIVE_BUYS_ENABLED",
+            False,
+        ), patch.object(app, "LIVE_SELLS_ENABLED", True):
+            readiness = app.get_live_execution_readiness("sell")
+
+        self.assertFalse(readiness["ready"])
+        self.assertIn("PUMPPORTAL_WALLET_MISMATCH", readiness["blockers"])
+
     def test_live_execution_cannot_be_enabled_before_implementation(self):
         with patch.object(app, "LIVE_TRADING", True), patch.object(
             app,
@@ -195,7 +227,9 @@ class LiveTradingGuardTests(unittest.TestCase):
             patch.object(app, "get_live_canary_blockers", return_value=[]),
         )
 
-        with patches[0], patches[1], patches[2], patches[3], patches[4], (
+        with patch.object(
+            app, "PUMPPORTAL_WALLET_ADDRESS", "wallet-a"
+        ), patches[0], patches[1], patches[2], patches[3], patches[4], (
             patches[5]
         ), patches[6], patches[7], patches[8], patches[9], patches[10], (
             patches[11]
@@ -231,7 +265,9 @@ class LiveTradingGuardTests(unittest.TestCase):
             patch.object(app, "LIVE_SELLS_ENABLED", False),
         )
 
-        with patches[0], patches[1], patches[2], patches[3], patches[4], (
+        with patch.object(
+            app, "PUMPPORTAL_WALLET_ADDRESS", "wallet-a"
+        ), patches[0], patches[1], patches[2], patches[3], patches[4], (
             patches[5]
         ), patches[6], patches[7], patches[8], patches[9]:
             readiness = app.get_live_execution_readiness()
@@ -259,6 +295,10 @@ class LiveTradingGuardTests(unittest.TestCase):
         ), patch.object(app, "API_KEY", "test-key"), patch.object(
             app,
             "PUMPPORTAL_TRADING_WALLET_ADDRESS",
+            "wallet-a",
+        ), patch.object(
+            app,
+            "PUMPPORTAL_WALLET_ADDRESS",
             "wallet-a",
         ), patch.object(app, "STREAM_CONNECTED", True), patch.object(
             app,
@@ -356,6 +396,10 @@ class LiveCanaryGuardTests(unittest.TestCase):
         ), patch.object(app, "API_KEY", "test-key"), patch.object(
             app,
             "PUMPPORTAL_TRADING_WALLET_ADDRESS",
+            "wallet-a",
+        ), patch.object(
+            app,
+            "PUMPPORTAL_WALLET_ADDRESS",
             "wallet-a",
         ), patch.object(app, "STREAM_CONNECTED", True), patch.object(
             app,

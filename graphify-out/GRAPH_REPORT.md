@@ -1,16 +1,16 @@
 # Graph Report - pump fun  (2026-09-14)
 
 ## Corpus Check
-- 51 files · ~96,097 words
+- 51 files · ~96,198 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1239 nodes · 2554 edges · 67 communities (57 shown, 8 thin omitted)
+- 1240 nodes · 2555 edges · 71 communities (58 shown, 11 thin omitted)
 - Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 67 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `120f49bb`
+- Built from commit: `9ade308f`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -80,6 +80,10 @@
 - evaluate_buy
 - api_watched_wallets
 - apply_paper_event
+- PaperPositionIdempotencyTests
+- LiveCopyDispatchTests
+- test_risk_controls.py
+- LiveTradingGuardTests
 
 ## God Nodes (most connected - your core abstractions)
 1. `db()` - 124 edges
@@ -108,7 +112,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (67 total, 8 thin omitted)
+## Communities (71 total, 11 thin omitted)
 
 ### Community 0 - "ValueError"
 Cohesion: 0.06
@@ -189,10 +193,6 @@ Nodes (4): Answer, Outcome, Q: sigamos, Source Nodes
 ### Community 25 - "execute_pumpportal_lightning_buy"
 Cohesion: 0.19
 Nodes (15): api_live_execution_readiness(), create_execution_order_idempotent(), demo_live_guard(), execute_pumpportal_lightning_buy(), execute_pumpportal_lightning_sell(), get_daily_live_buy_exposure(), get_execution_order_status(), get_live_canary_blockers() (+7 more)
-
-### Community 26 - "LiveCanaryGuardTests"
-Cohesion: 0.07
-Nodes (7): EvaluationIdempotencyTests, EvaluationIdentityMigrationTests, LiveCanaryGuardTests, LiveCopyDispatchTests, LiveTradingGuardTests, NumericRiskValidationTests, PositionConcurrencyTests
 
 ### Community 28 - "LegacyDataMigrationTests"
 Cohesion: 0.35
@@ -283,8 +283,8 @@ Cohesion: 0.06
 Nodes (36): Barrera de ejecución real, Comparación de transportes con el consumidor activo, Consumidor seguro del inbox de Helius, Correcciones tras la revisión de Codex, Cuarta revisión: el helper no rechazaba lo que decía rechazar, Deduplicación global por evento, Dos pruebas más, por el router (pedido de Codex), El problema (+28 more)
 
 ### Community 52 - "PreEntryEventGuardTests"
-Cohesion: 0.05
-Nodes (16): PaperPositionIdempotencyTests, PreEntryEventGuardTests, El índice también tiene que llegar al historial por el recorrido real., La guarda tiene que sobrevivir el recorrido real, no solo la función. El patrón…, Si la transacción falla, no queda ni el efecto ni la marca. El caso peligroso…, Un evento reintentado no debe aplicarse dos veces a la misma posición.…, Una transacción puede traer varias operaciones Pump válidas. Con la firma sola…, La auditoría y el efecto son atómicos. Si la auditoría quedara fuera de la… (+8 more)
+Cohesion: 0.08
+Nodes (8): PreEntryEventGuardTests, El índice también tiene que llegar al historial por el recorrido real., La guarda tiene que sobrevivir el recorrido real, no solo la función. El patrón…, Un evento anterior a la entrada no pertenece a esta posición. Con webhooks…, El índice tiene que sobrevivir el recorrido real, no solo la llamada.…, RouterEventIndexTests, RouterPreEntryGuardTests, RouterTokenHistoryTests
 
 ### Community 53 - "audit_shadow_economics.py"
 Cohesion: 0.30
@@ -338,10 +338,18 @@ Nodes (7): api_watched_wallets(), check_watched_wallet_silence(), get_watched_wa
 Cohesion: 0.25
 Nodes (8): apply_paper_event(), decide_paper_position_action(), Decide qué hacer con una posición paper. No toca la base de datos. Separado de…, Aplica el evento en una sola transacción y describe qué pasó. Deliberadamente…, Registra un evento de posición. Con ``connection`` escribe dentro de la…, Lee un timestamp que guardamos nosotros; inservible cuenta como ausente.…, save_position_event(), stored_block_event_ts()
 
+### Community 67 - "PaperPositionIdempotencyTests"
+Cohesion: 0.14
+Nodes (8): PaperPositionIdempotencyTests, Si la transacción falla, no queda ni el efecto ni la marca. El caso peligroso…, Un evento reintentado no debe aplicarse dos veces a la misma posición.…, Una transacción puede traer varias operaciones Pump válidas. Con la firma sola…, La auditoría y el efecto son atómicos. Si la auditoría quedara fuera de la…, Convertir un índice inválido en 0 crea colisiones. Si un índice roto se…, El cierre puede quedar confirmado y la limpieza posterior fallar.…, `BEGIN IMMEDIATE` toma el lock al abrir la transacción. Una excepción entre ese…
+
+### Community 69 - "test_risk_controls.py"
+Cohesion: 0.18
+Nodes (4): EvaluationIdempotencyTests, EvaluationIdentityMigrationTests, NumericRiskValidationTests, PositionConcurrencyTests
+
 ## Knowledge Gaps
 - **166 isolated node(s):** `Usage`, `What graphify is for`, `Step 0 - GitHub repos and multi-path merge (only if a URL or several paths)`, `Step 1 - Ensure graphify is installed`, `Step 2 - Detect files` (+161 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 470 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **8 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 471 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **11 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Work-memory lessons
 
@@ -357,10 +365,10 @@ Nodes (8): apply_paper_event(), decide_paper_position_action(), Decide qué hace
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `ExecutionAdapterTests` connect `ExecutionAdapterTests` to `LiveCanaryGuardTests`?**
+- **Why does `PaperPositionIdempotencyTests` connect `PaperPositionIdempotencyTests` to `PreEntryEventGuardTests`?**
+  _High betweenness centrality (0.054) - this node is a cross-community bridge._
+- **Why does `ExecutionAdapterTests` connect `ExecutionAdapterTests` to `test_risk_controls.py`?**
   _High betweenness centrality (0.038) - this node is a cross-community bridge._
-- **Why does `HeliusWebhookTests` connect `HeliusWebhookTests` to `test_rpc_fallback.py`?**
-  _High betweenness centrality (0.036) - this node is a cross-community bridge._
 - **Are the 43 inferred relationships involving `ValueError` (e.g. with `build_pumpportal_exact_sell_payload()` and `build_pumpportal_lightning_buy_payload()`) actually correct?**
   _`ValueError` has 43 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `Usage`, `What graphify is for`, `Step 0 - GitHub repos and multi-path merge (only if a URL or several paths)` to the rest of the system?**
