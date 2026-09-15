@@ -564,6 +564,36 @@ class MarketEventChronologyTests(unittest.TestCase):
         self.assertEqual(history.call_args.kwargs["event_ts"], 1_700_000_123.0)
         live_exit.assert_not_called()
 
+    def test_save_trade_passes_onchain_time_to_live_exit(self):
+        event = {
+            "signature": "chronology-live-exit",
+            "eventIndex": 0,
+            "blockEventTs": 1_700_000_321.0,
+            "mint": "mint-chronology-live-exit",
+            "txType": "sell",
+            "marketCapSol": 50.0,
+            "newTokenBalance": None,
+        }
+
+        with (
+            patch.object(app, "save_token_history"),
+            patch.object(app, "update_paper_position"),
+            patch.object(app, "evaluate_live_position_exit") as live_exit,
+        ):
+            app.save_trade(
+                "trader-1",
+                "wallet-1",
+                event,
+                source="live",
+                allow_live_buys=False,
+                allow_live_exits=True,
+            )
+
+        self.assertEqual(
+            live_exit.call_args.kwargs["event_block_event_ts"],
+            1_700_000_321.0,
+        )
+
     def test_evaluation_and_outcome_use_onchain_signal_time(self):
         event = {
             "signature": "chronology-buy",

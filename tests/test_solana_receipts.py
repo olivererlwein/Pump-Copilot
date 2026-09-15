@@ -379,12 +379,89 @@ class LiveReceiptPersistenceTests(unittest.TestCase):
         self.record()
         conn = app.db()
         context = conn.execute(
-            "SELECT entry_market_cap_sol, current_market_cap_sol, origin_trader, tp_stage "
+            "SELECT entry_market_cap_sol, current_market_cap_sol, origin_trader, "
+            "tp_stage, entry_block_time, last_applied_block_event_ts "
             "FROM live_positions WHERE order_id = ?", (self.order_id,),
         ).fetchone()
         conn.close()
-        self.assertEqual(context, (100.0, 100.0, "marcell", 0))
+        self.assertEqual(
+            context,
+            (100.0, 100.0, "marcell", 0, 1700000000.0, 1700000000.0),
+        )
         self.assertIn(MINT, app.TRACKED_TOKENS)
+
+    def test_live_exit_rejects_pre_entry_and_out_of_order_events(self):
+        conn = app.db()
+        conn.execute(
+            "UPDATE execution_orders SET entry_market_cap_sol = 100, "
+            "origin_trader = 'marcell' WHERE id = ?", (self.order_id,),
+        )
+        conn.commit()
+        conn.close()
+        self.record()
+
+        with patch.object(
+            app,
+            "execute_pumpportal_lightning_sell",
+            return_value={"ok": True, "status": "PENDING_RECONCILIATION"},
+        ) as execute:
+            before_entry = app.evaluate_live_position_exit(
+                MINT, "other", "buy", 70, 1, "old-event", 0,
+                event_block_event_ts=1699999999.0,
+            )
+            accepted = app.evaluate_live_position_exit(
+                MINT, "other", "buy", 130, 1, "new-event", 0,
+                event_block_event_ts=1700000001.0,
+            )
+            out_of_order = app.evaluate_live_position_exit(
+                MINT, "other", "buy", 70, 1, "late-old-event", 0,
+                event_block_event_ts=1700000000.5,
+            )
+
+        self.assertEqual(before_entry[0]["reason"], "EVENT_BEFORE_LIVE_ENTRY")
+        self.assertTrue(accepted[0]["ok"])
+        self.assertEqual(
+            execute.call_args.kwargs["event_block_event_ts"],
+            1700000001.0,
+        )
+        self.assertEqual(
+            out_of_order[0]["reason"],
+            "EVENT_BEFORE_LAST_LIVE_EVENT",
+        )
+        execute.assert_called_once()
+        conn = app.db()
+        try:
+            state = conn.execute(
+                "SELECT current_market_cap_sol, last_applied_block_event_ts "
+                "FROM live_positions WHERE order_id = ?",
+                (self.order_id,),
+            ).fetchone()
+        finally:
+            conn.close()
+        self.assertEqual(state, (130.0, 1700000001.0))
+
+    def test_live_exit_accepts_event_in_the_entry_second(self):
+        conn = app.db()
+        conn.execute(
+            "UPDATE execution_orders SET entry_market_cap_sol = 100, "
+            "origin_trader = 'marcell' WHERE id = ?", (self.order_id,),
+        )
+        conn.commit()
+        conn.close()
+        self.record()
+
+        with patch.object(
+            app,
+            "execute_pumpportal_lightning_sell",
+            return_value={"ok": True},
+        ) as execute:
+            result = app.evaluate_live_position_exit(
+                MINT, "other", "buy", 130, 1, "same-second", 0,
+                event_block_event_ts=1700000000.0,
+            )
+
+        self.assertTrue(result[0]["ok"])
+        execute.assert_called_once()
 
     def test_tp_stage_advances_only_after_finalized_sell_receipt(self):
         conn = app.db()
@@ -683,6 +760,32 @@ class LiveReceiptPersistenceTests(unittest.TestCase):
                     MINT, "marcell", "sell", 90, 10, "firma-sola", "1",
                 )
 
+        submit.assert_not_called()
+        self.assertEqual(self.sell_orders(), [])
+
+    def test_sell_reservation_rejects_event_older_than_position_state(self):
+        self.record()
+        conn = app.db()
+        conn.execute(
+            "UPDATE live_positions SET last_applied_block_event_ts = ? "
+            "WHERE order_id = ?",
+            (1700000010.0, self.order_id),
+        )
+        conn.commit()
+        conn.close()
+
+        contextos = self.live_sells_enabled({"signature": "2" * 88})
+        with contextos[0], contextos[1], contextos[2], contextos[3], \
+                contextos[4], contextos[5], contextos[6] as submit:
+            result = app.execute_pumpportal_lightning_sell(
+                position_order_id=self.order_id,
+                token_amount_raw="1",
+                idempotency_key="stale-event-reservation",
+                event_block_event_ts=1700000005.0,
+            )
+
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["reason"], "STALE_LIVE_EXIT_EVENT")
         submit.assert_not_called()
         self.assertEqual(self.sell_orders(), [])
 

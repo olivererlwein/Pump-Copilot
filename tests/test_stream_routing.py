@@ -72,7 +72,13 @@ class MarketEventRoutingTests(unittest.TestCase):
 
     def test_token_aliases_and_unknown_live_balance_are_preserved(self):
         app.TRACKED_TOKENS.add("mint")
-        event = {"mint": "mint", "user": "other", "type": "SELL", "market_cap_sol": 42}
+        event = {
+            "mint": "mint",
+            "user": "other",
+            "type": "SELL",
+            "market_cap_sol": 42,
+            "blockEventTs": 1_700_000_000.0,
+        }
         app.route_market_event(event)
         self.effects["save_trade"].assert_not_called()
         paper = self.effects["update_paper_position"].call_args.kwargs
@@ -81,6 +87,7 @@ class MarketEventRoutingTests(unittest.TestCase):
         self.assertEqual(paper["market_cap"], 42)
         self.assertEqual(paper["new_token_balance"], 0)
         self.assertIsNone(live["new_token_balance"])
+        self.assertEqual(live["event_block_event_ts"], 1_700_000_000.0)
         self.assertEqual(self.effects["save_token_history"].call_args.kwargs["source"], "token-live")
 
     def test_explicit_unknown_balance_is_preserved_for_paper_and_live(self):

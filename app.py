@@ -1204,6 +1204,8 @@ CREATE TABLE IF NOT EXISTS signal_outcomes(
             origin_trader TEXT,
             tp_stage INTEGER NOT NULL DEFAULT 0,
             last_exit_reason TEXT,
+            entry_block_time REAL,
+            last_applied_block_event_ts REAL,
             fill_json TEXT NOT NULL,
             receipt_json TEXT NOT NULL,
             recorded_ts REAL NOT NULL
@@ -1223,6 +1225,8 @@ CREATE TABLE IF NOT EXISTS signal_outcomes(
         ("origin_trader", "TEXT"),
         ("tp_stage", "INTEGER NOT NULL DEFAULT 0"),
         ("last_exit_reason", "TEXT"),
+        ("entry_block_time", "REAL"),
+        ("last_applied_block_event_ts", "REAL"),
     ):
         if column not in position_columns:
             conn.execute(
@@ -1451,7 +1455,8 @@ def get_live_position_summary(limit=100):
                   net_sol_debit_lamports, remaining_cost_basis_lamports,
                   network_fee_lamports, recorded_ts, entry_market_cap_sol,
                   current_market_cap_sol, origin_trader, tp_stage,
-                  last_exit_reason
+                  last_exit_reason, entry_block_time,
+                  last_applied_block_event_ts
            FROM live_positions ORDER BY recorded_ts DESC LIMIT ?""",
         (safe_limit,),
     ).fetchall()
@@ -1483,6 +1488,8 @@ def get_live_position_summary(limit=100):
                 "current_market_cap_sol": row[12],
                 "origin_trader": row[13], "tp_stage": row[14],
                 "last_exit_reason": row[15],
+                "entry_block_time": row[16],
+                "last_applied_block_event_ts": row[17],
             }
             for row in positions
         ],
@@ -3211,6 +3218,7 @@ def execute_pumpportal_lightning_sell(
     pool="auto",
     exit_reason="",
     target_tp_stage=None,
+    event_block_event_ts=None,
 ):
     idempotency_key = str(idempotency_key or "").strip()
     if not idempotency_key:
@@ -3236,6 +3244,10 @@ def execute_pumpportal_lightning_sell(
         target_tp_stage = int(target_tp_stage)
         if target_tp_stage not in (1, 2, 3):
             return {"ok": False, "reason": "INVALID_TARGET_TP_STAGE"}
+    event_ts = validated_block_event_ts(
+        event_block_event_ts,
+        origen="live_sell_event.blockEventTs",
+    )
     conn = db()
     try:
         conn.execute("BEGIN IMMEDIATE")
@@ -3250,13 +3262,30 @@ def execute_pumpportal_lightning_sell(
                     "order_id": existing[0], "status": current["status"],
                     "reason": "IDEMPOTENT_REUSE"}
         position = conn.execute(
-            "SELECT wallet, mint, status, remaining_amount_raw, token_decimals "
+            "SELECT wallet, mint, status, remaining_amount_raw, token_decimals, "
+            "last_applied_block_event_ts "
             "FROM live_positions WHERE order_id = ?", (position_order_id,),
         ).fetchone()
         if not position or position[2] != "open":
             return {"ok": False, "reason": "LIVE_POSITION_NOT_OPEN"}
         if position[0] != PUMPPORTAL_TRADING_WALLET_ADDRESS:
             return {"ok": False, "reason": "LIVE_POSITION_WALLET_MISMATCH"}
+        try:
+            latest_position_ts = validated_block_event_ts(
+                position[5],
+                origen="live_positions.last_applied_block_event_ts",
+            )
+        except ValueError:
+            return {
+                "ok": False,
+                "reason": "INVALID_LIVE_POSITION_TIMESTAMP",
+            }
+        if (
+            event_ts is not None
+            and latest_position_ts is not None
+            and event_ts < latest_position_ts
+        ):
+            return {"ok": False, "reason": "STALE_LIVE_EXIT_EVENT"}
         payload = build_pumpportal_exact_sell_payload(
             position[1], raw_text, position[4], slippage_pct, priority_fee_sol, pool,
         )
@@ -4164,6 +4193,10 @@ def fetch_finalized_solana_transaction(signature):
 
 
 def record_finalized_buy_position(order_id, fill, receipt):
+    entry_block_time = validated_block_event_ts(
+        fill.get("block_time"),
+        origen="buy_receipt.block_time",
+    )
     conn = db()
     try:
         conn.execute("BEGIN IMMEDIATE")
@@ -4196,14 +4229,16 @@ def record_finalized_buy_position(order_id, fill, receipt):
                 network_fee_lamports, cash_cost_per_token_sol,
                 remaining_cost_basis_lamports,
                 entry_market_cap_sol, current_market_cap_sol, origin_trader,
+                entry_block_time, last_applied_block_event_ts,
                 fill_json, receipt_json, recorded_ts
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (order_id, row[1], row[2], row[3], fill["token_amount_raw"],
              fill["token_amount_raw"], fill["token_decimals"],
              fill["net_sol_debit_lamports"], fill["network_fee_lamports"],
-             fill["cash_cost_per_token_sol"], fill["net_sol_debit_lamports"],
-             row[7], row[7], row[8],
-             json.dumps(fill), json.dumps(receipt), now),
+              fill["cash_cost_per_token_sol"], fill["net_sol_debit_lamports"],
+              row[7], row[7], row[8],
+              entry_block_time, entry_block_time,
+              json.dumps(fill), json.dumps(receipt), now),
         )
         conn.execute(
             "UPDATE execution_orders SET status = 'CONFIRMED', ts_updated = ?, "
@@ -9864,34 +9899,80 @@ def evaluate_live_position_exit(
     new_token_balance,
     event_signature="",
     event_index=0,
+    event_block_event_ts=None,
 ):
     current_market_cap = float(market_cap or 0)
     if not mint or not math.isfinite(current_market_cap) or current_market_cap <= 0:
         return []
+    event_ts = validated_block_event_ts(
+        event_block_event_ts,
+        origen="live_exit_event.blockEventTs",
+    )
     # Se calcula una sola vez, antes de decidir nada: un índice inválido es un
     # bug del parser y conviene que falle igual de fuerte sin importar qué
     # decisión salga. Sin firma devuelve None, que no es un error: es la ruta
     # que todavía no tiene identidad para ofrecer.
     event_identity = market_event_identity(event_signature, event_index)
-    conn = db()
-    rows = conn.execute(
-        """SELECT order_id, token_amount_raw, remaining_amount_raw,
-                  entry_market_cap_sol, origin_trader, tp_stage
-           FROM live_positions
-           WHERE mint = ? AND status = 'open'
-           ORDER BY order_id""",
-        (mint,),
-    ).fetchall()
-    conn.execute(
-        "UPDATE live_positions SET current_market_cap_sol = ? "
-        "WHERE mint = ? AND status = 'open'",
-        (current_market_cap, mint),
-    )
-    conn.commit()
-    conn.close()
-
     results = []
-    for row in rows:
+    accepted_rows = []
+    conn = db()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        rows = conn.execute(
+            """SELECT order_id, token_amount_raw, remaining_amount_raw,
+                      entry_market_cap_sol, origin_trader, tp_stage,
+                      entry_block_time, last_applied_block_event_ts
+               FROM live_positions
+               WHERE mint = ? AND status = 'open'
+               ORDER BY order_id""",
+            (mint,),
+        ).fetchall()
+        for row in rows:
+            try:
+                entry_ts = validated_block_event_ts(
+                    row[6],
+                    origen="live_positions.entry_block_time",
+                )
+                last_ts = validated_block_event_ts(
+                    row[7],
+                    origen="live_positions.last_applied_block_event_ts",
+                )
+            except ValueError:
+                results.append({
+                    "ok": False,
+                    "position_order_id": row[0],
+                    "reason": "INVALID_LIVE_POSITION_TIMESTAMP",
+                })
+                continue
+            if event_ts is not None and entry_ts is not None and event_ts < entry_ts:
+                results.append({
+                    "ok": False,
+                    "position_order_id": row[0],
+                    "reason": "EVENT_BEFORE_LIVE_ENTRY",
+                })
+                continue
+            if event_ts is not None and last_ts is not None and event_ts < last_ts:
+                results.append({
+                    "ok": False,
+                    "position_order_id": row[0],
+                    "reason": "EVENT_BEFORE_LAST_LIVE_EVENT",
+                })
+                continue
+            conn.execute(
+                "UPDATE live_positions SET current_market_cap_sol = ?, "
+                "last_applied_block_event_ts = COALESCE(?, last_applied_block_event_ts) "
+                "WHERE order_id = ? AND status = 'open'",
+                (current_market_cap, event_ts, row[0]),
+            )
+            accepted_rows.append(row)
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+    for row in accepted_rows:
         decision = decide_live_position_exit(
             row[1], row[2], row[3], current_market_cap, row[4], trader, side,
             new_token_balance, row[5],
@@ -9924,6 +10005,7 @@ def evaluate_live_position_exit(
             idempotency_key=f"LIVE-EXIT-{row[0]}-{suffix}",
             exit_reason=reason,
             target_tp_stage=decision["target_tp_stage"],
+            event_block_event_ts=event_ts,
         )
         results.append({"position_order_id": row[0], **result})
     return results
@@ -11353,6 +11435,7 @@ def save_trade(
             new_token_balance=event_new_token_balance,
             event_signature=signature,
             event_index=event_index,
+            event_block_event_ts=event_block_event_ts,
         )
 # =========================================================
 # STREAM REAL PUMPPORTAL
@@ -12404,6 +12487,7 @@ def route_market_event(event, allow_live_buys=True, allow_live_exits=True):
             new_token_balance=event_new_token_balance,
             event_signature=signature,
             event_index=event_index,
+            event_block_event_ts=event_block_event_ts,
         )
 
 
