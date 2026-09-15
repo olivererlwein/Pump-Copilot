@@ -231,10 +231,43 @@ def _fetch_json(base_url, path, app_token):
         return json.load(response)
 
 
+def fetch_shadow_predictions(
+    base_url,
+    app_token,
+    maximum_rows=10000,
+    page_size=1000,
+):
+    maximum_rows = max(1, int(maximum_rows))
+    page_size = max(1, min(int(page_size), 1000))
+    rows = []
+    before_id = 0
+
+    while len(rows) < maximum_rows:
+        current_limit = min(page_size, maximum_rows - len(rows))
+        path = f"/api/shadow-predictions?limit={current_limit}"
+        if before_id:
+            path += f"&before_id={before_id}"
+        payload = _fetch_json(base_url, path, app_token)
+        page = payload.get("rows") or []
+        rows.extend(page)
+
+        next_before_id = payload.get("next_before_id")
+        if not page or next_before_id is None:
+            break
+        next_before_id = int(next_before_id)
+        if next_before_id <= 0 or (
+            before_id and next_before_id >= before_id
+        ):
+            raise ValueError("Shadow prediction cursor did not move backward")
+        before_id = next_before_id
+
+    return rows
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-url", default=DEFAULT_BASE_URL)
-    parser.add_argument("--limit", type=int, default=1000)
+    parser.add_argument("--limit", type=int, default=10000)
     parser.add_argument("--round-trip-cost", type=float, default=0.05)
     args = parser.parse_args()
 
@@ -249,21 +282,20 @@ def main():
     if not incumbent or not challenger:
         raise SystemExit("Both incumbent and challenger must be loaded")
 
-    safe_limit = max(1, min(args.limit, 1000))
-    payload = _fetch_json(
+    rows = fetch_shadow_predictions(
         args.base_url,
-        f"/api/shadow-predictions?limit={safe_limit}",
         app_token,
+        maximum_rows=args.limit,
     )
     report = audit_shadow_models(
-        payload.get("rows", []),
+        rows,
         incumbent,
         challenger,
         round_trip_cost=args.round_trip_cost,
     )
     comparison = stats.get("comparison") or {}
     report["production_comparison_completed"] = comparison.get("completed")
-    report["api_rows_returned"] = payload.get("count", 0)
+    report["api_rows_returned"] = len(rows)
     report["coverage_limited"] = (
         int(comparison.get("completed") or 0) > report["paired_completed"]
     )

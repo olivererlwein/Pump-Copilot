@@ -165,6 +165,24 @@ class ShadowPredictionTests(unittest.TestCase):
             {row["model_version"] for row in rows},
             {"test-model-v1", "test-model-v2"},
         )
+        with patch.object(app, "auth"):
+            first_page = app.api_shadow_predictions(
+                x_app_token="test-token",
+                limit=1,
+            )
+            second_page = app.api_shadow_predictions(
+                x_app_token="test-token",
+                limit=1,
+                before_id=first_page["next_before_id"],
+            )
+        self.assertNotEqual(
+            first_page["rows"][0]["prediction_id"],
+            second_page["rows"][0]["prediction_id"],
+        )
+        self.assertLess(
+            second_page["rows"][0]["prediction_id"],
+            first_page["rows"][0]["prediction_id"],
+        )
         self.assertEqual(
             set(app.get_shadow_stats()["models"]),
             {"test-model-v1", "test-model-v2"},

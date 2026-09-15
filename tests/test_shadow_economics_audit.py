@@ -1,7 +1,9 @@
 import unittest
+from unittest.mock import patch
 
 from scripts.audit_shadow_economics import (
     audit_shadow_models,
+    fetch_shadow_predictions,
     pair_completed_predictions,
 )
 
@@ -27,6 +29,48 @@ def prediction(
 
 
 class ShadowEconomicsAuditTests(unittest.TestCase):
+    def test_fetches_all_prediction_pages_with_a_backward_cursor(self):
+        responses = [
+            {
+                "rows": [
+                    {"prediction_id": 4},
+                    {"prediction_id": 3},
+                ],
+                "next_before_id": 3,
+            },
+            {
+                "rows": [
+                    {"prediction_id": 2},
+                    {"prediction_id": 1},
+                ],
+                "next_before_id": 1,
+            },
+            {"rows": [], "next_before_id": None},
+        ]
+        with patch(
+            "scripts.audit_shadow_economics._fetch_json",
+            side_effect=responses,
+        ) as fetch:
+            rows = fetch_shadow_predictions(
+                "https://example.test",
+                "token",
+                maximum_rows=10,
+                page_size=2,
+            )
+
+        self.assertEqual(
+            [row["prediction_id"] for row in rows],
+            [4, 3, 2, 1],
+        )
+        self.assertEqual(
+            [call.args[1] for call in fetch.call_args_list],
+            [
+                "/api/shadow-predictions?limit=2",
+                "/api/shadow-predictions?limit=2&before_id=3",
+                "/api/shadow-predictions?limit=2&before_id=1",
+            ],
+        )
+
     def test_pairs_only_completed_predictions_shared_by_both_models(self):
         rows = [
             prediction(1, "inc", 1, 1, "alice", 10),

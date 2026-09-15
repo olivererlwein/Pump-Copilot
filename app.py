@@ -7431,11 +7431,13 @@ def observe_shadow_signal(
         return None
 
 
-def get_shadow_predictions(limit=100):
+def get_shadow_predictions(limit=100, before_id=0):
+    safe_before_id = max(0, int(before_id or 0))
     conn = db()
     rows = conn.execute(
         """
         SELECT
+            p.id,
             p.evaluation_id,
             p.created_ts,
             p.model_version,
@@ -7462,27 +7464,33 @@ def get_shadow_predictions(limit=100):
         FROM model_shadow_predictions p
         JOIN evaluations e ON e.id = p.evaluation_id
         LEFT JOIN signal_outcomes o ON o.signal_id = p.evaluation_id
+        WHERE (? = 0 OR p.id < ?)
         ORDER BY p.id DESC
         LIMIT ?
         """,
-        (max(1, min(int(limit or 100), 1000)),),
+        (
+            safe_before_id,
+            safe_before_id,
+            max(1, min(int(limit or 100), 1000)),
+        ),
     ).fetchall()
     conn.close()
 
     return [
         {
-            "evaluation_id": int(row[0]),
-            "created_ts": float(row[1]),
-            "model_version": str(row[2]),
-            "probability": round(float(row[3]), 6),
-            "threshold": float(row[4]),
-            "predicted_target": int(row[5]),
-            "trader": str(row[6] or "unknown"),
-            "mint": str(row[7] or ""),
-            "agent_decision": str(row[8] or ""),
-            "outcome_status": str(row[9] or "missing"),
+            "prediction_id": int(row[0]),
+            "evaluation_id": int(row[1]),
+            "created_ts": float(row[2]),
+            "model_version": str(row[3]),
+            "probability": round(float(row[4]), 6),
+            "threshold": float(row[5]),
+            "predicted_target": int(row[6]),
+            "trader": str(row[7] or "unknown"),
+            "mint": str(row[8] or ""),
+            "agent_decision": str(row[9] or ""),
+            "outcome_status": str(row[10] or "missing"),
             "actual_target": (
-                int(row[10]) if row[10] is not None else None
+                int(row[11]) if row[11] is not None else None
             ),
         }
         for row in rows
@@ -15051,12 +15059,22 @@ def api_training_dataset_preview(
 def api_shadow_predictions(
     x_app_token: str = Header(default=""),
     limit: int = 100,
+    before_id: int = 0,
 ):
     auth(x_app_token)
-    rows = get_shadow_predictions(limit=limit)
+    safe_limit = max(1, min(int(limit or 100), 1000))
+    rows = get_shadow_predictions(
+        limit=safe_limit,
+        before_id=before_id,
+    )
     return {
         "count": len(rows),
         "rows": rows,
+        "next_before_id": (
+            rows[-1]["prediction_id"]
+            if len(rows) == safe_limit
+            else None
+        ),
     }
 
 
