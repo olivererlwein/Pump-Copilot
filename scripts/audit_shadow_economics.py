@@ -96,6 +96,40 @@ def _temporal_windows(pairs, version, count, round_trip_cost):
     return windows
 
 
+def _trader_diagnostics(pairs, version):
+    totals = collections.Counter(row["trader"] for row in pairs)
+    positives = collections.Counter(
+        row["trader"] for row in pairs if row["actual_target"] == 1
+    )
+    selected = collections.Counter(
+        row["trader"] for row in pairs
+        if row["predictions"][version] == 1
+    )
+    selected_hits = collections.Counter(
+        row["trader"] for row in pairs
+        if row["predictions"][version] == 1
+        and row["actual_target"] == 1
+    )
+    return {
+        trader: {
+            "completed_pairs": total,
+            "positive_outcomes": positives[trader],
+            "selected": selected[trader],
+            "selected_hits": selected_hits[trader],
+            "selected_misses": selected[trader] - selected_hits[trader],
+            "selected_precision": (
+                round(selected_hits[trader] / selected[trader], 6)
+                if selected[trader] else None
+            ),
+            "positive_recall": (
+                round(selected_hits[trader] / positives[trader], 6)
+                if positives[trader] else None
+            ),
+        }
+        for trader, total in sorted(totals.items())
+    }
+
+
 def _audit_model(
     pairs,
     version,
@@ -157,6 +191,7 @@ def _audit_model(
         "blockers": blockers,
         "selected_traders": len(trader_counts),
         "trader_counts": dict(trader_counts.most_common()),
+        "trader_diagnostics": _trader_diagnostics(pairs, version),
         "largest_trader_share": round(largest_trader_share, 6),
         "selected_mints": len(mint_counts),
         "largest_mint_share": round(largest_mint_share, 6),
@@ -217,7 +252,9 @@ def audit_shadow_models(
         },
         "note": (
             "Label-based payoff proxy, not realized PnL. Eligibility only "
-            "permits a controlled canary review; it never enables trading."
+            "permits a controlled canary review; it never enables trading. "
+            "Per-trader diagnostics are observational and must not be used "
+            "to choose a cohort after inspecting outcomes."
         ),
     }
 

@@ -324,15 +324,15 @@
     "semantic_hash": ""
   },
   "scripts/audit_shadow_economics.py": {
-    "mtime": 1789437438.9062765,
-    "seen": 1789437495.7133508,
-    "ast_hash": "6770f169ac3161ed47924047034c9b7b",
+    "mtime": 1789494163.6218426,
+    "seen": 1789494260.2577395,
+    "ast_hash": "d4ed3ca4bb1b965afd1588463c0a2fc6",
     "semantic_hash": ""
   },
   "tests/test_shadow_economics_audit.py": {
-    "mtime": 1789437438.9122736,
-    "seen": 1789437495.7133653,
-    "ast_hash": "73350d1bde16a650ae299fa1fd3114d2",
+    "mtime": 1789494163.6227918,
+    "seen": 1789494260.257757,
+    "ast_hash": "9f7ae22a869e4a26ecd5d48b3c683623",
     "semantic_hash": ""
   }
 }

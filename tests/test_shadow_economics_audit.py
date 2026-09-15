@@ -95,6 +95,38 @@ class ShadowEconomicsAuditTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "actual target"):
             pair_completed_predictions(rows, "inc", "new")
 
+    def test_per_trader_diagnostics_include_unselected_positive_cases(self):
+        rows = []
+        cases = [
+            ("alice", 1, 1),
+            ("alice", 0, 1),
+            ("bob", 1, 0),
+            ("carol", 0, 0),
+        ]
+        for index, (trader, predicted, actual) in enumerate(cases, start=1):
+            rows.extend([
+                prediction(index, "inc", predicted, actual, trader, index),
+                prediction(index, "new", predicted, actual, trader, index),
+            ])
+
+        report = audit_shadow_models(
+            rows,
+            incumbent_version="inc",
+            challenger_version="new",
+            minimum_completed_pairs=1,
+            temporal_windows=1,
+            minimum_positive_windows=0,
+        )
+        diagnostics = report["models"]["inc"]["trader_diagnostics"]
+
+        self.assertEqual(diagnostics["alice"]["completed_pairs"], 2)
+        self.assertEqual(diagnostics["alice"]["positive_outcomes"], 2)
+        self.assertEqual(diagnostics["alice"]["selected"], 1)
+        self.assertEqual(diagnostics["alice"]["selected_hits"], 1)
+        self.assertEqual(diagnostics["alice"]["positive_recall"], 0.5)
+        self.assertEqual(diagnostics["bob"]["selected_misses"], 1)
+        self.assertIsNone(diagnostics["carol"]["selected_precision"])
+
     def test_canary_gate_rejects_a_profitable_concentrated_model(self):
         rows = []
         traders = ["alice"] * 8 + ["bob", "carol"]
