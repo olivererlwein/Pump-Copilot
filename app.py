@@ -3042,7 +3042,13 @@ def submit_pumpportal_lightning_trade(
             }
     return {
         "ok": bool(signature) and not errors,
-        "reason": "PUMPPORTAL_SUBMITTED" if signature else "PUMPPORTAL_REJECTED",
+        "reason": (
+            "PUMPPORTAL_SUBMITTED"
+            if signature
+            else "PUMPPORTAL_REJECTED"
+            if errors
+            else "PUMPPORTAL_RESPONSE_WITHOUT_SIGNATURE"
+        ),
         "signature": signature,
         "errors": errors,
     }
@@ -4403,6 +4409,89 @@ def reconcile_pending_pumpportal_execution_orders(limit=20):
     ]
 
 
+def get_ambiguous_pumpportal_execution_orders(limit=20, now=None):
+    """Return live orders that cannot be reconciled without manual review."""
+    current_ts = float(now if now is not None else time.time())
+    sent_cutoff = current_ts - EXECUTION_TIMEOUT_SECONDS
+    conn = db()
+    try:
+        rows = conn.execute(
+            """
+            SELECT id, side, mint, status, reason, ts_created, ts_updated
+            FROM execution_orders
+            WHERE source = 'pumpportal_lightning'
+            AND mode = 'live'
+            AND external_signature IS NULL
+            AND (
+                status = 'PENDING_RECONCILIATION'
+                OR (status = 'SENT' AND ts_updated <= ?)
+            )
+            ORDER BY id ASC
+            LIMIT ?
+            """,
+            (sent_cutoff, max(1, min(int(limit), 100))),
+        ).fetchall()
+    finally:
+        conn.close()
+    return [
+        {
+            "order_id": int(row[0]),
+            "side": str(row[1] or ""),
+            "mint": str(row[2] or ""),
+            "status": str(row[3] or ""),
+            "reason": str(row[4] or ""),
+            "ts_created": float(row[5] or 0),
+            "ts_updated": float(row[6] or 0),
+        }
+        for row in rows
+    ]
+
+
+async def maybe_send_ambiguous_execution_order_alerts(limit=20, now=None):
+    """Alert once per live order that PumpPortal left without a signature."""
+    if not DISCORD_ALERT_WEBHOOK_URL:
+        return 0
+
+    sent_count = 0
+    for order in get_ambiguous_pumpportal_execution_orders(limit=limit, now=now):
+        state_key = f"LIVE_AMBIGUOUS_ORDER_ALERT:{order['order_id']}"
+        conn = db()
+        try:
+            already_sent = conn.execute(
+                "SELECT 1 FROM app_state WHERE key = ? LIMIT 1",
+                (state_key,),
+            ).fetchone()
+        finally:
+            conn.close()
+        if already_sent:
+            continue
+
+        sent = await send_discord_alert(
+            "Pump Copilot CRITICAL: live PumpPortal order requires manual review.\n"
+            f"Order: {order['order_id']} | Side: {order['side']} | "
+            f"Status: {order['status']}\n"
+            f"Mint: {order['mint']}\n"
+            f"Reason: {order['reason'] or 'NO_SIGNATURE_RETURNED'}\n"
+            "PumpPortal returned no usable transaction signature. New live buys "
+            "are blocked automatically. Do not retry the order until wallet and "
+            "on-chain activity have been reviewed."
+        )
+        if not sent:
+            continue
+
+        conn = db()
+        try:
+            conn.execute(
+                "INSERT OR IGNORE INTO app_state(key, value) VALUES(?, ?)",
+                (state_key, str(time.time())),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        sent_count += 1
+    return sent_count
+
+
 async def pumpportal_execution_reconciliation_worker():
     while True:
         try:
@@ -4411,6 +4500,11 @@ async def pumpportal_execution_reconciliation_worker():
             )
         except Exception as ex:
             print("[EXECUTION RECONCILIATION ERROR]", repr(ex))
+
+        try:
+            await maybe_send_ambiguous_execution_order_alerts()
+        except Exception as ex:
+            print("[EXECUTION ALERT ERROR]", repr(ex))
 
         await asyncio.sleep(EXECUTION_RECONCILIATION_SECONDS)
 

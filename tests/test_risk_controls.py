@@ -6,7 +6,7 @@ import threading
 import time
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import app
 
@@ -933,6 +933,51 @@ class ExecutionAdapterTests(unittest.TestCase):
         self.assertFalse(result["ok"])
         self.assertEqual(result["reason"], "INVALID_PUMPPORTAL_RESPONSE")
 
+    def test_response_without_signature_is_ambiguous_unless_explicitly_rejected(self):
+        def response(payload):
+            result = MagicMock()
+            result.read.return_value = json.dumps(payload).encode("utf-8")
+            result.__enter__.return_value = result
+            return result
+
+        common_patches = (
+            patch.object(app, "LIVE_TRADING", True),
+            patch.object(app, "LIVE_EXECUTION_IMPLEMENTED", True),
+            patch.object(app, "LIVE_BUYS_ENABLED", True),
+        )
+        with common_patches[0], common_patches[1], common_patches[2], patch.object(
+            app,
+            "urlopen",
+            return_value=response({}),
+        ):
+            ambiguous = app.submit_pumpportal_lightning_trade(
+                {"action": "buy"},
+                api_key="test-key",
+            )
+
+        common_patches = (
+            patch.object(app, "LIVE_TRADING", True),
+            patch.object(app, "LIVE_EXECUTION_IMPLEMENTED", True),
+            patch.object(app, "LIVE_BUYS_ENABLED", True),
+        )
+        with common_patches[0], common_patches[1], common_patches[2], patch.object(
+            app,
+            "urlopen",
+            return_value=response({"errors": ["rejected"]}),
+        ):
+            rejected = app.submit_pumpportal_lightning_trade(
+                {"action": "buy"},
+                api_key="test-key",
+            )
+
+        self.assertFalse(ambiguous["ok"])
+        self.assertEqual(
+            ambiguous["reason"],
+            "PUMPPORTAL_RESPONSE_WITHOUT_SIGNATURE",
+        )
+        self.assertFalse(rejected["ok"])
+        self.assertEqual(rejected["reason"], "PUMPPORTAL_REJECTED")
+
     def test_reads_solana_signature_confirmation_without_sending(self):
         signature = "1" * 88
         response = MagicMock()
@@ -1128,6 +1173,122 @@ class ExecutionAdapterTests(unittest.TestCase):
             )
 
         self.assertEqual(result["status"], "PENDING_RECONCILIATION")
+
+
+class AmbiguousExecutionOrderAlertTests(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp_dir.cleanup)
+        self.db_patch = patch.object(
+            app,
+            "DB",
+            Path(self.temp_dir.name) / "ambiguous-alert.db",
+        )
+        self.db_patch.start()
+        self.addCleanup(self.db_patch.stop)
+        app.migrate_database()
+
+    def make_live_order(self, status, ts_updated=None):
+        order_id = app.create_execution_order(
+            mint="mint-ambiguous-alert",
+            side="buy",
+            amount_usd=1.0,
+            expected_price=1.0,
+            execution_price=1.0,
+            liquidity_sol=20.0,
+            source="pumpportal_lightning",
+            mode="live",
+        )
+        conn = app.db()
+        try:
+            conn.execute(
+                "UPDATE execution_orders SET status = ?, reason = ?, "
+                "ts_updated = ?, external_signature = NULL WHERE id = ?",
+                (
+                    status,
+                    "PUMPPORTAL_REQUEST_FAILED",
+                    float(ts_updated if ts_updated is not None else time.time()),
+                    order_id,
+                ),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        return order_id
+
+    async def test_ambiguous_order_alert_is_persistent_and_sent_once(self):
+        order_id = self.make_live_order("PENDING_RECONCILIATION")
+
+        with patch.object(
+            app,
+            "DISCORD_ALERT_WEBHOOK_URL",
+            "https://example.invalid/hook",
+        ), patch.object(
+            app,
+            "send_discord_alert",
+            new=AsyncMock(return_value=True),
+        ) as send:
+            first = await app.maybe_send_ambiguous_execution_order_alerts()
+            second = await app.maybe_send_ambiguous_execution_order_alerts()
+
+        self.assertEqual(first, 1)
+        self.assertEqual(second, 0)
+        send.assert_awaited_once()
+        message = send.await_args.args[0]
+        self.assertIn(f"Order: {order_id}", message)
+        self.assertIn("New live buys are blocked automatically", message)
+
+        conn = app.db()
+        try:
+            state = conn.execute(
+                "SELECT value FROM app_state WHERE key = ?",
+                (f"LIVE_AMBIGUOUS_ORDER_ALERT:{order_id}",),
+            ).fetchone()
+        finally:
+            conn.close()
+        self.assertIsNotNone(state)
+
+    async def test_fresh_sent_order_waits_for_timeout_before_alerting(self):
+        order_id = self.make_live_order("SENT", ts_updated=995.0)
+
+        with patch.object(
+            app,
+            "DISCORD_ALERT_WEBHOOK_URL",
+            "https://example.invalid/hook",
+        ), patch.object(
+            app,
+            "send_discord_alert",
+            new=AsyncMock(return_value=True),
+        ) as send:
+            before_timeout = await app.maybe_send_ambiguous_execution_order_alerts(
+                now=1000.0
+            )
+            after_timeout = await app.maybe_send_ambiguous_execution_order_alerts(
+                now=1006.0
+            )
+
+        self.assertEqual(before_timeout, 0)
+        self.assertEqual(after_timeout, 1)
+        self.assertIn(f"Order: {order_id}", send.await_args.args[0])
+
+    async def test_failed_discord_delivery_is_retried(self):
+        self.make_live_order("PENDING_RECONCILIATION")
+
+        with patch.object(
+            app,
+            "DISCORD_ALERT_WEBHOOK_URL",
+            "https://example.invalid/hook",
+        ), patch.object(
+            app,
+            "send_discord_alert",
+            new=AsyncMock(side_effect=[False, True]),
+        ) as send:
+            first = await app.maybe_send_ambiguous_execution_order_alerts()
+            second = await app.maybe_send_ambiguous_execution_order_alerts()
+
+        self.assertEqual(first, 0)
+        self.assertEqual(second, 1)
+        self.assertEqual(send.await_count, 2)
 
 
 class PositionConcurrencyTests(unittest.TestCase):
