@@ -7819,10 +7819,10 @@ def get_live_exit_feed_readiness(now=None):
 
 
 def get_live_canary_blockers(trader=None, amount_usd=None):
-    if not LIVE_CANARY_ENABLED:
-        return ["LIVE_CANARY_DISABLED"]
-
     blockers = []
+    if not LIVE_CANARY_ENABLED:
+        blockers.append("LIVE_CANARY_DISABLED")
+
     loaded_model_version = str(
         getattr(SHADOW_MODEL, "model_version", "") or ""
     )
@@ -7833,21 +7833,24 @@ def get_live_canary_blockers(trader=None, amount_usd=None):
     if not bool(getattr(SHADOW_MODEL, "deployment_ready", False)):
         blockers.append("LIVE_MODEL_NOT_DEPLOYMENT_READY")
 
-    if (
-        not math.isfinite(LIVE_CANARY_MAX_BUY_USD)
-        or not 0 < LIVE_CANARY_MAX_BUY_USD <= LIVE_CANARY_HARD_MAX_BUY_USD
-    ):
+    max_buy_usd_valid = (
+        math.isfinite(LIVE_CANARY_MAX_BUY_USD)
+        and 0 < LIVE_CANARY_MAX_BUY_USD <= LIVE_CANARY_HARD_MAX_BUY_USD
+    )
+    if not max_buy_usd_valid:
         blockers.append("LIVE_CANARY_MAX_BUY_USD_INVALID")
-    if not (
+    max_buys_per_day_valid = (
         0 < LIVE_CANARY_MAX_BUYS_PER_DAY
         <= LIVE_CANARY_HARD_MAX_BUYS_PER_DAY
-    ):
+    )
+    if not max_buys_per_day_valid:
         blockers.append("LIVE_CANARY_MAX_BUYS_PER_DAY_INVALID")
-    if (
-        not math.isfinite(LIVE_CANARY_MAX_DAILY_NOTIONAL_USD)
-        or not 0 < LIVE_CANARY_MAX_DAILY_NOTIONAL_USD
+    max_daily_notional_valid = (
+        math.isfinite(LIVE_CANARY_MAX_DAILY_NOTIONAL_USD)
+        and 0 < LIVE_CANARY_MAX_DAILY_NOTIONAL_USD
         <= LIVE_CANARY_HARD_MAX_DAILY_NOTIONAL_USD
-    ):
+    )
+    if not max_daily_notional_valid:
         blockers.append("LIVE_CANARY_MAX_DAILY_NOTIONAL_USD_INVALID")
 
     try:
@@ -7857,7 +7860,8 @@ def get_live_canary_blockers(trader=None, amount_usd=None):
     except (TypeError, ValueError):
         selected_amount = 0.0
     if (
-        not math.isfinite(selected_amount)
+        not max_buy_usd_valid
+        or not math.isfinite(selected_amount)
         or selected_amount <= 0
         or selected_amount > LIVE_CANARY_MAX_BUY_USD
         or selected_amount > LIVE_CANARY_HARD_MAX_BUY_USD
@@ -7886,10 +7890,14 @@ def get_live_canary_blockers(trader=None, amount_usd=None):
     else:
         if int(exposure.get("unresolved_without_signature") or 0):
             blockers.append("LIVE_AMBIGUOUS_ORDER_PENDING")
-        if exposure["attempts"] >= LIVE_CANARY_MAX_BUYS_PER_DAY:
+        if (
+            max_buys_per_day_valid
+            and exposure["attempts"] >= LIVE_CANARY_MAX_BUYS_PER_DAY
+        ):
             blockers.append("LIVE_CANARY_BUY_LIMIT_REACHED")
         if (
-            exposure["notional_usd"] + max(selected_amount, 0)
+            max_daily_notional_valid
+            and exposure["notional_usd"] + max(selected_amount, 0)
             > LIVE_CANARY_MAX_DAILY_NOTIONAL_USD
         ):
             blockers.append("LIVE_CANARY_NOTIONAL_LIMIT_REACHED")

@@ -407,13 +407,62 @@ class LiveCanaryGuardTests(unittest.TestCase):
             "LIVE_CANARY_ENABLED",
             False,
             create=True,
+        ), patch.object(
+            app,
+            "LIVE_APPROVED_MODEL_VERSION",
+            "",
+        ), patch.object(
+            app,
+            "SHADOW_MODEL",
+            None,
+        ), patch.object(
+            app,
+            "LIVE_CANARY_MAX_BUY_USD",
+            0.0,
+        ), patch.object(
+            app,
+            "LIVE_CANARY_MAX_BUYS_PER_DAY",
+            0,
+        ), patch.object(
+            app,
+            "LIVE_CANARY_MAX_DAILY_NOTIONAL_USD",
+            0.0,
+        ), patch.object(
+            app,
+            "LIVE_CANARY_ALLOWED_TRADERS",
+            set(),
+        ), patch.object(
+            app,
+            "LIVE_SELLS_ENABLED",
+            False,
+        ), patch.object(
+            app,
+            "get_live_exit_feed_readiness",
+            return_value={"ready": True, "blockers": []},
+        ), patch.object(
+            app,
+            "get_daily_live_buy_exposure",
+            return_value={"attempts": 0, "notional_usd": 0.0},
         ):
             blockers = app.get_live_canary_blockers(
                 trader="marcell",
                 amount_usd=1.0,
             )
 
-        self.assertIn("LIVE_CANARY_DISABLED", blockers)
+        self.assertEqual(
+            blockers,
+            [
+                "LIVE_CANARY_DISABLED",
+                "LIVE_APPROVED_MODEL_VERSION_MISSING",
+                "LIVE_MODEL_NOT_DEPLOYMENT_READY",
+                "LIVE_CANARY_MAX_BUY_USD_INVALID",
+                "LIVE_CANARY_MAX_BUYS_PER_DAY_INVALID",
+                "LIVE_CANARY_MAX_DAILY_NOTIONAL_USD_INVALID",
+                "LIVE_CANARY_BUY_AMOUNT_INVALID",
+                "LIVE_CANARY_TRADERS_MISSING",
+                "LIVE_SELLS_REQUIRED_FOR_BUYS",
+            ],
+        )
 
     def test_status_never_reports_buy_ready_when_canary_blocks(self):
         shadow_stats = {"promotion_assessment": {"blockers": []}}
