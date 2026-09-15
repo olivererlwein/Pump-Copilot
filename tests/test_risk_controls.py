@@ -70,6 +70,34 @@ class NumericRiskValidationTests(unittest.TestCase):
 
 
 class LiveTradingGuardTests(unittest.TestCase):
+    def test_readiness_endpoint_exposes_side_specific_preflight(self):
+        expected = {"ready": False, "blockers": ["LIVE_BUYS_DISABLED"]}
+        with patch.object(app, "auth") as auth, patch.object(
+            app,
+            "get_live_execution_readiness",
+            return_value=expected,
+        ) as readiness:
+            result = app.api_live_execution_readiness(
+                x_app_token="test-token",
+                execution_side=" BUY ",
+            )
+
+        auth.assert_called_once_with("test-token")
+        readiness.assert_called_once_with("buy")
+        self.assertEqual(result, expected)
+
+    def test_readiness_endpoint_rejects_unknown_side(self):
+        with patch.object(app, "auth"), self.assertRaises(
+            app.HTTPException,
+        ) as raised:
+            app.api_live_execution_readiness(
+                x_app_token="test-token",
+                execution_side="withdraw",
+            )
+
+        self.assertEqual(raised.exception.status_code, 400)
+        self.assertEqual(raised.exception.detail, "INVALID_EXECUTION_SIDE")
+
     def test_live_readiness_rejects_a_different_balance_wallet(self):
         shadow_stats = {"promotion_assessment": {"blockers": []}}
         with patch.object(

@@ -15056,9 +15056,16 @@ def api_shadow_stats(
 @app.get("/api/live-execution-readiness")
 def api_live_execution_readiness(
     x_app_token: str = Header(default=""),
+    execution_side: str = "",
 ):
     auth(x_app_token)
-    return get_live_execution_readiness()
+    normalized_side = str(execution_side or "").strip().lower()
+    if normalized_side not in ("", "buy", "sell"):
+        raise HTTPException(
+            status_code=400,
+            detail="INVALID_EXECUTION_SIDE",
+        )
+    return get_live_execution_readiness(normalized_side)
 
 
 @app.get("/api/live-positions")
