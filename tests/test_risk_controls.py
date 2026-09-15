@@ -669,7 +669,9 @@ class LiveCanaryGuardTests(unittest.TestCase):
                 canary_limits={
                     "start_of_day_ts": app.get_local_day_start_ts(),
                     "max_buys": 1,
+                    "max_buys_per_trader": 1,
                     "max_notional_usd": 1.0,
+                    "trader": "marcell",
                 },
             )
 
@@ -766,7 +768,9 @@ class ExecutionAdapterTests(unittest.TestCase):
                     canary_limits={
                         "start_of_day_ts": 0.0,
                         "max_buys": 1,
+                        "max_buys_per_trader": 1,
                         "max_notional_usd": 1.0,
+                        "trader": key,
                     },
                 ))
             except Exception as exc:
@@ -792,6 +796,145 @@ class ExecutionAdapterTests(unittest.TestCase):
         blocked = [result for result in results if result.get("blocked")]
         self.assertEqual(len(blocked), 1)
         self.assertEqual(blocked[0]["reason"], "LIVE_CANARY_BUY_LIMIT_REACHED")
+
+    def test_live_canary_reserves_one_daily_buy_per_trader_atomically(self):
+        results = []
+        errors = []
+
+        def create(key):
+            try:
+                results.append(app.create_execution_order_idempotent(
+                    mint=f"mint-{key}",
+                    side="buy",
+                    amount_usd=1.0,
+                    expected_price=1.0,
+                    execution_price=None,
+                    liquidity_sol=20.0,
+                    idempotency_key=key,
+                    source="pumpportal_lightning",
+                    mode="live",
+                    canary_limits={
+                        "start_of_day_ts": 0.0,
+                        "max_buys": 3,
+                        "max_buys_per_trader": 1,
+                        "max_notional_usd": 3.0,
+                        "trader": "Cooker",
+                    },
+                ))
+            except Exception as exc:
+                errors.append(exc)
+
+        with tempfile.TemporaryDirectory() as temp_dir, patch.object(
+            app,
+            "DB",
+            Path(temp_dir) / "per-trader-canary.db",
+        ):
+            app.migrate_database()
+            threads = [
+                threading.Thread(target=create, args=(f"trader-{index}",))
+                for index in range(2)
+            ]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join()
+
+        self.assertEqual(errors, [])
+        self.assertEqual(sum(result["created"] for result in results), 1)
+        blocked = [result for result in results if result.get("blocked")]
+        self.assertEqual(
+            [result["reason"] for result in blocked],
+            ["LIVE_CANARY_TRADER_BUY_LIMIT_REACHED"],
+        )
+
+    def test_live_canary_allows_one_buy_from_each_trader(self):
+        with tempfile.TemporaryDirectory() as temp_dir, patch.object(
+            app,
+            "DB",
+            Path(temp_dir) / "diverse-canary.db",
+        ):
+            app.migrate_database()
+            results = []
+            for trader in ("Cooker", "decu", "epicsealdarkeye"):
+                results.append(app.create_execution_order_idempotent(
+                    mint=f"mint-{trader}",
+                    side="buy",
+                    amount_usd=1.0,
+                    expected_price=1.0,
+                    execution_price=None,
+                    liquidity_sol=20.0,
+                    idempotency_key=f"signal-{trader}",
+                    source="pumpportal_lightning",
+                    mode="live",
+                    canary_limits={
+                        "start_of_day_ts": 0.0,
+                        "max_buys": 3,
+                        "max_buys_per_trader": 1,
+                        "max_notional_usd": 3.0,
+                        "trader": trader,
+                    },
+                ))
+
+        self.assertTrue(all(result["created"] for result in results))
+
+    def test_live_canary_per_trader_hard_limit_cannot_be_raised(self):
+        with tempfile.TemporaryDirectory() as temp_dir, patch.object(
+            app,
+            "DB",
+            Path(temp_dir) / "hard-limit-canary.db",
+        ):
+            app.migrate_database()
+            limits = {
+                "start_of_day_ts": 0.0,
+                "max_buys": 3,
+                "max_buys_per_trader": 99,
+                "max_notional_usd": 3.0,
+                "trader": "Cooker",
+            }
+            first = app.create_execution_order_idempotent(
+                mint="mint-first",
+                side="buy",
+                amount_usd=1.0,
+                expected_price=1.0,
+                execution_price=None,
+                liquidity_sol=20.0,
+                idempotency_key="first",
+                source="pumpportal_lightning",
+                mode="live",
+                canary_limits=limits,
+            )
+            second = app.create_execution_order_idempotent(
+                mint="mint-second",
+                side="buy",
+                amount_usd=1.0,
+                expected_price=1.0,
+                execution_price=None,
+                liquidity_sol=20.0,
+                idempotency_key="second",
+                source="pumpportal_lightning",
+                mode="live",
+                canary_limits=limits,
+            )
+            exposure = app.get_daily_live_buy_exposure(
+                now=time.time(),
+                trader="Cooker",
+            )
+            conn = app.db()
+            try:
+                saved_trader = conn.execute(
+                    "SELECT origin_trader FROM execution_orders WHERE id = ?",
+                    (first["order_id"],),
+                ).fetchone()[0]
+            finally:
+                conn.close()
+
+        self.assertTrue(first["created"])
+        self.assertEqual(saved_trader, "Cooker")
+        self.assertEqual(exposure["trader_attempts"], 1)
+        self.assertEqual(
+            second["reason"],
+            "LIVE_CANARY_TRADER_BUY_LIMIT_REACHED",
+        )
 
     def test_rejects_live_and_unknown_providers(self):
         with patch.object(app, "simulate_execution") as simulate:
@@ -1190,7 +1333,10 @@ class ExecutionAdapterTests(unittest.TestCase):
 
             self.assertEqual(first["status"], "PENDING_RECONCILIATION")
             self.assertEqual(second["reason"], "IDEMPOTENT_REUSE")
-            self.assertEqual(third["reason"], "LIVE_EXECUTION_IN_PROGRESS")
+            self.assertEqual(
+                third["reason"],
+                "LIVE_CANARY_TRADER_BUY_LIMIT_REACHED",
+            )
             submit.assert_called_once()
 
             with patch.object(

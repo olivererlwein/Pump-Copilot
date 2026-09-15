@@ -298,6 +298,7 @@ LIVE_CANARY_ALLOWED_TRADERS = {
 # canary en operación normal mediante variables de Railway demasiado amplias.
 LIVE_CANARY_HARD_MAX_BUY_USD = 1.0
 LIVE_CANARY_HARD_MAX_BUYS_PER_DAY = 3
+LIVE_CANARY_HARD_MAX_BUYS_PER_TRADER_PER_DAY = 1
 LIVE_CANARY_HARD_MAX_DAILY_NOTIONAL_USD = 3.0
 
 LIVE_BUYS_ENABLED = os.getenv(
@@ -1431,7 +1432,7 @@ def get_local_day_start_ts(now=None):
     ))
 
 
-def get_daily_live_buy_exposure(now=None, connection=None):
+def get_daily_live_buy_exposure(now=None, connection=None, trader=None):
     start_of_day = get_local_day_start_ts(now)
     conn = connection or db()
     row = conn.execute(
@@ -1444,12 +1445,23 @@ def get_daily_live_buy_exposure(now=None, connection=None):
         "AND ts_created >= ?",
         (start_of_day,),
     ).fetchone()
+    normalized_trader = str(trader or "").strip()
+    trader_attempts = 0
+    if normalized_trader:
+        trader_row = conn.execute(
+            "SELECT COUNT(*) FROM execution_orders "
+            "WHERE mode = 'live' AND side = 'buy' AND ts_created >= ? "
+            "AND origin_trader = ?",
+            (start_of_day, normalized_trader),
+        ).fetchone()
+        trader_attempts = int(trader_row[0] or 0)
     if connection is None:
         conn.close()
     return {
         "attempts": int(row[0] or 0),
         "notional_usd": float(row[1] or 0),
         "unresolved_without_signature": int(row[2] or 0),
+        "trader_attempts": trader_attempts,
     }
 
 
@@ -3124,6 +3136,7 @@ def execute_pumpportal_lightning_buy(
             "start_of_day_ts": get_local_day_start_ts(),
             "max_buys": LIVE_CANARY_MAX_BUYS_PER_DAY,
             "max_notional_usd": LIVE_CANARY_MAX_DAILY_NOTIONAL_USD,
+            "trader": origin_trader,
         },
     )
     if order.get("blocked"):
@@ -3469,6 +3482,15 @@ def create_execution_order_idempotent(
             }
 
         if canary_limits is not None:
+            canary_trader = str(canary_limits.get("trader") or "").strip()
+            if not canary_trader:
+                conn.commit()
+                conn.close()
+                return {
+                    "created": False,
+                    "blocked": True,
+                    "reason": "LIVE_CANARY_TRADER_REQUIRED",
+                }
             ambiguous = conn.execute(
                 "SELECT COUNT(*) FROM execution_orders "
                 "WHERE mode = 'live' AND source = 'pumpportal_lightning' "
@@ -3496,6 +3518,26 @@ def create_execution_order_idempotent(
                     "created": False,
                     "blocked": True,
                     "reason": "LIVE_CANARY_BUY_LIMIT_REACHED",
+                }
+            trader_exposure = conn.execute(
+                "SELECT COUNT(*) FROM execution_orders "
+                "WHERE mode = 'live' AND side = 'buy' AND ts_created >= ? "
+                "AND origin_trader = ?",
+                (
+                    float(canary_limits["start_of_day_ts"]),
+                    canary_trader,
+                ),
+            ).fetchone()
+            if (
+                int(trader_exposure[0] or 0)
+                >= LIVE_CANARY_HARD_MAX_BUYS_PER_TRADER_PER_DAY
+            ):
+                conn.commit()
+                conn.close()
+                return {
+                    "created": False,
+                    "blocked": True,
+                    "reason": "LIVE_CANARY_TRADER_BUY_LIMIT_REACHED",
                 }
             if (
                 float(exposure[1] or 0) + float(amount_usd)
@@ -3526,10 +3568,11 @@ def create_execution_order_idempotent(
         reason,
         source,
         parent_order_id,
-        mode
+        mode,
+        origin_trader
     )
     VALUES(
-        ?,?,?,?,?,?,?,?,?,?,?,?,?
+        ?,?,?,?,?,?,?,?,?,?,?,?,?,?
     )
     """,
     (
@@ -3545,7 +3588,12 @@ def create_execution_order_idempotent(
         "",
         source,
         parent_order_id,
-        mode
+        mode,
+        (
+            str(canary_limits.get("trader") or "").strip()
+            if canary_limits is not None
+            else None
+        ),
     )
 )
 
@@ -7899,7 +7947,7 @@ def get_live_canary_blockers(trader=None, amount_usd=None):
             blockers.append("LIVE_EXIT_FEED_NOT_READY")
 
     try:
-        exposure = get_daily_live_buy_exposure()
+        exposure = get_daily_live_buy_exposure(trader=trader)
     except Exception:
         blockers.append("LIVE_CANARY_EXPOSURE_UNKNOWN")
     else:
@@ -7910,6 +7958,12 @@ def get_live_canary_blockers(trader=None, amount_usd=None):
             and exposure["attempts"] >= LIVE_CANARY_MAX_BUYS_PER_DAY
         ):
             blockers.append("LIVE_CANARY_BUY_LIMIT_REACHED")
+        if (
+            trader
+            and int(exposure.get("trader_attempts") or 0)
+            >= LIVE_CANARY_HARD_MAX_BUYS_PER_TRADER_PER_DAY
+        ):
+            blockers.append("LIVE_CANARY_TRADER_BUY_LIMIT_REACHED")
         if (
             max_daily_notional_valid
             and exposure["notional_usd"] + max(selected_amount, 0)
@@ -8019,6 +8073,9 @@ def get_live_execution_readiness(
         "live_approved_model_version": LIVE_APPROVED_MODEL_VERSION or None,
         "live_canary_max_buy_usd": LIVE_CANARY_MAX_BUY_USD,
         "live_canary_max_buys_per_day": LIVE_CANARY_MAX_BUYS_PER_DAY,
+        "live_canary_max_buys_per_trader_per_day": (
+            LIVE_CANARY_HARD_MAX_BUYS_PER_TRADER_PER_DAY
+        ),
         "live_canary_max_daily_notional_usd": (
             LIVE_CANARY_MAX_DAILY_NOTIONAL_USD
         ),
