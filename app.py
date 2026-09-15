@@ -243,12 +243,19 @@ DEBUG_MODE = os.getenv(
     "false"
 ).lower() == "true"
 
+
+def environment_flag(name, default=False):
+    fallback = "true" if default else "false"
+    return os.getenv(name, fallback).strip().lower() == "true"
+
 LIVE_TRADING = os.getenv(
     "LIVE_TRADING",
     "false"
 ).lower() == "true"
 
-LIVE_EXECUTION_IMPLEMENTED = False
+LIVE_EXECUTION_IMPLEMENTED = environment_flag(
+    "LIVE_EXECUTION_IMPLEMENTED",
+)
 
 LIVE_CANARY_ENABLED = os.getenv(
     "LIVE_CANARY_ENABLED",

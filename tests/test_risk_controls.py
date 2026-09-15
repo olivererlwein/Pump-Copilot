@@ -70,6 +70,27 @@ class NumericRiskValidationTests(unittest.TestCase):
 
 
 class LiveTradingGuardTests(unittest.TestCase):
+    def test_live_execution_implementation_flag_defaults_closed(self):
+        with patch.dict(app.os.environ, {}, clear=True):
+            self.assertFalse(app.environment_flag("LIVE_EXECUTION_IMPLEMENTED"))
+
+        for configured in ("true", "TRUE", " true "):
+            with self.subTest(configured=configured), patch.dict(
+                app.os.environ,
+                {"LIVE_EXECUTION_IMPLEMENTED": configured},
+                clear=True,
+            ):
+                self.assertTrue(
+                    app.environment_flag("LIVE_EXECUTION_IMPLEMENTED")
+                )
+
+        with patch.dict(
+            app.os.environ,
+            {"LIVE_EXECUTION_IMPLEMENTED": "yes"},
+            clear=True,
+        ):
+            self.assertFalse(app.environment_flag("LIVE_EXECUTION_IMPLEMENTED"))
+
     def test_readiness_endpoint_exposes_side_specific_preflight(self):
         expected = {"ready": False, "blockers": ["LIVE_BUYS_DISABLED"]}
         with patch.object(app, "auth") as auth, patch.object(
