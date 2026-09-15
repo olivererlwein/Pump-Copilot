@@ -300,6 +300,7 @@ LIVE_CANARY_HARD_MAX_BUY_USD = 1.0
 LIVE_CANARY_HARD_MAX_BUYS_PER_DAY = 3
 LIVE_CANARY_HARD_MAX_BUYS_PER_TRADER_PER_DAY = 1
 LIVE_CANARY_HARD_MAX_DAILY_NOTIONAL_USD = 3.0
+LIVE_CANARY_REVIEWED_MODEL_VERSION = ""
 
 LIVE_BUYS_ENABLED = os.getenv(
     "LIVE_BUYS_ENABLED",
@@ -7895,6 +7896,10 @@ def get_live_canary_blockers(trader=None, amount_usd=None):
         blockers.append("LIVE_APPROVED_MODEL_VERSION_MISMATCH")
     if not bool(getattr(SHADOW_MODEL, "deployment_ready", False)):
         blockers.append("LIVE_MODEL_NOT_DEPLOYMENT_READY")
+    if not LIVE_CANARY_REVIEWED_MODEL_VERSION:
+        blockers.append("LIVE_MODEL_ECONOMICS_REVIEW_REQUIRED")
+    elif loaded_model_version != LIVE_CANARY_REVIEWED_MODEL_VERSION:
+        blockers.append("LIVE_MODEL_ECONOMICS_VERSION_MISMATCH")
 
     max_buy_usd_valid = (
         math.isfinite(LIVE_CANARY_MAX_BUY_USD)
@@ -8071,6 +8076,9 @@ def get_live_execution_readiness(
         "live_buy_usd": LIVE_BUY_USD,
         "live_canary_enabled": bool(LIVE_CANARY_ENABLED),
         "live_approved_model_version": LIVE_APPROVED_MODEL_VERSION or None,
+        "live_reviewed_model_version": (
+            LIVE_CANARY_REVIEWED_MODEL_VERSION or None
+        ),
         "live_canary_max_buy_usd": LIVE_CANARY_MAX_BUY_USD,
         "live_canary_max_buys_per_day": LIVE_CANARY_MAX_BUYS_PER_DAY,
         "live_canary_max_buys_per_trader_per_day": (

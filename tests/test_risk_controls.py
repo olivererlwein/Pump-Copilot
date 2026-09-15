@@ -377,6 +377,15 @@ class LiveTradingGuardTests(unittest.TestCase):
 
 
 class LiveCanaryGuardTests(unittest.TestCase):
+    def setUp(self):
+        review_patch = patch.object(
+            app,
+            "LIVE_CANARY_REVIEWED_MODEL_VERSION",
+            "incumbent-v1",
+        )
+        review_patch.start()
+        self.addCleanup(review_patch.stop)
+
     def approved_model(self, version="incumbent-v1"):
         model = MagicMock()
         model.model_version = version
@@ -434,6 +443,10 @@ class LiveCanaryGuardTests(unittest.TestCase):
             "",
         ), patch.object(
             app,
+            "LIVE_CANARY_REVIEWED_MODEL_VERSION",
+            "",
+        ), patch.object(
+            app,
             "SHADOW_MODEL",
             None,
         ), patch.object(
@@ -476,6 +489,7 @@ class LiveCanaryGuardTests(unittest.TestCase):
                 "LIVE_CANARY_DISABLED",
                 "LIVE_APPROVED_MODEL_VERSION_MISSING",
                 "LIVE_MODEL_NOT_DEPLOYMENT_READY",
+                "LIVE_MODEL_ECONOMICS_REVIEW_REQUIRED",
                 "LIVE_CANARY_MAX_BUY_USD_INVALID",
                 "LIVE_CANARY_MAX_BUYS_PER_DAY_INVALID",
                 "LIVE_CANARY_MAX_DAILY_NOTIONAL_USD_INVALID",
@@ -545,6 +559,41 @@ class LiveCanaryGuardTests(unittest.TestCase):
 
         self.assertIn("LIVE_APPROVED_MODEL_VERSION_MISMATCH", wrong_model)
         self.assertIn("LIVE_CANARY_TRADER_NOT_ALLOWED", wrong_trader)
+
+    def test_railway_model_version_cannot_bypass_economics_review(self):
+        patches = self.canary_patches()
+        with patches[0], patches[1], patches[2], patches[3], patches[4], (
+            patches[5]
+        ), patches[6], patches[7], patches[8], patches[9], patch.object(
+            app,
+            "LIVE_CANARY_REVIEWED_MODEL_VERSION",
+            "",
+        ):
+            missing_review = app.get_live_canary_blockers("marcell", 1.0)
+            sell_blockers = app.get_live_execution_readiness("sell")["blockers"]
+
+        self.assertEqual(
+            missing_review,
+            ["LIVE_MODEL_ECONOMICS_REVIEW_REQUIRED"],
+        )
+        self.assertNotIn(
+            "LIVE_MODEL_ECONOMICS_REVIEW_REQUIRED",
+            sell_blockers,
+        )
+
+        patches = self.canary_patches()
+        with patches[0], patches[1], patches[2], patches[3], patches[4], (
+            patches[5]
+        ), patches[6], patches[7], patches[8], patches[9], patch.object(
+            app,
+            "LIVE_CANARY_REVIEWED_MODEL_VERSION",
+            "different-model",
+        ):
+            wrong_review = app.get_live_canary_blockers("marcell", 1.0)
+        self.assertIn(
+            "LIVE_MODEL_ECONOMICS_VERSION_MISMATCH",
+            wrong_review,
+        )
 
     def test_canary_enforces_hard_and_daily_exposure_limits(self):
         patches = self.canary_patches()
