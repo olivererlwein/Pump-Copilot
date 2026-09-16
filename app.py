@@ -36,6 +36,8 @@ from helius_webhook_sync import (
 )
 from solana_receipts import parse_buy_receipt, parse_sell_receipt
 from solana_rpc_fallback import (
+    PUMP_AMM_PROGRAM_ID,
+    PUMP_PROGRAM_ID,
     fetch_confirmed_transaction,
     fetch_signatures_for_address,
     parse_watched_wallet_pump_events,
@@ -256,6 +258,14 @@ LIVE_TRADING = os.getenv(
 LIVE_EXECUTION_IMPLEMENTED = environment_flag(
     "LIVE_EXECUTION_IMPLEMENTED",
 )
+from helius_standard_wss import (
+    build_helius_standard_wss_url,
+    build_logs_subscribe_request,
+    decode_wss_message,
+    invokes_program,
+    parse_logs_notification,
+    subscription_confirmation,
+)
 
 LIVE_CANARY_ENABLED = os.getenv(
     "LIVE_CANARY_ENABLED",
@@ -450,6 +460,46 @@ HELIUS_WEBHOOK_SYNC_TIMEOUT_SECONDS = max(
 
 HELIUS_WEBHOOK_SYNC_LOCK = threading.Lock()
 HELIUS_WEBHOOK_SYNC_ALERT_ACTIVE = False
+
+# Piloto de bajo costo: recibe solo logs de las wallets vigiladas y pide la
+# transacción completa únicamente cuando los logs invocan Pump/Pump AMM.
+# `APPLY` queda separado para medir cobertura y consumo antes de alimentar el
+# inbox que toma decisiones.
+HELIUS_STANDARD_WSS_ENABLED = os.getenv(
+    "HELIUS_STANDARD_WSS_ENABLED", "false"
+).lower() == "true"
+HELIUS_STANDARD_WSS_APPLY = os.getenv(
+    "HELIUS_STANDARD_WSS_APPLY", "false"
+).lower() == "true"
+HELIUS_STANDARD_WSS_URL = os.getenv("HELIUS_STANDARD_WSS_URL", "").strip()
+HELIUS_STANDARD_WSS_RECONNECT_SECONDS = max(
+    1, int(os.getenv("HELIUS_STANDARD_WSS_RECONNECT_SECONDS", "3"))
+)
+HELIUS_STANDARD_WSS_FETCH_RETRIES = max(
+    1, min(5, int(os.getenv("HELIUS_STANDARD_WSS_FETCH_RETRIES", "3")))
+)
+HELIUS_STANDARD_WSS_MAX_IN_FLIGHT = max(
+    1, min(20, int(os.getenv("HELIUS_STANDARD_WSS_MAX_IN_FLIGHT", "4")))
+)
+HELIUS_STANDARD_WSS_FETCH_INTERVAL_SECONDS = max(
+    0.1,
+    float(os.getenv("HELIUS_STANDARD_WSS_FETCH_INTERVAL_SECONDS", "0.15")),
+)
+HELIUS_STANDARD_WSS_MAX_PENDING = max(
+    10, min(5000, int(os.getenv("HELIUS_STANDARD_WSS_MAX_PENDING", "500")))
+)
+HELIUS_STANDARD_WSS_STATE_LOCK = threading.Lock()
+HELIUS_STANDARD_WSS_STATE = {
+    "connected": False,
+    "subscriptions": 0,
+    "pending_fetches": 0,
+    "last_connect_ts": None,
+    "last_message_ts": None,
+    "last_pump_log_ts": None,
+    "last_success_ts": None,
+    "last_error": None,
+    "reconnects": 0,
+}
 
 MARKET_EVENT_INBOX_ACTIVATION_STATE_KEY = (
     "market_event_inbox_processing_activation_ts"
@@ -715,13 +765,56 @@ def db():
             wallet TEXT NOT NULL,
             received_ts REAL NOT NULL,
             parsed INTEGER NOT NULL,
+            pump_program_in_accounts INTEGER,
+            PRIMARY KEY(signature, wallet)
+        )
+        """
+    )
+    wallet_observation_columns = {
+        row[1] for row in conn.execute(
+            "PRAGMA table_info(helius_webhook_wallet_observations)"
+        )
+    }
+    if "pump_program_in_accounts" not in wallet_observation_columns:
+        conn.execute(
+            "ALTER TABLE helius_webhook_wallet_observations "
+            "ADD COLUMN pump_program_in_accounts INTEGER"
+        )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_helius_wallet_observations_received "
+        "ON helius_webhook_wallet_observations(received_ts, wallet)"
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS helius_standard_wss_notifications(
+            signature TEXT NOT NULL,
+            wallet TEXT NOT NULL,
+            received_ts REAL NOT NULL,
+            slot INTEGER,
+            failed INTEGER NOT NULL,
+            pump_logs INTEGER NOT NULL,
+            message_bytes INTEGER NOT NULL,
             PRIMARY KEY(signature, wallet)
         )
         """
     )
     conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_helius_wallet_observations_received "
-        "ON helius_webhook_wallet_observations(received_ts, wallet)"
+        "CREATE INDEX IF NOT EXISTS idx_helius_wss_notifications_received "
+        "ON helius_standard_wss_notifications(received_ts)"
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS helius_standard_wss_transactions(
+            signature TEXT PRIMARY KEY,
+            first_received_ts REAL NOT NULL,
+            fetched_ts REAL,
+            block_time REAL,
+            status TEXT NOT NULL,
+            fetch_attempts INTEGER NOT NULL DEFAULT 0,
+            parsed_events INTEGER NOT NULL DEFAULT 0,
+            last_error TEXT
+        )
+        """
     )
 
     # Eventos normalizados preservados antes de activar cualquier efecto. Una
@@ -13175,6 +13268,11 @@ async def startup():
         asyncio.create_task(
             helius_webhook_sync_worker()
         )
+
+    if HELIUS_STANDARD_WSS_ENABLED:
+        asyncio.create_task(
+            helius_standard_wss_worker()
+        )
 # =========================================================
 # AUTENTICACIÓN
 # =========================================================
@@ -14650,7 +14748,352 @@ async def helius_webhook_sync_worker():
         await asyncio.sleep(HELIUS_WEBHOOK_SYNC_POLL_SECONDS)
 
 
-def record_helius_webhook_transactions(payload, received_ts=None):
+def update_helius_standard_wss_state(**updates):
+    with HELIUS_STANDARD_WSS_STATE_LOCK:
+        HELIUS_STANDARD_WSS_STATE.update(updates)
+
+
+def record_helius_standard_wss_notification(
+    event,
+    pump_logs,
+    message_bytes,
+    received_ts=None,
+):
+    received_ts = float(
+        received_ts if received_ts is not None else time.time()
+    )
+    signature = event["signature"]
+    conn = db()
+    try:
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO helius_standard_wss_notifications(
+                signature, wallet, received_ts, slot, failed, pump_logs,
+                message_bytes
+            ) VALUES(?,?,?,?,?,?,?)
+            """,
+            (
+                signature,
+                event["wallet"],
+                received_ts,
+                event.get("slot"),
+                int(bool(event.get("failed"))),
+                int(bool(pump_logs)),
+                max(0, int(message_bytes)),
+            ),
+        )
+        should_fetch = False
+        if pump_logs and not event.get("failed"):
+            cursor = conn.execute(
+                """
+                INSERT OR IGNORE INTO helius_standard_wss_transactions(
+                    signature, first_received_ts, status
+                ) VALUES(?,?,'observed')
+                """,
+                (signature, received_ts),
+            )
+            should_fetch = bool(cursor.rowcount)
+        conn.commit()
+        return should_fetch
+    finally:
+        conn.close()
+
+
+def finish_helius_standard_wss_transaction(
+    signature,
+    status,
+    attempts,
+    parsed_events=0,
+    block_time=None,
+    error=None,
+    now=None,
+):
+    conn = db()
+    try:
+        conn.execute(
+            """
+            UPDATE helius_standard_wss_transactions
+            SET fetched_ts = ?, block_time = ?, status = ?,
+                fetch_attempts = ?, parsed_events = ?, last_error = ?
+            WHERE signature = ?
+            """,
+            (
+                float(now if now is not None else time.time()),
+                block_time,
+                status,
+                int(attempts),
+                int(parsed_events),
+                str(error)[:500] if error else None,
+                signature,
+            ),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+async def fetch_helius_standard_wss_transaction(
+    event,
+    received_ts,
+    pending_signatures,
+    semaphore,
+    rate_lock,
+    rate_state,
+):
+    signature = event["signature"]
+    attempts = 0
+    try:
+        async with semaphore:
+            receipt = None
+            last_error = None
+            for attempt in range(HELIUS_STANDARD_WSS_FETCH_RETRIES):
+                attempts = attempt + 1
+                async with rate_lock:
+                    delay = rate_state["next_ts"] - time.monotonic()
+                    if delay > 0:
+                        await asyncio.sleep(delay)
+                    rate_state["next_ts"] = (
+                        time.monotonic()
+                        + HELIUS_STANDARD_WSS_FETCH_INTERVAL_SECONDS
+                    )
+                try:
+                    receipt = await asyncio.to_thread(
+                        fetch_confirmed_transaction,
+                        SOLANA_RPC_URL,
+                        signature,
+                    )
+                except Exception as exc:
+                    last_error = f"{exc.__class__.__name__}:{exc}"
+                if receipt is not None:
+                    break
+                if attempt + 1 < HELIUS_STANDARD_WSS_FETCH_RETRIES:
+                    await asyncio.sleep(0.5 * (2 ** attempt))
+
+            if receipt is None:
+                error = last_error or "TRANSACTION_NOT_AVAILABLE"
+                await asyncio.to_thread(
+                    finish_helius_standard_wss_transaction,
+                    signature,
+                    "fetch_failed",
+                    attempts,
+                    error=error,
+                )
+                update_helius_standard_wss_state(last_error=error)
+                return
+
+            result = await asyncio.to_thread(
+                record_helius_webhook_transactions,
+                [receipt],
+                received_ts=received_ts,
+                persist_inbox=HELIUS_STANDARD_WSS_APPLY,
+                persist_observation=HELIUS_STANDARD_WSS_APPLY,
+            )
+            parsed_events = int(result.get("parsed_events") or 0)
+            status = (
+                "applied" if HELIUS_STANDARD_WSS_APPLY
+                else "observed"
+            )
+            if not parsed_events:
+                status = "unparsed"
+            await asyncio.to_thread(
+                finish_helius_standard_wss_transaction,
+                signature,
+                status,
+                attempts,
+                parsed_events,
+                receipt.get("blockTime"),
+            )
+            update_helius_standard_wss_state(
+                last_success_ts=time.time(),
+                last_error=None,
+            )
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:
+        error = f"{exc.__class__.__name__}:{exc}"[:500]
+        try:
+            await asyncio.to_thread(
+                finish_helius_standard_wss_transaction,
+                signature,
+                "processing_failed",
+                attempts,
+                error=error,
+            )
+        finally:
+            update_helius_standard_wss_state(last_error=error)
+    finally:
+        pending_signatures.discard(signature)
+        update_helius_standard_wss_state(
+            pending_fetches=len(pending_signatures)
+        )
+
+
+async def helius_standard_wss_worker():
+    try:
+        url = build_helius_standard_wss_url(
+            HELIUS_API_KEY,
+            HELIUS_STANDARD_WSS_URL,
+        )
+    except ValueError as exc:
+        update_helius_standard_wss_state(last_error=str(exc))
+        return
+    if not url:
+        update_helius_standard_wss_state(
+            last_error="HELIUS_STANDARD_WSS_NOT_CONFIGURED"
+        )
+        return
+
+    pending_signatures = set()
+    fetch_tasks = set()
+    semaphore = asyncio.Semaphore(HELIUS_STANDARD_WSS_MAX_IN_FLIGHT)
+    rate_lock = asyncio.Lock()
+    rate_state = {"next_ts": 0.0}
+
+    while True:
+        wallets = sorted({
+            str(wallet).strip() for wallet in WATCHED.values()
+            if str(wallet).strip()
+        })
+        if not wallets:
+            update_helius_standard_wss_state(
+                connected=False,
+                subscriptions=0,
+                last_error="HELIUS_STANDARD_WSS_NO_WALLETS",
+            )
+            await asyncio.sleep(HELIUS_STANDARD_WSS_RECONNECT_SECONDS)
+            continue
+
+        try:
+            async with websockets.connect(
+                url,
+                ping_interval=30,
+                ping_timeout=30,
+                close_timeout=10,
+                max_size=4_000_000,
+            ) as websocket:
+                now = time.time()
+                update_helius_standard_wss_state(
+                    connected=True,
+                    subscriptions=0,
+                    last_connect_ts=now,
+                    last_error=None,
+                )
+                pending_requests = {}
+                subscriptions = {}
+                for request_id, wallet in enumerate(wallets, start=1):
+                    pending_requests[request_id] = wallet
+                    await websocket.send(json.dumps(
+                        build_logs_subscribe_request(request_id, wallet),
+                        separators=(",", ":"),
+                    ))
+
+                while True:
+                    try:
+                        raw = await asyncio.wait_for(
+                            websocket.recv(), timeout=60
+                        )
+                    except asyncio.TimeoutError:
+                        if len(subscriptions) < len(wallets):
+                            raise RuntimeError(
+                                "HELIUS_STANDARD_WSS_SUBSCRIPTION_TIMEOUT"
+                            )
+                        continue
+                    received_ts = time.time()
+                    update_helius_standard_wss_state(
+                        last_message_ts=received_ts
+                    )
+                    payload = decode_wss_message(raw)
+                    if payload.get("id") in pending_requests and payload.get(
+                        "error"
+                    ):
+                        raise RuntimeError(
+                            "HELIUS_STANDARD_WSS_SUBSCRIPTION_REJECTED:"
+                            + json.dumps(
+                                payload["error"],
+                                separators=(",", ":"),
+                            )[:300]
+                        )
+                    confirmation = subscription_confirmation(
+                        payload, pending_requests
+                    )
+                    if confirmation:
+                        subscription_id, wallet = confirmation
+                        subscriptions[subscription_id] = wallet
+                        update_helius_standard_wss_state(
+                            subscriptions=len(subscriptions)
+                        )
+                        continue
+
+                    event = parse_logs_notification(payload, subscriptions)
+                    if event is None:
+                        continue
+                    pump_logs = invokes_program(
+                        event["logs"],
+                        (PUMP_PROGRAM_ID, PUMP_AMM_PROGRAM_ID),
+                    )
+                    if pump_logs:
+                        update_helius_standard_wss_state(
+                            last_pump_log_ts=received_ts
+                        )
+                    should_fetch = await asyncio.to_thread(
+                        record_helius_standard_wss_notification,
+                        event,
+                        pump_logs,
+                        len(
+                            raw if isinstance(raw, bytes)
+                            else raw.encode("utf-8")
+                        ),
+                        received_ts,
+                    )
+                    if not should_fetch:
+                        continue
+                    if len(pending_signatures) >= HELIUS_STANDARD_WSS_MAX_PENDING:
+                        await asyncio.to_thread(
+                            finish_helius_standard_wss_transaction,
+                            event["signature"],
+                            "queue_full",
+                            0,
+                            error="HELIUS_STANDARD_WSS_QUEUE_FULL",
+                        )
+                        continue
+                    pending_signatures.add(event["signature"])
+                    update_helius_standard_wss_state(
+                        pending_fetches=len(pending_signatures)
+                    )
+                    task = asyncio.create_task(
+                        fetch_helius_standard_wss_transaction(
+                            event,
+                            received_ts,
+                            pending_signatures,
+                            semaphore,
+                            rate_lock,
+                            rate_state,
+                        )
+                    )
+                    fetch_tasks.add(task)
+                    task.add_done_callback(fetch_tasks.discard)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            with HELIUS_STANDARD_WSS_STATE_LOCK:
+                reconnects = int(
+                    HELIUS_STANDARD_WSS_STATE["reconnects"] or 0
+                ) + 1
+            update_helius_standard_wss_state(
+                connected=False,
+                subscriptions=0,
+                reconnects=reconnects,
+                last_error=f"{exc.__class__.__name__}:{exc}"[:500],
+            )
+            await asyncio.sleep(HELIUS_STANDARD_WSS_RECONNECT_SECONDS)
+
+
+def record_helius_webhook_transactions(
+    payload,
+    received_ts=None,
+    persist_inbox=True,
+    persist_observation=True,
+):
     """Registra lo que llegó por webhook. Observacional: no dispara nada.
 
     Devuelve cuántas transacciones se vieron, cuántas resultaron ser
@@ -14718,6 +15161,11 @@ def record_helius_webhook_transactions(payload, received_ts=None):
             observed_wallets = account_addresses.intersection(
                 wallets_by_address
             )
+            pump_program_in_accounts = int(bool(
+                account_addresses.intersection((
+                    PUMP_PROGRAM_ID, PUMP_AMM_PROGRAM_ID
+                ))
+            ))
 
             # Una transacción puede tocar varias wallets vigiladas. El resumen
             # por transacción conserva la primera, pero el inbox guarda cada
@@ -14789,49 +15237,51 @@ def record_helius_webhook_transactions(payload, received_ts=None):
             parsed = matched_events[0][0]["event"] if matched_events else None
             parsed_events += len(matched_events)
 
-            for parsed_event, event_wallet, event_trader in matched_events:
-                normalized_event = parsed_event["event"]
-                conn.execute(
-                    """
-                    INSERT OR IGNORE INTO market_event_inbox(
-                        signature, event_index, event_index_scheme,
-                        source, wallet, trader,
-                        mint, side, pool, block_time, block_event_ts,
-                        received_ts, event_json
-                    )
-                    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)
-                    """,
-                    (
-                        signature,
-                        # Del evento, que es lo que se serializa más abajo en
-                        # `event_json`: la columna y el JSON no pueden
-                        # discrepar, y al reconstruir el evento el índice sigue
-                        # estando. `required` porque acá el evento es nuestro:
-                        # si no trae índice, se perdió en el camino.
-                        market_event_index(normalized_event, required=True),
-                        "ordinal-v2",
-                        "helius",
-                        event_wallet,
-                        event_trader,
-                        normalized_event.get("mint"),
-                        normalized_event.get("txType"),
-                        normalized_event.get("pool"),
-                        float(block_time) if block_time else None,
-                        # Del evento, igual que el índice: la columna es copia
-                        # derivada de lo que se serializa, no un dato aparte.
-                        market_event_block_ts(normalized_event),
-                        received_ts,
-                        json.dumps(
-                            normalized_event,
-                            sort_keys=True,
-                            separators=(",", ":"),
+            if persist_inbox:
+                for parsed_event, event_wallet, event_trader in matched_events:
+                    normalized_event = parsed_event["event"]
+                    conn.execute(
+                        """
+                        INSERT OR IGNORE INTO market_event_inbox(
+                            signature, event_index, event_index_scheme,
+                            source, wallet, trader,
+                            mint, side, pool, block_time, block_event_ts,
+                            received_ts, event_json
+                        )
+                        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)
+                        """,
+                        (
+                            signature,
+                            # Del evento, que es lo que se serializa más abajo
+                            # en `event_json`: columna y JSON no discrepan.
+                            market_event_index(
+                                normalized_event, required=True
+                            ),
+                            "ordinal-v2",
+                            "helius",
+                            event_wallet,
+                            event_trader,
+                            normalized_event.get("mint"),
+                            normalized_event.get("txType"),
+                            normalized_event.get("pool"),
+                            float(block_time) if block_time else None,
+                            market_event_block_ts(normalized_event),
+                            received_ts,
+                            json.dumps(
+                                normalized_event,
+                                sort_keys=True,
+                                separators=(",", ":"),
+                            ),
                         ),
-                    ),
-                )
+                    )
 
             raw_sample = None
 
-            if parsed is None and HELIUS_WEBHOOK_RAW_SAMPLES:
+            if (
+                persist_observation
+                and parsed is None
+                and HELIUS_WEBHOOK_RAW_SAMPLES
+            ):
                 stored_samples = conn.execute(
                     "SELECT COUNT(*) FROM helius_webhook_events "
                     "WHERE raw_sample IS NOT NULL"
@@ -14845,31 +15295,34 @@ def record_helius_webhook_transactions(payload, received_ts=None):
                     except Exception:
                         raw_sample = None
 
-            cursor = conn.execute(
-                """
-                INSERT OR IGNORE INTO helius_webhook_events(
-                    signature, wallet, trader, block_time,
-                    received_ts, parsed, side, mint, pool, raw_sample
+            observation_inserted = False
+            if persist_observation:
+                cursor = conn.execute(
+                    """
+                    INSERT OR IGNORE INTO helius_webhook_events(
+                        signature, wallet, trader, block_time,
+                        received_ts, parsed, side, mint, pool, raw_sample
+                    )
+                    VALUES(?,?,?,?,?,?,?,?,?,?)
+                    """,
+                    (
+                        signature,
+                        matched_wallet,
+                        matched_trader,
+                        float(block_time) if block_time else None,
+                        received_ts,
+                        1 if parsed else 0,
+                        (parsed or {}).get("txType"),
+                        (parsed or {}).get("mint"),
+                        (parsed or {}).get("pool"),
+                        raw_sample,
+                    ),
                 )
-                VALUES(?,?,?,?,?,?,?,?,?,?)
-                """,
-                (
-                    signature,
-                    matched_wallet,
-                    matched_trader,
-                    float(block_time) if block_time else None,
-                    received_ts,
-                    1 if parsed else 0,
-                    (parsed or {}).get("txType"),
-                    (parsed or {}).get("mint"),
-                    (parsed or {}).get("pool"),
-                    raw_sample,
-                ),
-            )
+                observation_inserted = bool(cursor.rowcount)
+                if not observation_inserted:
+                    duplicates += 1
 
-            if not cursor.rowcount:
-                duplicates += 1
-            else:
+            if observation_inserted:
                 parsed_wallets = {
                     wallet for _, wallet, _ in matched_events
                     if wallet in observed_wallets
@@ -14877,12 +15330,14 @@ def record_helius_webhook_transactions(payload, received_ts=None):
                 conn.executemany(
                     """
                     INSERT OR IGNORE INTO helius_webhook_wallet_observations(
-                        signature, wallet, received_ts, parsed
-                    ) VALUES(?,?,?,?)
+                        signature, wallet, received_ts, parsed,
+                        pump_program_in_accounts
+                    ) VALUES(?,?,?,?,?)
                     """,
                     [
                         (signature, wallet, received_ts,
-                         int(wallet in parsed_wallets))
+                         int(wallet in parsed_wallets),
+                         pump_program_in_accounts)
                         for wallet in observed_wallets
                     ],
                 )
@@ -15054,7 +15509,12 @@ def api_helius_webhook_stats(
     for label, seconds in (("24h", 86400), ("7d", 604800)):
         rows = conn.execute(
             """
-            SELECT wallet, COUNT(*), SUM(parsed)
+            SELECT wallet, COUNT(*), SUM(parsed),
+                   COUNT(pump_program_in_accounts),
+                   SUM(CASE WHEN pump_program_in_accounts = 1
+                       THEN 1 ELSE 0 END),
+                   SUM(CASE WHEN pump_program_in_accounts = 1
+                       AND parsed = 0 THEN 1 ELSE 0 END)
             FROM helius_webhook_wallet_observations
             WHERE received_ts >= ?
             GROUP BY wallet
@@ -15072,8 +15532,14 @@ def api_helius_webhook_stats(
                 "transactions": int(count),
                 "pump_transactions": int(parsed or 0),
                 "pump_percent": round(100 * (parsed or 0) / count, 2),
+                "program_classified_transactions": int(classified),
+                "pump_program_in_accounts": int(program_count),
+                "unparsed_with_pump_program": int(unparsed_program),
             }
-            for wallet, count, parsed in rows
+            for (
+                wallet, count, parsed, classified, program_count,
+                unparsed_program
+            ) in rows
         ]
 
     inbox_total = conn.execute(
@@ -15166,6 +15632,133 @@ def api_helius_webhook_stats(
             "measurement_started_ts": measurement_start,
             "transactions_can_match_multiple_wallets": True,
             "windows": wallet_windows,
+        },
+    }
+
+
+@app.get("/api/helius-standard-wss-stats")
+def api_helius_standard_wss_stats(
+    x_app_token: str = Header(default="")
+):
+    auth(x_app_token)
+    now = time.time()
+    cutoff = now - 86400
+    conn = db()
+    try:
+        notification = conn.execute(
+            """
+            SELECT COUNT(*), COALESCE(SUM(pump_logs), 0),
+                   COALESCE(SUM(failed), 0),
+                   COALESCE(SUM(message_bytes), 0),
+                   MIN(received_ts), MAX(received_ts)
+            FROM helius_standard_wss_notifications
+            WHERE received_ts >= ?
+            """,
+            (cutoff,),
+        ).fetchone()
+        transactions = conn.execute(
+            """
+            SELECT COUNT(*), COALESCE(SUM(fetch_attempts), 0),
+                   COALESCE(SUM(parsed_events), 0)
+            FROM helius_standard_wss_transactions
+            WHERE first_received_ts >= ?
+            """,
+            (cutoff,),
+        ).fetchone()
+        statuses = conn.execute(
+            """
+            SELECT status, COUNT(*)
+            FROM helius_standard_wss_transactions
+            WHERE first_received_ts >= ?
+            GROUP BY status
+            """,
+            (cutoff,),
+        ).fetchall()
+        wallets = conn.execute(
+            """
+            SELECT wallet, COUNT(*), COALESCE(SUM(pump_logs), 0)
+            FROM helius_standard_wss_notifications
+            WHERE received_ts >= ?
+            GROUP BY wallet
+            ORDER BY COUNT(*) DESC, wallet
+            """,
+            (cutoff,),
+        ).fetchall()
+    finally:
+        conn.close()
+
+    first_ts = notification[4]
+    measurement_seconds = (
+        max(0.0, min(86400.0, now - float(first_ts)))
+        if first_ts is not None else 0.0
+    )
+    observed_credits = (
+        (float(notification[3] or 0) / 100000.0) * 2.0
+        + float(transactions[1] or 0)
+    )
+    projected_monthly_credits = None
+    if measurement_seconds >= 3600:
+        projected_monthly_credits = round(
+            observed_credits * (30 * 86400 / measurement_seconds),
+            2,
+        )
+    with HELIUS_STANDARD_WSS_STATE_LOCK:
+        runtime = dict(HELIUS_STANDARD_WSS_STATE)
+    traders_by_wallet = {
+        wallet: trader for trader, wallet in WATCHED.items()
+    }
+    try:
+        configured = bool(build_helius_standard_wss_url(
+            HELIUS_API_KEY, HELIUS_STANDARD_WSS_URL
+        ))
+        configuration_error = None
+    except ValueError as exc:
+        configured = False
+        configuration_error = str(exc)
+    return {
+        "enabled": bool(HELIUS_STANDARD_WSS_ENABLED),
+        "apply": bool(HELIUS_STANDARD_WSS_APPLY),
+        "configured": configured,
+        "configuration_error": configuration_error,
+        "affects_decisions": bool(
+            HELIUS_STANDARD_WSS_APPLY
+            and MARKET_EVENT_INBOX_CONSUMER_ENABLED
+        ),
+        "runtime": runtime,
+        "last_24h": {
+            "notifications": int(notification[0] or 0),
+            "pump_log_notifications": int(notification[1] or 0),
+            "failed_notifications": int(notification[2] or 0),
+            "message_bytes": int(notification[3] or 0),
+            "first_received_ts": first_ts,
+            "last_received_ts": notification[5],
+            "transactions_selected": int(transactions[0] or 0),
+            "rpc_fetch_attempts": int(transactions[1] or 0),
+            "parsed_events": int(transactions[2] or 0),
+            "statuses": {
+                str(status): int(count) for status, count in statuses
+            },
+            "wallets": [
+                {
+                    "wallet": wallet,
+                    "trader": traders_by_wallet.get(wallet),
+                    "notifications": int(count),
+                    "pump_log_notifications": int(pump_count),
+                }
+                for wallet, count, pump_count in wallets
+            ],
+        },
+        "credit_estimate": {
+            "measurement_seconds": round(measurement_seconds, 3),
+            "observed_credits_approx": round(observed_credits, 3),
+            "projected_monthly_credits_approx": projected_monthly_credits,
+            "projection_ready": measurement_seconds >= 3600,
+            "free_plan_monthly_credits": 1000000,
+            "assumptions": (
+                "2 credits per 0.1 MB uncompressed WSS traffic plus "
+                "1 credit per getTransaction attempt; excludes connection "
+                "and unrelated project usage"
+            ),
         },
     }
 

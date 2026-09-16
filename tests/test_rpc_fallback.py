@@ -1001,6 +1001,9 @@ class HeliusWebhookTests(unittest.TestCase):
 
     def test_wallet_delivery_counts_raw_noise_and_retries(self):
         pump = self.native_receipt()
+        pump["transaction"]["message"]["accountKeys"].append(
+            PUMP_PROGRAM_ID
+        )
         noise = self.native_receipt()
         noise["transaction"]["signatures"] = ["non-pump-signature"]
         noise["meta"]["logMessages"] = []
@@ -1038,9 +1041,73 @@ class HeliusWebhookTests(unittest.TestCase):
                 "transactions": 2,
                 "pump_transactions": 1,
                 "pump_percent": 50.0,
+                "program_classified_transactions": 2,
+                "pump_program_in_accounts": 1,
+                "unparsed_with_pump_program": 0,
             }
         ])
         self.assertEqual(delivery["windows"]["7d"], delivery["windows"]["24h"])
+
+    def test_wallet_delivery_separates_unparsed_pump_from_other_noise(self):
+        receipt = self.native_receipt()
+        receipt["transaction"]["signatures"] = ["unparsed-pump"]
+        receipt["meta"]["logMessages"] = []
+        receipt["meta"]["loadedAddresses"] = {
+            "writable": [],
+            "readonly": [PUMP_AMM_PROGRAM_ID],
+        }
+
+        with patch.object(app, "WATCHED", {"trader-a": WALLET}):
+            result = app.record_helius_webhook_transactions(
+                [receipt], received_ts=1_700_000_002
+            )
+        self.assertEqual(result["parsed_events"], 0)
+
+        conn = app.db()
+        try:
+            row = conn.execute(
+                "SELECT parsed, pump_program_in_accounts FROM "
+                "helius_webhook_wallet_observations"
+            ).fetchone()
+        finally:
+            conn.close()
+        self.assertEqual(row, (0, 1))
+
+    def test_wallet_delivery_migration_preserves_unknown_program_history(self):
+        conn = app.db()
+        try:
+            conn.execute("DROP TABLE helius_webhook_wallet_observations")
+            conn.execute(
+                """
+                CREATE TABLE helius_webhook_wallet_observations(
+                    signature TEXT NOT NULL,
+                    wallet TEXT NOT NULL,
+                    received_ts REAL NOT NULL,
+                    parsed INTEGER NOT NULL,
+                    PRIMARY KEY(signature, wallet)
+                )
+                """
+            )
+            conn.execute(
+                "INSERT INTO helius_webhook_wallet_observations "
+                "VALUES(?,?,?,?)",
+                ("old-signature", WALLET, 1_700_000_001, 0),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        app.migrate_database()
+
+        conn = app.db()
+        try:
+            row = conn.execute(
+                "SELECT signature, pump_program_in_accounts FROM "
+                "helius_webhook_wallet_observations"
+            ).fetchone()
+        finally:
+            conn.close()
+        self.assertEqual(row, ("old-signature", None))
 
     def test_wallet_delivery_attributes_each_account_separately(self):
         second_wallet = "second-watched-wallet"
@@ -1095,6 +1162,49 @@ class HeliusWebhookTests(unittest.TestCase):
         self.assertEqual(result["parsed_events"], 1)
         route.assert_not_called()
         save.assert_not_called()
+
+    def test_shadow_recording_does_not_write_decision_inbox(self):
+        with patch.object(app, "WATCHED", {"trader-a": WALLET}):
+            result = app.record_helius_webhook_transactions(
+                [self.native_receipt()],
+                persist_inbox=False,
+            )
+
+        self.assertEqual(result["parsed_events"], 1)
+        conn = app.db()
+        try:
+            inbox_count = conn.execute(
+                "SELECT COUNT(*) FROM market_event_inbox"
+            ).fetchone()[0]
+            observed_count = conn.execute(
+                "SELECT COUNT(*) FROM helius_webhook_events"
+            ).fetchone()[0]
+        finally:
+            conn.close()
+        self.assertEqual(inbox_count, 0)
+        self.assertEqual(observed_count, 1)
+
+    def test_wss_shadow_parse_does_not_change_active_feed_health(self):
+        with patch.object(app, "WATCHED", {"trader-a": WALLET}):
+            result = app.record_helius_webhook_transactions(
+                [self.native_receipt()],
+                persist_inbox=False,
+                persist_observation=False,
+            )
+
+        self.assertEqual(result["parsed_events"], 1)
+        conn = app.db()
+        try:
+            inbox_count = conn.execute(
+                "SELECT COUNT(*) FROM market_event_inbox"
+            ).fetchone()[0]
+            health_count = conn.execute(
+                "SELECT COUNT(*) FROM helius_webhook_events"
+            ).fetchone()[0]
+        finally:
+            conn.close()
+        self.assertEqual(inbox_count, 0)
+        self.assertEqual(health_count, 0)
 
     def test_transaction_from_unwatched_wallet_is_recorded_unparsed(self):
         # Se guarda para poder medir volumen, pero no cuenta como operación.
