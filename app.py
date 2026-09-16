@@ -708,6 +708,21 @@ def db():
         "CREATE INDEX IF NOT EXISTS idx_helius_webhook_parsed_received "
         "ON helius_webhook_events(parsed, received_ts DESC)"
     )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS helius_webhook_wallet_observations(
+            signature TEXT NOT NULL,
+            wallet TEXT NOT NULL,
+            received_ts REAL NOT NULL,
+            parsed INTEGER NOT NULL,
+            PRIMARY KEY(signature, wallet)
+        )
+        """
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_helius_wallet_observations_received "
+        "ON helius_webhook_wallet_observations(received_ts, wallet)"
+    )
 
     # Eventos normalizados preservados antes de activar cualquier efecto. Una
     # transacción puede contener más de una operación Pump válida.
@@ -14676,6 +14691,33 @@ def record_helius_webhook_transactions(payload, received_ts=None):
                 continue
 
             block_time = receipt.get("blockTime")
+            message = transaction.get("message") or {}
+            if not isinstance(message, dict):
+                message = {}
+            account_keys = message.get("accountKeys") or []
+            if not isinstance(account_keys, list):
+                account_keys = []
+            account_addresses = set()
+            for key in account_keys:
+                address = key.get("pubkey") if isinstance(key, dict) else key
+                if isinstance(address, str):
+                    account_addresses.add(address)
+            loaded_addresses = (receipt.get("meta") or {}).get(
+                "loadedAddresses"
+            ) or {}
+            if not isinstance(loaded_addresses, dict):
+                loaded_addresses = {}
+            for addresses in (
+                loaded_addresses.get("writable") or [],
+                loaded_addresses.get("readonly") or [],
+            ):
+                account_addresses.update(
+                    address for address in addresses
+                    if isinstance(address, str)
+                )
+            observed_wallets = account_addresses.intersection(
+                wallets_by_address
+            )
 
             # Una transacción puede tocar varias wallets vigiladas. El resumen
             # por transacción conserva la primera, pero el inbox guarda cada
@@ -14827,6 +14869,23 @@ def record_helius_webhook_transactions(payload, received_ts=None):
 
             if not cursor.rowcount:
                 duplicates += 1
+            else:
+                parsed_wallets = {
+                    wallet for _, wallet, _ in matched_events
+                    if wallet in observed_wallets
+                }
+                conn.executemany(
+                    """
+                    INSERT OR IGNORE INTO helius_webhook_wallet_observations(
+                        signature, wallet, received_ts, parsed
+                    ) VALUES(?,?,?,?)
+                    """,
+                    [
+                        (signature, wallet, received_ts,
+                         int(wallet in parsed_wallets))
+                        for wallet in observed_wallets
+                    ],
+                )
 
         conn.commit()
     finally:
@@ -14986,6 +15045,36 @@ def api_helius_webhook_stats(
         WHERE raw_sample IS NOT NULL
         """
     ).fetchone()
+    measurement_start = conn.execute(
+        "SELECT MIN(received_ts) "
+        "FROM helius_webhook_wallet_observations"
+    ).fetchone()[0]
+    wallet_windows = {}
+    now = time.time()
+    for label, seconds in (("24h", 86400), ("7d", 604800)):
+        rows = conn.execute(
+            """
+            SELECT wallet, COUNT(*), SUM(parsed)
+            FROM helius_webhook_wallet_observations
+            WHERE received_ts >= ?
+            GROUP BY wallet
+            ORDER BY COUNT(*) DESC, wallet
+            """,
+            (now - seconds,),
+        ).fetchall()
+        traders_by_wallet = {
+            wallet: trader for trader, wallet in WATCHED.items()
+        }
+        wallet_windows[label] = [
+            {
+                "wallet": wallet,
+                "trader": traders_by_wallet.get(wallet),
+                "transactions": int(count),
+                "pump_transactions": int(parsed or 0),
+                "pump_percent": round(100 * (parsed or 0) / count, 2),
+            }
+            for wallet, count, parsed in rows
+        ]
 
     inbox_total = conn.execute(
         "SELECT COUNT(*) FROM market_event_inbox WHERE source = 'helius'"
@@ -15073,6 +15162,11 @@ def api_helius_webhook_stats(
         "parsed_only_in_webhook": int(only_webhook or 0),
         "recent_events": recent_events,
         "unparsed_sample": unparsed_sample,
+        "wallet_delivery": {
+            "measurement_started_ts": measurement_start,
+            "transactions_can_match_multiple_wallets": True,
+            "windows": wallet_windows,
+        },
     }
 
 

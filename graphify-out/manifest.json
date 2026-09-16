@@ -6,9 +6,9 @@
     "semantic_hash": "5ebef3dd159986e465ab65e4014107ec"
   },
   "app.py": {
-    "mtime": 1789495080.4563696,
-    "seen": 1789495184.5442908,
-    "ast_hash": "803b91d4b62e02a1698ddaefdc05cac6",
+    "mtime": 1789526753.1859164,
+    "seen": 1789526820.2922974,
+    "ast_hash": "d79cdd682efdc6872f99d5c54968bda5",
     "semantic_hash": ""
   },
   "models/baseline_v2_shadow.json": {
@@ -270,9 +270,9 @@
     "semantic_hash": ""
   },
   "tests/test_rpc_fallback.py": {
-    "mtime": 1789494938.8067894,
-    "seen": 1789495034.1585817,
-    "ast_hash": "329597f721754075015a784905013e80",
+    "mtime": 1789526753.1889503,
+    "seen": 1789526820.2923224,
+    "ast_hash": "2b49626be181c01e6f080c7b4a19b856",
     "semantic_hash": ""
   },
   "reports/ablation_report_2026-09-11.json": {

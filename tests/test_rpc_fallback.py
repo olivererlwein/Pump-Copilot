@@ -999,6 +999,94 @@ class HeliusWebhookTests(unittest.TestCase):
         conn.close()
         self.assertEqual(count, 1)
 
+    def test_wallet_delivery_counts_raw_noise_and_retries(self):
+        pump = self.native_receipt()
+        noise = self.native_receipt()
+        noise["transaction"]["signatures"] = ["non-pump-signature"]
+        noise["meta"]["logMessages"] = []
+
+        with patch.object(app, "WATCHED", {"trader-a": WALLET}):
+            app.record_helius_webhook_transactions(
+                [pump, noise], received_ts=1_700_000_002
+            )
+            app.record_helius_webhook_transactions(
+                [noise], received_ts=1_700_000_003
+            )
+
+        conn = app.db()
+        try:
+            rows = conn.execute(
+                "SELECT signature, parsed FROM "
+                "helius_webhook_wallet_observations ORDER BY signature"
+            ).fetchall()
+        finally:
+            conn.close()
+        self.assertEqual(rows, [(SIGNATURE, 1), ("non-pump-signature", 0)])
+
+        with (
+            patch.object(app, "APP_TOKEN", "token"),
+            patch.object(app.time, "time", return_value=1_700_000_010),
+            patch.object(app, "WATCHED", {"trader-a": WALLET}),
+        ):
+            report = app.api_helius_webhook_stats("token")
+        delivery = report["wallet_delivery"]
+        self.assertEqual(delivery["measurement_started_ts"], 1_700_000_002)
+        self.assertEqual(delivery["windows"]["24h"], [
+            {
+                "wallet": WALLET,
+                "trader": "trader-a",
+                "transactions": 2,
+                "pump_transactions": 1,
+                "pump_percent": 50.0,
+            }
+        ])
+        self.assertEqual(delivery["windows"]["7d"], delivery["windows"]["24h"])
+
+    def test_wallet_delivery_attributes_each_account_separately(self):
+        second_wallet = "second-watched-wallet"
+        receipt = self.native_receipt()
+        receipt["transaction"]["message"]["accountKeys"] = [
+            WALLET, second_wallet, MINT
+        ]
+
+        with patch.object(app, "WATCHED", {
+            "trader-a": WALLET,
+            "trader-b": second_wallet,
+        }):
+            app.record_helius_webhook_transactions(
+                [receipt], received_ts=1_700_000_002
+            )
+
+        conn = app.db()
+        try:
+            rows = conn.execute(
+                "SELECT wallet, parsed FROM "
+                "helius_webhook_wallet_observations ORDER BY wallet"
+            ).fetchall()
+        finally:
+            conn.close()
+        self.assertEqual(rows, [(WALLET, 1), (second_wallet, 0)])
+
+    def test_wallet_delivery_accepts_json_parsed_keys(self):
+        receipt = self.native_receipt()
+        receipt["transaction"]["message"]["accountKeys"] = [
+            {"pubkey": WALLET, "signer": True},
+            {"pubkey": MINT, "signer": False},
+        ]
+
+        with patch.object(app, "WATCHED", {"trader-a": WALLET}):
+            app.record_helius_webhook_transactions([receipt])
+
+        conn = app.db()
+        try:
+            row = conn.execute(
+                "SELECT wallet, parsed FROM "
+                "helius_webhook_wallet_observations"
+            ).fetchone()
+        finally:
+            conn.close()
+        self.assertEqual(row, (WALLET, 1))
+
     def test_webhook_does_not_route_events_or_save_trades(self):
         with patch.object(app, "WATCHED", {"trader-a": WALLET}), \
                 patch.object(app, "route_market_event") as route, \
