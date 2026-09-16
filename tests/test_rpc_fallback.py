@@ -1,3 +1,4 @@
+import asyncio
 import io
 import json
 import struct
@@ -1566,6 +1567,59 @@ class InboxRoundTripTests(unittest.TestCase):
             ).fetchall()
         finally:
             conn.close()
+
+    def test_standard_wss_receipt_reaches_inbox_once_with_both_events(self):
+        notification = {
+            "wallet": WALLET,
+            "signature": SIGNATURE,
+            "slot": 42,
+            "failed": False,
+            "logs": [],
+            "subject_type": "wallet",
+        }
+        self.assertTrue(app.record_helius_standard_wss_notification(
+            notification, True, 200, received_ts=1_700_000_010,
+        ))
+        self.assertFalse(app.record_helius_standard_wss_notification(
+            {**notification, "subject_type": "token"},
+            True, 200, received_ts=1_700_000_011,
+        ))
+
+        with (
+            patch.object(app, "HELIUS_STANDARD_WSS_APPLY", True),
+            patch.object(
+                app, "fetch_confirmed_transaction",
+                return_value=self.receipt_with_two_events(),
+            ) as fetch,
+        ):
+            asyncio.run(app.fetch_helius_standard_wss_transaction(
+                notification,
+                1_700_000_010,
+                {SIGNATURE},
+                asyncio.Semaphore(1),
+                asyncio.Lock(),
+                {"next_ts": 0.0},
+            ))
+
+        fetch.assert_called_once()
+        rows = self.inbox_rows()
+        self.assertEqual([row[0] for row in rows], [0, 1])
+        self.assertEqual([row[1] for row in rows], [WALLET, WALLET])
+        for event_index, _, event_json, block_event_ts in rows:
+            event = json.loads(event_json)
+            self.assertEqual(event["eventIndex"], event_index)
+            self.assertEqual(event["blockEventTs"], block_event_ts)
+
+        conn = app.db()
+        try:
+            transaction = conn.execute(
+                "SELECT status, fetch_attempts, parsed_events "
+                "FROM helius_standard_wss_transactions WHERE signature = ?",
+                (SIGNATURE,),
+            ).fetchone()
+        finally:
+            conn.close()
+        self.assertEqual(transaction, ("applied", 1, 2))
 
     def test_block_event_ts_survives_serialization(self):
         # Tenía la misma forma rota que el índice: el parser lo guardaba al

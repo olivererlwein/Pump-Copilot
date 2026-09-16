@@ -186,17 +186,95 @@
       "source_location": "L57"
     },
     {
+      "id": "tests_test_rpc_fallback_accountkeyencodingtests",
+      "label": "AccountKeyEncodingTests",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": "accountkeyencodingtests",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L706"
+    },
+    {
+      "id": "tests_test_rpc_fallback_outboundrequesttests",
+      "label": "OutboundRequestTests",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": "outboundrequesttests",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L1831"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackbaselinetests",
+      "label": "RpcFallbackBaselineTests",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": "rpcfallbackbaselinetests",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L759"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackparsertests",
+      "label": "RpcFallbackParserTests",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": "rpcfallbackparsertests",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L123"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests",
+      "label": "RpcFallbackPersistenceTests",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": "rpcfallbackpersistencetests",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L333"
+    },
+    {
       "id": "tests_test_rpc_fallback_rpcfallbackrequesttests",
       "label": "RpcFallbackRequestTests",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
       "community": 25,
-      "community_name": "solana_rpc_fallback.py",
+      "community_name": "pump_receipt",
       "file_type": "code",
       "norm_label": "rpcfallbackrequesttests",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L290"
+      "source_location": "L291"
+    },
+    {
+      "id": "tests_test_rpc_fallback_trackedtokenparsertests",
+      "label": "TrackedTokenParserTests",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": "trackedtokenparsertests",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L180"
     },
     {
       "id": "tests_test_risk_controls_ambiguousexecutionorderalerttests",
@@ -407,32 +485,6 @@
       "source_location": "L149"
     },
     {
-      "id": "tests_test_rpc_fallback_accountkeyencodingtests",
-      "label": "AccountKeyEncodingTests",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 48,
-      "community_name": "parse_watched_wallet_pump_events",
-      "file_type": "code",
-      "norm_label": "accountkeyencodingtests",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L705"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackparsertests",
-      "label": "RpcFallbackParserTests",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 48,
-      "community_name": "parse_watched_wallet_pump_events",
-      "file_type": "code",
-      "norm_label": "rpcfallbackparsertests",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L122"
-    },
-    {
       "id": "tests_test_paper_idempotency_legacydatamigrationtests",
       "label": "LegacyDataMigrationTests",
       "_callable": true,
@@ -560,7 +612,7 @@
       "file_type": "code",
       "norm_label": "inboxroundtriptests",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1500"
+      "source_location": "L1501"
     },
     {
       "id": "tests_test_market_event_inbox_marketeventchronologytests",
@@ -794,59 +846,7 @@
       "file_type": "code",
       "norm_label": "heliuswebhooktests",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L891"
-    },
-    {
-      "id": "tests_test_rpc_fallback_outboundrequesttests",
-      "label": "OutboundRequestTests",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 63,
-      "community_name": "test_rpc_fallback.py",
-      "file_type": "code",
-      "norm_label": "outboundrequesttests",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1777"
-    },
-    {
-      "id": "tests_test_rpc_fallback_trackedtokenparsertests",
-      "label": "TrackedTokenParserTests",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 63,
-      "community_name": "test_rpc_fallback.py",
-      "file_type": "code",
-      "norm_label": "trackedtokenparsertests",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L179"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests",
-      "label": "RpcFallbackPersistenceTests",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 64,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": "rpcfallbackpersistencetests",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L332"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackbaselinetests",
-      "label": "RpcFallbackBaselineTests",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 65,
-      "community_name": "RpcFallbackBaselineTests",
-      "file_type": "code",
-      "norm_label": "rpcfallbackbaselinetests",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L758"
+      "source_location": "L892"
     },
     {
       "id": "tests_test_paper_idempotency_paperpositionidempotencytests",
@@ -872,7 +872,7 @@
       "file_type": "code",
       "norm_label": "heliuswebhookdeliveryalerttests",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1786"
+      "source_location": "L1840"
     },
     {
       "id": "helius_webhook_sync_heliuswebhooksyncerror",
@@ -2561,7 +2561,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 25,
-      "community_name": "solana_rpc_fallback.py",
+      "community_name": "pump_receipt",
       "file_type": "code",
       "norm_label": "poll_rpc_fallback_once()",
       "source_file": "app.py",
@@ -2573,7 +2573,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 25,
-      "community_name": "solana_rpc_fallback.py",
+      "community_name": "pump_receipt",
       "file_type": "code",
       "norm_label": "_base58_encode()",
       "source_file": "solana_rpc_fallback.py",
@@ -2585,7 +2585,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 25,
-      "community_name": "solana_rpc_fallback.py",
+      "community_name": "pump_receipt",
       "file_type": "code",
       "norm_label": "_event_payloads()",
       "source_file": "solana_rpc_fallback.py",
@@ -2597,7 +2597,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 25,
-      "community_name": "solana_rpc_fallback.py",
+      "community_name": "pump_receipt",
       "file_type": "code",
       "norm_label": "fetch_confirmed_transaction()",
       "source_file": "solana_rpc_fallback.py",
@@ -2609,11 +2609,23 @@
       "_callable": true,
       "_origin": "ast",
       "community": 25,
-      "community_name": "solana_rpc_fallback.py",
+      "community_name": "pump_receipt",
       "file_type": "code",
       "norm_label": "fetch_signatures_for_address()",
       "source_file": "solana_rpc_fallback.py",
       "source_location": "L86"
+    },
+    {
+      "id": "solana_rpc_fallback_is_signed_by",
+      "label": "_is_signed_by()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": "_is_signed_by()",
+      "source_file": "solana_rpc_fallback.py",
+      "source_location": "L311"
     },
     {
       "id": "solana_rpc_fallback_optional_post_token_amount",
@@ -2621,7 +2633,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 25,
-      "community_name": "solana_rpc_fallback.py",
+      "community_name": "pump_receipt",
       "file_type": "code",
       "norm_label": "_optional_post_token_amount()",
       "source_file": "solana_rpc_fallback.py",
@@ -2633,7 +2645,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 25,
-      "community_name": "solana_rpc_fallback.py",
+      "community_name": "pump_receipt",
       "file_type": "code",
       "norm_label": "_parse_official_pump_events()",
       "source_file": "solana_rpc_fallback.py",
@@ -2645,7 +2657,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 25,
-      "community_name": "solana_rpc_fallback.py",
+      "community_name": "pump_receipt",
       "file_type": "code",
       "norm_label": "_parse_pump_amm_trade()",
       "source_file": "solana_rpc_fallback.py",
@@ -2657,11 +2669,35 @@
       "_callable": true,
       "_origin": "ast",
       "community": 25,
-      "community_name": "solana_rpc_fallback.py",
+      "community_name": "pump_receipt",
       "file_type": "code",
       "norm_label": "_parse_pump_trade()",
       "source_file": "solana_rpc_fallback.py",
       "source_location": "L196"
+    },
+    {
+      "id": "solana_rpc_fallback_parse_tracked_token_pump_events",
+      "label": "parse_tracked_token_pump_events()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": "parse_tracked_token_pump_events()",
+      "source_file": "solana_rpc_fallback.py",
+      "source_location": "L444"
+    },
+    {
+      "id": "solana_rpc_fallback_parse_watched_wallet_pump_events",
+      "label": "parse_watched_wallet_pump_events()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": "parse_watched_wallet_pump_events()",
+      "source_file": "solana_rpc_fallback.py",
+      "source_location": "L427"
     },
     {
       "id": "solana_rpc_fallback_rpc_request",
@@ -2669,7 +2705,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 25,
-      "community_name": "solana_rpc_fallback.py",
+      "community_name": "pump_receipt",
       "file_type": "code",
       "norm_label": "_rpc_request()",
       "source_file": "solana_rpc_fallback.py",
@@ -2681,7 +2717,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 25,
-      "community_name": "solana_rpc_fallback.py",
+      "community_name": "pump_receipt",
       "file_type": "code",
       "norm_label": "_token_balances()",
       "source_file": "solana_rpc_fallback.py",
@@ -2693,7 +2729,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 25,
-      "community_name": "solana_rpc_fallback.py",
+      "community_name": "pump_receipt",
       "file_type": "code",
       "norm_label": "_token_decimals()",
       "source_file": "solana_rpc_fallback.py",
@@ -2705,11 +2741,431 @@
       "_callable": true,
       "_origin": "ast",
       "community": 25,
-      "community_name": "solana_rpc_fallback.py",
+      "community_name": "pump_receipt",
       "file_type": "code",
       "norm_label": "_wait_for_rpc_slot()",
       "source_file": "solana_rpc_fallback.py",
       "source_location": "L30"
+    },
+    {
+      "id": "tests_test_rpc_fallback_accountkeyencodingtests_native_receipt",
+      "label": ".native_receipt()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".native_receipt()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L715"
+    },
+    {
+      "id": "tests_test_rpc_fallback_accountkeyencodingtests_test_native_encoding_rejects_wallet_that_did_not_sign",
+      "label": ".test_native_encoding_rejects_wallet_that_did_not_sign()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".test_native_encoding_rejects_wallet_that_did_not_sign()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L740"
+    },
+    {
+      "id": "tests_test_rpc_fallback_accountkeyencodingtests_test_native_encoding_without_header_is_rejected",
+      "label": ".test_native_encoding_without_header_is_rejected()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".test_native_encoding_without_header_is_rejected()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L749"
+    },
+    {
+      "id": "tests_test_rpc_fallback_accountkeyencodingtests_test_parses_json_parsed_encoding_with_dict_account_keys",
+      "label": ".test_parses_json_parsed_encoding_with_dict_account_keys()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".test_parses_json_parsed_encoding_with_dict_account_keys()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L732"
+    },
+    {
+      "id": "tests_test_rpc_fallback_accountkeyencodingtests_test_parses_native_encoding_with_string_account_keys",
+      "label": ".test_parses_native_encoding_with_string_account_keys()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".test_parses_native_encoding_with_string_account_keys()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L723"
+    },
+    {
+      "id": "tests_test_rpc_fallback_outboundrequesttests_test_request_name_still_refers_to_urllib",
+      "label": ".test_request_name_still_refers_to_urllib()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".test_request_name_still_refers_to_urllib()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L1832"
+    },
+    {
+      "id": "tests_test_rpc_fallback_pump_amm_receipt",
+      "label": "pump_amm_receipt()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": "pump_amm_receipt()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L99"
+    },
+    {
+      "id": "tests_test_rpc_fallback_pump_receipt",
+      "label": "pump_receipt()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": "pump_receipt()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L79"
+    },
+    {
+      "id": "tests_test_rpc_fallback_receipt_with_payload",
+      "label": "receipt_with_payload()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": "receipt_with_payload()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L47"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackbaselinetests_event_status",
+      "label": ".event_status()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".event_status()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L793"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackbaselinetests_insert_trade",
+      "label": ".insert_trade()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".insert_trade()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L802"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackbaselinetests_parsed",
+      "label": ".parsed()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".parsed()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L777"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackbaselinetests_set_baseline",
+      "label": ".set_baseline()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".set_baseline()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L782"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackbaselinetests_setup",
+      "label": ".setUp()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".setup()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L767"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackbaselinetests_teardown",
+      "label": ".tearDown()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".teardown()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L773"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackbaselinetests_test_approximate_matches_counts_events_not_pairs",
+      "label": ".test_approximate_matches_counts_events_not_pairs()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".test_approximate_matches_counts_events_not_pairs()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L866"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackbaselinetests_test_discarded_event_never_becomes_matched",
+      "label": ".test_discarded_event_never_becomes_matched()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".test_discarded_event_never_becomes_matched()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L845"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackbaselinetests_test_event_after_baseline_still_counts_as_missing",
+      "label": ".test_event_after_baseline_still_counts_as_missing()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".test_event_after_baseline_still_counts_as_missing()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L832"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackbaselinetests_test_event_older_than_baseline_is_discarded_not_missing",
+      "label": ".test_event_older_than_baseline_is_discarded_not_missing()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".test_event_older_than_baseline_is_discarded_not_missing()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L817"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackparsertests_test_ignores_transfers_and_transactions_not_signed_by_wallet",
+      "label": ".test_ignores_transfers_and_transactions_not_signed_by_wallet()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".test_ignores_transfers_and_transactions_not_signed_by_wallet()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L155"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackparsertests_test_parses_official_pump_trade_event",
+      "label": ".test_parses_official_pump_trade_event()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".test_parses_official_pump_trade_event()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L124"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackparsertests_test_parses_official_pumpswap_event_and_pool_price",
+      "label": ".test_parses_official_pumpswap_event_and_pool_price()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".test_parses_official_pumpswap_event_and_pool_price()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L140"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_parsed",
+      "label": ".parsed()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".parsed()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L344"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_setup",
+      "label": ".setUp()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".setup()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L334"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_teardown",
+      "label": ".tearDown()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".teardown()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L340"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_failed_initial_state_still_bootstraps_current_head",
+      "label": ".test_failed_initial_state_still_bootstraps_current_head()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".test_failed_initial_state_still_bootstraps_current_head()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L647"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_first_poll_starts_now_without_partial_history",
+      "label": ".test_first_poll_starts_now_without_partial_history()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".test_first_poll_starts_now_without_partial_history()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L629"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_identity_stats_match_event_index_and_live_transport",
+      "label": ".test_identity_stats_match_event_index_and_live_transport()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".test_identity_stats_match_event_index_and_live_transport()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L422"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_legacy_not_null_balance_column_is_relaxed_keeping_rows",
+      "label": ".test_legacy_not_null_balance_column_is_relaxed_keeping_rows()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".test_legacy_not_null_balance_column_is_relaxed_keeping_rows()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L509"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_missing_event_can_later_reconcile_to_stream",
+      "label": ".test_missing_event_can_later_reconcile_to_stream()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".test_missing_event_can_later_reconcile_to_stream()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L349"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_operation_applied_from_helius_is_not_missing",
+      "label": ".test_operation_applied_from_helius_is_not_missing()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".test_operation_applied_from_helius_is_not_missing()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L468"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_poll_does_not_reserve_signature_used_by_live_stream",
+      "label": ".test_poll_does_not_reserve_signature_used_by_live_stream()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".test_poll_does_not_reserve_signature_used_by_live_stream()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L590"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_saturated_backlog_rebases_to_current_head",
+      "label": ".test_saturated_backlog_rebases_to_current_head()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".test_saturated_backlog_rebases_to_current_head()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L675"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_second_operation_of_a_transaction_is_not_hidden_by_the_first",
+      "label": ".test_second_operation_of_a_transaction_is_not_hidden_by_the_first()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".test_second_operation_of_a_transaction_is_not_hidden_by_the_first()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L383"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_unknown_balance_is_recorded_as_null",
+      "label": ".test_unknown_balance_is_recorded_as_null()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".test_unknown_balance_is_recorded_as_null()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L482"
     },
     {
       "id": "tests_test_rpc_fallback_rpcfallbackrequesttests_test_does_not_retry_authentication_failure",
@@ -2717,11 +3173,11 @@
       "_callable": true,
       "_origin": "ast",
       "community": 25,
-      "community_name": "solana_rpc_fallback.py",
+      "community_name": "pump_receipt",
       "file_type": "code",
       "norm_label": ".test_does_not_retry_authentication_failure()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L313"
+      "source_location": "L314"
     },
     {
       "id": "tests_test_rpc_fallback_rpcfallbackrequesttests_test_retries_rate_limit_then_returns_result",
@@ -2729,11 +3185,83 @@
       "_callable": true,
       "_origin": "ast",
       "community": 25,
-      "community_name": "solana_rpc_fallback.py",
+      "community_name": "pump_receipt",
       "file_type": "code",
       "norm_label": ".test_retries_rate_limit_then_returns_result()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L291"
+      "source_location": "L292"
+    },
+    {
+      "id": "tests_test_rpc_fallback_token_balance",
+      "label": "token_balance()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": "token_balance()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L35"
+    },
+    {
+      "id": "tests_test_rpc_fallback_trackedtokenparsertests_test_ignores_an_untracked_mint",
+      "label": ".test_ignores_an_untracked_mint()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".test_ignores_an_untracked_mint()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L196"
+    },
+    {
+      "id": "tests_test_rpc_fallback_trackedtokenparsertests_test_missing_user_balance_keeps_price_event_with_unknown_balance",
+      "label": ".test_missing_user_balance_keeps_price_event_with_unknown_balance()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".test_missing_user_balance_keeps_price_event_with_unknown_balance()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L265"
+    },
+    {
+      "id": "tests_test_rpc_fallback_trackedtokenparsertests_test_multiple_operations_keep_global_ordinals",
+      "label": ".test_multiple_operations_keep_global_ordinals()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".test_multiple_operations_keep_global_ordinals()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L204"
+    },
+    {
+      "id": "tests_test_rpc_fallback_trackedtokenparsertests_test_ordinal_does_not_depend_on_an_earlier_event_decoding",
+      "label": ".test_ordinal_does_not_depend_on_an_earlier_event_decoding()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".test_ordinal_does_not_depend_on_an_earlier_event_decoding()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L217"
+    },
+    {
+      "id": "tests_test_rpc_fallback_trackedtokenparsertests_test_parses_tracked_mint_without_requiring_a_watched_wallet",
+      "label": ".test_parses_tracked_mint_without_requiring_a_watched_wallet()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".test_parses_tracked_mint_without_requiring_a_watched_wallet()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L181"
     },
     {
       "id": "tests_test_risk_controls_ambiguousexecutionorderalerttests_make_live_order",
@@ -6552,126 +7080,6 @@
       "source_location": "L5817"
     },
     {
-      "id": "solana_rpc_fallback_is_signed_by",
-      "label": "_is_signed_by()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 48,
-      "community_name": "parse_watched_wallet_pump_events",
-      "file_type": "code",
-      "norm_label": "_is_signed_by()",
-      "source_file": "solana_rpc_fallback.py",
-      "source_location": "L311"
-    },
-    {
-      "id": "solana_rpc_fallback_parse_watched_wallet_pump_events",
-      "label": "parse_watched_wallet_pump_events()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 48,
-      "community_name": "parse_watched_wallet_pump_events",
-      "file_type": "code",
-      "norm_label": "parse_watched_wallet_pump_events()",
-      "source_file": "solana_rpc_fallback.py",
-      "source_location": "L427"
-    },
-    {
-      "id": "tests_test_rpc_fallback_accountkeyencodingtests_native_receipt",
-      "label": ".native_receipt()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 48,
-      "community_name": "parse_watched_wallet_pump_events",
-      "file_type": "code",
-      "norm_label": ".native_receipt()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L714"
-    },
-    {
-      "id": "tests_test_rpc_fallback_accountkeyencodingtests_test_native_encoding_rejects_wallet_that_did_not_sign",
-      "label": ".test_native_encoding_rejects_wallet_that_did_not_sign()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 48,
-      "community_name": "parse_watched_wallet_pump_events",
-      "file_type": "code",
-      "norm_label": ".test_native_encoding_rejects_wallet_that_did_not_sign()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L739"
-    },
-    {
-      "id": "tests_test_rpc_fallback_accountkeyencodingtests_test_native_encoding_without_header_is_rejected",
-      "label": ".test_native_encoding_without_header_is_rejected()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 48,
-      "community_name": "parse_watched_wallet_pump_events",
-      "file_type": "code",
-      "norm_label": ".test_native_encoding_without_header_is_rejected()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L748"
-    },
-    {
-      "id": "tests_test_rpc_fallback_accountkeyencodingtests_test_parses_json_parsed_encoding_with_dict_account_keys",
-      "label": ".test_parses_json_parsed_encoding_with_dict_account_keys()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 48,
-      "community_name": "parse_watched_wallet_pump_events",
-      "file_type": "code",
-      "norm_label": ".test_parses_json_parsed_encoding_with_dict_account_keys()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L731"
-    },
-    {
-      "id": "tests_test_rpc_fallback_accountkeyencodingtests_test_parses_native_encoding_with_string_account_keys",
-      "label": ".test_parses_native_encoding_with_string_account_keys()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 48,
-      "community_name": "parse_watched_wallet_pump_events",
-      "file_type": "code",
-      "norm_label": ".test_parses_native_encoding_with_string_account_keys()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L722"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackparsertests_test_ignores_transfers_and_transactions_not_signed_by_wallet",
-      "label": ".test_ignores_transfers_and_transactions_not_signed_by_wallet()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 48,
-      "community_name": "parse_watched_wallet_pump_events",
-      "file_type": "code",
-      "norm_label": ".test_ignores_transfers_and_transactions_not_signed_by_wallet()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L154"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackparsertests_test_parses_official_pump_trade_event",
-      "label": ".test_parses_official_pump_trade_event()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 48,
-      "community_name": "parse_watched_wallet_pump_events",
-      "file_type": "code",
-      "norm_label": ".test_parses_official_pump_trade_event()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L123"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackparsertests_test_parses_official_pumpswap_event_and_pool_price",
-      "label": ".test_parses_official_pumpswap_event_and_pool_price()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 48,
-      "community_name": "parse_watched_wallet_pump_events",
-      "file_type": "code",
-      "norm_label": ".test_parses_official_pumpswap_event_and_pool_price()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L139"
-    },
-    {
       "id": "app_migrate_database",
       "label": "migrate_database()",
       "_callable": true,
@@ -7773,7 +8181,7 @@
       "file_type": "code",
       "norm_label": ".inbox_rows()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1558"
+      "source_location": "L1559"
     },
     {
       "id": "tests_test_rpc_fallback_inboxroundtriptests_receipt_with_two_events",
@@ -7785,7 +8193,7 @@
       "file_type": "code",
       "norm_label": ".receipt_with_two_events()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1546"
+      "source_location": "L1547"
     },
     {
       "id": "tests_test_rpc_fallback_inboxroundtriptests_reconstruir",
@@ -7797,7 +8205,7 @@
       "file_type": "code",
       "norm_label": ".reconstruir()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1689"
+      "source_location": "L1743"
     },
     {
       "id": "tests_test_rpc_fallback_inboxroundtriptests_restaurar",
@@ -7809,7 +8217,7 @@
       "file_type": "code",
       "norm_label": ".restaurar()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1540"
+      "source_location": "L1541"
     },
     {
       "id": "tests_test_rpc_fallback_inboxroundtriptests_setup",
@@ -7821,7 +8229,7 @@
       "file_type": "code",
       "norm_label": ".setup()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1509"
+      "source_location": "L1510"
     },
     {
       "id": "tests_test_rpc_fallback_inboxroundtriptests_test_block_event_ts_survives_serialization",
@@ -7833,7 +8241,7 @@
       "file_type": "code",
       "norm_label": ".test_block_event_ts_survives_serialization()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1570"
+      "source_location": "L1624"
     },
     {
       "id": "tests_test_rpc_fallback_inboxroundtriptests_test_deserialized_events_keep_distinct_identity_through_the_router",
@@ -7845,7 +8253,7 @@
       "file_type": "code",
       "norm_label": ".test_deserialized_events_keep_distinct_identity_through_the_router()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1621"
+      "source_location": "L1675"
     },
     {
       "id": "tests_test_rpc_fallback_inboxroundtriptests_test_event_index_survives_serialization",
@@ -7857,7 +8265,7 @@
       "file_type": "code",
       "norm_label": ".test_event_index_survives_serialization()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1609"
+      "source_location": "L1663"
     },
     {
       "id": "tests_test_rpc_fallback_inboxroundtriptests_test_event_json_with_invalid_index_is_rejected_on_rebuild",
@@ -7869,7 +8277,7 @@
       "file_type": "code",
       "norm_label": ".test_event_json_with_invalid_index_is_rejected_on_rebuild()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1720"
+      "source_location": "L1774"
     },
     {
       "id": "tests_test_rpc_fallback_inboxroundtriptests_test_event_json_without_index_is_rejected_on_rebuild",
@@ -7881,7 +8289,7 @@
       "file_type": "code",
       "norm_label": ".test_event_json_without_index_is_rejected_on_rebuild()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1699"
+      "source_location": "L1753"
     },
     {
       "id": "tests_test_rpc_fallback_inboxroundtriptests_test_index_mismatch_between_column_and_json_is_rejected",
@@ -7893,7 +8301,7 @@
       "file_type": "code",
       "norm_label": ".test_index_mismatch_between_column_and_json_is_rejected()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1755"
+      "source_location": "L1809"
     },
     {
       "id": "tests_test_rpc_fallback_inboxroundtriptests_test_missing_wallet_is_rejected_on_rebuild",
@@ -7905,7 +8313,7 @@
       "file_type": "code",
       "norm_label": ".test_missing_wallet_is_rejected_on_rebuild()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1730"
+      "source_location": "L1784"
     },
     {
       "id": "tests_test_rpc_fallback_inboxroundtriptests_test_new_events_are_stored_with_ordinal_index_scheme",
@@ -7917,7 +8325,7 @@
       "file_type": "code",
       "norm_label": ".test_new_events_are_stored_with_ordinal_index_scheme()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1583"
+      "source_location": "L1637"
     },
     {
       "id": "tests_test_rpc_fallback_inboxroundtriptests_test_rebuilt_event_exposes_its_block_timestamp",
@@ -7929,7 +8337,7 @@
       "file_type": "code",
       "norm_label": ".test_rebuilt_event_exposes_its_block_timestamp()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1598"
+      "source_location": "L1652"
     },
     {
       "id": "tests_test_rpc_fallback_inboxroundtriptests_test_reconstructed_event_recovers_the_signing_wallet",
@@ -7941,7 +8349,7 @@
       "file_type": "code",
       "norm_label": ".test_reconstructed_event_recovers_the_signing_wallet()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1663"
+      "source_location": "L1717"
     },
     {
       "id": "tests_test_rpc_fallback_inboxroundtriptests_test_serialization_rejects_an_event_that_lost_its_index",
@@ -7953,7 +8361,7 @@
       "file_type": "code",
       "norm_label": ".test_serialization_rejects_an_event_that_lost_its_index()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1767"
+      "source_location": "L1821"
     },
     {
       "id": "tests_test_rpc_fallback_inboxroundtriptests_test_signature_mismatch_between_column_and_json_is_rejected",
@@ -7965,7 +8373,19 @@
       "file_type": "code",
       "norm_label": ".test_signature_mismatch_between_column_and_json_is_rejected()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1745"
+      "source_location": "L1799"
+    },
+    {
+      "id": "tests_test_rpc_fallback_inboxroundtriptests_test_standard_wss_receipt_reaches_inbox_once_with_both_events",
+      "label": ".test_standard_wss_receipt_reaches_inbox_once_with_both_events()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 55,
+      "community_name": "InboxRoundTripTests",
+      "file_type": "code",
+      "norm_label": ".test_standard_wss_receipt_reaches_inbox_once_with_both_events()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L1571"
     },
     {
       "id": "tests_test_rpc_fallback_inboxroundtriptests_test_wallet_mismatch_between_column_and_json_is_rejected",
@@ -7977,7 +8397,7 @@
       "file_type": "code",
       "norm_label": ".test_wallet_mismatch_between_column_and_json_is_rejected()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1678"
+      "source_location": "L1732"
     },
     {
       "id": "tests_test_market_event_inbox_marketeventchronologytests_restore",
@@ -9309,7 +9729,7 @@
       "file_type": "code",
       "norm_label": ".native_receipt()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L904"
+      "source_location": "L905"
     },
     {
       "id": "tests_test_rpc_fallback_heliuswebhooktests_setup",
@@ -9321,7 +9741,7 @@
       "file_type": "code",
       "norm_label": ".setup()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L894"
+      "source_location": "L895"
     },
     {
       "id": "tests_test_rpc_fallback_heliuswebhooktests_teardown",
@@ -9333,7 +9753,7 @@
       "file_type": "code",
       "norm_label": ".teardown()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L900"
+      "source_location": "L901"
     },
     {
       "id": "tests_test_rpc_fallback_heliuswebhooktests_test_all_watched_wallets_in_one_transaction_are_preserved",
@@ -9345,7 +9765,7 @@
       "file_type": "code",
       "norm_label": ".test_all_watched_wallets_in_one_transaction_are_preserved()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1267"
+      "source_location": "L1268"
     },
     {
       "id": "tests_test_rpc_fallback_heliuswebhooktests_test_preserves_multiple_events_from_one_transaction",
@@ -9357,7 +9777,7 @@
       "file_type": "code",
       "norm_label": ".test_preserves_multiple_events_from_one_transaction()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L957"
+      "source_location": "L958"
     },
     {
       "id": "tests_test_rpc_fallback_heliuswebhooktests_test_records_pump_event_from_native_encoded_payload",
@@ -9369,7 +9789,7 @@
       "file_type": "code",
       "norm_label": ".test_records_pump_event_from_native_encoded_payload()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L913"
+      "source_location": "L914"
     },
     {
       "id": "tests_test_rpc_fallback_heliuswebhooktests_test_repeated_delivery_is_not_counted_twice",
@@ -9381,7 +9801,7 @@
       "file_type": "code",
       "norm_label": ".test_repeated_delivery_is_not_counted_twice()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L985"
+      "source_location": "L986"
     },
     {
       "id": "tests_test_rpc_fallback_heliuswebhooktests_test_shadow_recording_does_not_write_decision_inbox",
@@ -9393,7 +9813,7 @@
       "file_type": "code",
       "norm_label": ".test_shadow_recording_does_not_write_decision_inbox()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1166"
+      "source_location": "L1167"
     },
     {
       "id": "tests_test_rpc_fallback_heliuswebhooktests_test_stats_attribute_trades_to_the_transport_that_won_them",
@@ -9405,7 +9825,7 @@
       "file_type": "code",
       "norm_label": ".test_stats_attribute_trades_to_the_transport_that_won_them()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1381"
+      "source_location": "L1382"
     },
     {
       "id": "tests_test_rpc_fallback_heliuswebhooktests_test_stats_count_stream_delivery_even_without_a_trade_row",
@@ -9417,7 +9837,7 @@
       "file_type": "code",
       "norm_label": ".test_stats_count_stream_delivery_even_without_a_trade_row()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1481"
+      "source_location": "L1482"
     },
     {
       "id": "tests_test_rpc_fallback_heliuswebhooktests_test_stats_report_inbox_live_permissions_separately",
@@ -9429,7 +9849,7 @@
       "file_type": "code",
       "norm_label": ".test_stats_report_inbox_live_permissions_separately()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1369"
+      "source_location": "L1370"
     },
     {
       "id": "tests_test_rpc_fallback_heliuswebhooktests_test_stats_separate_webhook_and_stream_latency",
@@ -9441,7 +9861,7 @@
       "file_type": "code",
       "norm_label": ".test_stats_separate_webhook_and_stream_latency()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1342"
+      "source_location": "L1343"
     },
     {
       "id": "tests_test_rpc_fallback_heliuswebhooktests_test_tracked_token_event_is_preserved_without_a_watched_wallet",
@@ -9453,7 +9873,7 @@
       "file_type": "code",
       "norm_label": ".test_tracked_token_event_is_preserved_without_a_watched_wallet()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1241"
+      "source_location": "L1242"
     },
     {
       "id": "tests_test_rpc_fallback_heliuswebhooktests_test_transaction_from_unwatched_wallet_is_recorded_unparsed",
@@ -9465,7 +9885,7 @@
       "file_type": "code",
       "norm_label": ".test_transaction_from_unwatched_wallet_is_recorded_unparsed()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1231"
+      "source_location": "L1232"
     },
     {
       "id": "tests_test_rpc_fallback_heliuswebhooktests_test_transport_attribution_lookups_are_indexed",
@@ -9477,7 +9897,7 @@
       "file_type": "code",
       "norm_label": ".test_transport_attribution_lookups_are_indexed()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1450"
+      "source_location": "L1451"
     },
     {
       "id": "tests_test_rpc_fallback_heliuswebhooktests_test_wallet_and_token_match_store_one_normalized_event",
@@ -9489,7 +9909,7 @@
       "file_type": "code",
       "norm_label": ".test_wallet_and_token_match_store_one_normalized_event()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1322"
+      "source_location": "L1323"
     },
     {
       "id": "tests_test_rpc_fallback_heliuswebhooktests_test_wallet_delivery_accepts_json_parsed_keys",
@@ -9501,7 +9921,7 @@
       "file_type": "code",
       "norm_label": ".test_wallet_delivery_accepts_json_parsed_keys()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1137"
+      "source_location": "L1138"
     },
     {
       "id": "tests_test_rpc_fallback_heliuswebhooktests_test_wallet_delivery_attributes_each_account_separately",
@@ -9513,7 +9933,7 @@
       "file_type": "code",
       "norm_label": ".test_wallet_delivery_attributes_each_account_separately()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1112"
+      "source_location": "L1113"
     },
     {
       "id": "tests_test_rpc_fallback_heliuswebhooktests_test_wallet_delivery_counts_raw_noise_and_retries",
@@ -9525,7 +9945,7 @@
       "file_type": "code",
       "norm_label": ".test_wallet_delivery_counts_raw_noise_and_retries()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1002"
+      "source_location": "L1003"
     },
     {
       "id": "tests_test_rpc_fallback_heliuswebhooktests_test_wallet_delivery_migration_preserves_unknown_program_history",
@@ -9537,7 +9957,7 @@
       "file_type": "code",
       "norm_label": ".test_wallet_delivery_migration_preserves_unknown_program_history()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1076"
+      "source_location": "L1077"
     },
     {
       "id": "tests_test_rpc_fallback_heliuswebhooktests_test_wallet_delivery_separates_unparsed_pump_from_other_noise",
@@ -9549,7 +9969,7 @@
       "file_type": "code",
       "norm_label": ".test_wallet_delivery_separates_unparsed_pump_from_other_noise()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1051"
+      "source_location": "L1052"
     },
     {
       "id": "tests_test_rpc_fallback_heliuswebhooktests_test_webhook_does_not_route_events_or_save_trades",
@@ -9561,7 +9981,7 @@
       "file_type": "code",
       "norm_label": ".test_webhook_does_not_route_events_or_save_trades()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1157"
+      "source_location": "L1158"
     },
     {
       "id": "tests_test_rpc_fallback_heliuswebhooktests_test_wss_apply_writes_inbox_but_not_webhook_health",
@@ -9573,7 +9993,7 @@
       "file_type": "code",
       "norm_label": ".test_wss_apply_writes_inbox_but_not_webhook_health()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1209"
+      "source_location": "L1210"
     },
     {
       "id": "tests_test_rpc_fallback_heliuswebhooktests_test_wss_shadow_parse_does_not_change_active_feed_health",
@@ -9585,7 +10005,7 @@
       "file_type": "code",
       "norm_label": ".test_wss_shadow_parse_does_not_change_active_feed_health()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1187"
+      "source_location": "L1188"
     },
     {
       "id": "app_demo_live_guard",
@@ -9912,414 +10332,6 @@
       "source_location": "L1677"
     },
     {
-      "id": "solana_rpc_fallback_parse_tracked_token_pump_events",
-      "label": "parse_tracked_token_pump_events()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 63,
-      "community_name": "test_rpc_fallback.py",
-      "file_type": "code",
-      "norm_label": "parse_tracked_token_pump_events()",
-      "source_file": "solana_rpc_fallback.py",
-      "source_location": "L444"
-    },
-    {
-      "id": "tests_test_rpc_fallback_outboundrequesttests_test_request_name_still_refers_to_urllib",
-      "label": ".test_request_name_still_refers_to_urllib()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 63,
-      "community_name": "test_rpc_fallback.py",
-      "file_type": "code",
-      "norm_label": ".test_request_name_still_refers_to_urllib()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1778"
-    },
-    {
-      "id": "tests_test_rpc_fallback_pump_amm_receipt",
-      "label": "pump_amm_receipt()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 63,
-      "community_name": "test_rpc_fallback.py",
-      "file_type": "code",
-      "norm_label": "pump_amm_receipt()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L98"
-    },
-    {
-      "id": "tests_test_rpc_fallback_receipt_with_payload",
-      "label": "receipt_with_payload()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 63,
-      "community_name": "test_rpc_fallback.py",
-      "file_type": "code",
-      "norm_label": "receipt_with_payload()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L46"
-    },
-    {
-      "id": "tests_test_rpc_fallback_token_balance",
-      "label": "token_balance()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 63,
-      "community_name": "test_rpc_fallback.py",
-      "file_type": "code",
-      "norm_label": "token_balance()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L34"
-    },
-    {
-      "id": "tests_test_rpc_fallback_trackedtokenparsertests_test_ignores_an_untracked_mint",
-      "label": ".test_ignores_an_untracked_mint()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 63,
-      "community_name": "test_rpc_fallback.py",
-      "file_type": "code",
-      "norm_label": ".test_ignores_an_untracked_mint()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L195"
-    },
-    {
-      "id": "tests_test_rpc_fallback_trackedtokenparsertests_test_missing_user_balance_keeps_price_event_with_unknown_balance",
-      "label": ".test_missing_user_balance_keeps_price_event_with_unknown_balance()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 63,
-      "community_name": "test_rpc_fallback.py",
-      "file_type": "code",
-      "norm_label": ".test_missing_user_balance_keeps_price_event_with_unknown_balance()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L264"
-    },
-    {
-      "id": "tests_test_rpc_fallback_trackedtokenparsertests_test_multiple_operations_keep_global_ordinals",
-      "label": ".test_multiple_operations_keep_global_ordinals()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 63,
-      "community_name": "test_rpc_fallback.py",
-      "file_type": "code",
-      "norm_label": ".test_multiple_operations_keep_global_ordinals()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L203"
-    },
-    {
-      "id": "tests_test_rpc_fallback_trackedtokenparsertests_test_ordinal_does_not_depend_on_an_earlier_event_decoding",
-      "label": ".test_ordinal_does_not_depend_on_an_earlier_event_decoding()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 63,
-      "community_name": "test_rpc_fallback.py",
-      "file_type": "code",
-      "norm_label": ".test_ordinal_does_not_depend_on_an_earlier_event_decoding()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L216"
-    },
-    {
-      "id": "tests_test_rpc_fallback_trackedtokenparsertests_test_parses_tracked_mint_without_requiring_a_watched_wallet",
-      "label": ".test_parses_tracked_mint_without_requiring_a_watched_wallet()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 63,
-      "community_name": "test_rpc_fallback.py",
-      "file_type": "code",
-      "norm_label": ".test_parses_tracked_mint_without_requiring_a_watched_wallet()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L180"
-    },
-    {
-      "id": "tests_test_rpc_fallback_pump_receipt",
-      "label": "pump_receipt()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 64,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": "pump_receipt()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L78"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_parsed",
-      "label": ".parsed()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 64,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": ".parsed()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L343"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_setup",
-      "label": ".setUp()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 64,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": ".setup()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L333"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_teardown",
-      "label": ".tearDown()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 64,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": ".teardown()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L339"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_failed_initial_state_still_bootstraps_current_head",
-      "label": ".test_failed_initial_state_still_bootstraps_current_head()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 64,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": ".test_failed_initial_state_still_bootstraps_current_head()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L646"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_first_poll_starts_now_without_partial_history",
-      "label": ".test_first_poll_starts_now_without_partial_history()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 64,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": ".test_first_poll_starts_now_without_partial_history()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L628"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_identity_stats_match_event_index_and_live_transport",
-      "label": ".test_identity_stats_match_event_index_and_live_transport()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 64,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": ".test_identity_stats_match_event_index_and_live_transport()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L421"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_legacy_not_null_balance_column_is_relaxed_keeping_rows",
-      "label": ".test_legacy_not_null_balance_column_is_relaxed_keeping_rows()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 64,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": ".test_legacy_not_null_balance_column_is_relaxed_keeping_rows()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L508"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_missing_event_can_later_reconcile_to_stream",
-      "label": ".test_missing_event_can_later_reconcile_to_stream()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 64,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": ".test_missing_event_can_later_reconcile_to_stream()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L348"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_operation_applied_from_helius_is_not_missing",
-      "label": ".test_operation_applied_from_helius_is_not_missing()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 64,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": ".test_operation_applied_from_helius_is_not_missing()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L467"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_poll_does_not_reserve_signature_used_by_live_stream",
-      "label": ".test_poll_does_not_reserve_signature_used_by_live_stream()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 64,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": ".test_poll_does_not_reserve_signature_used_by_live_stream()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L589"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_saturated_backlog_rebases_to_current_head",
-      "label": ".test_saturated_backlog_rebases_to_current_head()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 64,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": ".test_saturated_backlog_rebases_to_current_head()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L674"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_second_operation_of_a_transaction_is_not_hidden_by_the_first",
-      "label": ".test_second_operation_of_a_transaction_is_not_hidden_by_the_first()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 64,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": ".test_second_operation_of_a_transaction_is_not_hidden_by_the_first()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L382"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_unknown_balance_is_recorded_as_null",
-      "label": ".test_unknown_balance_is_recorded_as_null()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 64,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": ".test_unknown_balance_is_recorded_as_null()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L481"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackbaselinetests_event_status",
-      "label": ".event_status()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 65,
-      "community_name": "RpcFallbackBaselineTests",
-      "file_type": "code",
-      "norm_label": ".event_status()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L792"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackbaselinetests_insert_trade",
-      "label": ".insert_trade()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 65,
-      "community_name": "RpcFallbackBaselineTests",
-      "file_type": "code",
-      "norm_label": ".insert_trade()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L801"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackbaselinetests_parsed",
-      "label": ".parsed()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 65,
-      "community_name": "RpcFallbackBaselineTests",
-      "file_type": "code",
-      "norm_label": ".parsed()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L776"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackbaselinetests_set_baseline",
-      "label": ".set_baseline()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 65,
-      "community_name": "RpcFallbackBaselineTests",
-      "file_type": "code",
-      "norm_label": ".set_baseline()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L781"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackbaselinetests_setup",
-      "label": ".setUp()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 65,
-      "community_name": "RpcFallbackBaselineTests",
-      "file_type": "code",
-      "norm_label": ".setup()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L766"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackbaselinetests_teardown",
-      "label": ".tearDown()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 65,
-      "community_name": "RpcFallbackBaselineTests",
-      "file_type": "code",
-      "norm_label": ".teardown()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L772"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackbaselinetests_test_approximate_matches_counts_events_not_pairs",
-      "label": ".test_approximate_matches_counts_events_not_pairs()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 65,
-      "community_name": "RpcFallbackBaselineTests",
-      "file_type": "code",
-      "norm_label": ".test_approximate_matches_counts_events_not_pairs()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L865"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackbaselinetests_test_discarded_event_never_becomes_matched",
-      "label": ".test_discarded_event_never_becomes_matched()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 65,
-      "community_name": "RpcFallbackBaselineTests",
-      "file_type": "code",
-      "norm_label": ".test_discarded_event_never_becomes_matched()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L844"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackbaselinetests_test_event_after_baseline_still_counts_as_missing",
-      "label": ".test_event_after_baseline_still_counts_as_missing()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 65,
-      "community_name": "RpcFallbackBaselineTests",
-      "file_type": "code",
-      "norm_label": ".test_event_after_baseline_still_counts_as_missing()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L831"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackbaselinetests_test_event_older_than_baseline_is_discarded_not_missing",
-      "label": ".test_event_older_than_baseline_is_discarded_not_missing()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 65,
-      "community_name": "RpcFallbackBaselineTests",
-      "file_type": "code",
-      "norm_label": ".test_event_older_than_baseline_is_discarded_not_missing()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L816"
-    },
-    {
       "id": "tests_test_paper_idempotency_paperpositionidempotencytests_abrir_posicion",
       "label": ".abrir_posicion()",
       "_callable": true,
@@ -10557,7 +10569,7 @@
       "file_type": "code",
       "norm_label": ".insert_rpc_event()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1800"
+      "source_location": "L1854"
     },
     {
       "id": "tests_test_rpc_fallback_heliuswebhookdeliveryalerttests_insert_webhook_event",
@@ -10569,7 +10581,7 @@
       "file_type": "code",
       "norm_label": ".insert_webhook_event()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1819"
+      "source_location": "L1873"
     },
     {
       "id": "tests_test_rpc_fallback_heliuswebhookdeliveryalerttests_setup",
@@ -10581,7 +10593,7 @@
       "file_type": "code",
       "norm_label": ".setup()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1787"
+      "source_location": "L1841"
     },
     {
       "id": "tests_test_rpc_fallback_heliuswebhookdeliveryalerttests_test_alerts_once_for_recent_onchain_activity_and_recovers",
@@ -10593,7 +10605,7 @@
       "file_type": "code",
       "norm_label": ".test_alerts_once_for_recent_onchain_activity_and_recovers()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1831"
+      "source_location": "L1885"
     },
     {
       "id": "tests_test_rpc_fallback_heliuswebhookdeliveryalerttests_test_failed_discord_delivery_is_retried",
@@ -10605,7 +10617,7 @@
       "file_type": "code",
       "norm_label": ".test_failed_discord_delivery_is_retried()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1864"
+      "source_location": "L1918"
     },
     {
       "id": "tests_test_rpc_fallback_heliuswebhookdeliveryalerttests_test_no_alert_without_recent_rpc_activity",
@@ -10617,7 +10629,7 @@
       "file_type": "code",
       "norm_label": ".test_no_alert_without_recent_rpc_activity()",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1853"
+      "source_location": "L1907"
     },
     {
       "id": "app_build_pumpportal_exact_sell_payload",
@@ -12817,10 +12829,21 @@
       "label": "solana_rpc_fallback.py",
       "_origin": "ast",
       "community": 25,
-      "community_name": "solana_rpc_fallback.py",
+      "community_name": "pump_receipt",
       "file_type": "code",
       "norm_label": "solana_rpc_fallback.py",
       "source_file": "solana_rpc_fallback.py",
+      "source_location": "L1"
+    },
+    {
+      "id": "tests_test_rpc_fallback",
+      "label": "test_rpc_fallback.py",
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": "test_rpc_fallback.py",
+      "source_file": "tests/test_rpc_fallback.py",
       "source_location": "L1"
     },
     {
@@ -12828,22 +12851,121 @@
       "label": "Strict, observational parsing for Pump trades on Solana RPC.",
       "_origin": "ast",
       "community": 25,
-      "community_name": "solana_rpc_fallback.py",
+      "community_name": "pump_receipt",
       "file_type": "rationale",
       "norm_label": "strict, observational parsing for pump trades on solana rpc.",
       "source_file": "solana_rpc_fallback.py",
       "source_location": "L1"
     },
     {
+      "id": "solana_rpc_fallback_rationale_312",
+      "label": "\u00bfFirm\u00f3 ``wallet`` esta transacci\u00f3n? Solana devuelve ``accountKeys`` en dos\u2026",
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "rationale",
+      "norm_label": "\u00bffirmo ``wallet`` esta transaccion? solana devuelve ``accountkeys`` en dos...",
+      "source_file": "solana_rpc_fallback.py",
+      "source_location": "L312"
+    },
+    {
       "id": "solana_rpc_fallback_rationale_356",
       "label": "Parse official Pump/PumpSwap events without choosing a consumer.",
       "_origin": "ast",
       "community": 25,
-      "community_name": "solana_rpc_fallback.py",
+      "community_name": "pump_receipt",
       "file_type": "rationale",
       "norm_label": "parse official pump/pumpswap events without choosing a consumer.",
       "source_file": "solana_rpc_fallback.py",
       "source_location": "L356"
+    },
+    {
+      "id": "solana_rpc_fallback_rationale_428",
+      "label": "Return official Pump events signed by and attributed to ``wallet``.",
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "rationale",
+      "norm_label": "return official pump events signed by and attributed to ``wallet``.",
+      "source_file": "solana_rpc_fallback.py",
+      "source_location": "L428"
+    },
+    {
+      "id": "solana_rpc_fallback_rationale_445",
+      "label": "Return official Pump events for the requested token mints. Unlike the watched-\u2026",
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "rationale",
+      "norm_label": "return official pump events for the requested token mints. unlike the watched-...",
+      "source_file": "solana_rpc_fallback.py",
+      "source_location": "L445"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rationale_384",
+      "label": "Con firma sola, la operaci\u00f3n 1 quedaba \"matched\" por la operaci\u00f3n 0. PumpPortal\u2026",
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "rationale",
+      "norm_label": "con firma sola, la operacion 1 quedaba \"matched\" por la operacion 0. pumpportal...",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L384"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rationale_423",
+      "label": "Un trade del \u00edndice cero no prueba que PumpPortal entreg\u00f3 el uno.",
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "rationale",
+      "norm_label": "un trade del indice cero no prueba que pumpportal entrego el uno.",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L423"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rationale_469",
+      "label": "Lo que el consumidor del inbox aplic\u00f3 no lo perdi\u00f3 el agente.",
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "rationale",
+      "norm_label": "lo que el consumidor del inbox aplico no lo perdio el agente.",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L469"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rationale_483",
+      "label": "El parser entrega ``None`` cuando no puede reconstruir el saldo. En producci\u00f3n\u2026",
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "rationale",
+      "norm_label": "el parser entrega ``none`` cuando no puede reconstruir el saldo. en produccion...",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L483"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rationale_707",
+      "label": "El parser debe aceptar las dos codificaciones de ``accountKeys``.\u2026",
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "rationale",
+      "norm_label": "el parser debe aceptar las dos codificaciones de ``accountkeys``....",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L707"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rationale_760",
+      "label": "La l\u00ednea de base decide qu\u00e9 observaciones cuentan como evidencia. Un fallo de\u2026",
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "pump_receipt",
+      "file_type": "rationale",
+      "norm_label": "la linea de base decide que observaciones cuentan como evidencia. un fallo de...",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L760"
     },
     {
       "id": "tests_test_risk_controls",
@@ -14702,39 +14824,6 @@
       "source_location": "L1"
     },
     {
-      "id": "solana_rpc_fallback_rationale_312",
-      "label": "\u00bfFirm\u00f3 ``wallet`` esta transacci\u00f3n? Solana devuelve ``accountKeys`` en dos\u2026",
-      "_origin": "ast",
-      "community": 48,
-      "community_name": "parse_watched_wallet_pump_events",
-      "file_type": "rationale",
-      "norm_label": "\u00bffirmo ``wallet`` esta transaccion? solana devuelve ``accountkeys`` en dos...",
-      "source_file": "solana_rpc_fallback.py",
-      "source_location": "L312"
-    },
-    {
-      "id": "solana_rpc_fallback_rationale_428",
-      "label": "Return official Pump events signed by and attributed to ``wallet``.",
-      "_origin": "ast",
-      "community": 48,
-      "community_name": "parse_watched_wallet_pump_events",
-      "file_type": "rationale",
-      "norm_label": "return official pump events signed by and attributed to ``wallet``.",
-      "source_file": "solana_rpc_fallback.py",
-      "source_location": "L428"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rationale_706",
-      "label": "El parser debe aceptar las dos codificaciones de ``accountKeys``.\u2026",
-      "_origin": "ast",
-      "community": 48,
-      "community_name": "parse_watched_wallet_pump_events",
-      "file_type": "rationale",
-      "norm_label": "el parser debe aceptar las dos codificaciones de ``accountkeys``....",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L706"
-    },
-    {
       "id": "app_rationale_4943",
       "label": "Le da identidad a las filas de historial anteriores a `event_id`. Sin esto,\u2026",
       "_origin": "ast",
@@ -15557,7 +15646,7 @@
       "source_location": "L1"
     },
     {
-      "id": "tests_test_rpc_fallback_rationale_1501",
+      "id": "tests_test_rpc_fallback_rationale_1502",
       "label": "El \u00edndice tiene que sobrevivir el viaje completo, no solo el parser. Webhook,\u2026",
       "_origin": "ast",
       "community": 55,
@@ -15565,10 +15654,10 @@
       "file_type": "rationale",
       "norm_label": "el indice tiene que sobrevivir el viaje completo, no solo el parser. webhook,...",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1501"
+      "source_location": "L1502"
     },
     {
-      "id": "tests_test_rpc_fallback_rationale_1700",
+      "id": "tests_test_rpc_fallback_rationale_1754",
       "label": "Una fila escrita antes de que el \u00edndice viajara adentro del evento. Es el caso\u2026",
       "_origin": "ast",
       "community": 55,
@@ -15576,7 +15665,7 @@
       "file_type": "rationale",
       "norm_label": "una fila escrita antes de que el indice viajara adentro del evento. es el caso...",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1700"
+      "source_location": "L1754"
     },
     {
       "id": "tests_test_market_event_inbox",
@@ -15722,7 +15811,7 @@
       "source_location": "L183"
     },
     {
-      "id": "tests_test_rpc_fallback_rationale_1382",
+      "id": "tests_test_rpc_fallback_rationale_1383",
       "label": "Lo que el consumidor del inbox escribe en `trades` no es PumpPortal. Con el\u2026",
       "_origin": "ast",
       "community": 60,
@@ -15730,10 +15819,10 @@
       "file_type": "rationale",
       "norm_label": "lo que el consumidor del inbox escribe en `trades` no es pumpportal. con el...",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1382"
+      "source_location": "L1383"
     },
     {
-      "id": "tests_test_rpc_fallback_rationale_1451",
+      "id": "tests_test_rpc_fallback_rationale_1452",
       "label": "Las consultas por firma recorren tablas que crecen con cada evento. Sin \u00edndice,\u2026",
       "_origin": "ast",
       "community": 60,
@@ -15741,10 +15830,10 @@
       "file_type": "rationale",
       "norm_label": "las consultas por firma recorren tablas que crecen con cada evento. sin indice,...",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1451"
+      "source_location": "L1452"
     },
     {
-      "id": "tests_test_rpc_fallback_rationale_1482",
+      "id": "tests_test_rpc_fallback_rationale_1483",
       "label": "Un token seguido de una wallet no vigilada no llega a `trades`. El stream igual\u2026",
       "_origin": "ast",
       "community": 60,
@@ -15752,10 +15841,10 @@
       "file_type": "rationale",
       "norm_label": "un token seguido de una wallet no vigilada no llega a `trades`. el stream igual...",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1482"
+      "source_location": "L1483"
     },
     {
-      "id": "tests_test_rpc_fallback_rationale_892",
+      "id": "tests_test_rpc_fallback_rationale_893",
       "label": "Piloto del webhook: registra qu\u00e9 lleg\u00f3 y cu\u00e1ndo, sin decidir nada.",
       "_origin": "ast",
       "community": 60,
@@ -15763,7 +15852,7 @@
       "file_type": "rationale",
       "norm_label": "piloto del webhook: registra que llego y cuando, sin decidir nada.",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L892"
+      "source_location": "L893"
     },
     {
       "id": "app_rationale_4649",
@@ -15786,83 +15875,6 @@
       "norm_label": "alert once per live order that pumpportal left without a signature.",
       "source_file": "app.py",
       "source_location": "L4687"
-    },
-    {
-      "id": "tests_test_rpc_fallback",
-      "label": "test_rpc_fallback.py",
-      "_origin": "ast",
-      "community": 63,
-      "community_name": "test_rpc_fallback.py",
-      "file_type": "code",
-      "norm_label": "test_rpc_fallback.py",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1"
-    },
-    {
-      "id": "solana_rpc_fallback_rationale_445",
-      "label": "Return official Pump events for the requested token mints. Unlike the watched-\u2026",
-      "_origin": "ast",
-      "community": 63,
-      "community_name": "test_rpc_fallback.py",
-      "file_type": "rationale",
-      "norm_label": "return official pump events for the requested token mints. unlike the watched-...",
-      "source_file": "solana_rpc_fallback.py",
-      "source_location": "L445"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rationale_383",
-      "label": "Con firma sola, la operaci\u00f3n 1 quedaba \"matched\" por la operaci\u00f3n 0. PumpPortal\u2026",
-      "_origin": "ast",
-      "community": 64,
-      "community_name": "pump_receipt",
-      "file_type": "rationale",
-      "norm_label": "con firma sola, la operacion 1 quedaba \"matched\" por la operacion 0. pumpportal...",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L383"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rationale_422",
-      "label": "Un trade del \u00edndice cero no prueba que PumpPortal entreg\u00f3 el uno.",
-      "_origin": "ast",
-      "community": 64,
-      "community_name": "pump_receipt",
-      "file_type": "rationale",
-      "norm_label": "un trade del indice cero no prueba que pumpportal entrego el uno.",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L422"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rationale_468",
-      "label": "Lo que el consumidor del inbox aplic\u00f3 no lo perdi\u00f3 el agente.",
-      "_origin": "ast",
-      "community": 64,
-      "community_name": "pump_receipt",
-      "file_type": "rationale",
-      "norm_label": "lo que el consumidor del inbox aplico no lo perdio el agente.",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L468"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rationale_482",
-      "label": "El parser entrega ``None`` cuando no puede reconstruir el saldo. En producci\u00f3n\u2026",
-      "_origin": "ast",
-      "community": 64,
-      "community_name": "pump_receipt",
-      "file_type": "rationale",
-      "norm_label": "el parser entrega ``none`` cuando no puede reconstruir el saldo. en produccion...",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L482"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rationale_759",
-      "label": "La l\u00ednea de base decide qu\u00e9 observaciones cuentan como evidencia. Un fallo de\u2026",
-      "_origin": "ast",
-      "community": 65,
-      "community_name": "RpcFallbackBaselineTests",
-      "file_type": "rationale",
-      "norm_label": "la linea de base decide que observaciones cuentan como evidencia. un fallo de...",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L759"
     },
     {
       "id": "tests_test_paper_idempotency_rationale_135",
@@ -28022,7 +28034,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L715",
+      "source_location": "L716",
       "weight": 1.0
     },
     {
@@ -28034,7 +28046,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L741",
+      "source_location": "L742",
       "weight": 1.0
     },
     {
@@ -28046,7 +28058,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L744",
+      "source_location": "L745",
       "weight": 1.0
     },
     {
@@ -28058,7 +28070,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L749",
+      "source_location": "L750",
       "weight": 1.0
     },
     {
@@ -28070,24 +28082,12 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L753",
+      "source_location": "L754",
       "weight": 1.0
     },
     {
       "source": "tests_test_rpc_fallback_accountkeyencodingtests_test_parses_json_parsed_encoding_with_dict_account_keys",
       "target": "solana_rpc_fallback_parse_watched_wallet_pump_events",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L733",
-      "weight": 1.0
-    },
-    {
-      "source": "tests_test_rpc_fallback_accountkeyencodingtests_test_parses_json_parsed_encoding_with_dict_account_keys",
-      "target": "tests_test_rpc_fallback_pump_receipt",
       "relation": "calls",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -28098,6 +28098,18 @@
       "weight": 1.0
     },
     {
+      "source": "tests_test_rpc_fallback_accountkeyencodingtests_test_parses_json_parsed_encoding_with_dict_account_keys",
+      "target": "tests_test_rpc_fallback_pump_receipt",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L735",
+      "weight": 1.0
+    },
+    {
       "source": "tests_test_rpc_fallback_accountkeyencodingtests_test_parses_native_encoding_with_string_account_keys",
       "target": "tests_test_rpc_fallback_heliuswebhooktests_native_receipt",
       "relation": "calls",
@@ -28106,7 +28118,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L723",
+      "source_location": "L724",
       "weight": 1.0
     },
     {
@@ -28118,7 +28130,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L725",
+      "source_location": "L726",
       "weight": 1.0
     },
     {
@@ -28130,7 +28142,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1832",
+      "source_location": "L1886",
       "weight": 1.0
     },
     {
@@ -28142,7 +28154,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1833",
+      "source_location": "L1887",
       "weight": 1.0
     },
     {
@@ -28154,7 +28166,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1865",
+      "source_location": "L1919",
       "weight": 1.0
     },
     {
@@ -28166,7 +28178,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1854",
+      "source_location": "L1908",
       "weight": 1.0
     },
     {
@@ -28178,7 +28190,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L906",
+      "source_location": "L907",
       "weight": 1.0
     },
     {
@@ -28190,7 +28202,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1271",
+      "source_location": "L1272",
       "weight": 1.0
     },
     {
@@ -28202,7 +28214,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1284",
+      "source_location": "L1285",
       "weight": 1.0
     },
     {
@@ -28214,7 +28226,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1294",
+      "source_location": "L1295",
       "weight": 1.0
     },
     {
@@ -28226,7 +28238,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L958",
+      "source_location": "L959",
       "weight": 1.0
     },
     {
@@ -28238,7 +28250,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L916",
+      "source_location": "L917",
       "weight": 1.0
     },
     {
@@ -28250,7 +28262,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L988",
+      "source_location": "L989",
       "weight": 1.0
     },
     {
@@ -28262,7 +28274,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1169",
+      "source_location": "L1170",
       "weight": 1.0
     },
     {
@@ -28274,7 +28286,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1393",
+      "source_location": "L1394",
       "weight": 1.0
     },
     {
@@ -28286,7 +28298,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1488",
+      "source_location": "L1489",
       "weight": 1.0
     },
     {
@@ -28298,7 +28310,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1345",
+      "source_location": "L1346",
       "weight": 1.0
     },
     {
@@ -28310,7 +28322,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1246",
+      "source_location": "L1247",
       "weight": 1.0
     },
     {
@@ -28322,7 +28334,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1235",
+      "source_location": "L1236",
       "weight": 1.0
     },
     {
@@ -28334,7 +28346,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1327",
+      "source_location": "L1328",
       "weight": 1.0
     },
     {
@@ -28346,7 +28358,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1138",
+      "source_location": "L1139",
       "weight": 1.0
     },
     {
@@ -28358,7 +28370,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1114",
+      "source_location": "L1115",
       "weight": 1.0
     },
     {
@@ -28370,7 +28382,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1003",
+      "source_location": "L1004",
       "weight": 1.0
     },
     {
@@ -28382,7 +28394,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1052",
+      "source_location": "L1053",
       "weight": 1.0
     },
     {
@@ -28394,7 +28406,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1161",
+      "source_location": "L1162",
       "weight": 1.0
     },
     {
@@ -28406,7 +28418,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1212",
+      "source_location": "L1213",
       "weight": 1.0
     },
     {
@@ -28418,7 +28430,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1190",
+      "source_location": "L1191",
       "weight": 1.0
     },
     {
@@ -28430,7 +28442,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1548",
+      "source_location": "L1549",
       "weight": 1.0
     },
     {
@@ -28442,7 +28454,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1575",
+      "source_location": "L1629",
       "weight": 1.0
     },
     {
@@ -28454,7 +28466,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1577",
+      "source_location": "L1631",
       "weight": 1.0
     },
     {
@@ -28466,7 +28478,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1622",
+      "source_location": "L1676",
       "weight": 1.0
     },
     {
@@ -28478,7 +28490,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1625",
+      "source_location": "L1679",
       "weight": 1.0
     },
     {
@@ -28490,7 +28502,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1610",
+      "source_location": "L1664",
       "weight": 1.0
     },
     {
@@ -28502,7 +28514,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1612",
+      "source_location": "L1666",
       "weight": 1.0
     },
     {
@@ -28514,7 +28526,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1728",
+      "source_location": "L1782",
       "weight": 1.0
     },
     {
@@ -28526,7 +28538,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1718",
+      "source_location": "L1772",
       "weight": 1.0
     },
     {
@@ -28538,7 +28550,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1765",
+      "source_location": "L1819",
       "weight": 1.0
     },
     {
@@ -28550,7 +28562,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1743",
+      "source_location": "L1797",
       "weight": 1.0
     },
     {
@@ -28562,7 +28574,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1584",
+      "source_location": "L1638",
       "weight": 1.0
     },
     {
@@ -28574,7 +28586,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1599",
+      "source_location": "L1653",
       "weight": 1.0
     },
     {
@@ -28586,7 +28598,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1600",
+      "source_location": "L1654",
       "weight": 1.0
     },
     {
@@ -28598,7 +28610,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1666",
+      "source_location": "L1720",
       "weight": 1.0
     },
     {
@@ -28610,7 +28622,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1667",
+      "source_location": "L1721",
       "weight": 1.0
     },
     {
@@ -28622,7 +28634,31 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1753",
+      "source_location": "L1807",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_rpc_fallback_inboxroundtriptests_test_standard_wss_receipt_reaches_inbox_once_with_both_events",
+      "target": "tests_test_rpc_fallback_inboxroundtriptests_receipt_with_two_events",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L1592",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_rpc_fallback_inboxroundtriptests_test_standard_wss_receipt_reaches_inbox_once_with_both_events",
+      "target": "tests_test_rpc_fallback_inboxroundtriptests_inbox_rows",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L1605",
       "weight": 1.0
     },
     {
@@ -28634,7 +28670,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1687",
+      "source_location": "L1741",
       "weight": 1.0
     },
     {
@@ -28646,7 +28682,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L108",
+      "source_location": "L109",
       "weight": 1.0
     },
     {
@@ -28658,7 +28694,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L111",
+      "source_location": "L112",
       "weight": 1.0
     },
     {
@@ -28670,7 +28706,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L91",
+      "source_location": "L92",
       "weight": 1.0
     },
     {
@@ -28682,24 +28718,12 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L93",
+      "source_location": "L94",
       "weight": 1.0
     },
     {
       "source": "tests_test_rpc_fallback_rpcfallbackbaselinetests_parsed",
       "target": "solana_rpc_fallback_parse_watched_wallet_pump_events",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L777",
-      "weight": 1.0
-    },
-    {
-      "source": "tests_test_rpc_fallback_rpcfallbackbaselinetests_parsed",
-      "target": "tests_test_rpc_fallback_pump_receipt",
       "relation": "calls",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -28710,6 +28734,18 @@
       "weight": 1.0
     },
     {
+      "source": "tests_test_rpc_fallback_rpcfallbackbaselinetests_parsed",
+      "target": "tests_test_rpc_fallback_pump_receipt",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L779",
+      "weight": 1.0
+    },
+    {
       "source": "tests_test_rpc_fallback_rpcfallbackbaselinetests_test_approximate_matches_counts_events_not_pairs",
       "target": "tests_test_rpc_fallback_rpcfallbackbaselinetests_set_baseline",
       "relation": "calls",
@@ -28718,7 +28754,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L869",
+      "source_location": "L870",
       "weight": 1.0
     },
     {
@@ -28730,7 +28766,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L871",
+      "source_location": "L872",
       "weight": 1.0
     },
     {
@@ -28742,7 +28778,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L871",
+      "source_location": "L872",
       "weight": 1.0
     },
     {
@@ -28754,7 +28790,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L875",
+      "source_location": "L876",
       "weight": 1.0
     },
     {
@@ -28766,7 +28802,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L877",
+      "source_location": "L878",
       "weight": 1.0
     },
     {
@@ -28778,7 +28814,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L847",
+      "source_location": "L848",
       "weight": 1.0
     },
     {
@@ -28790,7 +28826,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L849",
+      "source_location": "L850",
       "weight": 1.0
     },
     {
@@ -28802,7 +28838,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L849",
+      "source_location": "L850",
       "weight": 1.0
     },
     {
@@ -28814,7 +28850,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L853",
+      "source_location": "L854",
       "weight": 1.0
     },
     {
@@ -28826,7 +28862,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L855",
+      "source_location": "L856",
       "weight": 1.0
     },
     {
@@ -28838,7 +28874,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L833",
+      "source_location": "L834",
       "weight": 1.0
     },
     {
@@ -28850,7 +28886,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L835",
+      "source_location": "L836",
       "weight": 1.0
     },
     {
@@ -28862,7 +28898,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L835",
+      "source_location": "L836",
       "weight": 1.0
     },
     {
@@ -28874,7 +28910,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L842",
+      "source_location": "L843",
       "weight": 1.0
     },
     {
@@ -28886,7 +28922,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L819",
+      "source_location": "L820",
       "weight": 1.0
     },
     {
@@ -28898,7 +28934,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L821",
+      "source_location": "L822",
       "weight": 1.0
     },
     {
@@ -28910,7 +28946,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L821",
+      "source_location": "L822",
       "weight": 1.0
     },
     {
@@ -28922,7 +28958,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L828",
+      "source_location": "L829",
       "weight": 1.0
     },
     {
@@ -28934,7 +28970,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L155",
+      "source_location": "L156",
       "weight": 1.0
     },
     {
@@ -28946,24 +28982,12 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L160",
+      "source_location": "L161",
       "weight": 1.0
     },
     {
       "source": "tests_test_rpc_fallback_rpcfallbackparsertests_test_parses_official_pump_trade_event",
       "target": "solana_rpc_fallback_parse_watched_wallet_pump_events",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L124",
-      "weight": 1.0
-    },
-    {
-      "source": "tests_test_rpc_fallback_rpcfallbackparsertests_test_parses_official_pump_trade_event",
-      "target": "tests_test_rpc_fallback_pump_receipt",
       "relation": "calls",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -28971,6 +28995,18 @@
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
       "source_location": "L125",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_rpc_fallback_rpcfallbackparsertests_test_parses_official_pump_trade_event",
+      "target": "tests_test_rpc_fallback_pump_receipt",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L126",
       "weight": 1.0
     },
     {
@@ -28982,7 +29018,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L140",
+      "source_location": "L141",
       "weight": 1.0
     },
     {
@@ -28994,24 +29030,12 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L141",
+      "source_location": "L142",
       "weight": 1.0
     },
     {
       "source": "tests_test_rpc_fallback_rpcfallbackpersistencetests_parsed",
       "target": "solana_rpc_fallback_parse_watched_wallet_pump_events",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L344",
-      "weight": 1.0
-    },
-    {
-      "source": "tests_test_rpc_fallback_rpcfallbackpersistencetests_parsed",
-      "target": "tests_test_rpc_fallback_pump_receipt",
       "relation": "calls",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -29022,6 +29046,18 @@
       "weight": 1.0
     },
     {
+      "source": "tests_test_rpc_fallback_rpcfallbackpersistencetests_parsed",
+      "target": "tests_test_rpc_fallback_pump_receipt",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L346",
+      "weight": 1.0
+    },
+    {
       "source": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_identity_stats_match_event_index_and_live_transport",
       "target": "tests_test_rpc_fallback_pump_receipt",
       "relation": "calls",
@@ -29030,7 +29066,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L423",
+      "source_location": "L424",
       "weight": 1.0
     },
     {
@@ -29042,7 +29078,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L427",
+      "source_location": "L428",
       "weight": 1.0
     },
     {
@@ -29054,7 +29090,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L581",
+      "source_location": "L582",
       "weight": 1.0
     },
     {
@@ -29066,7 +29102,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L585",
+      "source_location": "L586",
       "weight": 1.0
     },
     {
@@ -29078,7 +29114,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L351",
+      "source_location": "L352",
       "weight": 1.0
     },
     {
@@ -29090,7 +29126,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L351",
+      "source_location": "L352",
       "weight": 1.0
     },
     {
@@ -29102,7 +29138,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L474",
+      "source_location": "L475",
       "weight": 1.0
     },
     {
@@ -29114,7 +29150,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L474",
+      "source_location": "L475",
       "weight": 1.0
     },
     {
@@ -29126,7 +29162,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L608",
+      "source_location": "L609",
       "weight": 1.0
     },
     {
@@ -29138,7 +29174,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L389",
+      "source_location": "L390",
       "weight": 1.0
     },
     {
@@ -29150,7 +29186,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L393",
+      "source_location": "L394",
       "weight": 1.0
     },
     {
@@ -29162,7 +29198,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L488",
+      "source_location": "L489",
       "weight": 1.0
     },
     {
@@ -29174,7 +29210,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L493",
+      "source_location": "L494",
       "weight": 1.0
     },
     {
@@ -29186,7 +29222,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L327",
+      "source_location": "L328",
       "weight": 1.0
     },
     {
@@ -29198,7 +29234,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L307",
+      "source_location": "L308",
       "weight": 1.0
     },
     {
@@ -29210,7 +29246,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L197",
+      "source_location": "L198",
       "weight": 1.0
     },
     {
@@ -29222,7 +29258,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L198",
+      "source_location": "L199",
       "weight": 1.0
     },
     {
@@ -29234,7 +29270,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L265",
+      "source_location": "L266",
       "weight": 1.0
     },
     {
@@ -29246,7 +29282,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L267",
+      "source_location": "L268",
       "weight": 1.0
     },
     {
@@ -29258,7 +29294,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L273",
+      "source_location": "L274",
       "weight": 1.0
     },
     {
@@ -29270,7 +29306,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L282",
+      "source_location": "L283",
       "weight": 1.0
     },
     {
@@ -29282,7 +29318,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L204",
+      "source_location": "L205",
       "weight": 1.0
     },
     {
@@ -29294,7 +29330,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L209",
+      "source_location": "L210",
       "weight": 1.0
     },
     {
@@ -29306,7 +29342,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L220",
+      "source_location": "L221",
       "weight": 1.0
     },
     {
@@ -29318,7 +29354,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L234",
+      "source_location": "L235",
       "weight": 1.0
     },
     {
@@ -29330,7 +29366,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L241",
+      "source_location": "L242",
       "weight": 1.0
     },
     {
@@ -29342,7 +29378,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L246",
+      "source_location": "L247",
       "weight": 1.0
     },
     {
@@ -29354,7 +29390,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L181",
+      "source_location": "L182",
       "weight": 1.0
     },
     {
@@ -29366,7 +29402,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L187",
+      "source_location": "L188",
       "weight": 1.0
     },
     {
@@ -33050,7 +33086,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L11",
+      "source_location": "L12",
       "weight": 1.0
     },
     {
@@ -33062,7 +33098,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L12",
+      "source_location": "L13",
       "weight": 1.0
     },
     {
@@ -33074,7 +33110,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L12",
+      "source_location": "L13",
       "weight": 1.0
     },
     {
@@ -33086,7 +33122,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L12",
+      "source_location": "L13",
       "weight": 1.0
     },
     {
@@ -33098,7 +33134,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L12",
+      "source_location": "L13",
       "weight": 1.0
     },
     {
@@ -33578,7 +33614,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L12",
+      "source_location": "L13",
       "weight": 1.0
     },
     {
@@ -40524,7 +40560,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L122",
+      "source_location": "L123",
       "weight": 1.0
     },
     {
@@ -40535,29 +40571,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1500",
-      "weight": 1.0
-    },
-    {
-      "source": "tests_test_rpc_fallback",
-      "target": "tests_test_rpc_fallback_outboundrequesttests",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1777",
-      "weight": 1.0
-    },
-    {
-      "source": "tests_test_rpc_fallback",
-      "target": "tests_test_rpc_fallback_heliuswebhookdeliveryalerttests",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1786",
+      "source_location": "L1501",
       "weight": 1.0
     },
     {
@@ -40568,7 +40582,29 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L179",
+      "source_location": "L180",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_rpc_fallback",
+      "target": "tests_test_rpc_fallback_outboundrequesttests",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L1831",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_rpc_fallback",
+      "target": "tests_test_rpc_fallback_heliuswebhookdeliveryalerttests",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L1840",
       "weight": 1.0
     },
     {
@@ -40579,7 +40615,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L290",
+      "source_location": "L291",
       "weight": 1.0
     },
     {
@@ -40590,7 +40626,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L332",
+      "source_location": "L333",
       "weight": 1.0
     },
     {
@@ -40601,7 +40637,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L34",
+      "source_location": "L35",
       "weight": 1.0
     },
     {
@@ -40612,7 +40648,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L46",
+      "source_location": "L47",
       "weight": 1.0
     },
     {
@@ -40623,7 +40659,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L705",
+      "source_location": "L706",
       "weight": 1.0
     },
     {
@@ -40634,7 +40670,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L758",
+      "source_location": "L759",
       "weight": 1.0
     },
     {
@@ -40645,7 +40681,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L78",
+      "source_location": "L79",
       "weight": 1.0
     },
     {
@@ -40656,7 +40692,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L891",
+      "source_location": "L892",
       "weight": 1.0
     },
     {
@@ -40667,7 +40703,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L98",
+      "source_location": "L99",
       "weight": 1.0
     },
     {
@@ -44198,7 +44234,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L714",
+      "source_location": "L715",
       "weight": 1.0
     },
     {
@@ -44209,7 +44245,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L722",
+      "source_location": "L723",
       "weight": 1.0
     },
     {
@@ -44220,7 +44256,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L731",
+      "source_location": "L732",
       "weight": 1.0
     },
     {
@@ -44231,7 +44267,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L739",
+      "source_location": "L740",
       "weight": 1.0
     },
     {
@@ -44242,7 +44278,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L748",
+      "source_location": "L749",
       "weight": 1.0
     },
     {
@@ -44253,7 +44289,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1787",
+      "source_location": "L1841",
       "weight": 1.0
     },
     {
@@ -44264,7 +44300,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1800",
+      "source_location": "L1854",
       "weight": 1.0
     },
     {
@@ -44275,7 +44311,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1819",
+      "source_location": "L1873",
       "weight": 1.0
     },
     {
@@ -44286,7 +44322,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1831",
+      "source_location": "L1885",
       "weight": 1.0
     },
     {
@@ -44297,7 +44333,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1853",
+      "source_location": "L1907",
       "weight": 1.0
     },
     {
@@ -44308,7 +44344,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1864",
+      "source_location": "L1918",
       "weight": 1.0
     },
     {
@@ -44319,7 +44355,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1002",
+      "source_location": "L1003",
       "weight": 1.0
     },
     {
@@ -44330,7 +44366,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1051",
+      "source_location": "L1052",
       "weight": 1.0
     },
     {
@@ -44341,7 +44377,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1076",
+      "source_location": "L1077",
       "weight": 1.0
     },
     {
@@ -44352,7 +44388,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1112",
+      "source_location": "L1113",
       "weight": 1.0
     },
     {
@@ -44363,7 +44399,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1137",
+      "source_location": "L1138",
       "weight": 1.0
     },
     {
@@ -44374,7 +44410,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1157",
+      "source_location": "L1158",
       "weight": 1.0
     },
     {
@@ -44385,7 +44421,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1166",
+      "source_location": "L1167",
       "weight": 1.0
     },
     {
@@ -44396,7 +44432,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1187",
+      "source_location": "L1188",
       "weight": 1.0
     },
     {
@@ -44407,7 +44443,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1209",
+      "source_location": "L1210",
       "weight": 1.0
     },
     {
@@ -44418,7 +44454,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1231",
+      "source_location": "L1232",
       "weight": 1.0
     },
     {
@@ -44429,7 +44465,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1241",
+      "source_location": "L1242",
       "weight": 1.0
     },
     {
@@ -44440,7 +44476,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1267",
+      "source_location": "L1268",
       "weight": 1.0
     },
     {
@@ -44451,7 +44487,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1322",
+      "source_location": "L1323",
       "weight": 1.0
     },
     {
@@ -44462,7 +44498,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1342",
+      "source_location": "L1343",
       "weight": 1.0
     },
     {
@@ -44473,7 +44509,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1369",
+      "source_location": "L1370",
       "weight": 1.0
     },
     {
@@ -44484,7 +44520,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1381",
+      "source_location": "L1382",
       "weight": 1.0
     },
     {
@@ -44495,7 +44531,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1450",
+      "source_location": "L1451",
       "weight": 1.0
     },
     {
@@ -44506,7 +44542,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1481",
+      "source_location": "L1482",
       "weight": 1.0
     },
     {
@@ -44517,7 +44553,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L894",
+      "source_location": "L895",
       "weight": 1.0
     },
     {
@@ -44528,7 +44564,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L900",
+      "source_location": "L901",
       "weight": 1.0
     },
     {
@@ -44539,7 +44575,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L904",
+      "source_location": "L905",
       "weight": 1.0
     },
     {
@@ -44550,7 +44586,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L913",
+      "source_location": "L914",
       "weight": 1.0
     },
     {
@@ -44561,7 +44597,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L957",
+      "source_location": "L958",
       "weight": 1.0
     },
     {
@@ -44572,7 +44608,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L985",
+      "source_location": "L986",
       "weight": 1.0
     },
     {
@@ -44583,7 +44619,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1509",
+      "source_location": "L1510",
       "weight": 1.0
     },
     {
@@ -44594,7 +44630,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1540",
+      "source_location": "L1541",
       "weight": 1.0
     },
     {
@@ -44605,7 +44641,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1546",
+      "source_location": "L1547",
       "weight": 1.0
     },
     {
@@ -44616,7 +44652,18 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1558",
+      "source_location": "L1559",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_rpc_fallback_inboxroundtriptests",
+      "target": "tests_test_rpc_fallback_inboxroundtriptests_test_standard_wss_receipt_reaches_inbox_once_with_both_events",
+      "relation": "method",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L1571",
       "weight": 1.0
     },
     {
@@ -44627,7 +44674,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1570",
+      "source_location": "L1624",
       "weight": 1.0
     },
     {
@@ -44638,7 +44685,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1583",
+      "source_location": "L1637",
       "weight": 1.0
     },
     {
@@ -44649,7 +44696,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1598",
+      "source_location": "L1652",
       "weight": 1.0
     },
     {
@@ -44660,7 +44707,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1609",
+      "source_location": "L1663",
       "weight": 1.0
     },
     {
@@ -44671,7 +44718,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1621",
+      "source_location": "L1675",
       "weight": 1.0
     },
     {
@@ -44682,7 +44729,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1663",
+      "source_location": "L1717",
       "weight": 1.0
     },
     {
@@ -44693,7 +44740,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1678",
+      "source_location": "L1732",
       "weight": 1.0
     },
     {
@@ -44704,7 +44751,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1689",
+      "source_location": "L1743",
       "weight": 1.0
     },
     {
@@ -44715,7 +44762,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1699",
+      "source_location": "L1753",
       "weight": 1.0
     },
     {
@@ -44726,7 +44773,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1720",
+      "source_location": "L1774",
       "weight": 1.0
     },
     {
@@ -44737,7 +44784,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1730",
+      "source_location": "L1784",
       "weight": 1.0
     },
     {
@@ -44748,7 +44795,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1745",
+      "source_location": "L1799",
       "weight": 1.0
     },
     {
@@ -44759,7 +44806,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1755",
+      "source_location": "L1809",
       "weight": 1.0
     },
     {
@@ -44770,7 +44817,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1767",
+      "source_location": "L1821",
       "weight": 1.0
     },
     {
@@ -44781,7 +44828,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1778",
+      "source_location": "L1832",
       "weight": 1.0
     },
     {
@@ -44792,7 +44839,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L766",
+      "source_location": "L767",
       "weight": 1.0
     },
     {
@@ -44803,7 +44850,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L772",
+      "source_location": "L773",
       "weight": 1.0
     },
     {
@@ -44814,7 +44861,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L776",
+      "source_location": "L777",
       "weight": 1.0
     },
     {
@@ -44825,7 +44872,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L781",
+      "source_location": "L782",
       "weight": 1.0
     },
     {
@@ -44836,7 +44883,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L792",
+      "source_location": "L793",
       "weight": 1.0
     },
     {
@@ -44847,7 +44894,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L801",
+      "source_location": "L802",
       "weight": 1.0
     },
     {
@@ -44858,7 +44905,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L816",
+      "source_location": "L817",
       "weight": 1.0
     },
     {
@@ -44869,7 +44916,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L831",
+      "source_location": "L832",
       "weight": 1.0
     },
     {
@@ -44880,7 +44927,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L844",
+      "source_location": "L845",
       "weight": 1.0
     },
     {
@@ -44891,7 +44938,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L865",
+      "source_location": "L866",
       "weight": 1.0
     },
     {
@@ -44902,7 +44949,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L123",
+      "source_location": "L124",
       "weight": 1.0
     },
     {
@@ -44913,7 +44960,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L139",
+      "source_location": "L140",
       "weight": 1.0
     },
     {
@@ -44924,7 +44971,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L154",
+      "source_location": "L155",
       "weight": 1.0
     },
     {
@@ -44935,7 +44982,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L333",
+      "source_location": "L334",
       "weight": 1.0
     },
     {
@@ -44946,7 +44993,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L339",
+      "source_location": "L340",
       "weight": 1.0
     },
     {
@@ -44957,7 +45004,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L343",
+      "source_location": "L344",
       "weight": 1.0
     },
     {
@@ -44968,7 +45015,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L348",
+      "source_location": "L349",
       "weight": 1.0
     },
     {
@@ -44979,7 +45026,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L382",
+      "source_location": "L383",
       "weight": 1.0
     },
     {
@@ -44990,7 +45037,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L421",
+      "source_location": "L422",
       "weight": 1.0
     },
     {
@@ -45001,7 +45048,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L467",
+      "source_location": "L468",
       "weight": 1.0
     },
     {
@@ -45012,7 +45059,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L481",
+      "source_location": "L482",
       "weight": 1.0
     },
     {
@@ -45023,7 +45070,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L508",
+      "source_location": "L509",
       "weight": 1.0
     },
     {
@@ -45034,7 +45081,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L589",
+      "source_location": "L590",
       "weight": 1.0
     },
     {
@@ -45045,7 +45092,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L628",
+      "source_location": "L629",
       "weight": 1.0
     },
     {
@@ -45056,7 +45103,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L646",
+      "source_location": "L647",
       "weight": 1.0
     },
     {
@@ -45067,7 +45114,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L674",
+      "source_location": "L675",
       "weight": 1.0
     },
     {
@@ -45078,7 +45125,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L291",
+      "source_location": "L292",
       "weight": 1.0
     },
     {
@@ -45089,7 +45136,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L313",
+      "source_location": "L314",
       "weight": 1.0
     },
     {
@@ -45100,7 +45147,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L180",
+      "source_location": "L181",
       "weight": 1.0
     },
     {
@@ -45111,7 +45158,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L195",
+      "source_location": "L196",
       "weight": 1.0
     },
     {
@@ -45122,7 +45169,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L203",
+      "source_location": "L204",
       "weight": 1.0
     },
     {
@@ -45133,7 +45180,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L216",
+      "source_location": "L217",
       "weight": 1.0
     },
     {
@@ -45144,7 +45191,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L264",
+      "source_location": "L265",
       "weight": 1.0
     },
     {
@@ -47964,135 +48011,135 @@
       "weight": 1.0
     },
     {
-      "source": "tests_test_rpc_fallback_rationale_1382",
+      "source": "tests_test_rpc_fallback_rationale_1383",
       "target": "tests_test_rpc_fallback_heliuswebhooktests_test_stats_attribute_trades_to_the_transport_that_won_them",
       "relation": "rationale_for",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1382",
+      "source_location": "L1383",
       "weight": 1.0
     },
     {
-      "source": "tests_test_rpc_fallback_rationale_1451",
+      "source": "tests_test_rpc_fallback_rationale_1452",
       "target": "tests_test_rpc_fallback_heliuswebhooktests_test_transport_attribution_lookups_are_indexed",
       "relation": "rationale_for",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1451",
+      "source_location": "L1452",
       "weight": 1.0
     },
     {
-      "source": "tests_test_rpc_fallback_rationale_1482",
+      "source": "tests_test_rpc_fallback_rationale_1483",
       "target": "tests_test_rpc_fallback_heliuswebhooktests_test_stats_count_stream_delivery_even_without_a_trade_row",
       "relation": "rationale_for",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1482",
+      "source_location": "L1483",
       "weight": 1.0
     },
     {
-      "source": "tests_test_rpc_fallback_rationale_1501",
+      "source": "tests_test_rpc_fallback_rationale_1502",
       "target": "tests_test_rpc_fallback_inboxroundtriptests",
       "relation": "rationale_for",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1501",
+      "source_location": "L1502",
       "weight": 1.0
     },
     {
-      "source": "tests_test_rpc_fallback_rationale_1700",
+      "source": "tests_test_rpc_fallback_rationale_1754",
       "target": "tests_test_rpc_fallback_inboxroundtriptests_test_event_json_without_index_is_rejected_on_rebuild",
       "relation": "rationale_for",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1700",
+      "source_location": "L1754",
       "weight": 1.0
     },
     {
-      "source": "tests_test_rpc_fallback_rationale_383",
+      "source": "tests_test_rpc_fallback_rationale_384",
       "target": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_second_operation_of_a_transaction_is_not_hidden_by_the_first",
       "relation": "rationale_for",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L383",
+      "source_location": "L384",
       "weight": 1.0
     },
     {
-      "source": "tests_test_rpc_fallback_rationale_422",
+      "source": "tests_test_rpc_fallback_rationale_423",
       "target": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_identity_stats_match_event_index_and_live_transport",
       "relation": "rationale_for",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L422",
+      "source_location": "L423",
       "weight": 1.0
     },
     {
-      "source": "tests_test_rpc_fallback_rationale_468",
+      "source": "tests_test_rpc_fallback_rationale_469",
       "target": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_operation_applied_from_helius_is_not_missing",
       "relation": "rationale_for",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L468",
+      "source_location": "L469",
       "weight": 1.0
     },
     {
-      "source": "tests_test_rpc_fallback_rationale_482",
+      "source": "tests_test_rpc_fallback_rationale_483",
       "target": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_unknown_balance_is_recorded_as_null",
       "relation": "rationale_for",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L482",
+      "source_location": "L483",
       "weight": 1.0
     },
     {
-      "source": "tests_test_rpc_fallback_rationale_706",
+      "source": "tests_test_rpc_fallback_rationale_707",
       "target": "tests_test_rpc_fallback_accountkeyencodingtests",
       "relation": "rationale_for",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L706",
+      "source_location": "L707",
       "weight": 1.0
     },
     {
-      "source": "tests_test_rpc_fallback_rationale_759",
+      "source": "tests_test_rpc_fallback_rationale_760",
       "target": "tests_test_rpc_fallback_rpcfallbackbaselinetests",
       "relation": "rationale_for",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L759",
+      "source_location": "L760",
       "weight": 1.0
     },
     {
-      "source": "tests_test_rpc_fallback_rationale_892",
+      "source": "tests_test_rpc_fallback_rationale_893",
       "target": "tests_test_rpc_fallback_heliuswebhooktests",
       "relation": "rationale_for",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L892",
+      "source_location": "L893",
       "weight": 1.0
     },
     {
@@ -49169,5 +49216,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "ad6be2cccea85860a8e46ef580fc054509bfb0c3"
+  "built_at_commit": "a339e53041243beceb9f4a8846914e3d58114bb7"
 }
