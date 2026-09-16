@@ -267,6 +267,7 @@ from helius_standard_wss import (
     invokes_program,
     parse_logs_notification,
     select_tracked_tokens,
+    select_watched_wallets,
     subscription_confirmation,
 )
 
@@ -476,6 +477,12 @@ HELIUS_STANDARD_WSS_APPLY = os.getenv(
     "HELIUS_STANDARD_WSS_APPLY", "false"
 ).lower() == "true"
 HELIUS_STANDARD_WSS_URL = os.getenv("HELIUS_STANDARD_WSS_URL", "").strip()
+HELIUS_STANDARD_WSS_RPC_URL = os.getenv(
+    "HELIUS_STANDARD_WSS_RPC_URL", ""
+).strip()
+HELIUS_STANDARD_WSS_TRADERS = os.getenv(
+    "HELIUS_STANDARD_WSS_TRADERS", ""
+).strip()
 HELIUS_STANDARD_WSS_RECONNECT_SECONDS = max(
     1, int(os.getenv("HELIUS_STANDARD_WSS_RECONNECT_SECONDS", "3"))
 )
@@ -14786,6 +14793,15 @@ def update_helius_standard_wss_state(**updates):
         HELIUS_STANDARD_WSS_STATE.update(updates)
 
 
+def standard_wss_rpc_url():
+    if HELIUS_STANDARD_WSS_URL and not HELIUS_STANDARD_WSS_RPC_URL:
+        raise ValueError("HELIUS_STANDARD_WSS_RPC_URL_REQUIRED")
+    if (HELIUS_STANDARD_WSS_RPC_URL
+            and not HELIUS_STANDARD_WSS_RPC_URL.startswith("https://")):
+        raise ValueError("HELIUS_STANDARD_WSS_RPC_URL_INVALID")
+    return HELIUS_STANDARD_WSS_RPC_URL or SOLANA_RPC_URL
+
+
 def helius_standard_wss_retry_seconds(error, consecutive_failures):
     error_text = str(error).lower()
     if "429" in error_text or "rate limit" in error_text:
@@ -14946,7 +14962,7 @@ async def fetch_helius_standard_wss_transaction(
                 try:
                     receipt = await asyncio.to_thread(
                         fetch_confirmed_transaction,
-                        SOLANA_RPC_URL,
+                        standard_wss_rpc_url(),
                         signature,
                     )
                 except Exception as exc:
@@ -15118,6 +15134,8 @@ async def helius_standard_wss_worker():
             HELIUS_API_KEY,
             HELIUS_STANDARD_WSS_URL,
         )
+        standard_wss_rpc_url()
+        select_watched_wallets(WATCHED, HELIUS_STANDARD_WSS_TRADERS)
     except ValueError as exc:
         update_helius_standard_wss_state(last_error=str(exc))
         return
@@ -15135,10 +15153,9 @@ async def helius_standard_wss_worker():
     consecutive_failures = 0
 
     while True:
-        wallets = sorted({
-            str(wallet).strip() for wallet in WATCHED.values()
-            if str(wallet).strip()
-        })
+        wallets = select_watched_wallets(
+            WATCHED, HELIUS_STANDARD_WSS_TRADERS
+        )
         if not wallets:
             update_helius_standard_wss_state(
                 connected=False,
@@ -15996,22 +16013,30 @@ def api_helius_standard_wss_stats(
         max(0.0, min(86400.0, now - float(first_ts)))
         if first_ts is not None else 0.0
     )
+    helius_pricing = not bool(
+        HELIUS_STANDARD_WSS_URL or HELIUS_STANDARD_WSS_RPC_URL
+    )
     observed_credits = (
         (float(notification[3] or 0) / 100000.0) * 2.0
         + float(transactions[1] or 0)
-    )
+    ) if helius_pricing else None
     projected_monthly_credits = None
-    if measurement_seconds >= 3600:
+    if helius_pricing and measurement_seconds >= 3600:
         projected_monthly_credits = round(
             observed_credits * (30 * 86400 / measurement_seconds),
             2,
         )
     with HELIUS_STANDARD_WSS_STATE_LOCK:
         runtime = dict(HELIUS_STANDARD_WSS_STATE)
-    watched_count = len({
-        str(wallet).strip() for wallet in WATCHED.values()
-        if str(wallet).strip()
-    })
+    selected_wallets = []
+    configuration_error = None
+    try:
+        selected_wallets = select_watched_wallets(
+            WATCHED, HELIUS_STANDARD_WSS_TRADERS
+        )
+    except ValueError as exc:
+        configuration_error = str(exc)
+    watched_count = len(selected_wallets)
     wallet_subscriptions_ready = bool(
         runtime["connected"]
         and runtime["subscriptions"]
@@ -16030,16 +16055,19 @@ def api_helius_standard_wss_stats(
     try:
         configured = bool(build_helius_standard_wss_url(
             HELIUS_API_KEY, HELIUS_STANDARD_WSS_URL
-        ))
-        configuration_error = None
+        ) and standard_wss_rpc_url() and selected_wallets)
     except ValueError as exc:
         configured = False
         configuration_error = str(exc)
+    if configuration_error:
+        configured = False
     return {
         "enabled": bool(HELIUS_STANDARD_WSS_ENABLED),
         "apply": bool(HELIUS_STANDARD_WSS_APPLY),
+        "provider": "helius" if helius_pricing else "custom",
         "configured": configured,
         "configuration_error": configuration_error,
+        "selected_wallets": watched_count,
         "track_tokens_enabled": bool(
             HELIUS_STANDARD_WSS_TRACK_TOKENS_ENABLED
         ),
@@ -16079,14 +16107,19 @@ def api_helius_standard_wss_stats(
         },
         "credit_estimate": {
             "measurement_seconds": round(measurement_seconds, 3),
-            "observed_credits_approx": round(observed_credits, 3),
+            "observed_credits_approx": (
+                round(observed_credits, 3)
+                if observed_credits is not None else None
+            ),
             "projected_monthly_credits_approx": projected_monthly_credits,
-            "projection_ready": measurement_seconds >= 3600,
-            "free_plan_monthly_credits": 1000000,
+            "projection_ready": helius_pricing and measurement_seconds >= 3600,
+            "free_plan_monthly_credits": 1000000 if helius_pricing else None,
             "assumptions": (
                 "2 credits per 0.1 MB uncompressed WSS traffic plus "
                 "1 credit per getTransaction attempt; excludes connection "
                 "and unrelated project usage"
+            ) if helius_pricing else (
+                "Provider-specific billing is not estimated; check its dashboard"
             ),
         },
     }

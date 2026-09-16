@@ -17,6 +17,7 @@ from helius_standard_wss import (
     invokes_program,
     parse_logs_notification,
     select_tracked_tokens,
+    select_watched_wallets,
     subscription_confirmation,
 )
 
@@ -40,6 +41,17 @@ class FakeWebSocket:
 
 
 class HeliusStandardWssProtocolTests(unittest.TestCase):
+    def test_selects_only_requested_traders(self):
+        watched = {"trader-a": "wallet-a", "trader-b": "wallet-b"}
+        self.assertEqual(
+            select_watched_wallets(watched, "trader-b"), ["wallet-b"]
+        )
+        self.assertEqual(
+            select_watched_wallets(watched), ["wallet-a", "wallet-b"]
+        )
+        with self.assertRaises(ValueError):
+            select_watched_wallets(watched, "unknown")
+
     def test_builds_filtered_wallet_subscription(self):
         request = build_logs_subscribe_request(7, "wallet-a")
 
@@ -217,6 +229,69 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
             "failed": False,
             "logs": [],
         }
+
+    def test_custom_transport_requires_matching_rpc_configuration(self):
+        with (
+            patch.object(app, "HELIUS_STANDARD_WSS_URL", "wss://example.test/ws"),
+            patch.object(app, "HELIUS_STANDARD_WSS_RPC_URL", ""),
+            patch.object(app, "APP_TOKEN", "token"),
+        ):
+            with self.assertRaisesRegex(
+                ValueError, "HELIUS_STANDARD_WSS_RPC_URL_REQUIRED"
+            ):
+                app.standard_wss_rpc_url()
+            report = app.api_helius_standard_wss_stats("token")
+
+        self.assertFalse(report["configured"])
+        self.assertEqual(
+            report["configuration_error"],
+            "HELIUS_STANDARD_WSS_RPC_URL_REQUIRED",
+        )
+
+        with patch.object(
+            app, "HELIUS_STANDARD_WSS_RPC_URL", "http://example.test/rpc"
+        ):
+            with self.assertRaisesRegex(
+                ValueError, "HELIUS_STANDARD_WSS_RPC_URL_INVALID"
+            ):
+                app.standard_wss_rpc_url()
+
+    async def test_custom_transport_fetches_from_its_own_rpc(self):
+        event = self.event()
+        app.record_helius_standard_wss_notification(
+            event, True, 200, received_ts=1_700_000_000
+        )
+        with (
+            patch.object(app, "HELIUS_STANDARD_WSS_URL", "wss://example.test/ws"),
+            patch.object(
+                app, "HELIUS_STANDARD_WSS_RPC_URL", "https://example.test/rpc"
+            ),
+            patch.object(app, "HELIUS_STANDARD_WSS_APPLY", False),
+            patch.object(
+                app, "fetch_confirmed_transaction",
+                return_value={"blockTime": 1_700_000_000},
+            ) as fetch,
+            patch.object(
+                app, "record_helius_webhook_transactions",
+                return_value={"parsed_events": 1},
+            ),
+            patch.object(app, "APP_TOKEN", "token"),
+            patch.object(app, "WATCHED", {"trader-a": "wallet-a"}),
+        ):
+            await app.fetch_helius_standard_wss_transaction(
+                event, 1_700_000_000, {event["signature"]},
+                asyncio.Semaphore(1), asyncio.Lock(), {"next_ts": 0.0},
+            )
+            report = app.api_helius_standard_wss_stats("token")
+
+        fetch.assert_called_once_with(
+            "https://example.test/rpc", "signature-a"
+        )
+        self.assertTrue(report["configured"])
+        self.assertEqual(report["provider"], "custom")
+        self.assertEqual(report["selected_wallets"], 1)
+        self.assertIsNone(report["credit_estimate"]["observed_credits_approx"])
+        self.assertFalse(report["credit_estimate"]["projection_ready"])
 
     def test_migration_preserves_existing_wallet_notifications(self):
         conn = app.db()
@@ -405,8 +480,13 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
         }
         with (
             patch.object(app, "HELIUS_STANDARD_WSS_URL", "wss://example.test"),
+            patch.object(app, "HELIUS_STANDARD_WSS_RPC_URL", "https://example.test/rpc"),
             patch.object(app, "HELIUS_STANDARD_WSS_APPLY", False),
-            patch.object(app, "WATCHED", {"trader-a": "wallet-a"}),
+            patch.object(
+                app, "WATCHED",
+                {"trader-a": "wallet-a", "trader-b": "wallet-b"},
+            ),
+            patch.object(app, "HELIUS_STANDARD_WSS_TRADERS", "trader-a"),
             patch.object(app.websockets, "connect", return_value=socket),
             patch.object(
                 app, "fetch_confirmed_transaction",
@@ -467,6 +547,7 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
         socket = FakeWebSocket()
         with (
             patch.object(app, "HELIUS_STANDARD_WSS_URL", "wss://example.test"),
+            patch.object(app, "HELIUS_STANDARD_WSS_RPC_URL", "https://example.test/rpc"),
             patch.object(app, "HELIUS_STANDARD_WSS_APPLY", False),
             patch.object(app, "WATCHED", {"trader-a": "wallet-a"}),
             patch.object(app.websockets, "connect", return_value=socket),
@@ -525,6 +606,7 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
         socket = FakeWebSocket()
         with (
             patch.object(app, "HELIUS_STANDARD_WSS_URL", "wss://example.test"),
+            patch.object(app, "HELIUS_STANDARD_WSS_RPC_URL", "https://example.test/rpc"),
             patch.object(app, "WATCHED", {"trader-a": "wallet-a"}),
             patch.object(app.websockets, "connect", return_value=socket),
             patch.object(app, "fetch_confirmed_transaction") as fetch,
@@ -667,6 +749,7 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
         }
         with (
             patch.object(app, "HELIUS_STANDARD_WSS_URL", "wss://example.test"),
+            patch.object(app, "HELIUS_STANDARD_WSS_RPC_URL", "https://example.test/rpc"),
             patch.object(app, "HELIUS_STANDARD_WSS_APPLY", False),
             patch.object(app, "HELIUS_STANDARD_WSS_TRACK_TOKENS_ENABLED", True),
             patch.object(app, "HELIUS_STANDARD_WSS_TOKEN_POLL_SECONDS", 1),

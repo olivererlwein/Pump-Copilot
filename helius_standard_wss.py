@@ -18,6 +18,18 @@ def build_helius_standard_wss_url(api_key, explicit_url=""):
     )
 
 
+def select_watched_wallets(watched, trader_names=""):
+    names = str(trader_names or "").strip()
+    if not names:
+        return sorted({str(wallet).strip() for wallet in watched.values()
+                       if str(wallet).strip()})
+    selected = {name.strip() for name in names.split(",") if name.strip()}
+    if not selected or selected.difference(watched):
+        raise ValueError("HELIUS_STANDARD_WSS_TRADERS_INVALID")
+    return sorted({str(watched[name]).strip() for name in selected
+                   if str(watched[name]).strip()})
+
+
 def build_logs_subscribe_request(request_id, wallet):
     wallet = str(wallet or "").strip()
     if not wallet:
