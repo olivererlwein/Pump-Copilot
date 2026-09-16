@@ -153,7 +153,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": "livereceiptpersistencetests",
       "source_file": "tests/test_solana_receipts.py",
@@ -166,7 +166,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": "receiptaccountingtests",
       "source_file": "tests/test_solana_receipts.py",
@@ -392,19 +392,6 @@
       "norm_label": "paperpositionidempotencytests",
       "source_file": "tests/test_paper_idempotency.py",
       "source_location": "L15"
-    },
-    {
-      "id": "tests_test_rpc_fallback_trackedtokenparsertests",
-      "label": "TrackedTokenParserTests",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 46,
-      "community_name": "solana_rpc_fallback.py",
-      "file_type": "code",
-      "norm_label": "trackedtokenparsertests",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L179"
     },
     {
       "id": "tests_test_rpc_fallback_accountkeyencodingtests",
@@ -745,6 +732,19 @@
       "source_location": "L891"
     },
     {
+      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests",
+      "label": "RpcFallbackPersistenceTests",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 63,
+      "community_name": "RpcFallbackPersistenceTests",
+      "file_type": "code",
+      "norm_label": "rpcfallbackpersistencetests",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L332"
+    },
+    {
       "id": "tests_test_rpc_fallback_rpcfallbackbaselinetests",
       "label": "RpcFallbackBaselineTests",
       "_callable": true,
@@ -756,19 +756,6 @@
       "norm_label": "rpcfallbackbaselinetests",
       "source_file": "tests/test_rpc_fallback.py",
       "source_location": "L758"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests",
-      "label": "RpcFallbackPersistenceTests",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 64,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": "rpcfallbackpersistencetests",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L332"
     },
     {
       "id": "tests_test_rpc_fallback_rpcfallbackrequesttests",
@@ -795,6 +782,19 @@
       "norm_label": "outboundrequesttests",
       "source_file": "tests/test_rpc_fallback.py",
       "source_location": "L1755"
+    },
+    {
+      "id": "tests_test_rpc_fallback_trackedtokenparsertests",
+      "label": "TrackedTokenParserTests",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 67,
+      "community_name": "test_rpc_fallback.py",
+      "file_type": "code",
+      "norm_label": "trackedtokenparsertests",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L179"
     },
     {
       "id": "tests_test_rpc_fallback_heliuswebhookdeliveryalerttests",
@@ -1807,196 +1807,16 @@
       "source_location": "L15"
     },
     {
-      "id": "app_build_pumpportal_exact_sell_payload",
-      "label": "build_pumpportal_exact_sell_payload()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 2,
-      "community_name": "ValueError",
-      "file_type": "code",
-      "norm_label": "build_pumpportal_exact_sell_payload()",
-      "source_file": "app.py",
-      "source_location": "L2973"
-    },
-    {
-      "id": "app_build_pumpportal_lightning_sell_payload",
-      "label": "build_pumpportal_lightning_sell_payload()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 2,
-      "community_name": "ValueError",
-      "file_type": "code",
-      "norm_label": "build_pumpportal_lightning_sell_payload()",
-      "source_file": "app.py",
-      "source_location": "L2918"
-    },
-    {
-      "id": "app_calculate_wallet_sell_percentage",
-      "label": "calculate_wallet_sell_percentage()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 2,
-      "community_name": "ValueError",
-      "file_type": "code",
-      "norm_label": "calculate_wallet_sell_percentage()",
-      "source_file": "app.py",
-      "source_location": "L3003"
-    },
-    {
-      "id": "app_fetch_finalized_solana_transaction",
-      "label": "fetch_finalized_solana_transaction()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 2,
-      "community_name": "ValueError",
-      "file_type": "code",
-      "norm_label": "fetch_finalized_solana_transaction()",
-      "source_file": "app.py",
-      "source_location": "L4342"
-    },
-    {
-      "id": "app_fetch_solana_signature_status",
-      "label": "fetch_solana_signature_status()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 2,
-      "community_name": "ValueError",
-      "file_type": "code",
-      "norm_label": "fetch_solana_signature_status()",
-      "source_file": "app.py",
-      "source_location": "L11853"
-    },
-    {
-      "id": "app_normalize_solana_signature",
-      "label": "normalize_solana_signature()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 2,
-      "community_name": "ValueError",
-      "file_type": "code",
-      "norm_label": "normalize_solana_signature()",
-      "source_file": "app.py",
-      "source_location": "L3053"
-    },
-    {
-      "id": "app_prepare_pumpportal_lightning_sell",
-      "label": "prepare_pumpportal_lightning_sell()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 2,
-      "community_name": "ValueError",
-      "file_type": "code",
-      "norm_label": "prepare_pumpportal_lightning_sell()",
-      "source_file": "app.py",
-      "source_location": "L3026"
-    },
-    {
-      "id": "app_reconcile_pumpportal_execution_order",
-      "label": "reconcile_pumpportal_execution_order()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 2,
-      "community_name": "ValueError",
-      "file_type": "code",
-      "norm_label": "reconcile_pumpportal_execution_order()",
-      "source_file": "app.py",
-      "source_location": "L4528"
-    },
-    {
-      "id": "app_record_finalized_buy_position",
-      "label": "record_finalized_buy_position()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 2,
-      "community_name": "ValueError",
-      "file_type": "code",
-      "norm_label": "record_finalized_buy_position()",
-      "source_file": "app.py",
-      "source_location": "L4369"
-    },
-    {
-      "id": "app_record_finalized_sell_position",
-      "label": "record_finalized_sell_position()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 2,
-      "community_name": "ValueError",
-      "file_type": "code",
-      "norm_label": "record_finalized_sell_position()",
-      "source_file": "app.py",
-      "source_location": "L4437"
-    },
-    {
-      "id": "solana_receipts_parse_buy_receipt",
-      "label": "parse_buy_receipt()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 2,
-      "community_name": "ValueError",
-      "file_type": "code",
-      "norm_label": "parse_buy_receipt()",
-      "source_file": "solana_receipts.py",
-      "source_location": "L14"
-    },
-    {
-      "id": "solana_receipts_parse_buy_receipt_7dde67",
-      "label": "_parse_buy_receipt()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 2,
-      "community_name": "ValueError",
-      "file_type": "code",
-      "norm_label": "_parse_buy_receipt()",
-      "source_file": "solana_receipts.py",
-      "source_location": "L34"
-    },
-    {
-      "id": "solana_receipts_parse_receipt_balances",
-      "label": "_parse_receipt_balances()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 2,
-      "community_name": "ValueError",
-      "file_type": "code",
-      "norm_label": "_parse_receipt_balances()",
-      "source_file": "solana_receipts.py",
-      "source_location": "L91"
-    },
-    {
       "id": "solana_receipts_parse_sell_receipt",
       "label": "parse_sell_receipt()",
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": "parse_sell_receipt()",
       "source_file": "solana_receipts.py",
       "source_location": "L26"
-    },
-    {
-      "id": "solana_receipts_parse_sell_receipt_23682d",
-      "label": "_parse_sell_receipt()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 2,
-      "community_name": "ValueError",
-      "file_type": "code",
-      "norm_label": "_parse_sell_receipt()",
-      "source_file": "solana_receipts.py",
-      "source_location": "L63"
-    },
-    {
-      "id": "solana_receipts_unsigned_integer",
-      "label": "unsigned_integer()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 2,
-      "community_name": "ValueError",
-      "file_type": "code",
-      "norm_label": "unsigned_integer()",
-      "source_file": "solana_receipts.py",
-      "source_location": "L8"
     },
     {
       "id": "tests_test_solana_receipts_buy_receipt",
@@ -2004,7 +1824,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": "buy_receipt()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2016,7 +1836,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".live_sells_enabled()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2028,7 +1848,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".make_order()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2040,7 +1860,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".make_sell_order()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2052,7 +1872,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".origin_trader_position()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2064,7 +1884,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".partial_sell()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2076,7 +1896,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".record()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2088,7 +1908,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".sell_orders()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2100,7 +1920,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".setup()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2112,7 +1932,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_broken_index_is_rejected_before_any_order()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2124,7 +1944,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_buy_receipt_preserves_exit_context_and_tracks_mint()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2136,7 +1956,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_concurrent_reconciliation_records_position_and_event_once()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2148,7 +1968,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_disabled_live_mode_observes_but_never_creates_exit_order()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2160,7 +1980,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_event_failure_rolls_back_position_and_order_then_retry_succeeds()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2172,7 +1992,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_exact_sell_payload_does_not_use_wallet_percentage()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2184,7 +2004,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_exit_decision_prioritizes_loss_and_origin_trader_actions()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2196,7 +2016,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_finalized_failure_marks_failed_without_a_position()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2208,7 +2028,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_full_closes_stay_idempotent_per_position()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2220,7 +2040,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_identity_and_manual_confirmation_cannot_bypass_receipt()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2232,7 +2052,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_late_submission_update_cannot_downgrade_confirmed_order()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2244,7 +2064,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_live_daily_loss_uses_current_sol_quote_and_fails_closed()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2256,7 +2076,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_live_exit_accepts_event_in_the_entry_second()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2268,7 +2088,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_live_exit_rejects_pre_entry_and_out_of_order_events()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2280,7 +2100,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_live_position_summary_exposes_accounting_without_raw_receipts()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2292,7 +2112,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_partial_sell_without_signature_is_refused()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2304,7 +2124,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_partial_sells_of_one_transaction_are_separate_exits()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2316,7 +2136,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_partial_then_final_sale_allocates_all_cost_and_closes_position()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2328,7 +2148,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_pumpportal_event_without_index_keeps_its_key()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2340,7 +2160,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_reconciler_routes_finalized_sell_to_linked_position()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2352,7 +2172,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_repeated_tp_event_creates_only_one_reserved_sell()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2364,7 +2184,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_sell_receipt_cannot_exceed_reserved_or_remaining_amount()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2376,7 +2196,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_sell_reservation_rejects_event_older_than_position_state()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2388,7 +2208,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_sell_write_failure_rolls_back_position_and_order()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2400,7 +2220,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_signature_cannot_create_positions_for_two_orders()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2412,7 +2232,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_simultaneous_sell_orders_cannot_reserve_same_tokens()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2424,7 +2244,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_take_profit_stays_idempotent_per_stage()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2436,7 +2256,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_tp_stage_advances_only_after_finalized_sell_receipt()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2448,7 +2268,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_unfinalized_failure_and_invalid_receipt_keep_order_pending()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2460,7 +2280,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_worker_waits_for_receipt_and_then_creates_position()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2472,7 +2292,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".parse()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2484,7 +2304,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_ambiguous_or_wrong_receipts_are_rejected()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2496,7 +2316,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_counts_only_acquired_tokens_with_existing_holdings()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2508,7 +2328,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_exact_raw_amount_and_net_cost_including_account_deposit()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2520,7 +2340,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_existing_wrapped_sol_spend_is_part_of_cost()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2532,7 +2352,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_rpc_requests_finalized_parsed_receipt_and_handles_unavailable()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2544,7 +2364,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_sell_receipt_reports_exact_tokens_and_net_proceeds()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2556,7 +2376,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": "sell_receipt()",
       "source_file": "tests/test_solana_receipts.py",
@@ -2568,35 +2388,11 @@
       "_callable": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": "token_entry()",
       "source_file": "tests/test_solana_receipts.py",
       "source_location": "L19"
-    },
-    {
-      "id": "app_claim_market_event_inbox_processing_batch",
-      "label": "claim_market_event_inbox_processing_batch()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 25,
-      "community_name": "evaluate_buy",
-      "file_type": "code",
-      "norm_label": "claim_market_event_inbox_processing_batch()",
-      "source_file": "app.py",
-      "source_location": "L10772"
-    },
-    {
-      "id": "app_consume_market_event_inbox_once",
-      "label": "consume_market_event_inbox_once()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 25,
-      "community_name": "evaluate_buy",
-      "file_type": "code",
-      "norm_label": "consume_market_event_inbox_once()",
-      "source_file": "app.py",
-      "source_location": "L10898"
     },
     {
       "id": "app_decide_live_position_exit",
@@ -2604,35 +2400,11 @@
       "_callable": true,
       "_origin": "ast",
       "community": 25,
-      "community_name": "evaluate_buy",
+      "community_name": "route_market_event",
       "file_type": "code",
       "norm_label": "decide_live_position_exit()",
       "source_file": "app.py",
       "source_location": "L10059"
-    },
-    {
-      "id": "app_decision_from_score",
-      "label": "decision_from_score()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 25,
-      "community_name": "evaluate_buy",
-      "file_type": "code",
-      "norm_label": "decision_from_score()",
-      "source_file": "app.py",
-      "source_location": "L9329"
-    },
-    {
-      "id": "app_evaluate_buy",
-      "label": "evaluate_buy()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 25,
-      "community_name": "evaluate_buy",
-      "file_type": "code",
-      "norm_label": "evaluate_buy()",
-      "source_file": "app.py",
-      "source_location": "L9537"
     },
     {
       "id": "app_evaluate_live_position_exit",
@@ -2640,35 +2412,11 @@
       "_callable": true,
       "_origin": "ast",
       "community": 25,
-      "community_name": "evaluate_buy",
+      "community_name": "route_market_event",
       "file_type": "code",
       "norm_label": "evaluate_live_position_exit()",
       "source_file": "app.py",
       "source_location": "L10132"
-    },
-    {
-      "id": "app_finish_market_event_inbox_processing",
-      "label": "finish_market_event_inbox_processing()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 25,
-      "community_name": "evaluate_buy",
-      "file_type": "code",
-      "norm_label": "finish_market_event_inbox_processing()",
-      "source_file": "app.py",
-      "source_location": "L10840"
-    },
-    {
-      "id": "app_helius_webhook",
-      "label": "helius_webhook()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 25,
-      "community_name": "evaluate_buy",
-      "file_type": "code",
-      "norm_label": "helius_webhook()",
-      "source_file": "app.py",
-      "source_location": "L15381"
     },
     {
       "id": "app_is_pumpportal_error_message",
@@ -2676,7 +2424,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 25,
-      "community_name": "evaluate_buy",
+      "community_name": "route_market_event",
       "file_type": "code",
       "norm_label": "is_pumpportal_error_message()",
       "source_file": "app.py",
@@ -2688,35 +2436,11 @@
       "_callable": true,
       "_origin": "ast",
       "community": 25,
-      "community_name": "evaluate_buy",
+      "community_name": "route_market_event",
       "file_type": "code",
       "norm_label": "mark_market_event_processed()",
       "source_file": "app.py",
       "source_location": "L1395"
-    },
-    {
-      "id": "app_market_event_block_ts",
-      "label": "market_event_block_ts()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 25,
-      "community_name": "evaluate_buy",
-      "file_type": "code",
-      "norm_label": "market_event_block_ts()",
-      "source_file": "app.py",
-      "source_location": "L10372"
-    },
-    {
-      "id": "app_market_event_from_inbox_row",
-      "label": "market_event_from_inbox_row()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 25,
-      "community_name": "evaluate_buy",
-      "file_type": "code",
-      "norm_label": "market_event_from_inbox_row()",
-      "source_file": "app.py",
-      "source_location": "L10435"
     },
     {
       "id": "app_market_event_identity",
@@ -2724,7 +2448,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 25,
-      "community_name": "evaluate_buy",
+      "community_name": "route_market_event",
       "file_type": "code",
       "norm_label": "market_event_identity()",
       "source_file": "app.py",
@@ -2736,23 +2460,11 @@
       "_callable": true,
       "_origin": "ast",
       "community": 25,
-      "community_name": "evaluate_buy",
+      "community_name": "route_market_event",
       "file_type": "code",
       "norm_label": "market_event_index()",
       "source_file": "app.py",
       "source_location": "L10290"
-    },
-    {
-      "id": "app_market_event_is_after_activation",
-      "label": "market_event_is_after_activation()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 25,
-      "community_name": "evaluate_buy",
-      "file_type": "code",
-      "norm_label": "market_event_is_after_activation()",
-      "source_file": "app.py",
-      "source_location": "L10577"
     },
     {
       "id": "app_market_event_new_token_balance",
@@ -2760,35 +2472,11 @@
       "_callable": true,
       "_origin": "ast",
       "community": 25,
-      "community_name": "evaluate_buy",
+      "community_name": "route_market_event",
       "file_type": "code",
       "norm_label": "market_event_new_token_balance()",
       "source_file": "app.py",
       "source_location": "L10390"
-    },
-    {
-      "id": "app_record_helius_webhook_transactions",
-      "label": "record_helius_webhook_transactions()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 25,
-      "community_name": "evaluate_buy",
-      "file_type": "code",
-      "norm_label": "record_helius_webhook_transactions()",
-      "source_file": "app.py",
-      "source_location": "L15115"
-    },
-    {
-      "id": "app_record_rpc_fallback_event",
-      "label": "record_rpc_fallback_event()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 25,
-      "community_name": "evaluate_buy",
-      "file_type": "code",
-      "norm_label": "record_rpc_fallback_event()",
-      "source_file": "app.py",
-      "source_location": "L12156"
     },
     {
       "id": "app_route_market_event",
@@ -2796,7 +2484,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 25,
-      "community_name": "evaluate_buy",
+      "community_name": "route_market_event",
       "file_type": "code",
       "norm_label": "route_market_event()",
       "source_file": "app.py",
@@ -2808,7 +2496,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 25,
-      "community_name": "evaluate_buy",
+      "community_name": "route_market_event",
       "file_type": "code",
       "norm_label": "save_token_history()",
       "source_file": "app.py",
@@ -2820,35 +2508,11 @@
       "_callable": true,
       "_origin": "ast",
       "community": 25,
-      "community_name": "evaluate_buy",
+      "community_name": "route_market_event",
       "file_type": "code",
       "norm_label": "save_trade()",
       "source_file": "app.py",
       "source_location": "L11446"
-    },
-    {
-      "id": "app_score_token_structure",
-      "label": "score_token_structure()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 25,
-      "community_name": "evaluate_buy",
-      "file_type": "code",
-      "norm_label": "score_token_structure()",
-      "source_file": "app.py",
-      "source_location": "L8819"
-    },
-    {
-      "id": "app_score_trade_size",
-      "label": "score_trade_size()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 25,
-      "community_name": "evaluate_buy",
-      "file_type": "code",
-      "norm_label": "score_trade_size()",
-      "source_file": "app.py",
-      "source_location": "L8859"
     },
     {
       "id": "app_stream",
@@ -2856,7 +2520,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 25,
-      "community_name": "evaluate_buy",
+      "community_name": "route_market_event",
       "file_type": "code",
       "norm_label": "stream()",
       "source_file": "app.py",
@@ -2868,23 +2532,11 @@
       "_callable": true,
       "_origin": "ast",
       "community": 25,
-      "community_name": "evaluate_buy",
+      "community_name": "route_market_event",
       "file_type": "code",
       "norm_label": "trader_for()",
       "source_file": "app.py",
       "source_location": "L5790"
-    },
-    {
-      "id": "app_validated_block_event_ts",
-      "label": "validated_block_event_ts()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 25,
-      "community_name": "evaluate_buy",
-      "file_type": "code",
-      "norm_label": "validated_block_event_ts()",
-      "source_file": "app.py",
-      "source_location": "L10346"
     },
     {
       "id": "tests_test_risk_controls_ambiguousexecutionorderalerttests_make_live_order",
@@ -3967,18 +3619,6 @@
       "source_location": "L6176"
     },
     {
-      "id": "app_get_trader_exit_cycles",
-      "label": "get_trader_exit_cycles()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 30,
-      "community_name": "get_trader_quality_profile",
-      "file_type": "code",
-      "norm_label": "get_trader_exit_cycles()",
-      "source_file": "app.py",
-      "source_location": "L6250"
-    },
-    {
       "id": "app_get_trader_quality_profile",
       "label": "get_trader_quality_profile()",
       "_callable": true,
@@ -4291,6 +3931,18 @@
       "source_location": "L214"
     },
     {
+      "id": "tests_test_helius_standard_wss_heliusstandardwsspersistencetests_test_worker_subscribes_and_observes_without_applying",
+      "label": ".test_worker_subscribes_and_observes_without_applying()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 31,
+      "community_name": "helius_standard_wss_worker",
+      "file_type": "code",
+      "norm_label": ".test_worker_subscribes_and_observes_without_applying()",
+      "source_file": "tests/test_helius_standard_wss.py",
+      "source_location": "L237"
+    },
+    {
       "id": "tests_test_helius_standard_wss_heliusstandardwssprotocoltests_test_builds_filtered_wallet_subscription",
       "label": ".test_builds_filtered_wallet_subscription()",
       "_callable": true,
@@ -4397,18 +4049,6 @@
       "norm_label": ".test_url_requires_key_unless_explicit()",
       "source_file": "tests/test_helius_standard_wss.py",
       "source_location": "L28"
-    },
-    {
-      "id": "app_api_rpc_fallback_stats",
-      "label": "api_rpc_fallback_stats()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 34,
-      "community_name": "app.py",
-      "file_type": "code",
-      "norm_label": "api_rpc_fallback_stats()",
-      "source_file": "app.py",
-      "source_location": "L15858"
     },
     {
       "id": "app_api_shadow_predictions",
@@ -4543,18 +4183,6 @@
       "source_location": "L2850"
     },
     {
-      "id": "app_calculate_copyability_score",
-      "label": "calculate_copyability_score()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 34,
-      "community_name": "app.py",
-      "file_type": "code",
-      "norm_label": "calculate_copyability_score()",
-      "source_file": "app.py",
-      "source_location": "L7261"
-    },
-    {
       "id": "app_compare_shadow_models",
       "label": "compare_shadow_models()",
       "_callable": true,
@@ -4603,16 +4231,40 @@
       "source_location": "L11816"
     },
     {
-      "id": "app_get_rpc_fallback_stats",
-      "label": "get_rpc_fallback_stats()",
+      "id": "app_get_helius_webhook_delivery_alert_active",
+      "label": "get_helius_webhook_delivery_alert_active()",
       "_callable": true,
       "_origin": "ast",
       "community": 34,
       "community_name": "app.py",
       "file_type": "code",
-      "norm_label": "get_rpc_fallback_stats()",
+      "norm_label": "get_helius_webhook_delivery_alert_active()",
       "source_file": "app.py",
-      "source_location": "L12573"
+      "source_location": "L12512"
+    },
+    {
+      "id": "app_get_latest_helius_pump_event_received_ts",
+      "label": "get_latest_helius_pump_event_received_ts()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 34,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "get_latest_helius_pump_event_received_ts()",
+      "source_file": "app.py",
+      "source_location": "L7977"
+    },
+    {
+      "id": "app_get_live_exit_feed_readiness",
+      "label": "get_live_exit_feed_readiness()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 34,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "get_live_exit_feed_readiness()",
+      "source_file": "app.py",
+      "source_location": "L7991"
     },
     {
       "id": "app_get_shadow_predictions",
@@ -4663,18 +4315,6 @@
       "source_location": "L6996"
     },
     {
-      "id": "app_get_trader_copyability_stats",
-      "label": "get_trader_copyability_stats()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 34,
-      "community_name": "app.py",
-      "file_type": "code",
-      "norm_label": "get_trader_copyability_stats()",
-      "source_file": "app.py",
-      "source_location": "L5947"
-    },
-    {
       "id": "app_get_trader_hit_stats",
       "label": "get_trader_hit_stats()",
       "_callable": true,
@@ -4697,30 +4337,6 @@
       "norm_label": "get_trader_quality_assessment()",
       "source_file": "app.py",
       "source_location": "L5877"
-    },
-    {
-      "id": "app_get_trader_reliable_returns",
-      "label": "get_trader_reliable_returns()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 34,
-      "community_name": "app.py",
-      "file_type": "code",
-      "norm_label": "get_trader_reliable_returns()",
-      "source_file": "app.py",
-      "source_location": "L7117"
-    },
-    {
-      "id": "app_get_trader_reliable_samples",
-      "label": "get_trader_reliable_samples()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 34,
-      "community_name": "app.py",
-      "file_type": "code",
-      "norm_label": "get_trader_reliable_samples()",
-      "source_file": "app.py",
-      "source_location": "L7045"
     },
     {
       "id": "app_get_training_checkpoint_freshness",
@@ -4783,6 +4399,18 @@
       "source_location": "L8494"
     },
     {
+      "id": "app_has_recent_rpc_pump_activity",
+      "label": "has_recent_rpc_pump_activity()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 34,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "has_recent_rpc_pump_activity()",
+      "source_file": "app.py",
+      "source_location": "L12496"
+    },
+    {
       "id": "app_helius_webhook_sync_worker",
       "label": "helius_webhook_sync_worker()",
       "_callable": true,
@@ -4793,6 +4421,18 @@
       "norm_label": "helius_webhook_sync_worker()",
       "source_file": "app.py",
       "source_location": "L14748"
+    },
+    {
+      "id": "app_mark_rpc_fallback_events_alerted",
+      "label": "mark_rpc_fallback_events_alerted()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 34,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "mark_rpc_fallback_events_alerted()",
+      "source_file": "app.py",
+      "source_location": "L12284"
     },
     {
       "id": "app_mark_signature_processed",
@@ -4829,18 +4469,6 @@
       "norm_label": "mark_stream_recovered()",
       "source_file": "app.py",
       "source_location": "L12710"
-    },
-    {
-      "id": "app_market_event_inbox_consumer_worker",
-      "label": "market_event_inbox_consumer_worker()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 34,
-      "community_name": "app.py",
-      "file_type": "code",
-      "norm_label": "market_event_inbox_consumer_worker()",
-      "source_file": "app.py",
-      "source_location": "L10997"
     },
     {
       "id": "app_maybe_send_shadow_review_alert",
@@ -4903,6 +4531,18 @@
       "source_location": "L11942"
     },
     {
+      "id": "app_reconcile_rpc_fallback_events",
+      "label": "reconcile_rpc_fallback_events()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 34,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "reconcile_rpc_fallback_events()",
+      "source_file": "app.py",
+      "source_location": "L12216"
+    },
+    {
       "id": "app_record_pumpportal_wallet_balance",
       "label": "record_pumpportal_wallet_balance()",
       "_callable": true,
@@ -4925,6 +4565,18 @@
       "norm_label": "record_shadow_prediction()",
       "source_file": "app.py",
       "source_location": "L7518"
+    },
+    {
+      "id": "app_rpc_fallback_shadow_worker",
+      "label": "rpc_fallback_shadow_worker()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 34,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "rpc_fallback_shadow_worker()",
+      "source_file": "app.py",
+      "source_location": "L12464"
     },
     {
       "id": "app_score_trader",
@@ -4951,6 +4603,18 @@
       "source_location": "L11727"
     },
     {
+      "id": "app_set_helius_webhook_delivery_alert_active",
+      "label": "set_helius_webhook_delivery_alert_active()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 34,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "set_helius_webhook_delivery_alert_active()",
+      "source_file": "app.py",
+      "source_location": "L12526"
+    },
+    {
       "id": "app_summarize_shadow_predictions",
       "label": "summarize_shadow_predictions()",
       "_callable": true,
@@ -4973,6 +4637,18 @@
       "norm_label": "trader_stats()",
       "source_file": "app.py",
       "source_location": "L14126"
+    },
+    {
+      "id": "app_update_helius_webhook_delivery_alert",
+      "label": "update_helius_webhook_delivery_alert()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 34,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "update_helius_webhook_delivery_alert()",
+      "source_file": "app.py",
+      "source_location": "L12539"
     },
     {
       "id": "app_update_helius_webhook_sync_alert",
@@ -5467,6 +5143,18 @@
       "source_location": "L3559"
     },
     {
+      "id": "app_demo_cannot_retry_risk",
+      "label": "demo_cannot_retry_risk()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 36,
+      "community_name": "simulate_execution",
+      "file_type": "code",
+      "norm_label": "demo_cannot_retry_risk()",
+      "source_file": "app.py",
+      "source_location": "L17175"
+    },
+    {
       "id": "app_demo_controlled_retry",
       "label": "demo_controlled_retry()",
       "_callable": true,
@@ -5515,6 +5203,18 @@
       "source_location": "L16964"
     },
     {
+      "id": "app_demo_mode_save",
+      "label": "demo_mode_save()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 36,
+      "community_name": "simulate_execution",
+      "file_type": "code",
+      "norm_label": "demo_mode_save()",
+      "source_file": "app.py",
+      "source_location": "L17731"
+    },
+    {
       "id": "app_demo_pending_reconciliation",
       "label": "demo_pending_reconciliation()",
       "_callable": true,
@@ -5525,6 +5225,30 @@
       "norm_label": "demo_pending_reconciliation()",
       "source_file": "app.py",
       "source_location": "L17083"
+    },
+    {
+      "id": "app_demo_reconcile_pending",
+      "label": "demo_reconcile_pending()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 36,
+      "community_name": "simulate_execution",
+      "file_type": "code",
+      "norm_label": "demo_reconcile_pending()",
+      "source_file": "app.py",
+      "source_location": "L17139"
+    },
+    {
+      "id": "app_demo_retry_counter",
+      "label": "demo_retry_counter()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 36,
+      "community_name": "simulate_execution",
+      "file_type": "code",
+      "norm_label": "demo_retry_counter()",
+      "source_file": "app.py",
+      "source_location": "L17222"
     },
     {
       "id": "app_demo_retry_function",
@@ -5621,6 +5345,18 @@
       "norm_label": "mark_order_pending_reconciliation()",
       "source_file": "app.py",
       "source_location": "L3983"
+    },
+    {
+      "id": "app_reconcile_execution_order",
+      "label": "reconcile_execution_order()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 36,
+      "community_name": "simulate_execution",
+      "file_type": "code",
+      "norm_label": "reconcile_execution_order()",
+      "source_file": "app.py",
+      "source_location": "L4292"
     },
     {
       "id": "app_retry_execution_order",
@@ -6079,18 +5815,6 @@
       "source_location": "L330"
     },
     {
-      "id": "solana_rpc_fallback_base58_encode",
-      "label": "_base58_encode()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 46,
-      "community_name": "solana_rpc_fallback.py",
-      "file_type": "code",
-      "norm_label": "_base58_encode()",
-      "source_file": "solana_rpc_fallback.py",
-      "source_location": "L118"
-    },
-    {
       "id": "solana_rpc_fallback_event_payloads",
       "label": "_event_payloads()",
       "_callable": true,
@@ -6151,18 +5875,6 @@
       "source_location": "L196"
     },
     {
-      "id": "solana_rpc_fallback_parse_tracked_token_pump_events",
-      "label": "parse_tracked_token_pump_events()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 46,
-      "community_name": "solana_rpc_fallback.py",
-      "file_type": "code",
-      "norm_label": "parse_tracked_token_pump_events()",
-      "source_file": "solana_rpc_fallback.py",
-      "source_location": "L444"
-    },
-    {
       "id": "solana_rpc_fallback_token_balances",
       "label": "_token_balances()",
       "_callable": true,
@@ -6185,54 +5897,6 @@
       "norm_label": "_token_decimals()",
       "source_file": "solana_rpc_fallback.py",
       "source_location": "L175"
-    },
-    {
-      "id": "tests_test_rpc_fallback_trackedtokenparsertests_test_ignores_an_untracked_mint",
-      "label": ".test_ignores_an_untracked_mint()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 46,
-      "community_name": "solana_rpc_fallback.py",
-      "file_type": "code",
-      "norm_label": ".test_ignores_an_untracked_mint()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L195"
-    },
-    {
-      "id": "tests_test_rpc_fallback_trackedtokenparsertests_test_multiple_operations_keep_global_ordinals",
-      "label": ".test_multiple_operations_keep_global_ordinals()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 46,
-      "community_name": "solana_rpc_fallback.py",
-      "file_type": "code",
-      "norm_label": ".test_multiple_operations_keep_global_ordinals()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L203"
-    },
-    {
-      "id": "tests_test_rpc_fallback_trackedtokenparsertests_test_ordinal_does_not_depend_on_an_earlier_event_decoding",
-      "label": ".test_ordinal_does_not_depend_on_an_earlier_event_decoding()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 46,
-      "community_name": "solana_rpc_fallback.py",
-      "file_type": "code",
-      "norm_label": ".test_ordinal_does_not_depend_on_an_earlier_event_decoding()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L216"
-    },
-    {
-      "id": "tests_test_rpc_fallback_trackedtokenparsertests_test_parses_tracked_mint_without_requiring_a_watched_wallet",
-      "label": ".test_parses_tracked_mint_without_requiring_a_watched_wallet()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 46,
-      "community_name": "solana_rpc_fallback.py",
-      "file_type": "code",
-      "norm_label": ".test_parses_tracked_mint_without_requiring_a_watched_wallet()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L180"
     },
     {
       "id": "solana_rpc_fallback_is_signed_by",
@@ -6353,6 +6017,18 @@
       "norm_label": ".test_parses_official_pumpswap_event_and_pool_price()",
       "source_file": "tests/test_rpc_fallback.py",
       "source_location": "L139"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_parsed",
+      "label": ".parsed()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 48,
+      "community_name": "parse_watched_wallet_pump_events",
+      "file_type": "code",
+      "norm_label": ".parsed()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L343"
     },
     {
       "id": "app_migrate_database",
@@ -8407,136 +8083,124 @@
       "source_location": "L18"
     },
     {
-      "id": "app_api_live_positions",
-      "label": "api_live_positions()",
+      "id": "app_build_pumpportal_exact_sell_payload",
+      "label": "build_pumpportal_exact_sell_payload()",
       "_callable": true,
       "_origin": "ast",
       "community": 58,
-      "community_name": "risk_check",
+      "community_name": "ValueError",
       "file_type": "code",
-      "norm_label": "api_live_positions()",
+      "norm_label": "build_pumpportal_exact_sell_payload()",
       "source_file": "app.py",
-      "source_location": "L15995"
+      "source_location": "L2973"
     },
     {
-      "id": "app_count_open_positions",
-      "label": "count_open_positions()",
+      "id": "app_build_pumpportal_lightning_sell_payload",
+      "label": "build_pumpportal_lightning_sell_payload()",
       "_callable": true,
       "_origin": "ast",
       "community": 58,
-      "community_name": "risk_check",
+      "community_name": "ValueError",
       "file_type": "code",
-      "norm_label": "count_open_positions()",
+      "norm_label": "build_pumpportal_lightning_sell_payload()",
       "source_file": "app.py",
-      "source_location": "L1451"
+      "source_location": "L2918"
     },
     {
-      "id": "app_demo_liquidity_check",
-      "label": "demo_liquidity_check()",
+      "id": "app_calculate_wallet_sell_percentage",
+      "label": "calculate_wallet_sell_percentage()",
       "_callable": true,
       "_origin": "ast",
       "community": 58,
-      "community_name": "risk_check",
+      "community_name": "ValueError",
       "file_type": "code",
-      "norm_label": "demo_liquidity_check()",
+      "norm_label": "calculate_wallet_sell_percentage()",
       "source_file": "app.py",
-      "source_location": "L16525"
+      "source_location": "L3003"
     },
     {
-      "id": "app_demo_risk_mode_isolation",
-      "label": "demo_risk_mode_isolation()",
+      "id": "app_prepare_pumpportal_lightning_sell",
+      "label": "prepare_pumpportal_lightning_sell()",
       "_callable": true,
       "_origin": "ast",
       "community": 58,
-      "community_name": "risk_check",
+      "community_name": "ValueError",
       "file_type": "code",
-      "norm_label": "demo_risk_mode_isolation()",
+      "norm_label": "prepare_pumpportal_lightning_sell()",
       "source_file": "app.py",
-      "source_location": "L18120"
+      "source_location": "L3026"
     },
     {
-      "id": "app_demo_slippage_check",
-      "label": "demo_slippage_check()",
+      "id": "app_record_finalized_buy_position",
+      "label": "record_finalized_buy_position()",
       "_callable": true,
       "_origin": "ast",
       "community": 58,
-      "community_name": "risk_check",
+      "community_name": "ValueError",
       "file_type": "code",
-      "norm_label": "demo_slippage_check()",
+      "norm_label": "record_finalized_buy_position()",
       "source_file": "app.py",
-      "source_location": "L16499"
+      "source_location": "L4369"
     },
     {
-      "id": "app_get_daily_live_realized_pnl_sol",
-      "label": "get_daily_live_realized_pnl_sol()",
+      "id": "solana_receipts_parse_buy_receipt",
+      "label": "parse_buy_receipt()",
       "_callable": true,
       "_origin": "ast",
       "community": 58,
-      "community_name": "risk_check",
+      "community_name": "ValueError",
       "file_type": "code",
-      "norm_label": "get_daily_live_realized_pnl_sol()",
-      "source_file": "app.py",
-      "source_location": "L1529"
+      "norm_label": "parse_buy_receipt()",
+      "source_file": "solana_receipts.py",
+      "source_location": "L14"
     },
     {
-      "id": "app_get_live_position_summary",
-      "label": "get_live_position_summary()",
+      "id": "solana_receipts_parse_buy_receipt_7dde67",
+      "label": "_parse_buy_receipt()",
       "_callable": true,
       "_origin": "ast",
       "community": 58,
-      "community_name": "risk_check",
+      "community_name": "ValueError",
       "file_type": "code",
-      "norm_label": "get_live_position_summary()",
-      "source_file": "app.py",
-      "source_location": "L1587"
+      "norm_label": "_parse_buy_receipt()",
+      "source_file": "solana_receipts.py",
+      "source_location": "L34"
     },
     {
-      "id": "app_risk_check",
-      "label": "risk_check()",
+      "id": "solana_receipts_parse_receipt_balances",
+      "label": "_parse_receipt_balances()",
       "_callable": true,
       "_origin": "ast",
       "community": 58,
-      "community_name": "risk_check",
+      "community_name": "ValueError",
       "file_type": "code",
-      "norm_label": "risk_check()",
-      "source_file": "app.py",
-      "source_location": "L4720"
+      "norm_label": "_parse_receipt_balances()",
+      "source_file": "solana_receipts.py",
+      "source_location": "L91"
     },
     {
-      "id": "app_validate_liquidity",
-      "label": "validate_liquidity()",
+      "id": "solana_receipts_parse_sell_receipt_23682d",
+      "label": "_parse_sell_receipt()",
       "_callable": true,
       "_origin": "ast",
       "community": 58,
-      "community_name": "risk_check",
+      "community_name": "ValueError",
       "file_type": "code",
-      "norm_label": "validate_liquidity()",
-      "source_file": "app.py",
-      "source_location": "L1683"
+      "norm_label": "_parse_sell_receipt()",
+      "source_file": "solana_receipts.py",
+      "source_location": "L63"
     },
     {
-      "id": "app_validate_slippage",
-      "label": "validate_slippage()",
+      "id": "solana_receipts_unsigned_integer",
+      "label": "unsigned_integer()",
       "_callable": true,
       "_origin": "ast",
       "community": 58,
-      "community_name": "risk_check",
+      "community_name": "ValueError",
       "file_type": "code",
-      "norm_label": "validate_slippage()",
-      "source_file": "app.py",
-      "source_location": "L1650"
-    },
-    {
-      "id": "app_claim_market_event_inbox_validation_batch",
-      "label": "claim_market_event_inbox_validation_batch()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 59,
-      "community_name": "validate_market_event_inbox_once",
-      "file_type": "code",
-      "norm_label": "claim_market_event_inbox_validation_batch()",
-      "source_file": "app.py",
-      "source_location": "L10608"
+      "norm_label": "unsigned_integer()",
+      "source_file": "solana_receipts.py",
+      "source_location": "L8"
     },
     {
       "id": "app_finish_market_event_inbox_validation",
@@ -9115,6 +8779,18 @@
       "source_location": "L1187"
     },
     {
+      "id": "app_api_helius_webhook_sample",
+      "label": "api_helius_webhook_sample()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 61,
+      "community_name": "db",
+      "file_type": "code",
+      "norm_label": "api_helius_webhook_sample()",
+      "source_file": "app.py",
+      "source_location": "L15791"
+    },
+    {
       "id": "app_api_helius_webhook_stats",
       "label": "api_helius_webhook_stats()",
       "_callable": true,
@@ -9125,6 +8801,66 @@
       "norm_label": "api_helius_webhook_stats()",
       "source_file": "app.py",
       "source_location": "L15418"
+    },
+    {
+      "id": "app_api_live_positions",
+      "label": "api_live_positions()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 61,
+      "community_name": "db",
+      "file_type": "code",
+      "norm_label": "api_live_positions()",
+      "source_file": "app.py",
+      "source_location": "L15995"
+    },
+    {
+      "id": "app_api_rpc_fallback_stats",
+      "label": "api_rpc_fallback_stats()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 61,
+      "community_name": "db",
+      "file_type": "code",
+      "norm_label": "api_rpc_fallback_stats()",
+      "source_file": "app.py",
+      "source_location": "L15858"
+    },
+    {
+      "id": "app_apply_paper_event",
+      "label": "apply_paper_event()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 61,
+      "community_name": "db",
+      "file_type": "code",
+      "norm_label": "apply_paper_event()",
+      "source_file": "app.py",
+      "source_location": "L11086"
+    },
+    {
+      "id": "app_calculate_copyability_score",
+      "label": "calculate_copyability_score()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 61,
+      "community_name": "db",
+      "file_type": "code",
+      "norm_label": "calculate_copyability_score()",
+      "source_file": "app.py",
+      "source_location": "L7261"
+    },
+    {
+      "id": "app_claim_market_event_inbox_validation_batch",
+      "label": "claim_market_event_inbox_validation_batch()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 61,
+      "community_name": "db",
+      "file_type": "code",
+      "norm_label": "claim_market_event_inbox_validation_batch()",
+      "source_file": "app.py",
+      "source_location": "L10608"
     },
     {
       "id": "app_cleanup_finished_outcome_token",
@@ -9175,6 +8911,18 @@
       "source_location": "L645"
     },
     {
+      "id": "app_decide_paper_position_action",
+      "label": "decide_paper_position_action()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 61,
+      "community_name": "db",
+      "file_type": "code",
+      "norm_label": "decide_paper_position_action()",
+      "source_file": "app.py",
+      "source_location": "L11018"
+    },
+    {
       "id": "app_establish_market_event_inbox_activation",
       "label": "establish_market_event_inbox_activation()",
       "_callable": true,
@@ -9197,18 +8945,6 @@
       "norm_label": "expire_old_signal_outcomes()",
       "source_file": "app.py",
       "source_location": "L2586"
-    },
-    {
-      "id": "app_get_ambiguous_pumpportal_execution_orders",
-      "label": "get_ambiguous_pumpportal_execution_orders()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 61,
-      "community_name": "db",
-      "file_type": "code",
-      "norm_label": "get_ambiguous_pumpportal_execution_orders()",
-      "source_file": "app.py",
-      "source_location": "L4621"
     },
     {
       "id": "app_get_consensus_trader_count",
@@ -9235,6 +8971,18 @@
       "source_location": "L9079"
     },
     {
+      "id": "app_get_daily_live_realized_pnl_sol",
+      "label": "get_daily_live_realized_pnl_sol()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 61,
+      "community_name": "db",
+      "file_type": "code",
+      "norm_label": "get_daily_live_realized_pnl_sol()",
+      "source_file": "app.py",
+      "source_location": "L1529"
+    },
+    {
       "id": "app_get_execution_latency",
       "label": "get_execution_latency()",
       "_callable": true,
@@ -9247,40 +8995,16 @@
       "source_location": "L4224"
     },
     {
-      "id": "app_get_helius_webhook_delivery_alert_active",
-      "label": "get_helius_webhook_delivery_alert_active()",
+      "id": "app_get_live_position_summary",
+      "label": "get_live_position_summary()",
       "_callable": true,
       "_origin": "ast",
       "community": 61,
       "community_name": "db",
       "file_type": "code",
-      "norm_label": "get_helius_webhook_delivery_alert_active()",
+      "norm_label": "get_live_position_summary()",
       "source_file": "app.py",
-      "source_location": "L12512"
-    },
-    {
-      "id": "app_get_latest_helius_pump_event_received_ts",
-      "label": "get_latest_helius_pump_event_received_ts()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 61,
-      "community_name": "db",
-      "file_type": "code",
-      "norm_label": "get_latest_helius_pump_event_received_ts()",
-      "source_file": "app.py",
-      "source_location": "L7977"
-    },
-    {
-      "id": "app_get_live_exit_feed_readiness",
-      "label": "get_live_exit_feed_readiness()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 61,
-      "community_name": "db",
-      "file_type": "code",
-      "norm_label": "get_live_exit_feed_readiness()",
-      "source_file": "app.py",
-      "source_location": "L7991"
+      "source_location": "L1587"
     },
     {
       "id": "app_get_market_event_inbox_activation_ts",
@@ -9305,6 +9029,18 @@
       "norm_label": "get_persistent_kill_switch()",
       "source_file": "app.py",
       "source_location": "L13333"
+    },
+    {
+      "id": "app_get_rpc_fallback_stats",
+      "label": "get_rpc_fallback_stats()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 61,
+      "community_name": "db",
+      "file_type": "code",
+      "norm_label": "get_rpc_fallback_stats()",
+      "source_file": "app.py",
+      "source_location": "L12573"
     },
     {
       "id": "app_get_rpc_fallback_wallet_states",
@@ -9355,6 +9091,30 @@
       "source_location": "L6515"
     },
     {
+      "id": "app_get_trader_copyability_stats",
+      "label": "get_trader_copyability_stats()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 61,
+      "community_name": "db",
+      "file_type": "code",
+      "norm_label": "get_trader_copyability_stats()",
+      "source_file": "app.py",
+      "source_location": "L5947"
+    },
+    {
+      "id": "app_get_trader_exit_cycles",
+      "label": "get_trader_exit_cycles()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 61,
+      "community_name": "db",
+      "file_type": "code",
+      "norm_label": "get_trader_exit_cycles()",
+      "source_file": "app.py",
+      "source_location": "L6250"
+    },
+    {
       "id": "app_get_trader_first_hit_stats",
       "label": "get_trader_first_hit_stats()",
       "_callable": true,
@@ -9391,40 +9151,40 @@
       "source_location": "L8786"
     },
     {
-      "id": "app_has_recent_rpc_pump_activity",
-      "label": "has_recent_rpc_pump_activity()",
+      "id": "app_get_trader_reliable_returns",
+      "label": "get_trader_reliable_returns()",
       "_callable": true,
       "_origin": "ast",
       "community": 61,
       "community_name": "db",
       "file_type": "code",
-      "norm_label": "has_recent_rpc_pump_activity()",
+      "norm_label": "get_trader_reliable_returns()",
       "source_file": "app.py",
-      "source_location": "L12496"
+      "source_location": "L7117"
     },
     {
-      "id": "app_mark_rpc_fallback_events_alerted",
-      "label": "mark_rpc_fallback_events_alerted()",
+      "id": "app_get_trader_reliable_samples",
+      "label": "get_trader_reliable_samples()",
       "_callable": true,
       "_origin": "ast",
       "community": 61,
       "community_name": "db",
       "file_type": "code",
-      "norm_label": "mark_rpc_fallback_events_alerted()",
+      "norm_label": "get_trader_reliable_samples()",
       "source_file": "app.py",
-      "source_location": "L12284"
+      "source_location": "L7045"
     },
     {
-      "id": "app_maybe_send_ambiguous_execution_order_alerts",
-      "label": "maybe_send_ambiguous_execution_order_alerts()",
+      "id": "app_market_event_inbox_consumer_worker",
+      "label": "market_event_inbox_consumer_worker()",
       "_callable": true,
       "_origin": "ast",
       "community": 61,
       "community_name": "db",
       "file_type": "code",
-      "norm_label": "maybe_send_ambiguous_execution_order_alerts()",
+      "norm_label": "market_event_inbox_consumer_worker()",
       "source_file": "app.py",
-      "source_location": "L4659"
+      "source_location": "L10997"
     },
     {
       "id": "app_process_signal_outcomes_event",
@@ -9439,18 +9199,6 @@
       "source_location": "L2235"
     },
     {
-      "id": "app_pumpportal_execution_reconciliation_worker",
-      "label": "pumpportal_execution_reconciliation_worker()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 61,
-      "community_name": "db",
-      "file_type": "code",
-      "norm_label": "pumpportal_execution_reconciliation_worker()",
-      "source_file": "app.py",
-      "source_location": "L4704"
-    },
-    {
       "id": "app_reconcile_finished_signal_outcomes",
       "label": "reconcile_finished_signal_outcomes()",
       "_callable": true,
@@ -9463,28 +9211,16 @@
       "source_location": "L2560"
     },
     {
-      "id": "app_reconcile_pending_pumpportal_execution_orders",
-      "label": "reconcile_pending_pumpportal_execution_orders()",
+      "id": "app_record_finalized_sell_position",
+      "label": "record_finalized_sell_position()",
       "_callable": true,
       "_origin": "ast",
       "community": 61,
       "community_name": "db",
       "file_type": "code",
-      "norm_label": "reconcile_pending_pumpportal_execution_orders()",
+      "norm_label": "record_finalized_sell_position()",
       "source_file": "app.py",
-      "source_location": "L4600"
-    },
-    {
-      "id": "app_reconcile_rpc_fallback_events",
-      "label": "reconcile_rpc_fallback_events()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 61,
-      "community_name": "db",
-      "file_type": "code",
-      "norm_label": "reconcile_rpc_fallback_events()",
-      "source_file": "app.py",
-      "source_location": "L12216"
+      "source_location": "L4437"
     },
     {
       "id": "app_record_helius_standard_wss_notification",
@@ -9499,16 +9235,16 @@
       "source_location": "L14770"
     },
     {
-      "id": "app_rpc_fallback_shadow_worker",
-      "label": "rpc_fallback_shadow_worker()",
+      "id": "app_save_position_event",
+      "label": "save_position_event()",
       "_callable": true,
       "_origin": "ast",
       "community": 61,
       "community_name": "db",
       "file_type": "code",
-      "norm_label": "rpc_fallback_shadow_worker()",
+      "norm_label": "save_position_event()",
       "source_file": "app.py",
-      "source_location": "L12464"
+      "source_location": "L5733"
     },
     {
       "id": "app_score_consensus",
@@ -9547,18 +9283,6 @@
       "source_location": "L8895"
     },
     {
-      "id": "app_set_helius_webhook_delivery_alert_active",
-      "label": "set_helius_webhook_delivery_alert_active()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 61,
-      "community_name": "db",
-      "file_type": "code",
-      "norm_label": "set_helius_webhook_delivery_alert_active()",
-      "source_file": "app.py",
-      "source_location": "L12526"
-    },
-    {
       "id": "app_set_persistent_kill_switch",
       "label": "set_persistent_kill_switch()",
       "_callable": true,
@@ -9595,6 +9319,18 @@
       "source_location": "L13131"
     },
     {
+      "id": "app_stored_block_event_ts",
+      "label": "stored_block_event_ts()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 61,
+      "community_name": "db",
+      "file_type": "code",
+      "norm_label": "stored_block_event_ts()",
+      "source_file": "app.py",
+      "source_location": "L10412"
+    },
+    {
       "id": "app_untrack_token_if_unused",
       "label": "untrack_token_if_unused()",
       "_callable": true,
@@ -9605,18 +9341,6 @@
       "norm_label": "untrack_token_if_unused()",
       "source_file": "app.py",
       "source_location": "L10034"
-    },
-    {
-      "id": "app_update_helius_webhook_delivery_alert",
-      "label": "update_helius_webhook_delivery_alert()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 61,
-      "community_name": "db",
-      "file_type": "code",
-      "norm_label": "update_helius_webhook_delivery_alert()",
-      "source_file": "app.py",
-      "source_location": "L12539"
     },
     {
       "id": "app_update_rpc_fallback_wallet_state",
@@ -9727,6 +9451,42 @@
       "source_location": "L9344"
     },
     {
+      "id": "app_count_open_positions",
+      "label": "count_open_positions()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 62,
+      "community_name": "execute_pumpportal_lightning_buy",
+      "file_type": "code",
+      "norm_label": "count_open_positions()",
+      "source_file": "app.py",
+      "source_location": "L1451"
+    },
+    {
+      "id": "app_demo_liquidity_check",
+      "label": "demo_liquidity_check()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 62,
+      "community_name": "execute_pumpportal_lightning_buy",
+      "file_type": "code",
+      "norm_label": "demo_liquidity_check()",
+      "source_file": "app.py",
+      "source_location": "L16525"
+    },
+    {
+      "id": "app_demo_risk_mode_isolation",
+      "label": "demo_risk_mode_isolation()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 62,
+      "community_name": "execute_pumpportal_lightning_buy",
+      "file_type": "code",
+      "norm_label": "demo_risk_mode_isolation()",
+      "source_file": "app.py",
+      "source_location": "L18120"
+    },
+    {
       "id": "app_execute_pumpportal_lightning_buy",
       "label": "execute_pumpportal_lightning_buy()",
       "_callable": true,
@@ -9749,6 +9509,30 @@
       "norm_label": "execute_pumpportal_lightning_sell()",
       "source_file": "app.py",
       "source_location": "L3351"
+    },
+    {
+      "id": "app_fetch_finalized_solana_transaction",
+      "label": "fetch_finalized_solana_transaction()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 62,
+      "community_name": "execute_pumpportal_lightning_buy",
+      "file_type": "code",
+      "norm_label": "fetch_finalized_solana_transaction()",
+      "source_file": "app.py",
+      "source_location": "L4342"
+    },
+    {
+      "id": "app_fetch_solana_signature_status",
+      "label": "fetch_solana_signature_status()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 62,
+      "community_name": "execute_pumpportal_lightning_buy",
+      "file_type": "code",
+      "norm_label": "fetch_solana_signature_status()",
+      "source_file": "app.py",
+      "source_location": "L11853"
     },
     {
       "id": "app_get_daily_live_buy_exposure",
@@ -9823,6 +9607,30 @@
       "source_location": "L9429"
     },
     {
+      "id": "app_normalize_solana_signature",
+      "label": "normalize_solana_signature()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 62,
+      "community_name": "execute_pumpportal_lightning_buy",
+      "file_type": "code",
+      "norm_label": "normalize_solana_signature()",
+      "source_file": "app.py",
+      "source_location": "L3053"
+    },
+    {
+      "id": "app_reconcile_pumpportal_execution_order",
+      "label": "reconcile_pumpportal_execution_order()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 62,
+      "community_name": "execute_pumpportal_lightning_buy",
+      "file_type": "code",
+      "norm_label": "reconcile_pumpportal_execution_order()",
+      "source_file": "app.py",
+      "source_location": "L4528"
+    },
+    {
       "id": "app_require_live_trading",
       "label": "require_live_trading()",
       "_callable": true,
@@ -9833,6 +9641,18 @@
       "norm_label": "require_live_trading()",
       "source_file": "app.py",
       "source_location": "L13303"
+    },
+    {
+      "id": "app_risk_check",
+      "label": "risk_check()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 62,
+      "community_name": "execute_pumpportal_lightning_buy",
+      "file_type": "code",
+      "norm_label": "risk_check()",
+      "source_file": "app.py",
+      "source_location": "L4720"
     },
     {
       "id": "app_set_execution_order_external_signature",
@@ -9859,52 +9679,112 @@
       "source_location": "L3118"
     },
     {
-      "id": "app_apply_paper_event",
-      "label": "apply_paper_event()",
+      "id": "app_validate_liquidity",
+      "label": "validate_liquidity()",
       "_callable": true,
       "_origin": "ast",
-      "community": 63,
-      "community_name": "apply_paper_event",
+      "community": 62,
+      "community_name": "execute_pumpportal_lightning_buy",
       "file_type": "code",
-      "norm_label": "apply_paper_event()",
+      "norm_label": "validate_liquidity()",
       "source_file": "app.py",
-      "source_location": "L11086"
+      "source_location": "L1683"
     },
     {
-      "id": "app_decide_paper_position_action",
-      "label": "decide_paper_position_action()",
+      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_setup",
+      "label": ".setUp()",
       "_callable": true,
       "_origin": "ast",
       "community": 63,
-      "community_name": "apply_paper_event",
+      "community_name": "RpcFallbackPersistenceTests",
       "file_type": "code",
-      "norm_label": "decide_paper_position_action()",
-      "source_file": "app.py",
-      "source_location": "L11018"
+      "norm_label": ".setup()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L333"
     },
     {
-      "id": "app_save_position_event",
-      "label": "save_position_event()",
+      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_teardown",
+      "label": ".tearDown()",
       "_callable": true,
       "_origin": "ast",
       "community": 63,
-      "community_name": "apply_paper_event",
+      "community_name": "RpcFallbackPersistenceTests",
       "file_type": "code",
-      "norm_label": "save_position_event()",
-      "source_file": "app.py",
-      "source_location": "L5733"
+      "norm_label": ".teardown()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L339"
     },
     {
-      "id": "app_stored_block_event_ts",
-      "label": "stored_block_event_ts()",
+      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_failed_initial_state_still_bootstraps_current_head",
+      "label": ".test_failed_initial_state_still_bootstraps_current_head()",
       "_callable": true,
       "_origin": "ast",
       "community": 63,
-      "community_name": "apply_paper_event",
+      "community_name": "RpcFallbackPersistenceTests",
       "file_type": "code",
-      "norm_label": "stored_block_event_ts()",
-      "source_file": "app.py",
-      "source_location": "L10412"
+      "norm_label": ".test_failed_initial_state_still_bootstraps_current_head()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L646"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_first_poll_starts_now_without_partial_history",
+      "label": ".test_first_poll_starts_now_without_partial_history()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 63,
+      "community_name": "RpcFallbackPersistenceTests",
+      "file_type": "code",
+      "norm_label": ".test_first_poll_starts_now_without_partial_history()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L628"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_identity_stats_match_event_index_and_live_transport",
+      "label": ".test_identity_stats_match_event_index_and_live_transport()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 63,
+      "community_name": "RpcFallbackPersistenceTests",
+      "file_type": "code",
+      "norm_label": ".test_identity_stats_match_event_index_and_live_transport()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L421"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_poll_does_not_reserve_signature_used_by_live_stream",
+      "label": ".test_poll_does_not_reserve_signature_used_by_live_stream()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 63,
+      "community_name": "RpcFallbackPersistenceTests",
+      "file_type": "code",
+      "norm_label": ".test_poll_does_not_reserve_signature_used_by_live_stream()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L589"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_saturated_backlog_rebases_to_current_head",
+      "label": ".test_saturated_backlog_rebases_to_current_head()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 63,
+      "community_name": "RpcFallbackPersistenceTests",
+      "file_type": "code",
+      "norm_label": ".test_saturated_backlog_rebases_to_current_head()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L674"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_second_operation_of_a_transaction_is_not_hidden_by_the_first",
+      "label": ".test_second_operation_of_a_transaction_is_not_hidden_by_the_first()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 63,
+      "community_name": "RpcFallbackPersistenceTests",
+      "file_type": "code",
+      "norm_label": ".test_second_operation_of_a_transaction_is_not_hidden_by_the_first()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L382"
     },
     {
       "id": "tests_test_rpc_fallback_pump_receipt",
@@ -10039,78 +9919,6 @@
       "source_location": "L816"
     },
     {
-      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_parsed",
-      "label": ".parsed()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 64,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": ".parsed()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L343"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_setup",
-      "label": ".setUp()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 64,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": ".setup()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L333"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_teardown",
-      "label": ".tearDown()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 64,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": ".teardown()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L339"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_failed_initial_state_still_bootstraps_current_head",
-      "label": ".test_failed_initial_state_still_bootstraps_current_head()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 64,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": ".test_failed_initial_state_still_bootstraps_current_head()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L646"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_first_poll_starts_now_without_partial_history",
-      "label": ".test_first_poll_starts_now_without_partial_history()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 64,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": ".test_first_poll_starts_now_without_partial_history()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L628"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_identity_stats_match_event_index_and_live_transport",
-      "label": ".test_identity_stats_match_event_index_and_live_transport()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 64,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": ".test_identity_stats_match_event_index_and_live_transport()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L421"
-    },
-    {
       "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_legacy_not_null_balance_column_is_relaxed_keeping_rows",
       "label": ".test_legacy_not_null_balance_column_is_relaxed_keeping_rows()",
       "_callable": true,
@@ -10145,42 +9953,6 @@
       "norm_label": ".test_operation_applied_from_helius_is_not_missing()",
       "source_file": "tests/test_rpc_fallback.py",
       "source_location": "L467"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_poll_does_not_reserve_signature_used_by_live_stream",
-      "label": ".test_poll_does_not_reserve_signature_used_by_live_stream()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 64,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": ".test_poll_does_not_reserve_signature_used_by_live_stream()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L589"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_saturated_backlog_rebases_to_current_head",
-      "label": ".test_saturated_backlog_rebases_to_current_head()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 64,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": ".test_saturated_backlog_rebases_to_current_head()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L674"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_second_operation_of_a_transaction_is_not_hidden_by_the_first",
-      "label": ".test_second_operation_of_a_transaction_is_not_hidden_by_the_first()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 64,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": ".test_second_operation_of_a_transaction_is_not_hidden_by_the_first()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L382"
     },
     {
       "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_unknown_balance_is_recorded_as_null",
@@ -10229,6 +10001,18 @@
       "norm_label": "poll_rpc_fallback_once()",
       "source_file": "app.py",
       "source_location": "L12299"
+    },
+    {
+      "id": "app_record_rpc_fallback_event",
+      "label": "record_rpc_fallback_event()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 66,
+      "community_name": "poll_rpc_fallback_once",
+      "file_type": "code",
+      "norm_label": "record_rpc_fallback_event()",
+      "source_file": "app.py",
+      "source_location": "L12156"
     },
     {
       "id": "solana_rpc_fallback_fetch_confirmed_transaction",
@@ -10303,6 +10087,30 @@
       "source_location": "L291"
     },
     {
+      "id": "solana_rpc_fallback_base58_encode",
+      "label": "_base58_encode()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 67,
+      "community_name": "test_rpc_fallback.py",
+      "file_type": "code",
+      "norm_label": "_base58_encode()",
+      "source_file": "solana_rpc_fallback.py",
+      "source_location": "L118"
+    },
+    {
+      "id": "solana_rpc_fallback_parse_tracked_token_pump_events",
+      "label": "parse_tracked_token_pump_events()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 67,
+      "community_name": "test_rpc_fallback.py",
+      "file_type": "code",
+      "norm_label": "parse_tracked_token_pump_events()",
+      "source_file": "solana_rpc_fallback.py",
+      "source_location": "L444"
+    },
+    {
       "id": "tests_test_rpc_fallback_heliuswebhooktests_test_all_watched_wallets_in_one_transaction_are_preserved",
       "label": ".test_all_watched_wallets_in_one_transaction_are_preserved()",
       "_callable": true,
@@ -10363,6 +10171,18 @@
       "source_location": "L34"
     },
     {
+      "id": "tests_test_rpc_fallback_trackedtokenparsertests_test_ignores_an_untracked_mint",
+      "label": ".test_ignores_an_untracked_mint()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 67,
+      "community_name": "test_rpc_fallback.py",
+      "file_type": "code",
+      "norm_label": ".test_ignores_an_untracked_mint()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L195"
+    },
+    {
       "id": "tests_test_rpc_fallback_trackedtokenparsertests_test_missing_user_balance_keeps_price_event_with_unknown_balance",
       "label": ".test_missing_user_balance_keeps_price_event_with_unknown_balance()",
       "_callable": true,
@@ -10373,6 +10193,42 @@
       "norm_label": ".test_missing_user_balance_keeps_price_event_with_unknown_balance()",
       "source_file": "tests/test_rpc_fallback.py",
       "source_location": "L264"
+    },
+    {
+      "id": "tests_test_rpc_fallback_trackedtokenparsertests_test_multiple_operations_keep_global_ordinals",
+      "label": ".test_multiple_operations_keep_global_ordinals()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 67,
+      "community_name": "test_rpc_fallback.py",
+      "file_type": "code",
+      "norm_label": ".test_multiple_operations_keep_global_ordinals()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L203"
+    },
+    {
+      "id": "tests_test_rpc_fallback_trackedtokenparsertests_test_ordinal_does_not_depend_on_an_earlier_event_decoding",
+      "label": ".test_ordinal_does_not_depend_on_an_earlier_event_decoding()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 67,
+      "community_name": "test_rpc_fallback.py",
+      "file_type": "code",
+      "norm_label": ".test_ordinal_does_not_depend_on_an_earlier_event_decoding()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L216"
+    },
+    {
+      "id": "tests_test_rpc_fallback_trackedtokenparsertests_test_parses_tracked_mint_without_requiring_a_watched_wallet",
+      "label": ".test_parses_tracked_mint_without_requiring_a_watched_wallet()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 67,
+      "community_name": "test_rpc_fallback.py",
+      "file_type": "code",
+      "norm_label": ".test_parses_tracked_mint_without_requiring_a_watched_wallet()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L180"
     },
     {
       "id": "tests_test_rpc_fallback_heliuswebhookdeliveryalerttests_insert_rpc_event",
@@ -10447,6 +10303,90 @@
       "source_location": "L1831"
     },
     {
+      "id": "app_decision_from_score",
+      "label": "decision_from_score()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 69,
+      "community_name": "evaluate_buy",
+      "file_type": "code",
+      "norm_label": "decision_from_score()",
+      "source_file": "app.py",
+      "source_location": "L9329"
+    },
+    {
+      "id": "app_evaluate_buy",
+      "label": "evaluate_buy()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 69,
+      "community_name": "evaluate_buy",
+      "file_type": "code",
+      "norm_label": "evaluate_buy()",
+      "source_file": "app.py",
+      "source_location": "L9537"
+    },
+    {
+      "id": "app_market_event_block_ts",
+      "label": "market_event_block_ts()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 69,
+      "community_name": "evaluate_buy",
+      "file_type": "code",
+      "norm_label": "market_event_block_ts()",
+      "source_file": "app.py",
+      "source_location": "L10372"
+    },
+    {
+      "id": "app_market_event_from_inbox_row",
+      "label": "market_event_from_inbox_row()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 69,
+      "community_name": "evaluate_buy",
+      "file_type": "code",
+      "norm_label": "market_event_from_inbox_row()",
+      "source_file": "app.py",
+      "source_location": "L10435"
+    },
+    {
+      "id": "app_score_token_structure",
+      "label": "score_token_structure()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 69,
+      "community_name": "evaluate_buy",
+      "file_type": "code",
+      "norm_label": "score_token_structure()",
+      "source_file": "app.py",
+      "source_location": "L8819"
+    },
+    {
+      "id": "app_score_trade_size",
+      "label": "score_trade_size()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 69,
+      "community_name": "evaluate_buy",
+      "file_type": "code",
+      "norm_label": "score_trade_size()",
+      "source_file": "app.py",
+      "source_location": "L8859"
+    },
+    {
+      "id": "app_validated_block_event_ts",
+      "label": "validated_block_event_ts()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 69,
+      "community_name": "evaluate_buy",
+      "file_type": "code",
+      "norm_label": "validated_block_event_ts()",
+      "source_file": "app.py",
+      "source_location": "L10346"
+    },
+    {
       "id": "app_api_helius_standard_wss_stats",
       "label": "api_helius_standard_wss_stats()",
       "_callable": true,
@@ -10457,18 +10397,6 @@
       "norm_label": "api_helius_standard_wss_stats()",
       "source_file": "app.py",
       "source_location": "L15664"
-    },
-    {
-      "id": "app_api_helius_webhook_sample",
-      "label": "api_helius_webhook_sample()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 7,
-      "community_name": "auth",
-      "file_type": "code",
-      "norm_label": "api_helius_webhook_sample()",
-      "source_file": "app.py",
-      "source_location": "L15791"
     },
     {
       "id": "app_auth",
@@ -10505,18 +10433,6 @@
       "norm_label": "demo_can_retry()",
       "source_file": "app.py",
       "source_location": "L17158"
-    },
-    {
-      "id": "app_demo_cannot_retry_risk",
-      "label": "demo_cannot_retry_risk()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 7,
-      "community_name": "auth",
-      "file_type": "code",
-      "norm_label": "demo_cannot_retry_risk()",
-      "source_file": "app.py",
-      "source_location": "L17175"
     },
     {
       "id": "app_demo_close_old",
@@ -10759,18 +10675,6 @@
       "source_location": "L17923"
     },
     {
-      "id": "app_demo_mode_save",
-      "label": "demo_mode_save()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 7,
-      "community_name": "auth",
-      "file_type": "code",
-      "norm_label": "demo_mode_save()",
-      "source_file": "app.py",
-      "source_location": "L17731"
-    },
-    {
       "id": "app_demo_paper_mode_column",
       "label": "demo_paper_mode_column()",
       "_callable": true,
@@ -10867,18 +10771,6 @@
       "source_location": "L16291"
     },
     {
-      "id": "app_demo_reconcile_pending",
-      "label": "demo_reconcile_pending()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 7,
-      "community_name": "auth",
-      "file_type": "code",
-      "norm_label": "demo_reconcile_pending()",
-      "source_file": "app.py",
-      "source_location": "L17139"
-    },
-    {
       "id": "app_demo_reconcile_sent",
       "label": "demo_reconcile_sent()",
       "_callable": true,
@@ -10915,16 +10807,16 @@
       "source_location": "L17193"
     },
     {
-      "id": "app_demo_retry_counter",
-      "label": "demo_retry_counter()",
+      "id": "app_demo_slippage_check",
+      "label": "demo_slippage_check()",
       "_callable": true,
       "_origin": "ast",
       "community": 7,
       "community_name": "auth",
       "file_type": "code",
-      "norm_label": "demo_retry_counter()",
+      "norm_label": "demo_slippage_check()",
       "source_file": "app.py",
-      "source_location": "L17222"
+      "source_location": "L16499"
     },
     {
       "id": "app_demo_stop",
@@ -11059,18 +10951,6 @@
       "source_location": "L14065"
     },
     {
-      "id": "app_reconcile_execution_order",
-      "label": "reconcile_execution_order()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 7,
-      "community_name": "auth",
-      "file_type": "code",
-      "norm_label": "reconcile_execution_order()",
-      "source_file": "app.py",
-      "source_location": "L4292"
-    },
-    {
       "id": "app_require_debug_mode",
       "label": "require_debug_mode()",
       "_callable": true,
@@ -11155,6 +11035,114 @@
       "source_location": "L11389"
     },
     {
+      "id": "app_validate_slippage",
+      "label": "validate_slippage()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 7,
+      "community_name": "auth",
+      "file_type": "code",
+      "norm_label": "validate_slippage()",
+      "source_file": "app.py",
+      "source_location": "L1650"
+    },
+    {
+      "id": "app_claim_market_event_inbox_processing_batch",
+      "label": "claim_market_event_inbox_processing_batch()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 70,
+      "community_name": "consume_market_event_inbox_once",
+      "file_type": "code",
+      "norm_label": "claim_market_event_inbox_processing_batch()",
+      "source_file": "app.py",
+      "source_location": "L10772"
+    },
+    {
+      "id": "app_consume_market_event_inbox_once",
+      "label": "consume_market_event_inbox_once()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 70,
+      "community_name": "consume_market_event_inbox_once",
+      "file_type": "code",
+      "norm_label": "consume_market_event_inbox_once()",
+      "source_file": "app.py",
+      "source_location": "L10898"
+    },
+    {
+      "id": "app_finish_market_event_inbox_processing",
+      "label": "finish_market_event_inbox_processing()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 70,
+      "community_name": "consume_market_event_inbox_once",
+      "file_type": "code",
+      "norm_label": "finish_market_event_inbox_processing()",
+      "source_file": "app.py",
+      "source_location": "L10840"
+    },
+    {
+      "id": "app_market_event_is_after_activation",
+      "label": "market_event_is_after_activation()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 70,
+      "community_name": "consume_market_event_inbox_once",
+      "file_type": "code",
+      "norm_label": "market_event_is_after_activation()",
+      "source_file": "app.py",
+      "source_location": "L10577"
+    },
+    {
+      "id": "app_get_ambiguous_pumpportal_execution_orders",
+      "label": "get_ambiguous_pumpportal_execution_orders()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 71,
+      "community_name": "maybe_send_ambiguous_execution_order_alerts",
+      "file_type": "code",
+      "norm_label": "get_ambiguous_pumpportal_execution_orders()",
+      "source_file": "app.py",
+      "source_location": "L4621"
+    },
+    {
+      "id": "app_maybe_send_ambiguous_execution_order_alerts",
+      "label": "maybe_send_ambiguous_execution_order_alerts()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 71,
+      "community_name": "maybe_send_ambiguous_execution_order_alerts",
+      "file_type": "code",
+      "norm_label": "maybe_send_ambiguous_execution_order_alerts()",
+      "source_file": "app.py",
+      "source_location": "L4659"
+    },
+    {
+      "id": "app_pumpportal_execution_reconciliation_worker",
+      "label": "pumpportal_execution_reconciliation_worker()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 71,
+      "community_name": "maybe_send_ambiguous_execution_order_alerts",
+      "file_type": "code",
+      "norm_label": "pumpportal_execution_reconciliation_worker()",
+      "source_file": "app.py",
+      "source_location": "L4704"
+    },
+    {
+      "id": "app_reconcile_pending_pumpportal_execution_orders",
+      "label": "reconcile_pending_pumpportal_execution_orders()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 71,
+      "community_name": "maybe_send_ambiguous_execution_order_alerts",
+      "file_type": "code",
+      "norm_label": "reconcile_pending_pumpportal_execution_orders()",
+      "source_file": "app.py",
+      "source_location": "L4600"
+    },
+    {
       "id": "app_api_watched_wallets",
       "label": "api_watched_wallets()",
       "_callable": true,
@@ -11201,6 +11189,30 @@
       "norm_label": "watched_wallet_monitor()",
       "source_file": "app.py",
       "source_location": "L12078"
+    },
+    {
+      "id": "app_helius_webhook",
+      "label": "helius_webhook()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 73,
+      "community_name": "record_helius_webhook_transactions",
+      "file_type": "code",
+      "norm_label": "helius_webhook()",
+      "source_file": "app.py",
+      "source_location": "L15381"
+    },
+    {
+      "id": "app_record_helius_webhook_transactions",
+      "label": "record_helius_webhook_transactions()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 73,
+      "community_name": "record_helius_webhook_transactions",
+      "file_type": "code",
+      "norm_label": "record_helius_webhook_transactions()",
+      "source_file": "app.py",
+      "source_location": "L15115"
     },
     {
       "id": "app_decode_helius_sync_addresses",
@@ -12050,66 +12062,22 @@
       "source_location": "L1"
     },
     {
-      "id": "solana_receipts",
-      "label": "solana_receipts.py",
-      "_origin": "ast",
-      "community": 2,
-      "community_name": "ValueError",
-      "file_type": "code",
-      "norm_label": "solana_receipts.py",
-      "source_file": "solana_receipts.py",
-      "source_location": "L1"
-    },
-    {
       "id": "tests_test_solana_receipts",
       "label": "test_solana_receipts.py",
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "code",
       "norm_label": "test_solana_receipts.py",
       "source_file": "tests/test_solana_receipts.py",
       "source_location": "L1"
     },
     {
-      "id": "valueerror",
-      "label": "ValueError",
-      "_origin": "ast",
-      "community": 2,
-      "community_name": "ValueError",
-      "file_type": "code",
-      "norm_label": "valueerror",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "solana_receipts_rationale_1",
-      "label": "Conservative accounting of finalized buys from Solana jsonParsed receipts.",
-      "_origin": "ast",
-      "community": 2,
-      "community_name": "ValueError",
-      "file_type": "rationale",
-      "norm_label": "conservative accounting of finalized buys from solana jsonparsed receipts.",
-      "source_file": "solana_receipts.py",
-      "source_location": "L1"
-    },
-    {
-      "id": "solana_receipts_rationale_15",
-      "label": "Return exact balance deltas, not an inferred swap price or fee breakdown. Net\u2026",
-      "_origin": "ast",
-      "community": 2,
-      "community_name": "ValueError",
-      "file_type": "rationale",
-      "norm_label": "return exact balance deltas, not an inferred swap price or fee breakdown. net...",
-      "source_file": "solana_receipts.py",
-      "source_location": "L15"
-    },
-    {
       "id": "solana_receipts_rationale_27",
       "label": "Return exact tokens sold and the all-in net SOL proceeds.",
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "rationale",
       "norm_label": "return exact tokens sold and the all-in net sol proceeds.",
       "source_file": "solana_receipts.py",
@@ -12120,7 +12088,7 @@
       "label": "Habilita el camino de venta live con el env\u00edo real interceptado.\u2026",
       "_origin": "ast",
       "community": 2,
-      "community_name": "ValueError",
+      "community_name": "LiveReceiptPersistenceTests",
       "file_type": "rationale",
       "norm_label": "habilita el camino de venta live con el envio real interceptado....",
       "source_file": "tests/test_solana_receipts.py",
@@ -12315,22 +12283,11 @@
       "source_location": "L20"
     },
     {
-      "id": "fastapirequest",
-      "label": "FastAPIRequest",
-      "_origin": "ast",
-      "community": 25,
-      "community_name": "evaluate_buy",
-      "file_type": "code",
-      "norm_label": "fastapirequest",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
       "id": "app_rationale_10253",
       "label": "Identidad de un evento de mercado dentro de una transacci\u00f3n. La usan las dos\u2026",
       "_origin": "ast",
       "community": 25,
-      "community_name": "evaluate_buy",
+      "community_name": "route_market_event",
       "file_type": "rationale",
       "norm_label": "identidad de un evento de mercado dentro de una transaccion. la usan las dos...",
       "source_file": "app.py",
@@ -12341,106 +12298,29 @@
       "label": "\u00cdndice de una operaci\u00f3n dentro de su transacci\u00f3n, le\u00eddo del evento. La\u2026",
       "_origin": "ast",
       "community": 25,
-      "community_name": "evaluate_buy",
+      "community_name": "route_market_event",
       "file_type": "rationale",
       "norm_label": "indice de una operacion dentro de su transaccion, leido del evento. la...",
       "source_file": "app.py",
       "source_location": "L10291"
     },
     {
-      "id": "app_rationale_10347",
-      "label": "Timestamp on-chain validado: num\u00e9rico, finito y positivo. ``None`` pasa como\u2026",
-      "_origin": "ast",
-      "community": 25,
-      "community_name": "evaluate_buy",
-      "file_type": "rationale",
-      "norm_label": "timestamp on-chain validado: numerico, finito y positivo. ``none`` pasa como...",
-      "source_file": "app.py",
-      "source_location": "L10347"
-    },
-    {
-      "id": "app_rationale_10373",
-      "label": "Momento on-chain del evento, le\u00eddo de adentro del evento. Ausente significa\u2026",
-      "_origin": "ast",
-      "community": 25,
-      "community_name": "evaluate_buy",
-      "file_type": "rationale",
-      "norm_label": "momento on-chain del evento, leido de adentro del evento. ausente significa...",
-      "source_file": "app.py",
-      "source_location": "L10373"
-    },
-    {
       "id": "app_rationale_10391",
       "label": "Preserva la diferencia entre un saldo desconocido y un cero real. PumpPortal\u2026",
       "_origin": "ast",
       "community": 25,
-      "community_name": "evaluate_buy",
+      "community_name": "route_market_event",
       "file_type": "rationale",
       "norm_label": "preserva la diferencia entre un saldo desconocido y un cero real. pumpportal...",
       "source_file": "app.py",
       "source_location": "L10391"
     },
     {
-      "id": "app_rationale_10442",
-      "label": "Reconstruye el evento normalizado guardado en `market_event_inbox`. La fila\u2026",
-      "_origin": "ast",
-      "community": 25,
-      "community_name": "evaluate_buy",
-      "file_type": "rationale",
-      "norm_label": "reconstruye el evento normalizado guardado en `market_event_inbox`. la fila...",
-      "source_file": "app.py",
-      "source_location": "L10442"
-    },
-    {
-      "id": "app_rationale_10582",
-      "label": "Permite solo eventos recibidos y ocurridos desde la activaci\u00f3n. `blockEventTs`\u2026",
-      "_origin": "ast",
-      "community": 25,
-      "community_name": "evaluate_buy",
-      "file_type": "rationale",
-      "norm_label": "permite solo eventos recibidos y ocurridos desde la activacion. `blockeventts`...",
-      "source_file": "app.py",
-      "source_location": "L10582"
-    },
-    {
-      "id": "app_rationale_10773",
-      "label": "Reserva filas validadas para un \u00fanico consumidor con lease.",
-      "_origin": "ast",
-      "community": 25,
-      "community_name": "evaluate_buy",
-      "file_type": "rationale",
-      "norm_label": "reserva filas validadas para un unico consumidor con lease.",
-      "source_file": "app.py",
-      "source_location": "L10773"
-    },
-    {
-      "id": "app_rationale_10848",
-      "label": "Cierra la reserva solo si el worker todav\u00eda la posee. ``validated`` devuelve la\u2026",
-      "_origin": "ast",
-      "community": 25,
-      "community_name": "evaluate_buy",
-      "file_type": "rationale",
-      "norm_label": "cierra la reserva solo si el worker todavia la posee. ``validated`` devuelve la...",
-      "source_file": "app.py",
-      "source_location": "L10848"
-    },
-    {
-      "id": "app_rationale_10899",
-      "label": "Enruta una vez los eventos validados posteriores a la activaci\u00f3n. La identidad\u2026",
-      "_origin": "ast",
-      "community": 25,
-      "community_name": "evaluate_buy",
-      "file_type": "rationale",
-      "norm_label": "enruta una vez los eventos validados posteriores a la activacion. la identidad...",
-      "source_file": "app.py",
-      "source_location": "L10899"
-    },
-    {
       "id": "app_rationale_12729",
       "label": "Apply an already deduplicated event using the existing live semantics.\u2026",
       "_origin": "ast",
       "community": 25,
-      "community_name": "evaluate_buy",
+      "community_name": "route_market_event",
       "file_type": "rationale",
       "norm_label": "apply an already deduplicated event using the existing live semantics....",
       "source_file": "app.py",
@@ -12451,40 +12331,18 @@
       "label": "Reserva una operaci\u00f3n por identidad completa antes de sus efectos.",
       "_origin": "ast",
       "community": 25,
-      "community_name": "evaluate_buy",
+      "community_name": "route_market_event",
       "file_type": "rationale",
       "norm_label": "reserva una operacion por identidad completa antes de sus efectos.",
       "source_file": "app.py",
       "source_location": "L1400"
     },
     {
-      "id": "app_rationale_15121",
-      "label": "Registra lo que lleg\u00f3 por webhook. Observacional: no dispara nada. Devuelve\u2026",
-      "_origin": "ast",
-      "community": 25,
-      "community_name": "evaluate_buy",
-      "file_type": "rationale",
-      "norm_label": "registra lo que llego por webhook. observacional: no dispara nada. devuelve...",
-      "source_file": "app.py",
-      "source_location": "L15121"
-    },
-    {
-      "id": "app_rationale_15385",
-      "label": "Recibe y preserva transacciones; el consumidor decide si se aplican.",
-      "_origin": "ast",
-      "community": 25,
-      "community_name": "evaluate_buy",
-      "file_type": "rationale",
-      "norm_label": "recibe y preserva transacciones; el consumidor decide si se aplican.",
-      "source_file": "app.py",
-      "source_location": "L15385"
-    },
-    {
       "id": "app_rationale_5656",
       "label": "Guarda un punto de historial de market cap. Con firma, la escritura es\u2026",
       "_origin": "ast",
       "community": 25,
-      "community_name": "evaluate_buy",
+      "community_name": "route_market_event",
       "file_type": "rationale",
       "norm_label": "guarda un punto de historial de market cap. con firma, la escritura es...",
       "source_file": "app.py",
@@ -12992,17 +12850,6 @@
       "source_location": "L6177"
     },
     {
-      "id": "app_rationale_6251",
-      "label": "Reconstruye ciclos entrada -> ventas por token. Solo se reconstruye un ciclo\u2026",
-      "_origin": "ast",
-      "community": 30,
-      "community_name": "get_trader_quality_profile",
-      "file_type": "rationale",
-      "norm_label": "reconstruye ciclos entrada -> ventas por token. solo se reconstruye un ciclo...",
-      "source_file": "app.py",
-      "source_location": "L6251"
-    },
-    {
       "id": "app_rationale_6407",
       "label": "TP25 antes de SL10, separado del resto de dimensiones.",
       "_origin": "ast",
@@ -13303,17 +13150,6 @@
       "source_location": "L1"
     },
     {
-      "id": "app_rationale_10998",
-      "label": "Consume continuamente el inbox despu\u00e9s de una activaci\u00f3n persistente.",
-      "_origin": "ast",
-      "community": 34,
-      "community_name": "app.py",
-      "file_type": "rationale",
-      "norm_label": "consume continuamente el inbox despues de una activacion persistente.",
-      "source_file": "app.py",
-      "source_location": "L10998"
-    },
-    {
       "id": "app_rationale_1444",
       "label": "Compatibilidad: una firma sin \u00edndice representa la operaci\u00f3n cero.",
       "_origin": "ast",
@@ -13334,17 +13170,6 @@
       "norm_label": "notify once while dynamic webhook synchronization is unhealthy.",
       "source_file": "app.py",
       "source_location": "L14717"
-    },
-    {
-      "id": "app_rationale_15861",
-      "label": "Auditor\u00eda RPC de trades Pump ausentes del stream de PumpPortal.",
-      "_origin": "ast",
-      "community": 34,
-      "community_name": "app.py",
-      "file_type": "rationale",
-      "norm_label": "auditoria rpc de trades pump ausentes del stream de pumpportal.",
-      "source_file": "app.py",
-      "source_location": "L15861"
     },
     {
       "id": "tests_test_trader_quality",
@@ -14361,17 +14186,6 @@
       "source_location": "L356"
     },
     {
-      "id": "solana_rpc_fallback_rationale_445",
-      "label": "Return official Pump events for the requested token mints. Unlike the watched-\u2026",
-      "_origin": "ast",
-      "community": 46,
-      "community_name": "solana_rpc_fallback.py",
-      "file_type": "rationale",
-      "norm_label": "return official pump events for the requested token mints. unlike the watched-...",
-      "source_file": "solana_rpc_fallback.py",
-      "source_location": "L445"
-    },
-    {
       "id": "scripts_hooks_pre_push",
       "label": "pre-push",
       "_origin": "ast",
@@ -15301,15 +15115,48 @@
       "source_location": "L1"
     },
     {
-      "id": "app_rationale_10609",
-      "label": "Reserva eventos observados para validarlos sin ejecutar sus efectos. La reserva\u2026",
+      "id": "solana_receipts",
+      "label": "solana_receipts.py",
       "_origin": "ast",
-      "community": 59,
-      "community_name": "validate_market_event_inbox_once",
+      "community": 58,
+      "community_name": "ValueError",
+      "file_type": "code",
+      "norm_label": "solana_receipts.py",
+      "source_file": "solana_receipts.py",
+      "source_location": "L1"
+    },
+    {
+      "id": "valueerror",
+      "label": "ValueError",
+      "_origin": "ast",
+      "community": 58,
+      "community_name": "ValueError",
+      "file_type": "code",
+      "norm_label": "valueerror",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "solana_receipts_rationale_1",
+      "label": "Conservative accounting of finalized buys from Solana jsonParsed receipts.",
+      "_origin": "ast",
+      "community": 58,
+      "community_name": "ValueError",
       "file_type": "rationale",
-      "norm_label": "reserva eventos observados para validarlos sin ejecutar sus efectos. la reserva...",
-      "source_file": "app.py",
-      "source_location": "L10609"
+      "norm_label": "conservative accounting of finalized buys from solana jsonparsed receipts.",
+      "source_file": "solana_receipts.py",
+      "source_location": "L1"
+    },
+    {
+      "id": "solana_receipts_rationale_15",
+      "label": "Return exact balance deltas, not an inferred swap price or fee breakdown. Net\u2026",
+      "_origin": "ast",
+      "community": 58,
+      "community_name": "ValueError",
+      "file_type": "rationale",
+      "norm_label": "return exact balance deltas, not an inferred swap price or fee breakdown. net...",
+      "source_file": "solana_receipts.py",
+      "source_location": "L15"
     },
     {
       "id": "app_rationale_10682",
@@ -15422,6 +15269,17 @@
       "source_location": ""
     },
     {
+      "id": "app_rationale_10413",
+      "label": "Lee un timestamp que guardamos nosotros; inservible cuenta como ausente.\u2026",
+      "_origin": "ast",
+      "community": 61,
+      "community_name": "db",
+      "file_type": "rationale",
+      "norm_label": "lee un timestamp que guardamos nosotros; inservible cuenta como ausente....",
+      "source_file": "app.py",
+      "source_location": "L10413"
+    },
+    {
       "id": "app_rationale_10526",
       "label": "Lee la frontera persistida del consumidor, o ``None`` si no se activ\u00f3.",
       "_origin": "ast",
@@ -15444,6 +15302,50 @@
       "source_location": "L10552"
     },
     {
+      "id": "app_rationale_10609",
+      "label": "Reserva eventos observados para validarlos sin ejecutar sus efectos. La reserva\u2026",
+      "_origin": "ast",
+      "community": 61,
+      "community_name": "db",
+      "file_type": "rationale",
+      "norm_label": "reserva eventos observados para validarlos sin ejecutar sus efectos. la reserva...",
+      "source_file": "app.py",
+      "source_location": "L10609"
+    },
+    {
+      "id": "app_rationale_10998",
+      "label": "Consume continuamente el inbox despu\u00e9s de una activaci\u00f3n persistente.",
+      "_origin": "ast",
+      "community": 61,
+      "community_name": "db",
+      "file_type": "rationale",
+      "norm_label": "consume continuamente el inbox despues de una activacion persistente.",
+      "source_file": "app.py",
+      "source_location": "L10998"
+    },
+    {
+      "id": "app_rationale_11027",
+      "label": "Decide qu\u00e9 hacer con una posici\u00f3n paper. No toca la base de datos. Separado de\u2026",
+      "_origin": "ast",
+      "community": 61,
+      "community_name": "db",
+      "file_type": "rationale",
+      "norm_label": "decide que hacer con una posicion paper. no toca la base de datos. separado de...",
+      "source_file": "app.py",
+      "source_location": "L11027"
+    },
+    {
+      "id": "app_rationale_11095",
+      "label": "Aplica el evento en una sola transacci\u00f3n y describe qu\u00e9 pas\u00f3. Deliberadamente\u2026",
+      "_origin": "ast",
+      "community": 61,
+      "community_name": "db",
+      "file_type": "rationale",
+      "norm_label": "aplica el evento en una sola transaccion y describe que paso. deliberadamente...",
+      "source_file": "app.py",
+      "source_location": "L11095"
+    },
+    {
       "id": "app_rationale_15421",
       "label": "Comparaci\u00f3n de entrega y latencia entre el webhook y PumpPortal.",
       "_origin": "ast",
@@ -15455,26 +15357,48 @@
       "source_location": "L15421"
     },
     {
-      "id": "app_rationale_4622",
-      "label": "Return live orders that cannot be reconciled without manual review.",
+      "id": "app_rationale_15794",
+      "label": "Payload crudo de una transacci\u00f3n que no parse\u00f3, para diagn\u00f3stico.",
       "_origin": "ast",
       "community": 61,
       "community_name": "db",
       "file_type": "rationale",
-      "norm_label": "return live orders that cannot be reconciled without manual review.",
+      "norm_label": "payload crudo de una transaccion que no parseo, para diagnostico.",
       "source_file": "app.py",
-      "source_location": "L4622"
+      "source_location": "L15794"
     },
     {
-      "id": "app_rationale_4660",
-      "label": "Alert once per live order that PumpPortal left without a signature.",
+      "id": "app_rationale_15861",
+      "label": "Auditor\u00eda RPC de trades Pump ausentes del stream de PumpPortal.",
       "_origin": "ast",
       "community": 61,
       "community_name": "db",
       "file_type": "rationale",
-      "norm_label": "alert once per live order that pumpportal left without a signature.",
+      "norm_label": "auditoria rpc de trades pump ausentes del stream de pumpportal.",
       "source_file": "app.py",
-      "source_location": "L4660"
+      "source_location": "L15861"
+    },
+    {
+      "id": "app_rationale_5742",
+      "label": "Registra un evento de posici\u00f3n. Con ``connection`` escribe dentro de la\u2026",
+      "_origin": "ast",
+      "community": 61,
+      "community_name": "db",
+      "file_type": "rationale",
+      "norm_label": "registra un evento de posicion. con ``connection`` escribe dentro de la...",
+      "source_file": "app.py",
+      "source_location": "L5742"
+    },
+    {
+      "id": "app_rationale_6251",
+      "label": "Reconstruye ciclos entrada -> ventas por token. Solo se reconstruye un ciclo\u2026",
+      "_origin": "ast",
+      "community": 61,
+      "community_name": "db",
+      "file_type": "rationale",
+      "norm_label": "reconstruye ciclos entrada -> ventas por token. solo se reconstruye un ciclo...",
+      "source_file": "app.py",
+      "source_location": "L6251"
     },
     {
       "id": "app_rationale_6516",
@@ -15488,55 +15412,11 @@
       "source_location": "L6516"
     },
     {
-      "id": "app_rationale_10413",
-      "label": "Lee un timestamp que guardamos nosotros; inservible cuenta como ausente.\u2026",
-      "_origin": "ast",
-      "community": 63,
-      "community_name": "apply_paper_event",
-      "file_type": "rationale",
-      "norm_label": "lee un timestamp que guardamos nosotros; inservible cuenta como ausente....",
-      "source_file": "app.py",
-      "source_location": "L10413"
-    },
-    {
-      "id": "app_rationale_11027",
-      "label": "Decide qu\u00e9 hacer con una posici\u00f3n paper. No toca la base de datos. Separado de\u2026",
-      "_origin": "ast",
-      "community": 63,
-      "community_name": "apply_paper_event",
-      "file_type": "rationale",
-      "norm_label": "decide que hacer con una posicion paper. no toca la base de datos. separado de...",
-      "source_file": "app.py",
-      "source_location": "L11027"
-    },
-    {
-      "id": "app_rationale_11095",
-      "label": "Aplica el evento en una sola transacci\u00f3n y describe qu\u00e9 pas\u00f3. Deliberadamente\u2026",
-      "_origin": "ast",
-      "community": 63,
-      "community_name": "apply_paper_event",
-      "file_type": "rationale",
-      "norm_label": "aplica el evento en una sola transaccion y describe que paso. deliberadamente...",
-      "source_file": "app.py",
-      "source_location": "L11095"
-    },
-    {
-      "id": "app_rationale_5742",
-      "label": "Registra un evento de posici\u00f3n. Con ``connection`` escribe dentro de la\u2026",
-      "_origin": "ast",
-      "community": 63,
-      "community_name": "apply_paper_event",
-      "file_type": "rationale",
-      "norm_label": "registra un evento de posicion. con ``connection`` escribe dentro de la...",
-      "source_file": "app.py",
-      "source_location": "L5742"
-    },
-    {
       "id": "tests_test_rpc_fallback_rationale_383",
       "label": "Con firma sola, la operaci\u00f3n 1 quedaba \"matched\" por la operaci\u00f3n 0. PumpPortal\u2026",
       "_origin": "ast",
-      "community": 64,
-      "community_name": "pump_receipt",
+      "community": 63,
+      "community_name": "RpcFallbackPersistenceTests",
       "file_type": "rationale",
       "norm_label": "con firma sola, la operacion 1 quedaba \"matched\" por la operacion 0. pumpportal...",
       "source_file": "tests/test_rpc_fallback.py",
@@ -15546,8 +15426,8 @@
       "id": "tests_test_rpc_fallback_rationale_422",
       "label": "Un trade del \u00edndice cero no prueba que PumpPortal entreg\u00f3 el uno.",
       "_origin": "ast",
-      "community": 64,
-      "community_name": "pump_receipt",
+      "community": 63,
+      "community_name": "RpcFallbackPersistenceTests",
       "file_type": "rationale",
       "norm_label": "un trade del indice cero no prueba que pumpportal entrego el uno.",
       "source_file": "tests/test_rpc_fallback.py",
@@ -15620,6 +15500,50 @@
       "source_location": "L1"
     },
     {
+      "id": "solana_rpc_fallback_rationale_445",
+      "label": "Return official Pump events for the requested token mints. Unlike the watched-\u2026",
+      "_origin": "ast",
+      "community": 67,
+      "community_name": "test_rpc_fallback.py",
+      "file_type": "rationale",
+      "norm_label": "return official pump events for the requested token mints. unlike the watched-...",
+      "source_file": "solana_rpc_fallback.py",
+      "source_location": "L445"
+    },
+    {
+      "id": "app_rationale_10347",
+      "label": "Timestamp on-chain validado: num\u00e9rico, finito y positivo. ``None`` pasa como\u2026",
+      "_origin": "ast",
+      "community": 69,
+      "community_name": "evaluate_buy",
+      "file_type": "rationale",
+      "norm_label": "timestamp on-chain validado: numerico, finito y positivo. ``none`` pasa como...",
+      "source_file": "app.py",
+      "source_location": "L10347"
+    },
+    {
+      "id": "app_rationale_10373",
+      "label": "Momento on-chain del evento, le\u00eddo de adentro del evento. Ausente significa\u2026",
+      "_origin": "ast",
+      "community": 69,
+      "community_name": "evaluate_buy",
+      "file_type": "rationale",
+      "norm_label": "momento on-chain del evento, leido de adentro del evento. ausente significa...",
+      "source_file": "app.py",
+      "source_location": "L10373"
+    },
+    {
+      "id": "app_rationale_10442",
+      "label": "Reconstruye el evento normalizado guardado en `market_event_inbox`. La fila\u2026",
+      "_origin": "ast",
+      "community": 69,
+      "community_name": "evaluate_buy",
+      "file_type": "rationale",
+      "norm_label": "reconstruye el evento normalizado guardado en `market_event_inbox`. la fila...",
+      "source_file": "app.py",
+      "source_location": "L10442"
+    },
+    {
       "id": "get",
       "label": "get",
       "_origin": "ast",
@@ -15653,15 +15577,70 @@
       "source_location": "L11399"
     },
     {
-      "id": "app_rationale_15794",
-      "label": "Payload crudo de una transacci\u00f3n que no parse\u00f3, para diagn\u00f3stico.",
+      "id": "app_rationale_10582",
+      "label": "Permite solo eventos recibidos y ocurridos desde la activaci\u00f3n. `blockEventTs`\u2026",
       "_origin": "ast",
-      "community": 7,
-      "community_name": "auth",
+      "community": 70,
+      "community_name": "consume_market_event_inbox_once",
       "file_type": "rationale",
-      "norm_label": "payload crudo de una transaccion que no parseo, para diagnostico.",
+      "norm_label": "permite solo eventos recibidos y ocurridos desde la activacion. `blockeventts`...",
       "source_file": "app.py",
-      "source_location": "L15794"
+      "source_location": "L10582"
+    },
+    {
+      "id": "app_rationale_10773",
+      "label": "Reserva filas validadas para un \u00fanico consumidor con lease.",
+      "_origin": "ast",
+      "community": 70,
+      "community_name": "consume_market_event_inbox_once",
+      "file_type": "rationale",
+      "norm_label": "reserva filas validadas para un unico consumidor con lease.",
+      "source_file": "app.py",
+      "source_location": "L10773"
+    },
+    {
+      "id": "app_rationale_10848",
+      "label": "Cierra la reserva solo si el worker todav\u00eda la posee. ``validated`` devuelve la\u2026",
+      "_origin": "ast",
+      "community": 70,
+      "community_name": "consume_market_event_inbox_once",
+      "file_type": "rationale",
+      "norm_label": "cierra la reserva solo si el worker todavia la posee. ``validated`` devuelve la...",
+      "source_file": "app.py",
+      "source_location": "L10848"
+    },
+    {
+      "id": "app_rationale_10899",
+      "label": "Enruta una vez los eventos validados posteriores a la activaci\u00f3n. La identidad\u2026",
+      "_origin": "ast",
+      "community": 70,
+      "community_name": "consume_market_event_inbox_once",
+      "file_type": "rationale",
+      "norm_label": "enruta una vez los eventos validados posteriores a la activacion. la identidad...",
+      "source_file": "app.py",
+      "source_location": "L10899"
+    },
+    {
+      "id": "app_rationale_4622",
+      "label": "Return live orders that cannot be reconciled without manual review.",
+      "_origin": "ast",
+      "community": 71,
+      "community_name": "maybe_send_ambiguous_execution_order_alerts",
+      "file_type": "rationale",
+      "norm_label": "return live orders that cannot be reconciled without manual review.",
+      "source_file": "app.py",
+      "source_location": "L4622"
+    },
+    {
+      "id": "app_rationale_4660",
+      "label": "Alert once per live order that PumpPortal left without a signature.",
+      "_origin": "ast",
+      "community": 71,
+      "community_name": "maybe_send_ambiguous_execution_order_alerts",
+      "file_type": "rationale",
+      "norm_label": "alert once per live order that pumpportal left without a signature.",
+      "source_file": "app.py",
+      "source_location": "L4660"
     },
     {
       "id": "app_rationale_11962",
@@ -15695,6 +15674,39 @@
       "norm_label": "entrega de datos por wallet vigilada: detecta silencios individuales.",
       "source_file": "app.py",
       "source_location": "L15831"
+    },
+    {
+      "id": "fastapirequest",
+      "label": "FastAPIRequest",
+      "_origin": "ast",
+      "community": 73,
+      "community_name": "record_helius_webhook_transactions",
+      "file_type": "code",
+      "norm_label": "fastapirequest",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "app_rationale_15121",
+      "label": "Registra lo que lleg\u00f3 por webhook. Observacional: no dispara nada. Devuelve\u2026",
+      "_origin": "ast",
+      "community": 73,
+      "community_name": "record_helius_webhook_transactions",
+      "file_type": "rationale",
+      "norm_label": "registra lo que llego por webhook. observacional: no dispara nada. devuelve...",
+      "source_file": "app.py",
+      "source_location": "L15121"
+    },
+    {
+      "id": "app_rationale_15385",
+      "label": "Recibe y preserva transacciones; el consumidor decide si se aplican.",
+      "_origin": "ast",
+      "community": 73,
+      "community_name": "record_helius_webhook_transactions",
+      "file_type": "rationale",
+      "norm_label": "recibe y preserva transacciones; el consumidor decide si se aplican.",
+      "source_file": "app.py",
+      "source_location": "L15385"
     },
     {
       "id": "codex_skills_graphify_references_query",
@@ -39884,6 +39896,17 @@
       "weight": 1.0
     },
     {
+      "source": "tests_test_helius_standard_wss_heliusstandardwsspersistencetests",
+      "target": "tests_test_helius_standard_wss_heliusstandardwsspersistencetests_test_worker_subscribes_and_observes_without_applying",
+      "relation": "method",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tests/test_helius_standard_wss.py",
+      "source_location": "L237",
+      "weight": 1.0
+    },
+    {
       "source": "tests_test_helius_standard_wss_heliusstandardwssprotocoltests",
       "target": "tests_test_helius_standard_wss_heliusstandardwssprotocoltests_test_retry_backoff_grows_and_is_capped_for_other_errors",
       "relation": "method",
@@ -47532,5 +47555,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "627d0e8cd32dd59ca38760ffb6c55cef51318d79"
+  "built_at_commit": "f27ec35b59f84cde1a95c18da075f4d6209ea78c"
 }

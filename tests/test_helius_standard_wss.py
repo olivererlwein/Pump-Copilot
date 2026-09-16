@@ -234,6 +234,98 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
             report["credit_estimate"]["observed_credits_approx"], 3.0
         )
 
+    async def test_worker_subscribes_and_observes_without_applying(self):
+        class FakeWebSocket:
+            def __init__(self):
+                self.sent = []
+                self.incoming = asyncio.Queue()
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *_args):
+                return False
+
+            async def send(self, payload):
+                self.sent.append(json.loads(payload))
+
+            async def recv(self):
+                return await self.incoming.get()
+
+        socket = FakeWebSocket()
+        notification = {
+            "jsonrpc": "2.0",
+            "method": "logsNotification",
+            "params": {
+                "subscription": 91,
+                "result": {
+                    "context": {"slot": 123},
+                    "value": {
+                        "signature": "signature-a",
+                        "err": None,
+                        "logs": [
+                            f"Program {app.PUMP_PROGRAM_ID} invoke [1]"
+                        ],
+                    },
+                },
+            },
+        }
+        with (
+            patch.object(app, "HELIUS_STANDARD_WSS_URL", "wss://example.test"),
+            patch.object(app, "HELIUS_STANDARD_WSS_APPLY", False),
+            patch.object(app, "WATCHED", {"trader-a": "wallet-a"}),
+            patch.object(app.websockets, "connect", return_value=socket),
+            patch.object(
+                app, "fetch_confirmed_transaction",
+                return_value={"blockTime": 1_700_000_000},
+            ) as fetch,
+            patch.object(
+                app, "record_helius_webhook_transactions",
+                return_value={"parsed_events": 1},
+            ) as record,
+        ):
+            worker = asyncio.create_task(app.helius_standard_wss_worker())
+            try:
+                for _ in range(100):
+                    if socket.sent:
+                        break
+                    await asyncio.sleep(0.01)
+                self.assertEqual(len(socket.sent), 1)
+                self.assertEqual(
+                    socket.sent[0]["params"][0], {"mentions": ["wallet-a"]}
+                )
+                await socket.incoming.put(json.dumps({
+                    "jsonrpc": "2.0", "id": 1, "result": 91,
+                }))
+                await socket.incoming.put(json.dumps(notification))
+                for _ in range(100):
+                    conn = app.db()
+                    try:
+                        row = conn.execute(
+                            "SELECT status, parsed_events "
+                            "FROM helius_standard_wss_transactions "
+                            "WHERE signature = 'signature-a'"
+                        ).fetchone()
+                    finally:
+                        conn.close()
+                    if row == ("observed", 1):
+                        break
+                    await asyncio.sleep(0.01)
+                self.assertEqual(row, ("observed", 1))
+                self.assertEqual(app.HELIUS_STANDARD_WSS_STATE["subscriptions"], 1)
+            finally:
+                worker.cancel()
+                with self.assertRaises(asyncio.CancelledError):
+                    await worker
+
+        fetch.assert_called_once()
+        record.assert_called_once_with(
+            [{"blockTime": 1_700_000_000}],
+            received_ts=unittest.mock.ANY,
+            persist_inbox=False,
+            persist_observation=False,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
