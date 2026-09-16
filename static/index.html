@@ -1255,7 +1255,7 @@
       <div class="card hero">
         <div class="between">
           <div>
-            <div class="hero-label">PnL Paper total</div>
+            <div class="hero-label">PnL Paper estimado · bruto</div>
             <div id="heroPnl" class="hero-pnl">$0.00</div>
             <div id="heroSub" class="hero-sub">0 posiciones abiertas</div>
           </div>
@@ -1301,7 +1301,7 @@
     <section id="paperPage" class="page">
       <div class="page-heading">
         <h2>Posiciones</h2>
-        <p>Seguimiento Paper, PnL y gestión de salida.</p>
+        <p>Simulación por market cap; PnL bruto sin comisiones ni deslizamiento.</p>
       </div>
       <div id="paperList"></div>
     </section>
@@ -1565,7 +1565,7 @@ function positionCard(p){
           <b>${current.toFixed(2)}</b>
         </div>
         <div class="mini">
-          <span>PnL total</span>
+          <span>PnL estimado</span>
           <b class="${cls(pnl)}">${money(pnl)}</b>
         </div>
       </div>
@@ -1585,11 +1585,11 @@ function positionCard(p){
 
       <div class="pos-grid" style="grid-template-columns:repeat(2,1fr);">
         <div class="mini">
-          <span>Realizado</span>
+          <span>Cerrado (simulado)</span>
           <b class="${cls(realized)}">${money(realized)}</b>
         </div>
         <div class="mini">
-          <span>Abierto</span>
+          <span>Abierto (estimado)</span>
           <b class="${cls(unrealized)}">${money(unrealized)}</b>
         </div>
       </div>
