@@ -772,7 +772,7 @@ def main():
     parser.add_argument("--test-fraction", type=float, default=0.2)
     parser.add_argument(
         "--sample-weighting",
-        choices=("none", "inverse-group"),
+        choices=("none", "inverse-group", "inverse-trader"),
         default="none",
     )
     parser.add_argument("--allow-not-ready", action="store_true")
@@ -783,6 +783,8 @@ def main():
         parser.error(
             "--no-save cannot be combined with --shadow-candidate-output"
         )
+    if args.sample_weighting == "inverse-trader" and not args.no_save:
+        parser.error("inverse-trader is diagnostic only; add --no-save")
 
     if not 0.1 <= args.test_fraction <= 0.4:
         raise SystemExit("--test-fraction must be between 0.1 and 0.4")

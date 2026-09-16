@@ -1,4 +1,8 @@
+import contextlib
+import io
+import sys
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 
@@ -10,11 +14,13 @@ from scripts.train_baseline_model import (
     classification_metrics,
     get_deployment_blockers,
     group_balanced_sample_weights,
+    main,
     select_threshold,
     summarize_partition,
     temporal_group_split,
     temporal_group_validation_folds,
     temporal_window_report,
+    trader_balanced_sample_weights,
     validate_dataset,
 )
 
@@ -194,6 +200,36 @@ class TrainingDiagnosticsTests(unittest.TestCase):
         self.assertAlmostEqual(float(weights.mean()), 1.0)
         self.assertAlmostEqual(float(weights[0] + weights[1]), 1.5)
         self.assertAlmostEqual(float(weights[2]), 1.5)
+
+    def test_trader_balanced_weights_give_each_trader_equal_total_weight(self):
+        rows = [
+            make_row(0, "mint-a", 0),
+            make_row(1, "mint-b", 1),
+            make_row(2, "mint-c", 1),
+        ]
+        rows[0]["trader"] = rows[1]["trader"] = "frequent"
+        rows[2]["trader"] = "rare"
+
+        weights = trader_balanced_sample_weights(rows, make_schema())
+
+        self.assertAlmostEqual(float(weights.mean()), 1.0)
+        self.assertAlmostEqual(float(weights[0] + weights[1]), 1.5)
+        self.assertAlmostEqual(float(weights[2]), 1.5)
+
+    def test_inverse_trader_cannot_save_model_or_shadow_artifact(self):
+        for extra_args in ([], ["--shadow-candidate-output", "candidate.json"]):
+            with self.subTest(extra_args=extra_args):
+                with (
+                    patch.object(sys, "argv", [
+                        "train_baseline_model.py", "--sample-weighting",
+                        "inverse-trader", *extra_args,
+                    ]),
+                    contextlib.redirect_stderr(io.StringIO()) as stderr,
+                    self.assertRaises(SystemExit) as raised,
+                ):
+                    main()
+                self.assertEqual(raised.exception.code, 2)
+                self.assertIn("--no-save", stderr.getvalue())
 
     def test_reports_temporal_target_and_trader_drift(self):
         rows = [
