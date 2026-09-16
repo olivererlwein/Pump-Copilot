@@ -261,9 +261,11 @@ LIVE_EXECUTION_IMPLEMENTED = environment_flag(
 from helius_standard_wss import (
     build_helius_standard_wss_url,
     build_logs_subscribe_request,
+    build_logs_unsubscribe_request,
     decode_wss_message,
     invokes_program,
     parse_logs_notification,
+    select_tracked_tokens,
     subscription_confirmation,
 )
 
@@ -492,10 +494,22 @@ HELIUS_STANDARD_WSS_FETCH_INTERVAL_SECONDS = max(
 HELIUS_STANDARD_WSS_MAX_PENDING = max(
     10, min(5000, int(os.getenv("HELIUS_STANDARD_WSS_MAX_PENDING", "500")))
 )
+HELIUS_STANDARD_WSS_TRACK_TOKENS_ENABLED = os.getenv(
+    "HELIUS_STANDARD_WSS_TRACK_TOKENS_ENABLED", "false"
+).lower() == "true"
+HELIUS_STANDARD_WSS_MAX_TRACKED_TOKENS = max(
+    1, min(100, int(os.getenv("HELIUS_STANDARD_WSS_MAX_TRACKED_TOKENS", "50")))
+)
+HELIUS_STANDARD_WSS_TOKEN_POLL_SECONDS = max(
+    1, min(60, int(os.getenv("HELIUS_STANDARD_WSS_TOKEN_POLL_SECONDS", "5")))
+)
 HELIUS_STANDARD_WSS_STATE_LOCK = threading.Lock()
 HELIUS_STANDARD_WSS_STATE = {
     "connected": False,
     "subscriptions": 0,
+    "tracked_token_subscriptions": 0,
+    "tracked_tokens_desired": 0,
+    "tracked_tokens_omitted": 0,
     "pending_fetches": 0,
     "last_connect_ts": None,
     "last_message_ts": None,
@@ -800,6 +814,7 @@ def db():
             failed INTEGER NOT NULL,
             pump_logs INTEGER NOT NULL,
             message_bytes INTEGER NOT NULL,
+            subject_type TEXT NOT NULL DEFAULT 'wallet',
             PRIMARY KEY(signature, wallet)
         )
         """
@@ -808,6 +823,16 @@ def db():
         "CREATE INDEX IF NOT EXISTS idx_helius_wss_notifications_received "
         "ON helius_standard_wss_notifications(received_ts)"
     )
+    wss_notification_columns = {
+        row[1] for row in conn.execute(
+            "PRAGMA table_info(helius_standard_wss_notifications)"
+        )
+    }
+    if "subject_type" not in wss_notification_columns:
+        conn.execute(
+            "ALTER TABLE helius_standard_wss_notifications "
+            "ADD COLUMN subject_type TEXT NOT NULL DEFAULT 'wallet'"
+        )
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS helius_standard_wss_transactions(
@@ -14783,8 +14808,8 @@ def record_helius_standard_wss_notification(
             """
             INSERT OR IGNORE INTO helius_standard_wss_notifications(
                 signature, wallet, received_ts, slot, failed, pump_logs,
-                message_bytes
-            ) VALUES(?,?,?,?,?,?,?)
+                message_bytes, subject_type
+            ) VALUES(?,?,?,?,?,?,?,?)
             """,
             (
                 signature,
@@ -14794,6 +14819,7 @@ def record_helius_standard_wss_notification(
                 int(bool(event.get("failed"))),
                 int(bool(pump_logs)),
                 max(0, int(message_bytes)),
+                event.get("subject_type", "wallet"),
             ),
         )
         should_fetch = False
@@ -14920,7 +14946,7 @@ async def fetch_helius_standard_wss_transaction(
                 [receipt],
                 received_ts=received_ts,
                 persist_inbox=HELIUS_STANDARD_WSS_APPLY,
-                persist_observation=HELIUS_STANDARD_WSS_APPLY,
+                persist_observation=False,
             )
             parsed_events = int(result.get("parsed_events") or 0)
             status = (
@@ -15001,6 +15027,64 @@ async def schedule_helius_standard_wss_fetch(
     task.add_done_callback(fetch_tasks.discard)
 
 
+async def sync_helius_standard_wss_tokens(
+    websocket,
+    wallets,
+    subscriptions,
+    subscription_kinds,
+    pending_requests,
+    pending_kinds,
+    pending_request_started,
+    pending_unsubscribes,
+    pending_unsubscribe_started,
+    next_request_id,
+):
+    desired, omitted = select_tracked_tokens(
+        _tracked_tokens_snapshot(),
+        wallets,
+        HELIUS_STANDARD_WSS_MAX_TRACKED_TOKENS,
+    )
+    desired = set(desired)
+    active = {
+        address for subscription_id, address in subscriptions.items()
+        if subscription_kinds.get(subscription_id) == "token"
+    }
+    pending_additions = {
+        address for request_id, address in pending_requests.items()
+        if pending_kinds.get(request_id) == "token"
+    }
+    pending_removals = set(pending_unsubscribes.values())
+
+    for subscription_id, address in sorted(subscriptions.items()):
+        if (subscription_kinds.get(subscription_id) != "token"
+                or address in desired
+                or subscription_id in pending_removals):
+            continue
+        pending_unsubscribes[next_request_id] = subscription_id
+        pending_unsubscribe_started[next_request_id] = time.monotonic()
+        await websocket.send(json.dumps(
+            build_logs_unsubscribe_request(next_request_id, subscription_id),
+            separators=(",", ":"),
+        ))
+        next_request_id += 1
+
+    for token in sorted(desired - active - pending_additions):
+        pending_requests[next_request_id] = token
+        pending_kinds[next_request_id] = "token"
+        pending_request_started[next_request_id] = time.monotonic()
+        await websocket.send(json.dumps(
+            build_logs_subscribe_request(next_request_id, token),
+            separators=(",", ":"),
+        ))
+        next_request_id += 1
+
+    update_helius_standard_wss_state(
+        tracked_tokens_desired=len(desired),
+        tracked_tokens_omitted=omitted,
+    )
+    return next_request_id
+
+
 async def helius_standard_wss_worker():
     try:
         url = build_helius_standard_wss_url(
@@ -15032,6 +15116,9 @@ async def helius_standard_wss_worker():
             update_helius_standard_wss_state(
                 connected=False,
                 subscriptions=0,
+                tracked_token_subscriptions=0,
+                tracked_tokens_desired=0,
+                tracked_tokens_omitted=0,
                 last_error="HELIUS_STANDARD_WSS_NO_WALLETS",
             )
             await asyncio.sleep(HELIUS_STANDARD_WSS_RECONNECT_SECONDS)
@@ -15049,6 +15136,9 @@ async def helius_standard_wss_worker():
                 update_helius_standard_wss_state(
                     connected=True,
                     subscriptions=0,
+                    tracked_token_subscriptions=0,
+                    tracked_tokens_desired=0,
+                    tracked_tokens_omitted=0,
                     last_connect_ts=now,
                     last_error=None,
                     retry_seconds=None,
@@ -15056,22 +15146,63 @@ async def helius_standard_wss_worker():
                 )
                 consecutive_failures = 0
                 pending_requests = {}
+                pending_kinds = {}
+                pending_request_started = {}
+                pending_unsubscribes = {}
+                pending_unsubscribe_started = {}
                 subscriptions = {}
+                subscription_kinds = {}
+                subscribed_wallets = set()
                 recovered_pending = False
                 for request_id, wallet in enumerate(wallets, start=1):
                     pending_requests[request_id] = wallet
+                    pending_kinds[request_id] = "wallet"
+                    pending_request_started[request_id] = time.monotonic()
                     await websocket.send(json.dumps(
                         build_logs_subscribe_request(request_id, wallet),
                         separators=(",", ":"),
                     ))
+                next_request_id = len(wallets) + 1
+                last_token_poll = 0.0
 
                 while True:
+                    if any(
+                        time.monotonic() - started > 60
+                        for started in (
+                            *pending_request_started.values(),
+                            *pending_unsubscribe_started.values(),
+                        )
+                    ):
+                        raise RuntimeError(
+                            "HELIUS_STANDARD_WSS_SUBSCRIPTION_TIMEOUT"
+                        )
+                    if (HELIUS_STANDARD_WSS_TRACK_TOKENS_ENABLED
+                            and time.monotonic() - last_token_poll
+                            >= HELIUS_STANDARD_WSS_TOKEN_POLL_SECONDS):
+                        next_request_id = await sync_helius_standard_wss_tokens(
+                            websocket,
+                            wallets,
+                            subscriptions,
+                            subscription_kinds,
+                            pending_requests,
+                            pending_kinds,
+                            pending_request_started,
+                            pending_unsubscribes,
+                            pending_unsubscribe_started,
+                            next_request_id,
+                        )
+                        last_token_poll = time.monotonic()
                     try:
                         raw = await asyncio.wait_for(
-                            websocket.recv(), timeout=60
+                            websocket.recv(),
+                            timeout=(
+                                HELIUS_STANDARD_WSS_TOKEN_POLL_SECONDS
+                                if HELIUS_STANDARD_WSS_TRACK_TOKENS_ENABLED
+                                else 60
+                            ),
                         )
                     except asyncio.TimeoutError:
-                        if len(subscriptions) < len(wallets):
+                        if len(subscribed_wallets) < len(wallets):
                             raise RuntimeError(
                                 "HELIUS_STANDARD_WSS_SUBSCRIPTION_TIMEOUT"
                             )
@@ -15081,9 +15212,14 @@ async def helius_standard_wss_worker():
                         last_message_ts=received_ts
                     )
                     payload = decode_wss_message(raw)
-                    if payload.get("id") in pending_requests and payload.get(
-                        "error"
-                    ):
+                    try:
+                        response_id = int(payload.get("id"))
+                    except (TypeError, ValueError):
+                        response_id = None
+                    if (response_id in pending_requests
+                            or response_id in pending_unsubscribes) and payload.get(
+                                "error"
+                            ):
                         raise RuntimeError(
                             "HELIUS_STANDARD_WSS_SUBSCRIPTION_REJECTED:"
                             + json.dumps(
@@ -15091,17 +15227,44 @@ async def helius_standard_wss_worker():
                                 separators=(",", ":"),
                             )[:300]
                         )
+                    if response_id in pending_unsubscribes:
+                        if payload.get("result") is not True:
+                            raise RuntimeError(
+                                "HELIUS_STANDARD_WSS_UNSUBSCRIBE_FAILED"
+                            )
+                        removed_id = pending_unsubscribes.pop(response_id)
+                        pending_unsubscribe_started.pop(response_id)
+                        subscriptions.pop(removed_id, None)
+                        subscription_kinds.pop(removed_id, None)
+                        update_helius_standard_wss_state(
+                            subscriptions=len(subscriptions),
+                            tracked_token_subscriptions=sum(
+                                kind == "token"
+                                for kind in subscription_kinds.values()
+                            ),
+                        )
+                        continue
                     confirmation = subscription_confirmation(
                         payload, pending_requests
                     )
                     if confirmation:
-                        subscription_id, wallet = confirmation
-                        subscriptions[subscription_id] = wallet
+                        subscription_id, address = confirmation
+                        kind = pending_kinds.pop(response_id)
+                        pending_requests.pop(response_id)
+                        pending_request_started.pop(response_id)
+                        subscriptions[subscription_id] = address
+                        subscription_kinds[subscription_id] = kind
+                        if kind == "wallet":
+                            subscribed_wallets.add(address)
                         update_helius_standard_wss_state(
-                            subscriptions=len(subscriptions)
+                            subscriptions=len(subscriptions),
+                            tracked_token_subscriptions=sum(
+                                value == "token"
+                                for value in subscription_kinds.values()
+                            ),
                         )
                         if (not recovered_pending
-                                and len(subscriptions) == len(wallets)):
+                                and len(subscribed_wallets) == len(wallets)):
                             recovered_pending = True
                             interrupted = await asyncio.to_thread(
                                 pending_helius_standard_wss_transactions
@@ -15121,6 +15284,10 @@ async def helius_standard_wss_worker():
                     event = parse_logs_notification(payload, subscriptions)
                     if event is None:
                         continue
+                    subscription_id = payload["params"]["subscription"]
+                    event["subject_type"] = subscription_kinds[
+                        int(subscription_id)
+                    ]
                     pump_logs = invokes_program(
                         event["logs"],
                         (PUMP_PROGRAM_ID, PUMP_AMM_PROGRAM_ID),
@@ -15164,6 +15331,8 @@ async def helius_standard_wss_worker():
             update_helius_standard_wss_state(
                 connected=False,
                 subscriptions=0,
+                tracked_token_subscriptions=0,
+                tracked_tokens_desired=0,
                 reconnects=reconnects,
                 last_error=f"{exc.__class__.__name__}:{exc}"[:500],
                 retry_seconds=retry_seconds,
@@ -15763,12 +15932,20 @@ def api_helius_standard_wss_stats(
             """
             SELECT wallet, COUNT(*), COALESCE(SUM(pump_logs), 0)
             FROM helius_standard_wss_notifications
-            WHERE received_ts >= ?
+            WHERE received_ts >= ? AND subject_type = 'wallet'
             GROUP BY wallet
             ORDER BY COUNT(*) DESC, wallet
             """,
             (cutoff,),
         ).fetchall()
+        token_notifications = conn.execute(
+            """
+            SELECT COUNT(*), COUNT(DISTINCT wallet)
+            FROM helius_standard_wss_notifications
+            WHERE received_ts >= ? AND subject_type = 'token'
+            """,
+            (cutoff,),
+        ).fetchone()
     finally:
         conn.close()
 
@@ -15789,6 +15966,22 @@ def api_helius_standard_wss_stats(
         )
     with HELIUS_STANDARD_WSS_STATE_LOCK:
         runtime = dict(HELIUS_STANDARD_WSS_STATE)
+    watched_count = len({
+        str(wallet).strip() for wallet in WATCHED.values()
+        if str(wallet).strip()
+    })
+    wallet_subscriptions_ready = bool(
+        runtime["connected"]
+        and runtime["subscriptions"]
+        - runtime["tracked_token_subscriptions"] == watched_count
+    )
+    tracked_token_subscriptions_ready = bool(
+        HELIUS_STANDARD_WSS_TRACK_TOKENS_ENABLED
+        and runtime["connected"]
+        and runtime["tracked_token_subscriptions"]
+        == runtime["tracked_tokens_desired"]
+        and runtime["tracked_tokens_omitted"] == 0
+    )
     traders_by_wallet = {
         wallet: trader for trader, wallet in WATCHED.items()
     }
@@ -15805,6 +15998,12 @@ def api_helius_standard_wss_stats(
         "apply": bool(HELIUS_STANDARD_WSS_APPLY),
         "configured": configured,
         "configuration_error": configuration_error,
+        "track_tokens_enabled": bool(
+            HELIUS_STANDARD_WSS_TRACK_TOKENS_ENABLED
+        ),
+        "max_tracked_tokens": HELIUS_STANDARD_WSS_MAX_TRACKED_TOKENS,
+        "wallet_subscriptions_ready": wallet_subscriptions_ready,
+        "tracked_token_subscriptions_ready": tracked_token_subscriptions_ready,
         "affects_decisions": bool(
             HELIUS_STANDARD_WSS_APPLY
             and MARKET_EVENT_INBOX_CONSUMER_ENABLED
@@ -15821,6 +16020,8 @@ def api_helius_standard_wss_stats(
             "rpc_fetch_attempts": int(transactions[1] or 0),
             "parsed_events": int(transactions[2] or 0),
             "pending_transaction_fetches": int(transactions[3] or 0),
+            "token_notifications": int(token_notifications[0] or 0),
+            "tokens_observed": int(token_notifications[1] or 0),
             "statuses": {
                 str(status): int(count) for status, count in statuses
             },

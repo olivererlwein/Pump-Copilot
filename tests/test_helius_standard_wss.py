@@ -11,9 +11,11 @@ import app
 from helius_standard_wss import (
     build_helius_standard_wss_url,
     build_logs_subscribe_request,
+    build_logs_unsubscribe_request,
     decode_wss_message,
     invokes_program,
     parse_logs_notification,
+    select_tracked_tokens,
     subscription_confirmation,
 )
 
@@ -43,6 +45,24 @@ class HeliusStandardWssProtocolTests(unittest.TestCase):
         self.assertEqual(request["method"], "logsSubscribe")
         self.assertEqual(request["params"][0], {"mentions": ["wallet-a"]})
         self.assertEqual(request["params"][1], {"commitment": "confirmed"})
+
+    def test_token_selection_is_bounded_and_excludes_watched_wallets(self):
+        selected, omitted = select_tracked_tokens(
+            ["mint-c", "mint-a", "mint-b", "mint-a", "wallet-a"],
+            ["wallet-a"],
+            2,
+        )
+        self.assertEqual(selected, ["mint-a", "mint-b"])
+        self.assertEqual(omitted, 1)
+
+    def test_builds_unsubscribe_request(self):
+        self.assertEqual(
+            build_logs_unsubscribe_request(8, 91),
+            {
+                "jsonrpc": "2.0", "id": 8,
+                "method": "logsUnsubscribe", "params": [91],
+            },
+        )
 
     def test_url_requires_key_unless_explicit(self):
         self.assertEqual(build_helius_standard_wss_url(""), "")
@@ -165,6 +185,45 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
             "logs": [],
         }
 
+    def test_migration_preserves_existing_wallet_notifications(self):
+        conn = app.db()
+        try:
+            conn.execute("DROP TABLE helius_standard_wss_notifications")
+            conn.execute(
+                """
+                CREATE TABLE helius_standard_wss_notifications(
+                    signature TEXT NOT NULL,
+                    wallet TEXT NOT NULL,
+                    received_ts REAL NOT NULL,
+                    slot INTEGER,
+                    failed INTEGER NOT NULL,
+                    pump_logs INTEGER NOT NULL,
+                    message_bytes INTEGER NOT NULL,
+                    PRIMARY KEY(signature, wallet)
+                )
+                """
+            )
+            conn.execute(
+                "INSERT INTO helius_standard_wss_notifications "
+                "(signature, wallet, received_ts, failed, pump_logs, "
+                "message_bytes) VALUES ('old-signature', 'wallet-a', 1, 0, 1, 200)"
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        app.migrate_database()
+
+        conn = app.db()
+        try:
+            row = conn.execute(
+                "SELECT signature, wallet, subject_type "
+                "FROM helius_standard_wss_notifications"
+            ).fetchone()
+        finally:
+            conn.close()
+        self.assertEqual(row, ("old-signature", "wallet-a", "wallet"))
+
     def test_shared_transaction_is_fetched_once_but_attributes_both_wallets(self):
         first = app.record_helius_standard_wss_notification(
             self.event("wallet-a"), True, 200, received_ts=1_700_000_000
@@ -238,6 +297,37 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
             conn.close()
         self.assertEqual(row, ("observed", 1, 1))
 
+    async def test_apply_fetch_keeps_webhook_health_separate(self):
+        event = self.event()
+        app.record_helius_standard_wss_notification(
+            event, True, 200, received_ts=1_700_000_000
+        )
+        with (
+            patch.object(app, "HELIUS_STANDARD_WSS_APPLY", True),
+            patch.object(
+                app, "fetch_confirmed_transaction",
+                return_value={"blockTime": 1_699_999_999},
+            ),
+            patch.object(
+                app, "record_helius_webhook_transactions",
+                return_value={"parsed_events": 1},
+            ) as record,
+        ):
+            await app.fetch_helius_standard_wss_transaction(
+                event,
+                1_700_000_000,
+                {event["signature"]},
+                asyncio.Semaphore(1),
+                asyncio.Lock(),
+                {"next_ts": 0.0},
+            )
+        record.assert_called_once_with(
+            [{"blockTime": 1_699_999_999}],
+            received_ts=1_700_000_000,
+            persist_inbox=True,
+            persist_observation=False,
+        )
+
     def test_stats_project_credits_only_after_one_hour(self):
         app.record_helius_standard_wss_notification(
             self.event(), True, 100_000, received_ts=1_700_000_000
@@ -305,7 +395,7 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
                     socket.sent[0]["params"][0], {"mentions": ["wallet-a"]}
                 )
                 await socket.incoming.put(json.dumps({
-                    "jsonrpc": "2.0", "id": 1, "result": 91,
+                    "jsonrpc": "2.0", "id": "1", "result": 91,
                 }))
                 await socket.incoming.put(json.dumps(notification))
                 for _ in range(100):
@@ -469,6 +559,186 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             app.pending_helius_standard_wss_transactions(now=1003), []
         )
+
+    async def test_token_subscriptions_add_and_remove_without_touching_wallet(self):
+        socket = FakeWebSocket()
+        subscriptions = {91: "wallet-a"}
+        kinds = {91: "wallet"}
+        pending = {}
+        pending_kinds = {}
+        pending_request_started = {}
+        pending_unsubscribes = {}
+        pending_unsubscribe_started = {}
+        with (
+            patch.object(app, "TRACKED_TOKENS", {"mint-a", "mint-b"}),
+            patch.object(app, "HELIUS_STANDARD_WSS_MAX_TRACKED_TOKENS", 1),
+        ):
+            next_id = await app.sync_helius_standard_wss_tokens(
+                socket, ["wallet-a"], subscriptions, kinds,
+                pending, pending_kinds, pending_request_started,
+                pending_unsubscribes, pending_unsubscribe_started, 2,
+            )
+        self.assertEqual(next_id, 3)
+        self.assertEqual(socket.sent[0]["method"], "logsSubscribe")
+        self.assertEqual(socket.sent[0]["params"][0], {"mentions": ["mint-a"]})
+        self.assertEqual(pending, {2: "mint-a"})
+        self.assertEqual(pending_kinds, {2: "token"})
+        self.assertEqual(
+            app.HELIUS_STANDARD_WSS_STATE["tracked_tokens_omitted"], 1
+        )
+        with (
+            patch.object(app, "APP_TOKEN", "token"),
+            patch.object(app, "WATCHED", {"trader-a": "wallet-a"}),
+            patch.object(app, "HELIUS_STANDARD_WSS_TRACK_TOKENS_ENABLED", True),
+            patch.dict(app.HELIUS_STANDARD_WSS_STATE, {
+                "connected": True,
+                "subscriptions": 2,
+                "tracked_token_subscriptions": 1,
+            }),
+        ):
+            report = app.api_helius_standard_wss_stats("token")
+        self.assertFalse(report["tracked_token_subscriptions_ready"])
+
+        subscriptions[92] = "mint-a"
+        kinds[92] = "token"
+        pending.clear()
+        pending_kinds.clear()
+        pending_request_started.clear()
+        with patch.object(app, "TRACKED_TOKENS", set()):
+            next_id = await app.sync_helius_standard_wss_tokens(
+                socket, ["wallet-a"], subscriptions, kinds,
+                pending, pending_kinds, pending_request_started,
+                pending_unsubscribes, pending_unsubscribe_started, next_id,
+            )
+        self.assertEqual(next_id, 4)
+        self.assertEqual(socket.sent[1]["method"], "logsUnsubscribe")
+        self.assertEqual(socket.sent[1]["params"], [92])
+        self.assertEqual(pending_unsubscribes, {3: 92})
+        self.assertEqual(subscriptions[91], "wallet-a")
+
+    async def test_worker_records_tracked_token_separately_from_wallet(self):
+        socket = FakeWebSocket()
+        notification = {
+            "jsonrpc": "2.0", "method": "logsNotification",
+            "params": {
+                "subscription": 92,
+                "result": {
+                    "context": {"slot": 123},
+                    "value": {
+                        "signature": "token-signature",
+                        "err": None,
+                        "logs": [f"Program {app.PUMP_PROGRAM_ID} invoke [1]"],
+                    },
+                },
+            },
+        }
+        with (
+            patch.object(app, "HELIUS_STANDARD_WSS_URL", "wss://example.test"),
+            patch.object(app, "HELIUS_STANDARD_WSS_APPLY", False),
+            patch.object(app, "HELIUS_STANDARD_WSS_TRACK_TOKENS_ENABLED", True),
+            patch.object(app, "HELIUS_STANDARD_WSS_TOKEN_POLL_SECONDS", 1),
+            patch.object(app, "TRACKED_TOKENS", {"mint-a"}),
+            patch.object(app, "WATCHED", {"trader-a": "wallet-a"}),
+            patch.object(app.websockets, "connect", return_value=socket),
+            patch.object(
+                app, "fetch_confirmed_transaction",
+                return_value={"blockTime": 1_700_000_000},
+            ) as fetch,
+            patch.object(
+                app, "record_helius_webhook_transactions",
+                return_value={"parsed_events": 1},
+            ) as record,
+            patch.object(app, "APP_TOKEN", "token"),
+        ):
+            worker = asyncio.create_task(app.helius_standard_wss_worker())
+            try:
+                for _ in range(100):
+                    if len(socket.sent) == 2:
+                        break
+                    await asyncio.sleep(0.01)
+                self.assertEqual(len(socket.sent), 2)
+                self.assertEqual(socket.sent[1]["params"][0], {
+                    "mentions": ["mint-a"]
+                })
+                await socket.incoming.put(json.dumps({
+                    "jsonrpc": "2.0", "id": 1, "result": 91,
+                }))
+                await socket.incoming.put(json.dumps({
+                    "jsonrpc": "2.0", "id": 2, "result": 92,
+                }))
+                await socket.incoming.put(json.dumps(notification))
+                for _ in range(100):
+                    conn = app.db()
+                    try:
+                        row = conn.execute(
+                            "SELECT wallet, subject_type FROM "
+                            "helius_standard_wss_notifications WHERE "
+                            "signature = 'token-signature'"
+                        ).fetchone()
+                    finally:
+                        conn.close()
+                    if row:
+                        break
+                    await asyncio.sleep(0.01)
+                self.assertEqual(row, ("mint-a", "token"))
+                report = app.api_helius_standard_wss_stats("token")
+                self.assertEqual(report["last_24h"]["token_notifications"], 1)
+                self.assertEqual(report["last_24h"]["wallets"], [])
+                self.assertTrue(report["wallet_subscriptions_ready"])
+                self.assertTrue(report["tracked_token_subscriptions_ready"])
+                self.assertEqual(
+                    report["runtime"]["tracked_token_subscriptions"], 1
+                )
+                for _ in range(100):
+                    if record.called:
+                        break
+                    await asyncio.sleep(0.01)
+                record.assert_called_once()
+                notification["params"]["subscription"] = 91
+                await socket.incoming.put(json.dumps(notification))
+                for _ in range(100):
+                    conn = app.db()
+                    try:
+                        observations = conn.execute(
+                            "SELECT wallet, subject_type FROM "
+                            "helius_standard_wss_notifications WHERE "
+                            "signature = 'token-signature' ORDER BY wallet"
+                        ).fetchall()
+                    finally:
+                        conn.close()
+                    if len(observations) == 2:
+                        break
+                    await asyncio.sleep(0.01)
+                self.assertEqual(observations, [
+                    ("mint-a", "token"), ("wallet-a", "wallet"),
+                ])
+                fetch.assert_called_once()
+                app.TRACKED_TOKENS.clear()
+                for _ in range(200):
+                    if len(socket.sent) == 3:
+                        break
+                    await asyncio.sleep(0.01)
+                self.assertEqual(socket.sent[2]["method"], "logsUnsubscribe")
+                self.assertEqual(socket.sent[2]["params"], [92])
+                await socket.incoming.put(json.dumps({
+                    "jsonrpc": "2.0", "id": 3, "result": True,
+                }))
+                for _ in range(100):
+                    if app.HELIUS_STANDARD_WSS_STATE[
+                        "tracked_token_subscriptions"
+                    ] == 0:
+                        break
+                    await asyncio.sleep(0.01)
+                self.assertEqual(
+                    app.HELIUS_STANDARD_WSS_STATE["subscriptions"], 1
+                )
+                report = app.api_helius_standard_wss_stats("token")
+                self.assertTrue(report["wallet_subscriptions_ready"])
+                self.assertTrue(report["tracked_token_subscriptions_ready"])
+            finally:
+                worker.cancel()
+                with self.assertRaises(asyncio.CancelledError):
+                    await worker
 
 
 if __name__ == "__main__":

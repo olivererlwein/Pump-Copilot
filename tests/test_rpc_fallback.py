@@ -1206,6 +1206,28 @@ class HeliusWebhookTests(unittest.TestCase):
         self.assertEqual(inbox_count, 0)
         self.assertEqual(health_count, 0)
 
+    def test_wss_apply_writes_inbox_but_not_webhook_health(self):
+        with patch.object(app, "WATCHED", {"trader-a": WALLET}):
+            result = app.record_helius_webhook_transactions(
+                [self.native_receipt()],
+                persist_inbox=True,
+                persist_observation=False,
+            )
+
+        self.assertEqual(result["parsed_events"], 1)
+        conn = app.db()
+        try:
+            inbox_count = conn.execute(
+                "SELECT COUNT(*) FROM market_event_inbox"
+            ).fetchone()[0]
+            health_count = conn.execute(
+                "SELECT COUNT(*) FROM helius_webhook_events"
+            ).fetchone()[0]
+        finally:
+            conn.close()
+        self.assertEqual(inbox_count, 1)
+        self.assertEqual(health_count, 0)
+
     def test_transaction_from_unwatched_wallet_is_recorded_unparsed(self):
         # Se guarda para poder medir volumen, pero no cuenta como operación.
         with patch.object(app, "WATCHED", {"otro": "otra-wallet"}):

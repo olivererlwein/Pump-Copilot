@@ -33,6 +33,25 @@ def build_logs_subscribe_request(request_id, wallet):
     }
 
 
+def build_logs_unsubscribe_request(request_id, subscription_id):
+    return {
+        "jsonrpc": "2.0",
+        "id": int(request_id),
+        "method": "logsUnsubscribe",
+        "params": [int(subscription_id)],
+    }
+
+
+def select_tracked_tokens(tracked_tokens, watched_wallets, max_tokens):
+    watched = set(watched_wallets)
+    candidates = sorted({
+        str(token).strip() for token in tracked_tokens
+        if str(token).strip() and str(token).strip() not in watched
+    })
+    limit = max(0, int(max_tokens))
+    return candidates[:limit], len(candidates) - min(len(candidates), limit)
+
+
 def decode_wss_message(raw):
     if isinstance(raw, bytes):
         raw = raw.decode("utf-8")
