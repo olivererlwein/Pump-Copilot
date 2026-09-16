@@ -1,6 +1,7 @@
 import argparse
 import copy
 import json
+from collections import Counter
 
 if __package__:
     from scripts.compare_model_economics import (
@@ -96,6 +97,39 @@ def schema_without_features(schema, excluded_features):
     return reduced
 
 
+def selection_diagnostics(rows, predictions):
+    if len(rows) != len(predictions):
+        raise ValueError("Rows and predictions must have equal length")
+
+    holdout_mints = Counter(row["mint"] for row in rows)
+    selected_rows = [
+        row for row, prediction in zip(rows, predictions)
+        if int(prediction) == 1
+    ]
+    selected_mints = Counter(row["mint"] for row in selected_rows)
+    selected_traders = Counter(row["trader"] for row in selected_rows)
+    return {
+        "holdout_rows": len(rows),
+        "holdout_mints": len(holdout_mints),
+        "largest_holdout_mint_share": (
+            round(max(holdout_mints.values()) / len(rows), 6)
+            if rows else None
+        ),
+        "selected": len(selected_rows),
+        "selected_mints": len(selected_mints),
+        "largest_selected_mint_share": (
+            round(max(selected_mints.values()) / len(selected_rows), 6)
+            if selected_rows else None
+        ),
+        "selected_traders": len(selected_traders),
+        "largest_selected_trader_share": (
+            round(max(selected_traders.values()) / len(selected_rows), 6)
+            if selected_rows else None
+        ),
+        "selected_by_trader": dict(sorted(selected_traders.items())),
+    }
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -153,6 +187,9 @@ def main():
             "metrics": result["metrics"],
             "all_selected": all_selected,
             "one_position_15m": one_position,
+            "selection_diagnostics": selection_diagnostics(
+                result["rows"], result["predictions"]
+            ),
             "deployment_blockers": result["deployment_blockers"],
         })
 
@@ -162,6 +199,12 @@ def main():
         "test_fraction": args.test_fraction,
         "round_trip_cost": args.round_trip_cost,
         "ablations": reports,
+        "note": (
+            "The payoff assigns +25% to every positive label and -10% to "
+            "every negative label, then subtracts a fixed round-trip cost. "
+            "It is not realized PnL and does not include slippage or "
+            "execution failures. No model is promoted by this report."
+        ),
     }, indent=2, ensure_ascii=True))
 
 

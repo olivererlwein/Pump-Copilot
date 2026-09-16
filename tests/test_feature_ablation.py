@@ -1,6 +1,10 @@
 import unittest
 
-from scripts.analyze_feature_ablation import ABLATIONS, schema_without_features
+from scripts.analyze_feature_ablation import (
+    ABLATIONS,
+    schema_without_features,
+    selection_diagnostics,
+)
 
 
 class FeatureAblationTests(unittest.TestCase):
@@ -46,6 +50,38 @@ class FeatureAblationTests(unittest.TestCase):
             "market_score",
             "score_total",
         }.issubset(excluded))
+
+
+class SelectionDiagnosticsTests(unittest.TestCase):
+    def test_reports_holdout_and_selected_concentration_separately(self):
+        rows = [
+            {"mint": "mint-a", "trader": "alice"},
+            {"mint": "mint-a", "trader": "alice"},
+            {"mint": "mint-b", "trader": "bob"},
+            {"mint": "mint-c", "trader": "bob"},
+        ]
+
+        report = selection_diagnostics(rows, [1, 0, 1, 0])
+
+        self.assertEqual(report["holdout_rows"], 4)
+        self.assertEqual(report["holdout_mints"], 3)
+        self.assertEqual(report["largest_holdout_mint_share"], 0.5)
+        self.assertEqual(report["selected_mints"], 2)
+        self.assertEqual(report["largest_selected_mint_share"], 0.5)
+        self.assertEqual(report["selected_by_trader"], {"alice": 1, "bob": 1})
+
+    def test_empty_selection_has_no_misleading_zero_share(self):
+        report = selection_diagnostics(
+            [{"mint": "mint-a", "trader": "alice"}], [0]
+        )
+
+        self.assertEqual(report["selected"], 0)
+        self.assertIsNone(report["largest_selected_trader_share"])
+        self.assertIsNone(report["largest_selected_mint_share"])
+
+    def test_rejects_misaligned_predictions(self):
+        with self.assertRaises(ValueError):
+            selection_diagnostics([], [1])
 
 
 if __name__ == "__main__":
