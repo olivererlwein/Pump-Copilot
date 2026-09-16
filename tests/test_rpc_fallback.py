@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from email.message import Message
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 from urllib.error import HTTPError
 
 import app
@@ -1561,3 +1561,97 @@ class OutboundRequestTests(unittest.TestCase):
         import urllib.request
 
         self.assertIs(app.Request, urllib.request.Request)
+
+
+class HeliusWebhookDeliveryAlertTests(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp_dir.cleanup)
+        for name, value in (
+            ("DB", Path(self.temp_dir.name) / "delivery-alert.db"),
+            ("HELIUS_WEBHOOK_ENABLED", True),
+            ("DISCORD_ALERT_WEBHOOK_URL", "https://example.test/webhook"),
+        ):
+            active_patch = patch.object(app, name, value)
+            active_patch.start()
+            self.addCleanup(active_patch.stop)
+        app.migrate_database()
+
+    def insert_rpc_event(self, block_time):
+        conn = app.db()
+        try:
+            conn.execute(
+                "INSERT INTO rpc_fallback_events "
+                "(signature, event_index, block_time, detected_ts, "
+                "trader, wallet, program, event_name, side, mint, sol, "
+                "market_cap_sol, token_amount, pool, event_json) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    f"rpc-{block_time}", 0, block_time, block_time,
+                    "Cooker", "wallet", "pump", "TradeEvent", "buy",
+                    "mint", 1.0, 100.0, 1000.0, "pump", "{}",
+                ),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    def insert_webhook_event(self, signature, received_ts, parsed):
+        conn = app.db()
+        try:
+            conn.execute(
+                "INSERT INTO helius_webhook_events "
+                "(signature, received_ts, parsed) VALUES (?, ?, ?)",
+                (signature, received_ts, int(parsed)),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    async def test_alerts_once_for_recent_onchain_activity_and_recovers(self):
+        self.insert_rpc_event(1990.0)
+        self.insert_webhook_event("unparsed", 1999.0, False)
+        with patch.object(
+            app, "send_discord_alert", new_callable=AsyncMock,
+            return_value=True,
+        ) as send:
+            first = await app.update_helius_webhook_delivery_alert(now=2000.0)
+            repeated = await app.update_helius_webhook_delivery_alert(now=2000.0)
+            self.insert_webhook_event("parsed", 1999.0, True)
+            recovered = await app.update_helius_webhook_delivery_alert(
+                now=2000.0
+            )
+
+        self.assertTrue(first)
+        self.assertFalse(repeated)
+        self.assertTrue(recovered)
+        self.assertEqual(send.await_count, 2)
+        self.assertIn("monitor RPC", send.await_args_list[0].args[0])
+        self.assertIn("volvió", send.await_args_list[1].args[0])
+        self.assertFalse(app.get_helius_webhook_delivery_alert_active())
+
+    async def test_no_alert_without_recent_rpc_activity(self):
+        self.insert_rpc_event(100.0)
+        with patch.object(
+            app, "send_discord_alert", new_callable=AsyncMock,
+            return_value=True,
+        ) as send:
+            result = await app.update_helius_webhook_delivery_alert(now=2000.0)
+
+        self.assertFalse(result)
+        send.assert_not_awaited()
+
+    async def test_failed_discord_delivery_is_retried(self):
+        self.insert_rpc_event(1990.0)
+        with patch.object(
+            app, "send_discord_alert", new_callable=AsyncMock,
+            side_effect=[False, True],
+        ) as send:
+            failed = await app.update_helius_webhook_delivery_alert(now=2000.0)
+            self.assertFalse(app.get_helius_webhook_delivery_alert_active())
+            retried = await app.update_helius_webhook_delivery_alert(now=2000.0)
+
+        self.assertFalse(failed)
+        self.assertTrue(retried)
+        self.assertEqual(send.await_count, 2)
+        self.assertTrue(app.get_helius_webhook_delivery_alert_active())

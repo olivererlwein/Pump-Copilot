@@ -704,6 +704,10 @@ def db():
         )
         """
     )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_helius_webhook_parsed_received "
+        "ON helius_webhook_events(parsed, received_ts DESC)"
+    )
 
     # Eventos normalizados preservados antes de activar cualquier efecto. Una
     # transacción puede contener más de una operación Pump válida.
@@ -5508,6 +5512,10 @@ def migrate_database():
         ON rpc_fallback_events(status, detected_ts)
         """
     )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_rpc_fallback_events_block_time "
+        "ON rpc_fallback_events(block_time)"
+    )
 
 
     conn.commit()
@@ -7852,6 +7860,20 @@ def get_shadow_stats():
     }
 
 
+def get_latest_helius_pump_event_received_ts(connection=None):
+    owns_connection = connection is None
+    conn = connection or db()
+    try:
+        row = conn.execute(
+            "SELECT received_ts FROM helius_webhook_events "
+            "WHERE parsed = 1 ORDER BY received_ts DESC LIMIT 1"
+        ).fetchone()
+        return float(row[0]) if row and row[0] is not None else None
+    finally:
+        if owns_connection:
+            conn.close()
+
+
 def get_live_exit_feed_readiness(now=None):
     status = get_helius_webhook_sync_status()
     blockers = []
@@ -7874,11 +7896,24 @@ def get_live_exit_feed_readiness(now=None):
         or current_ts - float(last_success_ts) > maximum_age
     ):
         blockers.append("HELIUS_TOKEN_SYNC_STALE")
+    maximum_event_age = 1800
+    try:
+        last_event_ts = get_latest_helius_pump_event_received_ts()
+    except Exception:
+        last_event_ts = None
+    if (
+        last_event_ts is None
+        or not math.isfinite(last_event_ts)
+        or current_ts - last_event_ts > maximum_event_age
+    ):
+        blockers.append("HELIUS_PUMP_WEBHOOK_STALE")
     return {
         "ready": not blockers,
         "blockers": blockers,
         "last_success_ts": last_success_ts,
         "maximum_age_seconds": maximum_age,
+        "last_pump_event_received_ts": last_event_ts,
+        "maximum_pump_event_age_seconds": maximum_event_age,
     }
 
 
@@ -7950,6 +7985,7 @@ def get_live_canary_blockers(trader=None, amount_usd=None):
     else:
         if not exit_feed["ready"]:
             blockers.append("LIVE_EXIT_FEED_NOT_READY")
+            blockers.extend(exit_feed.get("blockers") or [])
 
     try:
         exposure = get_daily_live_buy_exposure(trader=trader)
@@ -12318,6 +12354,7 @@ async def rpc_fallback_shadow_worker():
         try:
             await asyncio.to_thread(poll_rpc_fallback_once)
             missing = await asyncio.to_thread(reconcile_rpc_fallback_events)
+            await update_helius_webhook_delivery_alert()
             if DISCORD_ALERT_WEBHOOK_URL and missing:
                 detail = "\n".join(
                     f"- @{item['trader']}: {item['side']} "
@@ -12340,6 +12377,83 @@ async def rpc_fallback_shadow_worker():
             print("[RPC FALLBACK ERROR]", repr(ex))
 
         await asyncio.sleep(RPC_FALLBACK_POLL_SECONDS)
+
+
+def has_recent_rpc_pump_activity(now=None, connection=None):
+    current_ts = float(now if now is not None else time.time())
+    owns_connection = connection is None
+    conn = connection or db()
+    try:
+        row = conn.execute(
+            "SELECT 1 FROM rpc_fallback_events "
+            "WHERE block_time >= ? AND block_time <= ? LIMIT 1",
+            (current_ts - 1800, current_ts),
+        ).fetchone()
+        return row is not None
+    finally:
+        if owns_connection:
+            conn.close()
+
+
+def get_helius_webhook_delivery_alert_active(connection=None):
+    owns_connection = connection is None
+    conn = connection or db()
+    try:
+        row = conn.execute(
+            "SELECT value FROM app_state WHERE key = ?",
+            ("HELIUS_WEBHOOK_DELIVERY_ALERT_ACTIVE",),
+        ).fetchone()
+        return bool(row and row[0] == "1")
+    finally:
+        if owns_connection:
+            conn.close()
+
+
+def set_helius_webhook_delivery_alert_active(active):
+    conn = db()
+    try:
+        conn.execute(
+            "INSERT INTO app_state(key, value) VALUES (?, ?) "
+            "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            ("HELIUS_WEBHOOK_DELIVERY_ALERT_ACTIVE", "1" if active else "0"),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+async def update_helius_webhook_delivery_alert(now=None):
+    if not DISCORD_ALERT_WEBHOOK_URL or not HELIUS_WEBHOOK_ENABLED:
+        return False
+    current_ts = float(now if now is not None else time.time())
+    latest = await asyncio.to_thread(get_latest_helius_pump_event_received_ts)
+    active = await asyncio.to_thread(get_helius_webhook_delivery_alert_active)
+    fresh = latest is not None and current_ts - latest <= 1800
+    if active and fresh:
+        sent = await send_discord_alert(
+            "Pump Copilot: Helius volvió a entregar operaciones Pump."
+        )
+        if sent:
+            await asyncio.to_thread(
+                set_helius_webhook_delivery_alert_active, False
+            )
+        return bool(sent)
+    if active or fresh:
+        return False
+    rpc_active = await asyncio.to_thread(has_recent_rpc_pump_activity, current_ts)
+    if not rpc_active:
+        return False
+    sent = await send_discord_alert(
+        "Pump Copilot: Helius lleva más de 30 minutos sin entregar "
+        "operaciones Pump, aunque el monitor RPC detectó actividad "
+        "on-chain reciente. La sincronización de direcciones no prueba "
+        "que el webhook esté entregando datos. No habilitar compras reales."
+    )
+    if sent:
+        await asyncio.to_thread(
+            set_helius_webhook_delivery_alert_active, True
+        )
+    return bool(sent)
 
 
 def get_rpc_fallback_stats():

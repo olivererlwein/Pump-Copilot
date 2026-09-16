@@ -636,6 +636,23 @@ class LiveCanaryGuardTests(unittest.TestCase):
 
         self.assertIn("LIVE_SELLS_REQUIRED_FOR_BUYS", blockers)
 
+    def test_canary_reports_the_specific_helius_delivery_blocker(self):
+        patches = self.canary_patches()
+        with patches[0], patches[1], patches[2], patches[3], patches[4], (
+            patches[5]
+        ), patches[6], patches[7], patch.object(
+            app,
+            "get_live_exit_feed_readiness",
+            return_value={
+                "ready": False,
+                "blockers": ["HELIUS_PUMP_WEBHOOK_STALE"],
+            },
+        ), patches[9]:
+            blockers = app.get_live_canary_blockers("marcell", 1.0)
+
+        self.assertIn("LIVE_EXIT_FEED_NOT_READY", blockers)
+        self.assertIn("HELIUS_PUMP_WEBHOOK_STALE", blockers)
+
     def test_canary_fails_closed_when_health_or_exposure_is_unknown(self):
         patches = self.canary_patches()
         with patches[0], patches[1], patches[2], patches[3], patches[4], (
@@ -761,6 +778,10 @@ class LiveCanaryGuardTests(unittest.TestCase):
             app,
             "get_helius_webhook_sync_status",
             return_value=healthy,
+        ), patch.object(
+            app,
+            "get_latest_helius_pump_event_received_ts",
+            return_value=995.0,
         ):
             ready = app.get_live_exit_feed_readiness(now=1000.0)
             stale_status = {**healthy, "last_success_ts": 100.0}
@@ -774,6 +795,63 @@ class LiveCanaryGuardTests(unittest.TestCase):
         self.assertTrue(ready["ready"])
         self.assertFalse(stale["ready"])
         self.assertIn("HELIUS_TOKEN_SYNC_STALE", stale["blockers"])
+
+    def test_exit_feed_rejects_silent_webhook_despite_healthy_sync(self):
+        healthy = {
+            "enabled": True,
+            "apply": True,
+            "configured": True,
+            "initialized": True,
+            "last_error": None,
+            "pending_tokens": 0,
+            "planned_additions": 0,
+            "last_success_ts": 1999.0,
+        }
+        with tempfile.TemporaryDirectory() as temp_dir, patch.object(
+            app,
+            "DB",
+            Path(temp_dir) / "silent-helius.db",
+        ), patch.object(
+            app,
+            "MARKET_EVENT_INBOX_CONSUMER_ENABLED",
+            True,
+        ), patch.object(
+            app,
+            "get_helius_webhook_sync_status",
+            return_value=healthy,
+        ):
+            app.migrate_database()
+            conn = app.db()
+            try:
+                conn.executemany(
+                    "INSERT INTO helius_webhook_events "
+                    "(signature, received_ts, parsed) VALUES (?, ?, ?)",
+                    [
+                        ("old-pump", 100.0, 1),
+                        ("fresh-non-pump", 1999.0, 0),
+                    ],
+                )
+                conn.commit()
+            finally:
+                conn.close()
+
+            silent = app.get_live_exit_feed_readiness(now=2000.0)
+            conn = app.db()
+            try:
+                conn.execute(
+                    "INSERT INTO helius_webhook_events "
+                    "(signature, received_ts, parsed) VALUES (?, ?, ?)",
+                    ("fresh-pump", 1999.0, 1),
+                )
+                conn.commit()
+            finally:
+                conn.close()
+            recovered = app.get_live_exit_feed_readiness(now=2000.0)
+
+        self.assertEqual(silent["blockers"], ["HELIUS_PUMP_WEBHOOK_STALE"])
+        self.assertEqual(silent["last_pump_event_received_ts"], 100.0)
+        self.assertTrue(recovered["ready"])
+        self.assertEqual(recovered["last_pump_event_received_ts"], 1999.0)
 
 
 class ExecutionAdapterTests(unittest.TestCase):
