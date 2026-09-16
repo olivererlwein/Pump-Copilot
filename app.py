@@ -14794,6 +14794,31 @@ def helius_standard_wss_retry_seconds(error, consecutive_failures):
     return float(min(60, HELIUS_STANDARD_WSS_RECONNECT_SECONDS * (2 ** exponent)))
 
 
+def helius_standard_wss_error_code(error):
+    status = getattr(error, "status_code", None)
+    if status is None:
+        status = getattr(getattr(error, "response", None), "status_code", None)
+    if status is None:
+        status = getattr(error, "code", None)
+    if isinstance(status, int) and 100 <= status <= 599:
+        return f"HELIUS_STANDARD_WSS_HTTP_{status}"
+    message = str(error)
+    if "429" in message or "rate limit" in message.lower():
+        return "HELIUS_STANDARD_WSS_HTTP_429"
+    internal_code = message.split(":", 1)[0]
+    if internal_code in {
+        "HELIUS_STANDARD_WSS_SUBSCRIPTION_TIMEOUT",
+        "HELIUS_STANDARD_WSS_SUBSCRIPTION_REJECTED",
+        "HELIUS_STANDARD_WSS_UNSUBSCRIBE_FAILED",
+        "HELIUS_STANDARD_WSS_NO_WALLETS",
+        "HELIUS_STANDARD_WSS_NOT_CONFIGURED",
+        "HELIUS_STANDARD_WSS_QUEUE_FULL",
+        "HELIUS_STANDARD_WSS_URL_INVALID",
+    }:
+        return internal_code
+    return f"HELIUS_STANDARD_WSS_{error.__class__.__name__}"
+
+
 def record_helius_standard_wss_notification(
     event,
     pump_logs,
@@ -14925,7 +14950,7 @@ async def fetch_helius_standard_wss_transaction(
                         signature,
                     )
                 except Exception as exc:
-                    last_error = f"{exc.__class__.__name__}:{exc}"
+                    last_error = helius_standard_wss_error_code(exc)
                 if receipt is not None:
                     break
                 if attempt + 1 < HELIUS_STANDARD_WSS_FETCH_RETRIES:
@@ -14972,7 +14997,7 @@ async def fetch_helius_standard_wss_transaction(
     except asyncio.CancelledError:
         raise
     except Exception as exc:
-        error = f"{exc.__class__.__name__}:{exc}"[:500]
+        error = helius_standard_wss_error_code(exc)
         try:
             await asyncio.to_thread(
                 finish_helius_standard_wss_transaction,
@@ -15336,7 +15361,7 @@ async def helius_standard_wss_worker():
                 tracked_token_subscriptions=0,
                 tracked_tokens_desired=0,
                 reconnects=reconnects,
-                last_error=f"{exc.__class__.__name__}:{exc}"[:500],
+                last_error=helius_standard_wss_error_code(exc),
                 retry_seconds=retry_seconds,
                 next_retry_ts=time.time() + retry_seconds,
             )

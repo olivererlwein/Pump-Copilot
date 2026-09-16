@@ -5,6 +5,7 @@ import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+from urllib.error import HTTPError
 
 import app
 
@@ -163,6 +164,38 @@ class HeliusStandardWssProtocolTests(unittest.TestCase):
                 ),
                 60.0,
             )
+
+    def test_error_codes_never_expose_api_keys_or_urls(self):
+        error = RuntimeError(
+            "failed wss://mainnet.helius-rpc.com/?api-key=secret-key"
+        )
+        code = app.helius_standard_wss_error_code(error)
+        self.assertEqual(code, "HELIUS_STANDARD_WSS_RuntimeError")
+        self.assertNotIn("secret-key", code)
+
+        error = HTTPError(
+            "https://mainnet.helius-rpc.com/?api-key=secret-key",
+            429,
+            "rate limited secret-key",
+            {},
+            None,
+        )
+        self.assertEqual(
+            app.helius_standard_wss_error_code(error),
+            "HELIUS_STANDARD_WSS_HTTP_429",
+        )
+        self.assertEqual(
+            app.helius_standard_wss_error_code(RuntimeError(
+                "HELIUS_STANDARD_WSS_SUBSCRIPTION_REJECTED:secret-key"
+            )),
+            "HELIUS_STANDARD_WSS_SUBSCRIPTION_REJECTED",
+        )
+        self.assertEqual(
+            app.helius_standard_wss_error_code(RuntimeError(
+                "HELIUS_STANDARD_WSS_UNKNOWN_SECRET_KEY"
+            )),
+            "HELIUS_STANDARD_WSS_RuntimeError",
+        )
 
 
 class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
