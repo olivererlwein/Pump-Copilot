@@ -93,6 +93,38 @@ class HeliusStandardWssProtocolTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             decode_wss_message("[]")
 
+    def test_retry_backoff_is_long_for_rate_limits(self):
+        with patch.object(
+            app, "HELIUS_STANDARD_WSS_RATE_LIMIT_RETRY_SECONDS", 300
+        ):
+            self.assertEqual(
+                app.helius_standard_wss_retry_seconds(
+                    "HTTP 429", consecutive_failures=1
+                ),
+                300.0,
+            )
+
+    def test_retry_backoff_grows_and_is_capped_for_other_errors(self):
+        with patch.object(app, "HELIUS_STANDARD_WSS_RECONNECT_SECONDS", 3):
+            self.assertEqual(
+                app.helius_standard_wss_retry_seconds(
+                    "connection reset", consecutive_failures=1
+                ),
+                3.0,
+            )
+            self.assertEqual(
+                app.helius_standard_wss_retry_seconds(
+                    "connection reset", consecutive_failures=3
+                ),
+                12.0,
+            )
+            self.assertEqual(
+                app.helius_standard_wss_retry_seconds(
+                    "connection reset", consecutive_failures=99
+                ),
+                60.0,
+            )
+
 
 class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):

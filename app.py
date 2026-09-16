@@ -475,6 +475,10 @@ HELIUS_STANDARD_WSS_URL = os.getenv("HELIUS_STANDARD_WSS_URL", "").strip()
 HELIUS_STANDARD_WSS_RECONNECT_SECONDS = max(
     1, int(os.getenv("HELIUS_STANDARD_WSS_RECONNECT_SECONDS", "3"))
 )
+HELIUS_STANDARD_WSS_RATE_LIMIT_RETRY_SECONDS = max(
+    HELIUS_STANDARD_WSS_RECONNECT_SECONDS,
+    int(os.getenv("HELIUS_STANDARD_WSS_RATE_LIMIT_RETRY_SECONDS", "300")),
+)
 HELIUS_STANDARD_WSS_FETCH_RETRIES = max(
     1, min(5, int(os.getenv("HELIUS_STANDARD_WSS_FETCH_RETRIES", "3")))
 )
@@ -499,6 +503,8 @@ HELIUS_STANDARD_WSS_STATE = {
     "last_success_ts": None,
     "last_error": None,
     "reconnects": 0,
+    "retry_seconds": None,
+    "next_retry_ts": None,
 }
 
 MARKET_EVENT_INBOX_ACTIVATION_STATE_KEY = (
@@ -14753,6 +14759,14 @@ def update_helius_standard_wss_state(**updates):
         HELIUS_STANDARD_WSS_STATE.update(updates)
 
 
+def helius_standard_wss_retry_seconds(error, consecutive_failures):
+    error_text = str(error).lower()
+    if "429" in error_text or "rate limit" in error_text:
+        return float(HELIUS_STANDARD_WSS_RATE_LIMIT_RETRY_SECONDS)
+    exponent = max(0, min(int(consecutive_failures) - 1, 5))
+    return float(min(60, HELIUS_STANDARD_WSS_RECONNECT_SECONDS * (2 ** exponent)))
+
+
 def record_helius_standard_wss_notification(
     event,
     pump_logs,
@@ -14948,6 +14962,7 @@ async def helius_standard_wss_worker():
     semaphore = asyncio.Semaphore(HELIUS_STANDARD_WSS_MAX_IN_FLIGHT)
     rate_lock = asyncio.Lock()
     rate_state = {"next_ts": 0.0}
+    consecutive_failures = 0
 
     while True:
         wallets = sorted({
@@ -14977,7 +14992,10 @@ async def helius_standard_wss_worker():
                     subscriptions=0,
                     last_connect_ts=now,
                     last_error=None,
+                    retry_seconds=None,
+                    next_retry_ts=None,
                 )
+                consecutive_failures = 0
                 pending_requests = {}
                 subscriptions = {}
                 for request_id, wallet in enumerate(wallets, start=1):
@@ -15075,6 +15093,10 @@ async def helius_standard_wss_worker():
         except asyncio.CancelledError:
             raise
         except Exception as exc:
+            consecutive_failures += 1
+            retry_seconds = helius_standard_wss_retry_seconds(
+                exc, consecutive_failures
+            )
             with HELIUS_STANDARD_WSS_STATE_LOCK:
                 reconnects = int(
                     HELIUS_STANDARD_WSS_STATE["reconnects"] or 0
@@ -15084,8 +15106,10 @@ async def helius_standard_wss_worker():
                 subscriptions=0,
                 reconnects=reconnects,
                 last_error=f"{exc.__class__.__name__}:{exc}"[:500],
+                retry_seconds=retry_seconds,
+                next_retry_ts=time.time() + retry_seconds,
             )
-            await asyncio.sleep(HELIUS_STANDARD_WSS_RECONNECT_SECONDS)
+            await asyncio.sleep(retry_seconds)
 
 
 def record_helius_webhook_transactions(
