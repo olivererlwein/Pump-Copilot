@@ -14802,7 +14802,7 @@ def record_helius_standard_wss_notification(
                 """
                 INSERT OR IGNORE INTO helius_standard_wss_transactions(
                     signature, first_received_ts, status
-                ) VALUES(?,?,'observed')
+                ) VALUES(?,?,'pending_fetch')
                 """,
                 (signature, received_ts),
             )
@@ -14842,6 +14842,26 @@ def finish_helius_standard_wss_transaction(
             ),
         )
         conn.commit()
+    finally:
+        conn.close()
+
+
+def pending_helius_standard_wss_transactions(now=None, limit=50):
+    cutoff = float(now if now is not None else time.time()) - 900
+    conn = db()
+    try:
+        return conn.execute(
+            """
+            SELECT signature, first_received_ts
+            FROM helius_standard_wss_transactions
+            WHERE status IN ('pending_fetch', 'observed')
+              AND fetched_ts IS NULL
+              AND first_received_ts >= ?
+            ORDER BY first_received_ts, signature
+            LIMIT ?
+            """,
+            (cutoff, max(1, min(int(limit), 50))),
+        ).fetchall()
     finally:
         conn.close()
 
@@ -14942,6 +14962,45 @@ async def fetch_helius_standard_wss_transaction(
         )
 
 
+async def schedule_helius_standard_wss_fetch(
+    event,
+    received_ts,
+    pending_signatures,
+    fetch_tasks,
+    semaphore,
+    rate_lock,
+    rate_state,
+):
+    signature = event["signature"]
+    if signature in pending_signatures:
+        return
+    if len(pending_signatures) >= HELIUS_STANDARD_WSS_MAX_PENDING:
+        await asyncio.to_thread(
+            finish_helius_standard_wss_transaction,
+            signature,
+            "queue_full",
+            0,
+            error="HELIUS_STANDARD_WSS_QUEUE_FULL",
+        )
+        return
+    pending_signatures.add(signature)
+    update_helius_standard_wss_state(
+        pending_fetches=len(pending_signatures)
+    )
+    task = asyncio.create_task(
+        fetch_helius_standard_wss_transaction(
+            event,
+            received_ts,
+            pending_signatures,
+            semaphore,
+            rate_lock,
+            rate_state,
+        )
+    )
+    fetch_tasks.add(task)
+    task.add_done_callback(fetch_tasks.discard)
+
+
 async def helius_standard_wss_worker():
     try:
         url = build_helius_standard_wss_url(
@@ -14998,6 +15057,7 @@ async def helius_standard_wss_worker():
                 consecutive_failures = 0
                 pending_requests = {}
                 subscriptions = {}
+                recovered_pending = False
                 for request_id, wallet in enumerate(wallets, start=1):
                     pending_requests[request_id] = wallet
                     await websocket.send(json.dumps(
@@ -15040,6 +15100,22 @@ async def helius_standard_wss_worker():
                         update_helius_standard_wss_state(
                             subscriptions=len(subscriptions)
                         )
+                        if (not recovered_pending
+                                and len(subscriptions) == len(wallets)):
+                            recovered_pending = True
+                            interrupted = await asyncio.to_thread(
+                                pending_helius_standard_wss_transactions
+                            )
+                            for signature, first_received_ts in interrupted:
+                                await schedule_helius_standard_wss_fetch(
+                                    {"signature": signature},
+                                    first_received_ts,
+                                    pending_signatures,
+                                    fetch_tasks,
+                                    semaphore,
+                                    rate_lock,
+                                    rate_state,
+                                )
                         continue
 
                     event = parse_logs_notification(payload, subscriptions)
@@ -15065,31 +15141,15 @@ async def helius_standard_wss_worker():
                     )
                     if not should_fetch:
                         continue
-                    if len(pending_signatures) >= HELIUS_STANDARD_WSS_MAX_PENDING:
-                        await asyncio.to_thread(
-                            finish_helius_standard_wss_transaction,
-                            event["signature"],
-                            "queue_full",
-                            0,
-                            error="HELIUS_STANDARD_WSS_QUEUE_FULL",
-                        )
-                        continue
-                    pending_signatures.add(event["signature"])
-                    update_helius_standard_wss_state(
-                        pending_fetches=len(pending_signatures)
+                    await schedule_helius_standard_wss_fetch(
+                        event,
+                        received_ts,
+                        pending_signatures,
+                        fetch_tasks,
+                        semaphore,
+                        rate_lock,
+                        rate_state,
                     )
-                    task = asyncio.create_task(
-                        fetch_helius_standard_wss_transaction(
-                            event,
-                            received_ts,
-                            pending_signatures,
-                            semaphore,
-                            rate_lock,
-                            rate_state,
-                        )
-                    )
-                    fetch_tasks.add(task)
-                    task.add_done_callback(fetch_tasks.discard)
         except asyncio.CancelledError:
             raise
         except Exception as exc:
@@ -15683,7 +15743,8 @@ def api_helius_standard_wss_stats(
         transactions = conn.execute(
             """
             SELECT COUNT(*), COALESCE(SUM(fetch_attempts), 0),
-                   COALESCE(SUM(parsed_events), 0)
+                   COALESCE(SUM(parsed_events), 0),
+                   COALESCE(SUM(CASE WHEN fetched_ts IS NULL THEN 1 ELSE 0 END), 0)
             FROM helius_standard_wss_transactions
             WHERE first_received_ts >= ?
             """,
@@ -15759,6 +15820,7 @@ def api_helius_standard_wss_stats(
             "transactions_selected": int(transactions[0] or 0),
             "rpc_fetch_attempts": int(transactions[1] or 0),
             "parsed_events": int(transactions[2] or 0),
+            "pending_transaction_fetches": int(transactions[3] or 0),
             "statuses": {
                 str(status): int(count) for status, count in statuses
             },
