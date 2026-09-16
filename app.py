@@ -27,6 +27,7 @@ from dotenv import load_dotenv
 import websockets
 
 from shadow_model import ShadowLogisticModel
+from helius_credit_usage import HeliusCreditUsageError, fetch_helius_credit_usage
 from helius_webhook_sync import (
     fetch_helius_webhook,
     normalize_addresses,
@@ -433,6 +434,7 @@ HELIUS_WEBHOOK_SYNC_APPLY = os.getenv(
 ).lower() == "true"
 
 HELIUS_API_KEY = os.getenv("HELIUS_API_KEY", "").strip()
+HELIUS_PROJECT_ID = os.getenv("HELIUS_PROJECT_ID", "").strip()
 HELIUS_WEBHOOK_ID = os.getenv("HELIUS_WEBHOOK_ID", "").strip()
 
 HELIUS_WEBHOOK_SYNC_POLL_SECONDS = max(
@@ -15887,6 +15889,21 @@ def api_helius_webhook_stats(
             "windows": wallet_windows,
         },
     }
+
+
+@app.get("/api/helius-credit-usage")
+def api_helius_credit_usage(x_app_token: str = Header(default="")):
+    auth(x_app_token)
+    if not HELIUS_API_KEY or not HELIUS_PROJECT_ID:
+        return {
+            "configured": False,
+            "error": "HELIUS_ADMIN_NOT_CONFIGURED",
+        }
+    try:
+        usage = fetch_helius_credit_usage(HELIUS_API_KEY, HELIUS_PROJECT_ID)
+    except HeliusCreditUsageError as exc:
+        return {"configured": True, "error": str(exc)}
+    return {"configured": True, "error": None, **usage}
 
 
 @app.get("/api/helius-standard-wss-stats")

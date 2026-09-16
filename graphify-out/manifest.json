@@ -6,9 +6,9 @@
     "semantic_hash": "5ebef3dd159986e465ab65e4014107ec"
   },
   "app.py": {
-    "mtime": 1789571904.7585318,
-    "seen": 1789571968.0764253,
-    "ast_hash": "1d5efba7d7acc417584d29811eafe771",
+    "mtime": 1789572301.306737,
+    "seen": 1789572349.608108,
+    "ast_hash": "cc43f66e81fc0f6d4effe23270883048",
     "semantic_hash": ""
   },
   "models/baseline_v2_shadow.json": {
@@ -345,6 +345,18 @@
     "mtime": 1789571904.7595322,
     "seen": 1789571968.0764606,
     "ast_hash": "8e982b6bea54624e2dd486a3073f2cbd",
+    "semantic_hash": ""
+  },
+  "helius_credit_usage.py": {
+    "mtime": 1789572277.2686088,
+    "seen": 1789572349.6081119,
+    "ast_hash": "00f7b78acbe9b34d54a255aadf78fdb3",
+    "semantic_hash": ""
+  },
+  "tests/test_helius_credit_usage.py": {
+    "mtime": 1789572301.3077364,
+    "seen": 1789572349.6081474,
+    "ast_hash": "5a785fb83710340421940ac383e4fb43",
     "semantic_hash": ""
   }
 }
