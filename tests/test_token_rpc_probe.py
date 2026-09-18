@@ -38,7 +38,7 @@ class TokenRpcProbeTests(unittest.TestCase):
 
         self.assertEqual(first, {"status": "sampled", "rpc_calls": 2})
         self.assertEqual(second, {"status": "unchanged", "rpc_calls": 1})
-        signatures.assert_called_with("https://rpc.test", "mint-a", limit=1)
+        signatures.assert_called_with("https://rpc.test", "mint-a", limit=3)
         self.assertEqual(signatures.call_count, 2)
         fetch.assert_called_once_with("https://rpc.test", "sig-a")
         parse.assert_called_once_with(receipt, {"mint-a"}, "sig-a")
@@ -120,4 +120,37 @@ class TokenRpcProbeTests(unittest.TestCase):
         ):
             result = app.token_rpc_probe_once(now=1_700_000_000)
         self.assertEqual(result, {"status": "no_signature", "rpc_calls": 1})
-        fetch.assert_called_once_with("https://rpc.test", "mint-new", limit=1)
+        fetch.assert_called_once_with("https://rpc.test", "mint-new", limit=3)
+
+    def test_failed_signatures_do_not_trigger_transaction_fetch(self):
+        with (
+            patch.object(app, "WATCHED", {}),
+            patch.object(app, "standard_wss_rpc_url", return_value="https://rpc.test"),
+            patch.object(app, "fetch_signatures_for_address", return_value=[
+                {"signature": "failed-a", "err": {"InstructionError": [0, "Custom"]}},
+                {"signature": "failed-b", "err": {"InstructionError": [0, "Custom"]}},
+            ]),
+            patch.object(app, "fetch_confirmed_transaction") as fetch,
+        ):
+            result = app.token_rpc_probe_once(now=1_700_000_000, mints=["mint-a"])
+        self.assertEqual(
+            result, {"status": "no_successful_signature", "rpc_calls": 1}
+        )
+        fetch.assert_not_called()
+
+    def test_uses_first_successful_signature_after_failed_transaction(self):
+        with (
+            patch.object(app, "WATCHED", {}),
+            patch.object(app, "standard_wss_rpc_url", return_value="https://rpc.test"),
+            patch.object(app, "fetch_signatures_for_address", return_value=[
+                {"signature": "failed-a", "err": {"InstructionError": [0, "Custom"]}},
+                {"signature": "success-b", "err": None},
+            ]),
+            patch.object(app, "fetch_confirmed_transaction", return_value={
+                "blockTime": 1_700_000_000
+            }) as fetch,
+            patch.object(app, "parse_tracked_token_pump_events", return_value=[]),
+        ):
+            result = app.token_rpc_probe_once(now=1_700_000_005, mints=["mint-a"])
+        self.assertEqual(result, {"status": "no_pump_event", "rpc_calls": 2})
+        fetch.assert_called_once_with("https://rpc.test", "success-b")

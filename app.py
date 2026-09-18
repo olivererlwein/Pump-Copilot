@@ -15197,14 +15197,20 @@ def token_rpc_probe_once(now=None, mints=None):
     try:
         rpc_url = standard_wss_rpc_url()
         rpc_calls += 1
-        rows = fetch_signatures_for_address(rpc_url, mint, limit=1)
+        rows = fetch_signatures_for_address(rpc_url, mint, limit=3)
         if not rows:
             status = "no_signature"
         else:
-            signature = str(rows[0]["signature"])
-            if previous and previous[0] == signature:
-                status = "unchanged"
+            successful = next(
+                (row for row in rows if row.get("err") is None), None
+            )
+            if successful is None:
+                status = "no_successful_signature"
             else:
+                signature = str(successful["signature"])
+            if successful is not None and previous and previous[0] == signature:
+                status = "unchanged"
+            elif successful is not None:
                 rpc_calls += 1
                 receipt = fetch_confirmed_transaction(rpc_url, signature)
                 if receipt is None:
