@@ -309,6 +309,74 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(report["credit_estimate"]["observed_credits_approx"])
         self.assertFalse(report["credit_estimate"]["projection_ready"])
 
+    def test_disabled_token_tracking_does_not_recover_token_only_backlog(self):
+        observed_at = time.time() - 5
+        token_only = {
+            **self.event(wallet="mint-a"),
+            "subject_type": "token",
+        }
+        mixed = {
+            **self.event(wallet="mint-b"),
+            "signature": "signature-b",
+            "subject_type": "token",
+        }
+        app.record_helius_standard_wss_notification(
+            token_only, True, 200, received_ts=observed_at
+        )
+        app.record_helius_standard_wss_notification(
+            mixed, True, 200, received_ts=observed_at
+        )
+
+        self.assertEqual(
+            app.pending_helius_standard_wss_transactions(
+                now=observed_at + 5, include_tokens=False
+            ),
+            [],
+        )
+
+        wallet_event = {
+            **mixed,
+            "wallet": "wallet-b",
+            "subject_type": "wallet",
+        }
+        self.assertTrue(app.record_helius_standard_wss_notification(
+            wallet_event, True, 200, received_ts=observed_at + 1
+        ))
+        self.assertFalse(app.record_helius_standard_wss_notification(
+            wallet_event, True, 200, received_ts=observed_at + 2
+        ))
+        self.assertEqual(
+            app.pending_helius_standard_wss_transactions(
+                now=observed_at + 5, include_tokens=False
+            ),
+            [("signature-b", observed_at)],
+        )
+        self.assertEqual(
+            len(app.pending_helius_standard_wss_transactions(
+                now=observed_at + 5, include_tokens=True
+            )),
+            2,
+        )
+
+    def test_old_token_only_pending_does_not_restart_fetch_on_wallet_notice(self):
+        now = time.time()
+        token_event = {
+            **self.event(),
+            "wallet": "mint-a",
+            "subject_type": "token",
+        }
+        app.record_helius_standard_wss_notification(
+            token_event, True, 200, received_ts=now - 1000
+        )
+        wallet_event = {
+            **token_event,
+            "wallet": "wallet-a",
+            "subject_type": "wallet",
+        }
+        self.assertFalse(app.record_helius_standard_wss_notification(
+            wallet_event, True, 200, received_ts=now
+        ))
+
     def test_migration_preserves_existing_wallet_notifications(self):
         conn = app.db()
         try:

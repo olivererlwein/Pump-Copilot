@@ -14869,7 +14869,7 @@ def record_helius_standard_wss_notification(
     signature = event["signature"]
     conn = db()
     try:
-        conn.execute(
+        notification = conn.execute(
             """
             INSERT OR IGNORE INTO helius_standard_wss_notifications(
                 signature, wallet, received_ts, slot, failed, pump_logs,
@@ -14898,6 +14898,22 @@ def record_helius_standard_wss_notification(
                 (signature, received_ts),
             )
             should_fetch = bool(cursor.rowcount)
+            if (not should_fetch and notification.rowcount
+                    and event.get("subject_type", "wallet") == "wallet"):
+                previous_wallet = conn.execute(
+                    "SELECT 1 FROM helius_standard_wss_notifications "
+                    "WHERE signature = ? AND subject_type = 'wallet' "
+                    "AND wallet <> ? LIMIT 1",
+                    (signature, event["wallet"]),
+                ).fetchone()
+                if previous_wallet is None:
+                    pending = conn.execute(
+                        "SELECT 1 FROM helius_standard_wss_transactions "
+                        "WHERE signature = ? AND status = 'pending_fetch' "
+                        "AND fetched_ts IS NULL AND first_received_ts >= ?",
+                        (signature, received_ts - 900),
+                    ).fetchone()
+                    should_fetch = pending is not None
         conn.commit()
         return should_fetch
     finally:
@@ -14940,21 +14956,28 @@ def finish_helius_standard_wss_transaction(
         conn.close()
 
 
-def pending_helius_standard_wss_transactions(now=None, limit=50):
+def pending_helius_standard_wss_transactions(
+    now=None, limit=50, include_tokens=True,
+):
     cutoff = float(now if now is not None else time.time()) - 900
     conn = db()
     try:
         return conn.execute(
             """
-            SELECT signature, first_received_ts
-            FROM helius_standard_wss_transactions
-            WHERE status IN ('pending_fetch', 'observed')
-              AND fetched_ts IS NULL
-              AND first_received_ts >= ?
-            ORDER BY first_received_ts, signature
+            SELECT t.signature, t.first_received_ts
+            FROM helius_standard_wss_transactions t
+            WHERE t.status IN ('pending_fetch', 'observed')
+              AND t.fetched_ts IS NULL
+              AND t.first_received_ts >= ?
+              AND (? OR EXISTS (
+                  SELECT 1 FROM helius_standard_wss_notifications n
+                  WHERE n.signature = t.signature
+                    AND n.subject_type = 'wallet'
+              ))
+            ORDER BY t.first_received_ts, t.signature
             LIMIT ?
             """,
-            (cutoff, max(1, min(int(limit), 50))),
+            (cutoff, int(bool(include_tokens)), max(1, min(int(limit), 50))),
         ).fetchall()
     finally:
         conn.close()
@@ -15348,7 +15371,10 @@ async def helius_standard_wss_worker():
                                 and len(subscribed_wallets) == len(wallets)):
                             recovered_pending = True
                             interrupted = await asyncio.to_thread(
-                                pending_helius_standard_wss_transactions
+                                pending_helius_standard_wss_transactions,
+                                include_tokens=(
+                                    HELIUS_STANDARD_WSS_TRACK_TOKENS_ENABLED
+                                ),
                             )
                             for signature, first_received_ts in interrupted:
                                 await schedule_helius_standard_wss_fetch(
