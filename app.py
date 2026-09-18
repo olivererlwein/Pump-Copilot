@@ -14837,6 +14837,12 @@ def helius_standard_wss_error_code(error):
     message = str(error)
     if "429" in message or "rate limit" in message.lower():
         return "HELIUS_STANDARD_WSS_HTTP_429"
+    if isinstance(error, ValueError) and message in {
+        "TRANSACTION_NOT_AVAILABLE",
+        "INVALID_SOLANA_TRANSACTION",
+        "INVALID_SOLANA_RPC_RESPONSE:getTransaction",
+    }:
+        return f"HELIUS_STANDARD_WSS_{message.replace(':', '_')}"
     internal_code = message.split(":", 1)[0]
     if internal_code in {
         "HELIUS_STANDARD_WSS_SUBSCRIPTION_TIMEOUT",

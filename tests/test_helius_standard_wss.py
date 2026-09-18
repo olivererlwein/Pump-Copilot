@@ -209,6 +209,22 @@ class HeliusStandardWssProtocolTests(unittest.TestCase):
             "HELIUS_STANDARD_WSS_RuntimeError",
         )
 
+    def test_fetch_errors_distinguish_only_known_rpc_failures(self):
+        for message, expected in (
+            ("TRANSACTION_NOT_AVAILABLE", "HELIUS_STANDARD_WSS_TRANSACTION_NOT_AVAILABLE"),
+            ("INVALID_SOLANA_TRANSACTION", "HELIUS_STANDARD_WSS_INVALID_SOLANA_TRANSACTION"),
+            ("INVALID_SOLANA_RPC_RESPONSE:getTransaction", "HELIUS_STANDARD_WSS_INVALID_SOLANA_RPC_RESPONSE_getTransaction"),
+        ):
+            with self.subTest(message=message):
+                self.assertEqual(
+                    app.helius_standard_wss_error_code(ValueError(message)),
+                    expected,
+                )
+                self.assertEqual(
+                    app.helius_standard_wss_error_code(ValueError(message + ":secret-key")),
+                    "HELIUS_STANDARD_WSS_ValueError",
+                )
+
 
 class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
