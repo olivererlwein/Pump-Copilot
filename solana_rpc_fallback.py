@@ -441,6 +441,48 @@ def parse_watched_wallet_pump_events(receipt, wallet, signature):
     ]
 
 
+def diagnose_unparsed_pump_receipt(receipt, wallet, signature, subject_type="wallet"):
+    """Classify a rejected receipt without retaining its raw contents."""
+    if not isinstance(receipt, dict):
+        return "invalid_receipt"
+    meta = receipt.get("meta")
+    if not isinstance(meta, dict):
+        return "missing_meta"
+    if meta.get("err") is not None:
+        return "failed_transaction"
+    transaction = receipt.get("transaction") or {}
+    signatures = transaction.get("signatures") or []
+    if not signatures or signatures[0] != signature:
+        return "signature_mismatch"
+    if subject_type == "wallet" and not _is_signed_by(
+        transaction.get("message") or {}, wallet
+    ):
+        return "wallet_not_signer"
+
+    try:
+        events = _parse_official_pump_events(receipt, signature)
+        if events:
+            if subject_type == "wallet":
+                if any(
+                    row["event"].get("traderPublicKey") == wallet
+                    for row in events
+                ):
+                    return "relevant_event_not_recorded"
+                return "other_trader"
+            if any(row["event"].get("mint") == wallet for row in events):
+                return "relevant_event_not_recorded"
+            return "other_token"
+
+        payloads = [payload for _, payload in _event_payloads(receipt)]
+        if any(payload.startswith((
+            PUMP_TRADE_EVENT, PUMP_AMM_BUY_EVENT, PUMP_AMM_SELL_EVENT
+        )) for payload in payloads):
+            return "supported_payload_not_decoded"
+        return "no_supported_trade_payload"
+    except (TypeError, ValueError, KeyError, AttributeError):
+        return "diagnostic_unavailable"
+
+
 def parse_tracked_token_pump_events(receipt, tracked_mints, signature):
     """Return official Pump events for the requested token mints.
 

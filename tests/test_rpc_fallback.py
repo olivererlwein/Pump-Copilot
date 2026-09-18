@@ -18,6 +18,7 @@ from solana_rpc_fallback import (
     WSOL_MINT,
     _base58_encode,
     _rpc_request,
+    diagnose_unparsed_pump_receipt,
     parse_tracked_token_pump_events,
     parse_watched_wallet_pump_events,
 )
@@ -121,6 +122,31 @@ def pump_amm_receipt():
 
 
 class RpcFallbackParserTests(unittest.TestCase):
+    def test_diagnoses_nontrade_pump_log_without_claiming_data_loss(self):
+        receipt = pump_receipt()
+        receipt["meta"]["logMessages"] = [
+            f"Program {PUMP_PROGRAM_ID} invoke [1]"
+        ]
+        self.assertEqual(
+            diagnose_unparsed_pump_receipt(receipt, WALLET, SIGNATURE),
+            "no_supported_trade_payload",
+        )
+
+    def test_diagnoses_supported_payload_that_cannot_be_decoded(self):
+        receipt = receipt_with_payload(PUMP_TRADE_EVENT + b"short")
+        self.assertEqual(
+            diagnose_unparsed_pump_receipt(receipt, WALLET, SIGNATURE),
+            "supported_payload_not_decoded",
+        )
+
+    def test_diagnoses_wallet_not_signing(self):
+        self.assertEqual(
+            diagnose_unparsed_pump_receipt(
+                pump_receipt(), "another-wallet", SIGNATURE
+            ),
+            "wallet_not_signer",
+        )
+
     def test_parses_official_pump_trade_event(self):
         parsed = parse_watched_wallet_pump_events(
             pump_receipt(), WALLET, SIGNATURE

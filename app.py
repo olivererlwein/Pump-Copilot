@@ -42,6 +42,7 @@ from solana_rpc_fallback import (
     fetch_confirmed_transaction,
     fetch_signatures_for_address,
     parse_watched_wallet_pump_events,
+    diagnose_unparsed_pump_receipt,
     parse_tracked_token_pump_events,
 )
 
@@ -852,9 +853,24 @@ def db():
             status TEXT NOT NULL,
             fetch_attempts INTEGER NOT NULL DEFAULT 0,
             parsed_events INTEGER NOT NULL DEFAULT 0,
-            last_error TEXT
+            last_error TEXT,
+            unparsed_reason TEXT
         )
         """
+    )
+    wss_transaction_columns = {
+        row[1] for row in conn.execute(
+            "PRAGMA table_info(helius_standard_wss_transactions)"
+        )
+    }
+    if "unparsed_reason" not in wss_transaction_columns:
+        conn.execute(
+            "ALTER TABLE helius_standard_wss_transactions "
+            "ADD COLUMN unparsed_reason TEXT"
+        )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_helius_wss_transactions_received "
+        "ON helius_standard_wss_transactions(first_received_ts)"
     )
 
     # Eventos normalizados preservados antes de activar cualquier efecto. Una
@@ -14890,6 +14906,7 @@ def finish_helius_standard_wss_transaction(
     block_time=None,
     error=None,
     now=None,
+    unparsed_reason=None,
 ):
     conn = db()
     try:
@@ -14897,7 +14914,8 @@ def finish_helius_standard_wss_transaction(
             """
             UPDATE helius_standard_wss_transactions
             SET fetched_ts = ?, block_time = ?, status = ?,
-                fetch_attempts = ?, parsed_events = ?, last_error = ?
+                fetch_attempts = ?, parsed_events = ?, last_error = ?,
+                unparsed_reason = ?
             WHERE signature = ?
             """,
             (
@@ -14907,6 +14925,7 @@ def finish_helius_standard_wss_transaction(
                 int(attempts),
                 int(parsed_events),
                 str(error)[:500] if error else None,
+                unparsed_reason if status == "unparsed" else None,
                 signature,
             ),
         )
@@ -14998,6 +15017,17 @@ async def fetch_helius_standard_wss_transaction(
             )
             if not parsed_events:
                 status = "unparsed"
+            unparsed_reason = None
+            if status == "unparsed":
+                try:
+                    unparsed_reason = diagnose_unparsed_pump_receipt(
+                        receipt,
+                        event["wallet"],
+                        signature,
+                        event.get("subject_type", "wallet"),
+                    )
+                except Exception:
+                    unparsed_reason = "diagnostic_unavailable"
             await asyncio.to_thread(
                 finish_helius_standard_wss_transaction,
                 signature,
@@ -15005,6 +15035,7 @@ async def fetch_helius_standard_wss_transaction(
                 attempts,
                 parsed_events,
                 receipt.get("blockTime"),
+                unparsed_reason=unparsed_reason,
             )
             update_helius_standard_wss_state(
                 last_success_ts=time.time(),
@@ -15987,6 +16018,48 @@ def api_helius_standard_wss_stats(
             """,
             (cutoff,),
         ).fetchall()
+        unparsed_reasons = conn.execute(
+            """
+            SELECT COALESCE(unparsed_reason, 'unknown'), COUNT(*)
+            FROM helius_standard_wss_transactions
+            WHERE first_received_ts >= ? AND status = 'unparsed'
+            GROUP BY COALESCE(unparsed_reason, 'unknown')
+            """,
+            (cutoff,),
+        ).fetchall()
+        signature_overlap = conn.execute(
+            """
+            SELECT COUNT(*),
+                   COALESCE(SUM(EXISTS(
+                       SELECT 1 FROM trades t
+                       WHERE t.signature = w.signature AND t.source = 'live'
+                   )), 0),
+                   COALESCE(SUM(EXISTS(
+                       SELECT 1 FROM trades t
+                       WHERE t.signature = w.signature AND t.source = 'helius'
+                   )), 0),
+                   COALESCE(SUM(EXISTS(
+                       SELECT 1 FROM helius_webhook_events h
+                       WHERE h.signature = w.signature AND h.parsed = 1
+                   )), 0)
+            FROM helius_standard_wss_transactions w
+            WHERE w.first_received_ts >= ? AND w.parsed_events > 0
+            """,
+            (cutoff,),
+        ).fetchone()
+        delivery_timing = conn.execute(
+            """
+            SELECT COUNT(w.block_time),
+                   AVG(w.first_received_ts - w.block_time),
+                   COUNT(h.received_ts),
+                   AVG(h.received_ts - w.first_received_ts)
+            FROM helius_standard_wss_transactions w
+            LEFT JOIN helius_webhook_events h
+              ON h.signature = w.signature AND h.parsed = 1
+            WHERE w.first_received_ts >= ? AND w.parsed_events > 0
+            """,
+            (cutoff,),
+        ).fetchone()
         wallets = conn.execute(
             """
             SELECT wallet, COUNT(*), COALESCE(SUM(pump_logs), 0)
@@ -16094,6 +16167,28 @@ def api_helius_standard_wss_stats(
             "tokens_observed": int(token_notifications[1] or 0),
             "statuses": {
                 str(status): int(count) for status, count in statuses
+            },
+            "unparsed_reasons": {
+                str(reason): int(count)
+                for reason, count in unparsed_reasons
+            },
+            "signature_overlap": {
+                "parsed_transactions": int(signature_overlap[0] or 0),
+                "trades_live": int(signature_overlap[1] or 0),
+                "trades_helius": int(signature_overlap[2] or 0),
+                "webhook_parsed": int(signature_overlap[3] or 0),
+            },
+            "delivery_timing": {
+                "wss_with_block_time": int(delivery_timing[0] or 0),
+                "wss_mean_seconds_after_block": (
+                    round(float(delivery_timing[1]), 3)
+                    if delivery_timing[1] is not None else None
+                ),
+                "webhook_overlap_with_time": int(delivery_timing[2] or 0),
+                "webhook_mean_seconds_after_wss": (
+                    round(float(delivery_timing[3]), 3)
+                    if delivery_timing[3] is not None else None
+                ),
             },
             "wallets": [
                 {

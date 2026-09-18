@@ -332,6 +332,44 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
             conn.close()
         self.assertEqual(row, ("old-signature", "wallet-a", "wallet"))
 
+    def test_migration_adds_unparsed_reason_without_losing_transactions(self):
+        conn = app.db()
+        try:
+            conn.execute("DROP TABLE helius_standard_wss_transactions")
+            conn.execute(
+                """
+                CREATE TABLE helius_standard_wss_transactions(
+                    signature TEXT PRIMARY KEY,
+                    first_received_ts REAL NOT NULL,
+                    fetched_ts REAL,
+                    block_time REAL,
+                    status TEXT NOT NULL,
+                    fetch_attempts INTEGER NOT NULL DEFAULT 0,
+                    parsed_events INTEGER NOT NULL DEFAULT 0,
+                    last_error TEXT
+                )
+                """
+            )
+            conn.execute(
+                "INSERT INTO helius_standard_wss_transactions "
+                "(signature, first_received_ts, status) "
+                "VALUES ('old-signature', 1, 'unparsed')"
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        app.migrate_database()
+        conn = app.db()
+        try:
+            row = conn.execute(
+                "SELECT signature, status, unparsed_reason "
+                "FROM helius_standard_wss_transactions"
+            ).fetchone()
+        finally:
+            conn.close()
+        self.assertEqual(row, ("old-signature", "unparsed", None))
+
     def test_shared_transaction_is_fetched_once_but_attributes_both_wallets(self):
         first = app.record_helius_standard_wss_notification(
             self.event("wallet-a"), True, 200, received_ts=1_700_000_000
@@ -405,6 +443,84 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
             conn.close()
         self.assertEqual(row, ("observed", 1, 1))
 
+    async def test_unparsed_receipt_records_reason_without_inbox_write(self):
+        event = self.event()
+        app.record_helius_standard_wss_notification(
+            event, True, 200, received_ts=1_700_000_000
+        )
+        receipt = {
+            "blockTime": 1_699_999_999,
+            "transaction": {
+                "signatures": ["signature-a"],
+                "message": {"accountKeys": [
+                    {"pubkey": "wallet-a", "signer": True}
+                ]},
+            },
+            "meta": {"err": None, "logMessages": []},
+        }
+        with (
+            patch.object(app, "HELIUS_STANDARD_WSS_APPLY", False),
+            patch.object(app, "fetch_confirmed_transaction", return_value=receipt),
+            patch.object(
+                app, "record_helius_webhook_transactions",
+                return_value={"parsed_events": 0},
+            ),
+            patch.object(app, "APP_TOKEN", "token"),
+            patch.object(app.time, "time", return_value=1_700_000_001),
+        ):
+            await app.fetch_helius_standard_wss_transaction(
+                event, 1_700_000_000, {event["signature"]},
+                asyncio.Semaphore(1), asyncio.Lock(), {"next_ts": 0.0},
+            )
+            report = app.api_helius_standard_wss_stats("token")
+
+        self.assertEqual(
+            report["last_24h"]["unparsed_reasons"],
+            {"no_supported_trade_payload": 1},
+        )
+        conn = app.db()
+        try:
+            inbox_count = conn.execute(
+                "SELECT COUNT(*) FROM market_event_inbox"
+            ).fetchone()[0]
+        finally:
+            conn.close()
+        self.assertEqual(inbox_count, 0)
+
+    async def test_diagnostic_failure_does_not_change_unparsed_status(self):
+        event = self.event()
+        app.record_helius_standard_wss_notification(
+            event, True, 200, received_ts=1_700_000_000
+        )
+        with (
+            patch.object(app, "HELIUS_STANDARD_WSS_APPLY", False),
+            patch.object(
+                app, "fetch_confirmed_transaction",
+                return_value={"blockTime": 1_699_999_999},
+            ),
+            patch.object(
+                app, "record_helius_webhook_transactions",
+                return_value={"parsed_events": 0},
+            ),
+            patch.object(
+                app, "diagnose_unparsed_pump_receipt",
+                side_effect=RuntimeError("diagnostic failed"),
+            ),
+        ):
+            await app.fetch_helius_standard_wss_transaction(
+                event, 1_700_000_000, {event["signature"]},
+                asyncio.Semaphore(1), asyncio.Lock(), {"next_ts": 0.0},
+            )
+        conn = app.db()
+        try:
+            row = conn.execute(
+                "SELECT status, unparsed_reason "
+                "FROM helius_standard_wss_transactions"
+            ).fetchone()
+        finally:
+            conn.close()
+        self.assertEqual(row, ("unparsed", "diagnostic_unavailable"))
+
     async def test_apply_fetch_keeps_webhook_health_separate(self):
         event = self.event()
         app.record_helius_standard_wss_notification(
@@ -442,8 +558,34 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
         )
         app.finish_helius_standard_wss_transaction(
             "signature-a", "observed", 1, parsed_events=1,
+            block_time=1_699_999_999,
             now=1_700_000_001,
         )
+        conn = app.db()
+        try:
+            conn.execute(
+                "INSERT INTO trades(ts, signature, source) "
+                "VALUES (?, ?, ?)",
+                (1_700_000_000, "signature-a", "live"),
+            )
+            conn.execute(
+                "INSERT INTO trades(ts, signature, source) "
+                "VALUES (?, ?, ?)",
+                (1_700_000_000, "signature-a", "live"),
+            )
+            conn.execute(
+                "INSERT INTO trades(ts, signature, source) "
+                "VALUES (?, ?, ?)",
+                (1_700_000_000, "signature-a", "helius"),
+            )
+            conn.execute(
+                "INSERT INTO helius_webhook_events"
+                "(signature, parsed, received_ts) VALUES (?, ?, ?)",
+                ("signature-a", 1, 1_700_000_002),
+            )
+            conn.commit()
+        finally:
+            conn.close()
         with (
             patch.object(app, "APP_TOKEN", "token"),
             patch.object(app.time, "time", return_value=1_700_003_600),
@@ -454,6 +596,24 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(report["affects_decisions"])
         self.assertEqual(report["last_24h"]["notifications"], 1)
         self.assertEqual(report["last_24h"]["parsed_events"], 1)
+        self.assertEqual(
+            report["last_24h"]["signature_overlap"],
+            {
+                "parsed_transactions": 1,
+                "trades_live": 1,
+                "trades_helius": 1,
+                "webhook_parsed": 1,
+            },
+        )
+        self.assertEqual(
+            report["last_24h"]["delivery_timing"],
+            {
+                "wss_with_block_time": 1,
+                "wss_mean_seconds_after_block": 1.0,
+                "webhook_overlap_with_time": 1,
+                "webhook_mean_seconds_after_wss": 2.0,
+            },
+        )
         self.assertTrue(report["credit_estimate"]["projection_ready"])
         self.assertEqual(
             report["credit_estimate"]["observed_credits_approx"], 3.0
