@@ -16018,6 +16018,16 @@ def api_helius_standard_wss_stats(
             """,
             (cutoff,),
         ).fetchall()
+        fetch_errors = conn.execute(
+            """
+            SELECT status, COALESCE(last_error, 'unknown'), COUNT(*)
+            FROM helius_standard_wss_transactions
+            WHERE first_received_ts >= ?
+              AND status IN ('fetch_failed', 'processing_failed')
+            GROUP BY status, COALESCE(last_error, 'unknown')
+            """,
+            (cutoff,),
+        ).fetchall()
         unparsed_reasons = conn.execute(
             """
             SELECT COALESCE(unparsed_reason, 'unknown'), COUNT(*)
@@ -16062,11 +16072,20 @@ def api_helius_standard_wss_stats(
         ).fetchone()
         wallets = conn.execute(
             """
-            SELECT wallet, COUNT(*), COALESCE(SUM(pump_logs), 0)
-            FROM helius_standard_wss_notifications
-            WHERE received_ts >= ? AND subject_type = 'wallet'
-            GROUP BY wallet
-            ORDER BY COUNT(*) DESC, wallet
+            SELECT n.wallet, COUNT(*), COALESCE(SUM(n.pump_logs), 0),
+                   COALESCE(SUM(CASE WHEN t.parsed_events > 0
+                                     THEN 1 ELSE 0 END), 0),
+                   COALESCE(SUM(CASE WHEN t.status = 'unparsed'
+                                     THEN 1 ELSE 0 END), 0),
+                   COALESCE(SUM(CASE WHEN t.status IN (
+                       'fetch_failed', 'processing_failed'
+                   ) THEN 1 ELSE 0 END), 0)
+            FROM helius_standard_wss_notifications n
+            LEFT JOIN helius_standard_wss_transactions t
+              ON t.signature = n.signature
+            WHERE n.received_ts >= ? AND n.subject_type = 'wallet'
+            GROUP BY n.wallet
+            ORDER BY COUNT(*) DESC, n.wallet
             """,
             (cutoff,),
         ).fetchall()
@@ -16168,6 +16187,10 @@ def api_helius_standard_wss_stats(
             "statuses": {
                 str(status): int(count) for status, count in statuses
             },
+            "fetch_errors": [
+                {"status": status, "code": code, "count": int(count)}
+                for status, code, count in fetch_errors
+            ],
             "unparsed_reasons": {
                 str(reason): int(count)
                 for reason, count in unparsed_reasons
@@ -16196,8 +16219,12 @@ def api_helius_standard_wss_stats(
                     "trader": traders_by_wallet.get(wallet),
                     "notifications": int(count),
                     "pump_log_notifications": int(pump_count),
+                    "notifications_with_parsed_transaction": int(parsed_count),
+                    "unparsed_transactions": int(unparsed_count),
+                    "failed_transactions": int(failed_count),
                 }
-                for wallet, count, pump_count in wallets
+                for wallet, count, pump_count, parsed_count,
+                    unparsed_count, failed_count in wallets
             ],
         },
         "credit_estimate": {

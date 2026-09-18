@@ -401,6 +401,78 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
             conn.close()
         self.assertEqual(status, "pending_fetch")
 
+    def test_stats_separate_wallet_coverage_and_fetch_errors(self):
+        first = self.event("wallet-a")
+        app.record_helius_standard_wss_notification(
+            first, True, 200, received_ts=1_700_000_000
+        )
+        app.record_helius_standard_wss_notification(
+            self.event("wallet-b"), True, 200,
+            received_ts=1_700_000_001,
+        )
+        app.finish_helius_standard_wss_transaction(
+            "signature-a", "observed", 1, parsed_events=2,
+            now=1_700_000_002,
+        )
+        second = {**self.event("wallet-a"), "signature": "signature-b"}
+        app.record_helius_standard_wss_notification(
+            second, True, 200, received_ts=1_700_000_003
+        )
+        app.finish_helius_standard_wss_transaction(
+            "signature-b", "unparsed", 1,
+            unparsed_reason="no_supported_trade_payload",
+            now=1_700_000_004,
+        )
+        third = {**self.event("wallet-b"), "signature": "signature-c"}
+        app.record_helius_standard_wss_notification(
+            third, True, 200, received_ts=1_700_000_005
+        )
+        app.finish_helius_standard_wss_transaction(
+            "signature-c", "fetch_failed", 3,
+            error="HELIUS_STANDARD_WSS_HTTP_429",
+            now=1_700_000_006,
+        )
+
+        with (
+            patch.object(app, "APP_TOKEN", "token"),
+            patch.object(app.time, "time", return_value=1_700_000_007),
+            patch.object(
+                app, "WATCHED",
+                {"trader-a": "wallet-a", "trader-b": "wallet-b"},
+            ),
+        ):
+            report = app.api_helius_standard_wss_stats("token")
+
+        self.assertEqual(report["last_24h"]["transactions_selected"], 3)
+        self.assertEqual(report["last_24h"]["fetch_errors"], [
+            {
+                "status": "fetch_failed",
+                "code": "HELIUS_STANDARD_WSS_HTTP_429",
+                "count": 1,
+            },
+        ])
+        wallets = {
+            row["trader"]: row for row in report["last_24h"]["wallets"]
+        }
+        self.assertEqual(
+            (
+                wallets["trader-a"]["notifications"],
+                wallets["trader-a"]["notifications_with_parsed_transaction"],
+                wallets["trader-a"]["unparsed_transactions"],
+                wallets["trader-a"]["failed_transactions"],
+            ),
+            (2, 1, 1, 0),
+        )
+        self.assertEqual(
+            (
+                wallets["trader-b"]["notifications"],
+                wallets["trader-b"]["notifications_with_parsed_transaction"],
+                wallets["trader-b"]["unparsed_transactions"],
+                wallets["trader-b"]["failed_transactions"],
+            ),
+            (2, 1, 0, 1),
+        )
+
     async def test_shadow_fetch_never_persists_to_decision_inbox(self):
         event = self.event()
         app.record_helius_standard_wss_notification(
