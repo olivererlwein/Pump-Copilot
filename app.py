@@ -513,6 +513,12 @@ HELIUS_STANDARD_WSS_MAX_TRACKED_TOKENS = max(
 HELIUS_STANDARD_WSS_TOKEN_POLL_SECONDS = max(
     1, min(60, int(os.getenv("HELIUS_STANDARD_WSS_TOKEN_POLL_SECONDS", "5")))
 )
+TOKEN_RPC_PROBE_ENABLED = os.getenv(
+    "TOKEN_RPC_PROBE_ENABLED", "false"
+).lower() == "true"
+TOKEN_RPC_PROBE_POLL_SECONDS = max(
+    30, int(os.getenv("TOKEN_RPC_PROBE_POLL_SECONDS", "30"))
+)
 HELIUS_STANDARD_WSS_STATE_LOCK = threading.Lock()
 HELIUS_STANDARD_WSS_STATE = {
     "connected": False,
@@ -868,6 +874,25 @@ def db():
             "ALTER TABLE helius_standard_wss_transactions "
             "ADD COLUMN unparsed_reason TEXT"
         )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS token_rpc_probe_samples(
+            id INTEGER PRIMARY KEY,
+            mint TEXT NOT NULL,
+            signature TEXT,
+            polled_ts REAL NOT NULL,
+            block_time REAL,
+            price REAL,
+            status TEXT NOT NULL,
+            error_code TEXT,
+            rpc_calls INTEGER NOT NULL
+        )
+        """
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_token_rpc_probe_mint_ts "
+        "ON token_rpc_probe_samples(mint, polled_ts DESC)"
+    )
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_helius_wss_transactions_received "
         "ON helius_standard_wss_transactions(first_received_ts)"
@@ -13329,6 +13354,9 @@ async def startup():
         asyncio.create_task(
             helius_standard_wss_worker()
         )
+
+    if TOKEN_RPC_PROBE_ENABLED:
+        asyncio.create_task(token_rpc_probe_worker())
 # =========================================================
 # AUTENTICACIÓN
 # =========================================================
@@ -15130,6 +15158,103 @@ async def schedule_helius_standard_wss_fetch(
     task.add_done_callback(fetch_tasks.discard)
 
 
+def token_rpc_probe_once(now=None, mints=None):
+    polled_ts = float(now if now is not None else time.time())
+    if mints is None:
+        tracked = set(_tracked_tokens_snapshot())
+        conn = db()
+        try:
+            active = conn.execute(
+                "SELECT mint FROM signal_outcomes "
+                "WHERE status = 'active' AND signal_ts >= ? "
+                "GROUP BY mint ORDER BY MAX(signal_ts) DESC",
+                (polled_ts - 1200,),
+            ).fetchall()
+        finally:
+            conn.close()
+        mints = [row[0] for row in active if row[0] in tracked]
+    mint = next((candidate for candidate in mints
+                 if candidate and candidate not in WATCHED.values()), None)
+    if not mint:
+        return {"status": "no_active_token", "rpc_calls": 0}
+    conn = db()
+    try:
+        previous = conn.execute(
+            "SELECT signature FROM token_rpc_probe_samples "
+            "WHERE mint = ? AND signature IS NOT NULL "
+            "AND status IN ('sampled', 'no_pump_event', 'unchanged') "
+            "ORDER BY id DESC LIMIT 1",
+            (mint,),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    signature = None
+    block_time = None
+    price = None
+    error_code = None
+    rpc_calls = 0
+    try:
+        rpc_url = standard_wss_rpc_url()
+        rpc_calls += 1
+        rows = fetch_signatures_for_address(rpc_url, mint, limit=1)
+        if not rows:
+            status = "no_signature"
+        else:
+            signature = str(rows[0]["signature"])
+            if previous and previous[0] == signature:
+                status = "unchanged"
+            else:
+                rpc_calls += 1
+                receipt = fetch_confirmed_transaction(rpc_url, signature)
+                if receipt is None:
+                    status = "unavailable"
+                else:
+                    events = parse_tracked_token_pump_events(
+                        receipt, {mint}, signature
+                    )
+                    status = "no_pump_event"
+                    for parsed in reversed(events):
+                        event = parsed["event"]
+                        v_sol = float(event.get("vSolInBondingCurve") or 0)
+                        v_tokens = float(event.get("vTokensInBondingCurve") or 0)
+                        timestamp = receipt.get("blockTime")
+                        if (v_sol > 0 and v_tokens > 0 and timestamp
+                                and math.isfinite(v_sol / v_tokens)):
+                            price = v_sol / v_tokens
+                            block_time = float(timestamp)
+                            status = "sampled"
+                            break
+    except Exception as exc:
+        status = "error"
+        error_code = helius_standard_wss_error_code(exc)
+
+    conn = db()
+    try:
+        conn.execute(
+            "INSERT INTO token_rpc_probe_samples("
+            "mint, signature, polled_ts, block_time, price, status, "
+            "error_code, rpc_calls) VALUES(?,?,?,?,?,?,?,?)",
+            (mint, signature, polled_ts, block_time, price, status,
+             error_code, rpc_calls),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return {"status": status, "rpc_calls": rpc_calls}
+
+
+async def token_rpc_probe_worker():
+    while True:
+        try:
+            await asyncio.to_thread(token_rpc_probe_once)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            print(f"[TOKEN RPC PROBE] {helius_standard_wss_error_code(exc)}")
+        await asyncio.sleep(TOKEN_RPC_PROBE_POLL_SECONDS)
+
+
 async def sync_helius_standard_wss_tokens(
     websocket,
     wallets,
@@ -16009,6 +16134,38 @@ def api_helius_credit_usage(x_app_token: str = Header(default="")):
     except HeliusCreditUsageError as exc:
         return {"configured": True, "error": str(exc)}
     return {"configured": True, "error": None, **usage}
+
+
+@app.get("/api/token-rpc-probe-stats")
+def api_token_rpc_probe_stats(x_app_token: str = Header(default="")):
+    auth(x_app_token)
+    conn = db()
+    try:
+        rows = conn.execute(
+            "SELECT status, COUNT(*), COALESCE(SUM(rpc_calls), 0) "
+            "FROM token_rpc_probe_samples WHERE polled_ts >= ? "
+            "GROUP BY status",
+            (time.time() - 86400,),
+        ).fetchall()
+        last = conn.execute(
+            "SELECT polled_ts, block_time, status, error_code "
+            "FROM token_rpc_probe_samples ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+    finally:
+        conn.close()
+    return {
+        "enabled": TOKEN_RPC_PROBE_ENABLED,
+        "affects_decisions": False,
+        "poll_seconds": TOKEN_RPC_PROBE_POLL_SECONDS,
+        "max_tokens": 1,
+        "last_24h": {
+            "statuses": {status: count for status, count, _ in rows},
+            "rpc_method_calls": sum(calls for _, _, calls in rows),
+        },
+        "last_sample": dict(zip(
+            ("polled_ts", "block_time", "status", "error_code"), last
+        )) if last else None,
+    }
 
 
 @app.get("/api/helius-standard-wss-stats")

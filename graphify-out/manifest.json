@@ -6,9 +6,9 @@
     "semantic_hash": "5ebef3dd159986e465ab65e4014107ec"
   },
   "app.py": {
-    "mtime": 1789709783.5895643,
-    "seen": 1789709908.396624,
-    "ast_hash": "44c71bc9dbce911a9598beab3bbf0b0c",
+    "mtime": 1789752967.9395013,
+    "seen": 1789753111.3163502,
+    "ast_hash": "e890ed875885b3d48e90ff9431e32570",
     "semantic_hash": ""
   },
   "models/baseline_v2_shadow.json": {
@@ -357,6 +357,12 @@
     "mtime": 1789572301.3077364,
     "seen": 1789572349.6081474,
     "ast_hash": "5a785fb83710340421940ac383e4fb43",
+    "semantic_hash": ""
+  },
+  "tests/test_token_rpc_probe.py": {
+    "mtime": 1789752974.9747372,
+    "seen": 1789753111.3164062,
+    "ast_hash": "16b37140e5c838dd762e794308285efa",
     "semantic_hash": ""
   }
 }
