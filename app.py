@@ -44,7 +44,9 @@ from solana_rpc_fallback import (
     parse_watched_wallet_pump_events,
     diagnose_unparsed_pump_receipt,
     parse_tracked_token_pump_events,
+    _rpc_request,
 )
+from onchain_account_prices import fetch_account_prices
 
 
 # =========================================================
@@ -518,6 +520,12 @@ TOKEN_RPC_PROBE_ENABLED = os.getenv(
 ).lower() == "true"
 TOKEN_RPC_PROBE_POLL_SECONDS = max(
     30, int(os.getenv("TOKEN_RPC_PROBE_POLL_SECONDS", "30"))
+)
+ACCOUNT_PRICE_CHECKPOINT_ENABLED = os.getenv(
+    "ACCOUNT_PRICE_CHECKPOINT_ENABLED", "false"
+).lower() == "true"
+ACCOUNT_PRICE_CHECKPOINT_POLL_SECONDS = max(
+    3, int(os.getenv("ACCOUNT_PRICE_CHECKPOINT_POLL_SECONDS", "5"))
 )
 HELIUS_STANDARD_WSS_STATE_LOCK = threading.Lock()
 HELIUS_STANDARD_WSS_STATE = {
@@ -1783,6 +1791,7 @@ def create_signal_outcome(
     trader,
     signal_ts,
     price_at_signal,
+    entry_price_basis="unknown",
 ):
     now = time.time()
 
@@ -1795,12 +1804,13 @@ def create_signal_outcome(
             trader,
             signal_ts,
             price_at_signal,
+            entry_price_basis,
             max_price,
             min_price,
             created_ts,
             updated_ts
         )
-        VALUES(?,?,?,?,?,?,?,?,?)
+        VALUES(?,?,?,?,?,?,?,?,?,?)
         """,
         (
             signal_id,
@@ -1808,6 +1818,7 @@ def create_signal_outcome(
             trader,
             float(signal_ts),
             float(price_at_signal or 0),
+            entry_price_basis,
             float(price_at_signal or 0),
             float(price_at_signal or 0),
             now,
@@ -5559,6 +5570,10 @@ def migrate_database():
     ]
 
     outcome_migrations = {
+        "entry_price_basis":
+            "ALTER TABLE signal_outcomes "
+            "ADD COLUMN entry_price_basis TEXT DEFAULT 'unknown'",
+
         "tp25_ts":
             "ALTER TABLE signal_outcomes "
             "ADD COLUMN tp25_ts REAL",
@@ -5605,6 +5620,34 @@ def migrate_database():
 
             except Exception:
                 pass
+
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS account_price_checkpoints(
+            outcome_id INTEGER NOT NULL,
+            checkpoint_seconds INTEGER NOT NULL,
+            mint TEXT NOT NULL,
+            pool TEXT NOT NULL,
+            price_sol REAL NOT NULL,
+            market_cap_sol REAL NOT NULL,
+            observed_ts REAL NOT NULL,
+            slot INTEGER NOT NULL,
+            PRIMARY KEY(outcome_id, checkpoint_seconds)
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS account_price_probe_runs(
+            polled_ts REAL NOT NULL,
+            selected_mints INTEGER NOT NULL,
+            priced_mints INTEGER NOT NULL,
+            unsupported_mints INTEGER NOT NULL,
+            checkpoints_recorded INTEGER NOT NULL,
+            rpc_calls INTEGER NOT NULL
+        )
+        """
+    )
 
 
     existing_evaluations = [
@@ -9850,7 +9893,10 @@ def evaluate_buy(
             mint=mint,
             trader=trader,
             signal_ts=signal_ts,
-            price_at_signal=price_at_signal
+            price_at_signal=price_at_signal,
+            entry_price_basis=(
+                "pump" if event.get("pool") == "pump" else "unknown"
+            ),
         )
 
         model_prediction = None
@@ -13357,6 +13403,9 @@ async def startup():
 
     if TOKEN_RPC_PROBE_ENABLED:
         asyncio.create_task(token_rpc_probe_worker())
+
+    if ACCOUNT_PRICE_CHECKPOINT_ENABLED:
+        asyncio.create_task(account_price_checkpoint_worker())
 # =========================================================
 # AUTENTICACIÓN
 # =========================================================
@@ -15261,6 +15310,126 @@ async def token_rpc_probe_worker():
         await asyncio.sleep(TOKEN_RPC_PROBE_POLL_SECONDS)
 
 
+ACCOUNT_PRICE_CHECKPOINT_WINDOWS = (
+    (10, 5), (30, 10), (60, 15), (300, 30), (900, 60),
+)
+
+
+def account_price_checkpoint_once(now=None):
+    started_ts = float(now if now is not None else time.time())
+    conn = db()
+    try:
+        rows = conn.execute(
+            """
+            SELECT o.id, o.mint, o.signal_ts, c.checkpoint_seconds
+            FROM signal_outcomes o
+            LEFT JOIN account_price_checkpoints c ON c.outcome_id = o.id
+            WHERE o.status = 'active'
+              AND o.entry_price_basis = 'pump'
+              AND o.price_at_signal > 0
+              AND o.signal_ts BETWEEN ? AND ?
+            ORDER BY o.signal_ts
+            LIMIT 5000
+            """,
+            (started_ts - 960, started_ts),
+        ).fetchall()
+    finally:
+        conn.close()
+
+    outcomes = {}
+    for outcome_id, mint, signal_ts, existing_checkpoint in rows:
+        if not mint:
+            continue
+        record = outcomes.setdefault(outcome_id, {
+            "mint": mint, "signal_ts": float(signal_ts), "done": set(),
+        })
+        if existing_checkpoint is not None:
+            record["done"].add(existing_checkpoint)
+
+    candidates = {}
+    for outcome_id, record in outcomes.items():
+        elapsed = started_ts - record["signal_ts"]
+        for seconds, grace in ACCOUNT_PRICE_CHECKPOINT_WINDOWS:
+            if seconds <= elapsed <= seconds + grace and seconds not in record["done"]:
+                candidates.setdefault(record["mint"], []).append(
+                    (outcome_id, record["signal_ts"], seconds, grace)
+                )
+
+    mints = list(candidates)[:20]
+    if not mints:
+        return {"status": "no_due_checkpoint", "rpc_calls": 0}
+
+    rpc_calls = 0
+
+    def counted_rpc(url, method, params):
+        nonlocal rpc_calls
+        rpc_calls += 1
+        return _rpc_request(url, method, params)
+
+    snapshots = fetch_account_prices(
+        standard_wss_rpc_url(), mints, rpc_request=counted_rpc
+    )
+    observed_ts = float(now if now is not None else time.time())
+    recorded = 0
+    priced = 0
+    conn = db()
+    try:
+        for mint in mints:
+            snapshot = snapshots.get(mint) or {}
+            price = snapshot.get("price_sol")
+            market_cap = snapshot.get("market_cap_sol")
+            if (snapshot.get("status") not in ("curve", "amm")
+                    or price is None or market_cap is None
+                    or not math.isfinite(price) or price <= 0
+                    or not math.isfinite(market_cap) or market_cap <= 0):
+                continue
+            priced += 1
+            for outcome_id, signal_ts, seconds, grace in candidates[mint]:
+                elapsed = observed_ts - signal_ts
+                if not seconds <= elapsed <= seconds + grace:
+                    continue
+                cursor = conn.execute(
+                    """
+                    INSERT OR IGNORE INTO account_price_checkpoints(
+                        outcome_id, checkpoint_seconds, mint, pool,
+                        price_sol, market_cap_sol, observed_ts, slot
+                    ) VALUES(?,?,?,?,?,?,?,?)
+                    """,
+                    (
+                        outcome_id, seconds, mint, snapshot["status"],
+                        float(price), float(market_cap), observed_ts,
+                        int(snapshot["slot"]),
+                    ),
+                )
+                recorded += cursor.rowcount
+        conn.execute(
+            """
+            INSERT INTO account_price_probe_runs(
+                polled_ts, selected_mints, priced_mints,
+                unsupported_mints, checkpoints_recorded, rpc_calls
+            ) VALUES(?,?,?,?,?,?)
+            """,
+            (observed_ts, len(mints), priced, len(mints) - priced,
+             recorded, rpc_calls),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return {"status": "sampled", "rpc_calls": rpc_calls,
+            "priced_mints": priced, "checkpoints_recorded": recorded}
+
+
+async def account_price_checkpoint_worker():
+    while True:
+        try:
+            await asyncio.to_thread(account_price_checkpoint_once)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            print(f"[ACCOUNT PRICE] {helius_standard_wss_error_code(exc)}")
+        await asyncio.sleep(ACCOUNT_PRICE_CHECKPOINT_POLL_SECONDS)
+
+
 async def sync_helius_standard_wss_tokens(
     websocket,
     wallets,
@@ -16171,6 +16340,42 @@ def api_token_rpc_probe_stats(x_app_token: str = Header(default="")):
         "last_sample": dict(zip(
             ("polled_ts", "block_time", "status", "error_code"), last
         )) if last else None,
+    }
+
+
+@app.get("/api/account-price-checkpoint-stats")
+def api_account_price_checkpoint_stats(x_app_token: str = Header(default="")):
+    auth(x_app_token)
+    conn = db()
+    try:
+        totals = conn.execute(
+            """
+            SELECT COUNT(*), COALESCE(SUM(selected_mints), 0),
+                   COALESCE(SUM(priced_mints), 0),
+                   COALESCE(SUM(unsupported_mints), 0),
+                   COALESCE(SUM(checkpoints_recorded), 0),
+                   COALESCE(SUM(rpc_calls), 0)
+            FROM account_price_probe_runs WHERE polled_ts >= ?
+            """,
+            (time.time() - 86400,),
+        ).fetchone()
+        by_pool = conn.execute(
+            "SELECT pool, COUNT(*) FROM account_price_checkpoints "
+            "GROUP BY pool"
+        ).fetchall()
+    finally:
+        conn.close()
+    return {
+        "enabled": ACCOUNT_PRICE_CHECKPOINT_ENABLED,
+        "affects_decisions": False,
+        "affects_paper": False,
+        "affects_primary_outcomes": False,
+        "poll_seconds": ACCOUNT_PRICE_CHECKPOINT_POLL_SECONDS,
+        "last_24h": dict(zip((
+            "polls", "selected_mints", "priced_mints", "unsupported_mints",
+            "checkpoints_recorded", "rpc_calls",
+        ), totals)),
+        "checkpoint_counts_by_pool": dict(by_pool),
     }
 
 
