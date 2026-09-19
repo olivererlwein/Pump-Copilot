@@ -9895,7 +9895,9 @@ def evaluate_buy(
             signal_ts=signal_ts,
             price_at_signal=price_at_signal,
             entry_price_basis=(
-                "pump" if event.get("pool") == "pump" else "unknown"
+                event.get("pool")
+                if event.get("pool") in ("pump", "pump-amm")
+                else "unknown"
             ),
         )
 
@@ -15325,7 +15327,7 @@ def account_price_checkpoint_once(now=None):
             FROM signal_outcomes o
             LEFT JOIN account_price_checkpoints c ON c.outcome_id = o.id
             WHERE o.status = 'active'
-              AND o.entry_price_basis = 'pump'
+              AND o.entry_price_basis IN ('pump', 'pump-amm')
               AND o.price_at_signal > 0
               AND o.signal_ts BETWEEN ? AND ?
             ORDER BY o.signal_ts

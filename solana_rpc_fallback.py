@@ -281,8 +281,12 @@ def _parse_pump_amm_trade(payload, balances, signature):
     pool_quote = balances["post"].get((pool, WSOL_MINT))
     if not pool_base or not pool_quote or pool_base["raw"] <= 0:
         raise ValueError("PUMP_AMM_POOL_BALANCES_UNAVAILABLE")
+    virtual_quote = _pump_amm_virtual_quote_reserves(payload, side)
+    effective_quote = pool_quote["raw"] + virtual_quote
+    if effective_quote <= 0:
+        raise ValueError("PUMP_AMM_EFFECTIVE_QUOTE_RESERVES_INVALID")
     market_cap = (
-        (pool_quote["raw"] / LAMPORTS_PER_SOL)
+        (effective_quote / LAMPORTS_PER_SOL)
         / (pool_base["raw"] / scale)
         * PUMP_TOKEN_SUPPLY
     )
@@ -303,9 +307,27 @@ def _parse_pump_amm_trade(payload, balances, signature):
                 balances, user, mint, decimals
             ),
             "marketCapSol": market_cap,
+            "virtualQuoteReserves": virtual_quote / LAMPORTS_PER_SOL,
             "pool": "pump-amm",
         },
     }
+
+
+def _pump_amm_virtual_quote_reserves(payload, side):
+    """Decode the appended i128 field; old shorter events imply zero."""
+    offset = 8 + (14 * 8) + (2 * 32) + (5 * 32) + (2 * 8)
+    if side == "buy":
+        # track_volume + volume accumulators + min_base_amount_out
+        offset += 1 + (5 * 8)
+        if len(payload) < offset + 4:
+            return 0
+        name_size = struct.unpack_from("<I", payload, offset)[0]
+        offset += 4 + name_size
+    # cashback fee/value and buyback fee/value
+    offset += 4 * 8
+    if len(payload) < offset + 16:
+        return 0
+    return int.from_bytes(payload[offset:offset + 16], "little", signed=True)
 
 
 def _is_signed_by(message, wallet):

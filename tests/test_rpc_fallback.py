@@ -97,7 +97,7 @@ def pump_receipt():
     )
 
 
-def pump_amm_receipt():
+def pump_amm_receipt(virtual_quote=0):
     amounts = [0] * 13
     amounts[0] = 20_000_000
     amounts[11] = 1_250_000_000
@@ -107,6 +107,16 @@ def pump_amm_receipt():
         + POOL_RAW
         + WALLET_RAW
     )
+    if virtual_quote:
+        payload += (
+            bytes(5 * 32)
+            + struct.pack("<QQ?", 0, 0, False)
+            + struct.pack("<QQQqQ", 0, 0, 0, 0, 0)
+            + struct.pack("<I", 3)
+            + b"buy"
+            + struct.pack("<QQQQ", 0, 0, 0, 0)
+            + int(virtual_quote).to_bytes(16, "little", signed=True)
+        )
     return receipt_with_payload(
         payload,
         pre=[
@@ -175,8 +185,18 @@ class RpcFallbackParserTests(unittest.TestCase):
         self.assertEqual(event["solAmount"], 1.25)
         self.assertEqual(event["tokenAmount"], 20.0)
         self.assertAlmostEqual(event["marketCapSol"], 111.60714285714286)
+        self.assertEqual(event["virtualQuoteReserves"], 0)
         self.assertEqual(event["pool"], "pump-amm")
         self.assertEqual(event["traderPublicKey"], WALLET)
+
+    def test_pumpswap_price_includes_appended_virtual_quote_reserves(self):
+        parsed = parse_watched_wallet_pump_events(
+            pump_amm_receipt(10_000_000_000), WALLET, SIGNATURE
+        )
+
+        event = parsed[0]["event"]
+        self.assertEqual(event["virtualQuoteReserves"], 10.0)
+        self.assertAlmostEqual(event["marketCapSol"], 147.32142857142858)
 
     def test_ignores_transfers_and_transactions_not_signed_by_wallet(self):
         receipt = pump_receipt()
