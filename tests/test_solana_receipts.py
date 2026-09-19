@@ -290,6 +290,9 @@ class LiveReceiptPersistenceTests(unittest.TestCase):
             event_signature="",
             event_index=0,
             event_block_event_ts=None,
+            entry_market_cap_source="account",
+            account_price_sol=0.002,
+            account_price_observed_ts=1000.0,
         )
         self.assertTrue(status["ready"])
         self.assertTrue(status["affects_decisions"])
@@ -356,6 +359,109 @@ class LiveReceiptPersistenceTests(unittest.TestCase):
         )
         self.assertIn(
             "LIVE_ACCOUNT_EXIT_MONITOR_UNHEALTHY", status["blockers"]
+        )
+
+    def test_account_exit_uses_confirmed_cost_without_overwriting_event_basis(self):
+        self.prepare_account_exit_position()
+        current_market_cap = 15.0
+        current_price = 1.5e-11
+        expected_entry_market_cap = (
+            float(self.fill["cash_cost_per_token_sol"])
+            * (current_market_cap / current_price)
+        )
+        with patch.object(
+            app,
+            "execute_pumpportal_lightning_sell",
+            return_value={"ok": True, "status": "PENDING_RECONCILIATION"},
+        ) as execute:
+            result = app.evaluate_live_position_exit(
+                MINT,
+                "",
+                "",
+                current_market_cap,
+                None,
+                entry_market_cap_source="account",
+                account_price_sol=current_price,
+                account_price_observed_ts=2000.0,
+            )
+            out_of_order = app.evaluate_live_position_exit(
+                MINT,
+                "",
+                "",
+                current_market_cap,
+                None,
+                entry_market_cap_source="account",
+                account_price_sol=current_price,
+                account_price_observed_ts=1999.0,
+            )
+
+        self.assertTrue(result[0]["ok"])
+        self.assertEqual(
+            out_of_order[0]["reason"],
+            "ACCOUNT_PRICE_BEFORE_LAST_OBSERVATION",
+        )
+        self.assertEqual(execute.call_args.kwargs["exit_reason"], "TAKE_PROFIT")
+        self.assertEqual(execute.call_args.kwargs["target_tp_stage"], 1)
+        conn = app.db()
+        try:
+            state = conn.execute(
+                "SELECT entry_market_cap_sol, current_market_cap_sol, "
+                "account_exit_entry_market_cap_sol, "
+                "account_exit_current_market_cap_sol, "
+                "account_exit_entry_observed_ts, "
+                "account_exit_last_observed_ts "
+                "FROM live_positions WHERE order_id = ?",
+                (self.order_id,),
+            ).fetchone()
+        finally:
+            conn.close()
+        self.assertEqual(state[0:2], (100.0, 100.0))
+        self.assertAlmostEqual(state[2], expected_entry_market_cap)
+        self.assertEqual(state[3:], (15.0, 2000.0, 2000.0))
+
+    def test_account_exit_rejects_event_identity_and_trader_context(self):
+        self.prepare_account_exit_position()
+        with self.assertRaisesRegex(ValueError, "ACCOUNT_EXIT_CONTEXT_INVALID"):
+            app.evaluate_live_position_exit(
+                MINT,
+                "origin-trader",
+                "sell",
+                15.0,
+                0,
+                event_signature="event-signature",
+                event_index=0,
+                entry_market_cap_source="account",
+                account_price_sol=1.5e-11,
+                account_price_observed_ts=2000.0,
+            )
+
+    def test_account_exit_rejects_partial_baseline_state(self):
+        self.prepare_account_exit_position()
+        conn = app.db()
+        conn.execute(
+            "UPDATE live_positions SET "
+            "account_exit_entry_market_cap_sol = 10, "
+            "account_exit_entry_observed_ts = NULL "
+            "WHERE order_id = ?",
+            (self.order_id,),
+        )
+        conn.commit()
+        conn.close()
+        with patch.object(app, "execute_pumpportal_lightning_sell") as execute:
+            result = app.evaluate_live_position_exit(
+                MINT,
+                "",
+                "",
+                15.0,
+                None,
+                entry_market_cap_source="account",
+                account_price_sol=1.5e-11,
+                account_price_observed_ts=2000.0,
+            )
+
+        execute.assert_not_called()
+        self.assertEqual(
+            result[0]["reason"], "INVALID_ACCOUNT_EXIT_BASELINE_STATE"
         )
 
     def test_concurrent_reconciliation_records_position_and_event_once(self):
@@ -547,6 +653,12 @@ class LiveReceiptPersistenceTests(unittest.TestCase):
         self.assertEqual(summary["open"], 1)
         self.assertEqual(summary["positions"][0]["remaining_amount_raw"],
                          "9007199254740993")
+        self.assertIsNone(
+            summary["positions"][0]["account_exit_entry_market_cap_sol"]
+        )
+        self.assertIsNone(
+            summary["positions"][0]["account_exit_last_observed_ts"]
+        )
         self.assertNotIn("receipt_json", summary["positions"][0])
 
     def test_buy_receipt_preserves_exit_context_and_tracks_mint(self):

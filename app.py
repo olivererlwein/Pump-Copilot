@@ -1433,6 +1433,10 @@ CREATE TABLE IF NOT EXISTS signal_outcomes(
             remaining_cost_basis_lamports TEXT,
             entry_market_cap_sol REAL,
             current_market_cap_sol REAL,
+            account_exit_entry_market_cap_sol REAL,
+            account_exit_current_market_cap_sol REAL,
+            account_exit_entry_observed_ts REAL,
+            account_exit_last_observed_ts REAL,
             origin_trader TEXT,
             tp_stage INTEGER NOT NULL DEFAULT 0,
             last_exit_reason TEXT,
@@ -1454,6 +1458,10 @@ CREATE TABLE IF NOT EXISTS signal_outcomes(
     for column, definition in (
         ("entry_market_cap_sol", "REAL"),
         ("current_market_cap_sol", "REAL"),
+        ("account_exit_entry_market_cap_sol", "REAL"),
+        ("account_exit_current_market_cap_sol", "REAL"),
+        ("account_exit_entry_observed_ts", "REAL"),
+        ("account_exit_last_observed_ts", "REAL"),
         ("origin_trader", "TEXT"),
         ("tp_stage", "INTEGER NOT NULL DEFAULT 0"),
         ("last_exit_reason", "TEXT"),
@@ -1699,7 +1707,11 @@ def get_live_position_summary(limit=100):
                   network_fee_lamports, recorded_ts, entry_market_cap_sol,
                   current_market_cap_sol, origin_trader, tp_stage,
                   last_exit_reason, entry_block_time,
-                  last_applied_block_event_ts
+                  last_applied_block_event_ts,
+                  account_exit_entry_market_cap_sol,
+                  account_exit_current_market_cap_sol,
+                  account_exit_entry_observed_ts,
+                  account_exit_last_observed_ts
            FROM live_positions ORDER BY recorded_ts DESC LIMIT ?""",
         (safe_limit,),
     ).fetchall()
@@ -1733,6 +1745,10 @@ def get_live_position_summary(limit=100):
                 "last_exit_reason": row[15],
                 "entry_block_time": row[16],
                 "last_applied_block_event_ts": row[17],
+                "account_exit_entry_market_cap_sol": row[18],
+                "account_exit_current_market_cap_sol": row[19],
+                "account_exit_entry_observed_ts": row[20],
+                "account_exit_last_observed_ts": row[21],
             }
             for row in positions
         ],
@@ -10383,6 +10399,39 @@ def decide_live_position_exit(
     return None
 
 
+def account_exit_entry_market_cap(
+    cash_cost_per_token_sol,
+    current_price_sol,
+    current_market_cap_sol,
+):
+    try:
+        with decimal.localcontext() as context:
+            context.prec = 50
+            cash_cost = decimal.Decimal(str(cash_cost_per_token_sol))
+            current_price = decimal.Decimal(str(current_price_sol))
+            current_market_cap = decimal.Decimal(
+                str(current_market_cap_sol)
+            )
+            if (
+                not cash_cost.is_finite()
+                or not current_price.is_finite()
+                or not current_market_cap.is_finite()
+                or cash_cost <= 0
+                or current_price <= 0
+                or current_market_cap <= 0
+            ):
+                raise ValueError("ACCOUNT_EXIT_BASELINE_INVALID")
+            entry_market_cap = cash_cost * (
+                current_market_cap / current_price
+            )
+    except (decimal.InvalidOperation, TypeError, ValueError) as exc:
+        raise ValueError("ACCOUNT_EXIT_BASELINE_INVALID") from exc
+    result = float(entry_market_cap)
+    if not math.isfinite(result) or result <= 0:
+        raise ValueError("ACCOUNT_EXIT_BASELINE_INVALID")
+    return result
+
+
 def evaluate_live_position_exit(
     mint,
     trader,
@@ -10392,10 +10441,16 @@ def evaluate_live_position_exit(
     event_signature="",
     event_index=0,
     event_block_event_ts=None,
+    entry_market_cap_source="event",
+    account_price_sol=None,
+    account_price_observed_ts=None,
 ):
     current_market_cap = float(market_cap or 0)
     if not mint or not math.isfinite(current_market_cap) or current_market_cap <= 0:
         return []
+    entry_source = str(entry_market_cap_source or "").strip().lower()
+    if entry_source not in ("event", "account"):
+        raise ValueError("LIVE_EXIT_ENTRY_SOURCE_INVALID")
     event_ts = validated_block_event_ts(
         event_block_event_ts,
         origen="live_exit_event.blockEventTs",
@@ -10405,6 +10460,29 @@ def evaluate_live_position_exit(
     # decisión salga. Sin firma devuelve None, que no es un error: es la ruta
     # que todavía no tiene identidad para ofrecer.
     event_identity = market_event_identity(event_signature, event_index)
+    account_observed_ts = None
+    account_price = None
+    if entry_source == "account":
+        try:
+            account_observed_ts = float(account_price_observed_ts)
+            account_price = float(account_price_sol)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("ACCOUNT_EXIT_CONTEXT_INVALID") from exc
+        if (
+            event_ts is not None
+            or event_identity is not None
+            or str(trader or "").strip()
+            or str(side or "").strip()
+            or new_token_balance is not None
+            or not math.isfinite(account_observed_ts)
+            or account_observed_ts <= 0
+            or not math.isfinite(account_price)
+            or account_price <= 0
+        ):
+            raise ValueError("ACCOUNT_EXIT_CONTEXT_INVALID")
+    elif account_price_sol is not None or account_price_observed_ts is not None:
+        raise ValueError("LIVE_EXIT_ENTRY_SOURCE_INVALID")
+
     results = []
     accepted_rows = []
     conn = db()
@@ -10412,8 +10490,12 @@ def evaluate_live_position_exit(
         conn.execute("BEGIN IMMEDIATE")
         rows = conn.execute(
             """SELECT order_id, token_amount_raw, remaining_amount_raw,
-                      entry_market_cap_sol, origin_trader, tp_stage,
-                      entry_block_time, last_applied_block_event_ts
+                      entry_market_cap_sol,
+                      account_exit_entry_market_cap_sol,
+                      cash_cost_per_token_sol, origin_trader, tp_stage,
+                      entry_block_time, last_applied_block_event_ts,
+                      account_exit_entry_observed_ts,
+                      account_exit_last_observed_ts
                FROM live_positions
                WHERE mint = ? AND status = 'open'
                ORDER BY order_id""",
@@ -10422,11 +10504,11 @@ def evaluate_live_position_exit(
         for row in rows:
             try:
                 entry_ts = validated_block_event_ts(
-                    row[6],
+                    row[8],
                     origen="live_positions.entry_block_time",
                 )
                 last_ts = validated_block_event_ts(
-                    row[7],
+                    row[9],
                     origen="live_positions.last_applied_block_event_ts",
                 )
             except ValueError:
@@ -10450,13 +10532,113 @@ def evaluate_live_position_exit(
                     "reason": "EVENT_BEFORE_LAST_LIVE_EVENT",
                 })
                 continue
-            conn.execute(
-                "UPDATE live_positions SET current_market_cap_sol = ?, "
-                "last_applied_block_event_ts = COALESCE(?, last_applied_block_event_ts) "
-                "WHERE order_id = ? AND status = 'open'",
-                (current_market_cap, event_ts, row[0]),
-            )
-            accepted_rows.append(row)
+            if entry_source == "account":
+                if (row[4] is None) != (row[10] is None):
+                    results.append({
+                        "ok": False,
+                        "position_order_id": row[0],
+                        "reason": "INVALID_ACCOUNT_EXIT_BASELINE_STATE",
+                    })
+                    continue
+                try:
+                    entry_observed_ts = (
+                        float(row[10]) if row[10] is not None else None
+                    )
+                except (TypeError, ValueError):
+                    entry_observed_ts = None
+                if (
+                    row[10] is not None
+                    and (
+                        entry_observed_ts is None
+                        or not math.isfinite(entry_observed_ts)
+                        or entry_observed_ts <= 0
+                    )
+                ):
+                    results.append({
+                        "ok": False,
+                        "position_order_id": row[0],
+                        "reason": "INVALID_ACCOUNT_EXIT_TIMESTAMP",
+                    })
+                    continue
+                try:
+                    previous_observed_ts = (
+                        float(row[11]) if row[11] is not None else None
+                    )
+                except (TypeError, ValueError):
+                    previous_observed_ts = None
+                if (
+                    row[11] is not None
+                    and (
+                        previous_observed_ts is None
+                        or not math.isfinite(previous_observed_ts)
+                        or previous_observed_ts <= 0
+                    )
+                ):
+                    results.append({
+                        "ok": False,
+                        "position_order_id": row[0],
+                        "reason": "INVALID_ACCOUNT_EXIT_TIMESTAMP",
+                    })
+                    continue
+                if (
+                    previous_observed_ts is not None
+                    and account_observed_ts < previous_observed_ts
+                ):
+                    results.append({
+                        "ok": False,
+                        "position_order_id": row[0],
+                        "reason": "ACCOUNT_PRICE_BEFORE_LAST_OBSERVATION",
+                    })
+                    continue
+                try:
+                    entry_market_cap = (
+                        float(row[4])
+                        if row[4] is not None
+                        else account_exit_entry_market_cap(
+                            row[5], account_price, current_market_cap
+                        )
+                    )
+                except (TypeError, ValueError):
+                    results.append({
+                        "ok": False,
+                        "position_order_id": row[0],
+                        "reason": "ACCOUNT_EXIT_BASELINE_INVALID",
+                    })
+                    continue
+                if not math.isfinite(entry_market_cap) or entry_market_cap <= 0:
+                    results.append({
+                        "ok": False,
+                        "position_order_id": row[0],
+                        "reason": "ACCOUNT_EXIT_BASELINE_INVALID",
+                    })
+                    continue
+                conn.execute(
+                    "UPDATE live_positions SET "
+                    "account_exit_entry_market_cap_sol = COALESCE("
+                    "account_exit_entry_market_cap_sol, ?), "
+                    "account_exit_entry_observed_ts = COALESCE("
+                    "account_exit_entry_observed_ts, ?), "
+                    "account_exit_current_market_cap_sol = ?, "
+                    "account_exit_last_observed_ts = ? "
+                    "WHERE order_id = ? AND status = 'open'",
+                    (
+                        entry_market_cap,
+                        account_observed_ts,
+                        current_market_cap,
+                        account_observed_ts,
+                        row[0],
+                    ),
+                )
+            else:
+                entry_market_cap = row[3]
+                conn.execute(
+                    "UPDATE live_positions SET current_market_cap_sol = ?, "
+                    "last_applied_block_event_ts = COALESCE("
+                    "?, last_applied_block_event_ts) "
+                    "WHERE order_id = ? AND status = 'open'",
+                    (current_market_cap, event_ts, row[0]),
+                )
+            accepted_rows.append((row, entry_market_cap))
         conn.commit()
     except Exception:
         conn.rollback()
@@ -10464,10 +10646,10 @@ def evaluate_live_position_exit(
     finally:
         conn.close()
 
-    for row in accepted_rows:
+    for row, entry_market_cap in accepted_rows:
         decision = decide_live_position_exit(
-            row[1], row[2], row[3], current_market_cap, row[4], trader, side,
-            new_token_balance, row[5],
+            row[1], row[2], entry_market_cap, current_market_cap,
+            row[6], trader, side, new_token_balance, row[7],
         )
         if not decision:
             continue
@@ -15670,36 +15852,43 @@ def live_account_exit_monitor_once(now=None):
             return get_live_account_exit_monitor_status(now=checked_ts)
 
         snapshots = fetch_account_prices(standard_wss_rpc_url(), mints)
-        market_caps = {}
+        account_prices = {}
         for mint in mints:
             snapshot = snapshots.get(mint) or {}
             try:
                 market_cap = float(snapshot.get("market_cap_sol"))
+                price_sol = float(snapshot.get("price_sol"))
             except (TypeError, ValueError):
                 continue
             if (
                 snapshot.get("status") in ("curve", "amm")
                 and math.isfinite(market_cap)
                 and market_cap > 0
+                and math.isfinite(price_sol)
+                and price_sol > 0
             ):
-                market_caps[mint] = market_cap
+                account_prices[mint] = (price_sol, market_cap)
 
-        priced_mints = len(market_caps)
+        priced_mints = len(account_prices)
         if priced_mints != selected_mints:
             raise ValueError("LIVE_ACCOUNT_EXIT_UNPRICED_MINTS")
 
         exit_results = 0
         if LIVE_ACCOUNT_EXIT_MONITOR_APPLY:
             for mint in mints:
+                price_sol, market_cap = account_prices[mint]
                 results = evaluate_live_position_exit(
                     mint,
                     "",
                     "",
-                    market_caps[mint],
+                    market_cap,
                     None,
                     event_signature="",
                     event_index=0,
                     event_block_event_ts=None,
+                    entry_market_cap_source="account",
+                    account_price_sol=price_sol,
+                    account_price_observed_ts=checked_ts,
                 )
                 exit_results += len(results)
                 if any(
