@@ -16747,9 +16747,12 @@ def api_account_checkpoint_training_dataset(
     x_app_token: str = Header(default="")
 ):
     auth(x_app_token)
+    rows = get_account_checkpoint_dataset_rows()
     return {
+        "data_version": DATA_VERSION,
         "label_source": "account_checkpoints_v1",
-        "rows": get_account_checkpoint_dataset_rows(),
+        "count": len(rows),
+        "rows": rows,
     }
 
 

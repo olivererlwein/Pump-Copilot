@@ -268,6 +268,13 @@ class AccountPriceCheckpointTests(unittest.TestCase):
         self.assertEqual(stats["unique_traders"], 1)
         self.assertFalse(stats["affects_decisions"])
 
+        with patch.object(app, "APP_TOKEN", "test-token"):
+            payload = app.api_account_checkpoint_training_dataset("test-token")
+        self.assertEqual(payload["data_version"], app.DATA_VERSION)
+        self.assertEqual(payload["label_source"], "account_checkpoints_v1")
+        self.assertEqual(payload["count"], 2)
+        self.assertEqual(len(payload["rows"]), 2)
+
     def test_shadow_dataset_requires_all_five_checkpoints(self):
         signal_id = self.checkpoint_dataset_outcome(
             3, [1.05, 1.10, 1.15, 1.20, 1.30]

@@ -6,9 +6,9 @@
     "semantic_hash": "5ebef3dd159986e465ab65e4014107ec"
   },
   "app.py": {
-    "mtime": 1789801834.1260483,
-    "seen": 1789801851.8998752,
-    "ast_hash": "656d702b8f49230d9c31a672a8fb8b1d",
+    "mtime": 1789802053.6188385,
+    "seen": 1789802184.0414667,
+    "ast_hash": "5221bb8fcd6af95c688abbfda2425b11",
     "semantic_hash": ""
   },
   "models/baseline_v2_shadow.json": {
@@ -18,15 +18,15 @@
     "semantic_hash": "e1699bf2b733fd503cb866a0418bc4b5"
   },
   "scripts/export_training_dataset.py": {
-    "mtime": 1788371461.7128506,
-    "seen": 1788834658.8527372,
-    "ast_hash": "1aae7bdc8a38ac93a9f890b314972c02",
-    "semantic_hash": "1aae7bdc8a38ac93a9f890b314972c02"
+    "mtime": 1789802066.504007,
+    "seen": 1789802184.0414834,
+    "ast_hash": "c6e3eb7bfdd8b23282a82d08a8eb08a6",
+    "semantic_hash": ""
   },
   "scripts/train_baseline_model.py": {
-    "mtime": 1789527137.3982189,
-    "seen": 1789527216.9570117,
-    "ast_hash": "3e78534b0d49ba2def2af1b10419a4cc",
+    "mtime": 1789802078.185429,
+    "seen": 1789802184.041486,
+    "ast_hash": "d7ef2f5535dbe255943a9361a4b3b54a",
     "semantic_hash": ""
   },
   "scripts/validate_training_dataset.py": {
@@ -54,9 +54,9 @@
     "semantic_hash": ""
   },
   "tests/test_training_pipeline.py": {
-    "mtime": 1789527137.408571,
-    "seen": 1789527216.9570518,
-    "ast_hash": "94fd014fa3e291c4581d640a17138352",
+    "mtime": 1789802111.1940093,
+    "seen": 1789802184.0415103,
+    "ast_hash": "6ea6d85544f7c6e9bf12025dedd81848",
     "semantic_hash": ""
   },
   "training/schema_v2.json": {
@@ -378,15 +378,21 @@
     "semantic_hash": ""
   },
   "tests/test_account_price_checkpoints.py": {
-    "mtime": 1789801767.5812297,
-    "seen": 1789801851.8999512,
-    "ast_hash": "cf485035a10e2c9908e9a269abe58209",
+    "mtime": 1789802120.9457047,
+    "seen": 1789802184.0414915,
+    "ast_hash": "b372d7e7d832884c39a54967d3570920",
     "semantic_hash": ""
   },
   "tests/test_training_data_quality.py": {
     "mtime": 1789781647.1429732,
     "seen": 1789781753.399598,
     "ast_hash": "20f84fbd1cef00b01df369cc5d196c8c",
+    "semantic_hash": ""
+  },
+  "training/schema_account_checkpoints_v1.json": {
+    "mtime": 1789802095.4531279,
+    "seen": 1789802184.041512,
+    "ast_hash": "1af36a2ad0373b1b591f3e56d2ec7580",
     "semantic_hash": ""
   }
 }

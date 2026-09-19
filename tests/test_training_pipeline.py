@@ -8,6 +8,7 @@ import numpy as np
 
 from shadow_model import ShadowLogisticModel
 from scripts.train_baseline_model import (
+    artifact_save_blocker,
     build_matrix,
     build_pipeline,
     build_shadow_artifact,
@@ -85,6 +86,29 @@ class TrainingDatasetValidationTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "Unexpected null"):
             validate_dataset(payload, make_schema())
+
+    def test_rejects_dataset_from_a_different_label_source(self):
+        rows = [make_row(0, "mint-a", 0)]
+        payload = {
+            "data_version": 2,
+            "label_source": "primary",
+            "count": len(rows),
+            "rows": rows,
+        }
+        schema = {
+            **make_schema(),
+            "label_source": "account_checkpoints_v1",
+        }
+
+        with self.assertRaisesRegex(ValueError, "label sources"):
+            validate_dataset(payload, schema)
+
+    def test_diagnostic_schema_requires_no_save(self):
+        schema = {"artifact_save_allowed": False}
+
+        self.assertIn("diagnostic-only", artifact_save_blocker(schema, False))
+        self.assertIsNone(artifact_save_blocker(schema, True))
+        self.assertIsNone(artifact_save_blocker({}, False))
 
 
 class TemporalGroupSplitTests(unittest.TestCase):

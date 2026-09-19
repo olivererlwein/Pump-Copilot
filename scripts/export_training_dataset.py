@@ -17,6 +17,11 @@ def main():
     parser.add_argument("--base-url", default=DEFAULT_BASE_URL)
     parser.add_argument("--limit", type=int, default=5000)
     parser.add_argument("--output-dir", default="exports")
+    parser.add_argument(
+        "--source",
+        choices=("primary", "account-checkpoints"),
+        default="primary",
+    )
     args = parser.parse_args()
 
     load_dotenv()
@@ -25,8 +30,16 @@ def main():
     if not app_token:
         raise SystemExit("APP_TOKEN is missing from .env")
 
-    query = urlencode({"limit": max(1, min(args.limit, 5000))})
-    url = f"{args.base_url.rstrip('/')}/api/training-dataset?{query}"
+    if args.source == "account-checkpoints":
+        url = (
+            f"{args.base_url.rstrip('/')}"
+            "/api/account-checkpoint-training-dataset"
+        )
+        output_stem = "account_checkpoint_training_dataset"
+    else:
+        query = urlencode({"limit": max(1, min(args.limit, 5000))})
+        url = f"{args.base_url.rstrip('/')}/api/training-dataset?{query}"
+        output_stem = "training_dataset"
 
     request = Request(
         url,
@@ -46,8 +59,8 @@ def main():
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    json_path = output_dir / f"training_dataset_v{version}.json"
-    csv_path = output_dir / f"training_dataset_v{version}.csv"
+    json_path = output_dir / f"{output_stem}_v{version}.json"
+    csv_path = output_dir / f"{output_stem}_v{version}.csv"
 
     json_path.write_text(
         json.dumps(payload, indent=2, ensure_ascii=True),
@@ -62,6 +75,7 @@ def main():
 
     print({
         "data_version": version,
+        "label_source": payload.get("label_source", "primary"),
         "count": len(rows),
         "json": str(json_path),
         "csv": str(csv_path),

@@ -31,6 +31,15 @@ def load_json(path):
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
+def artifact_save_blocker(schema, no_save):
+    if schema.get("artifact_save_allowed", True) or no_save:
+        return None
+    return (
+        "This schema is diagnostic-only and cannot save model artifacts; "
+        "add --no-save"
+    )
+
+
 def get_readiness_blockers(rows, schema):
     target = schema["target"]
     targets = Counter(row[target] for row in rows)
@@ -195,6 +204,13 @@ def validate_dataset(payload, schema):
         schema["data_version"]
     ):
         raise ValueError("Dataset and schema versions do not match")
+
+    expected_label_source = schema.get("label_source")
+    if (
+        expected_label_source is not None
+        and payload.get("label_source") != expected_label_source
+    ):
+        raise ValueError("Dataset and schema label sources do not match")
 
     if int(payload.get("count") or 0) != len(rows):
         raise ValueError("Dataset count does not match row count")
@@ -791,6 +807,9 @@ def main():
 
     payload = load_json(args.dataset)
     schema = load_json(args.schema)
+    save_blocker = artifact_save_blocker(schema, args.no_save)
+    if save_blocker:
+        raise SystemExit(save_blocker)
     rows = validate_dataset(payload, schema)
     blockers = get_readiness_blockers(rows, schema)
 
