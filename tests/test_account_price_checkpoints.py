@@ -25,6 +25,59 @@ class AccountPriceCheckpointTests(unittest.TestCase):
             entry_price_basis=basis,
         )
 
+    def checkpoint_dataset_outcome(self, suffix, prices):
+        signal_ts = self.signal_ts + suffix * 2_000
+        mint = f"mint-{suffix}"
+        conn = app.db()
+        try:
+            cursor = conn.execute(
+                """
+                INSERT INTO evaluations(
+                    trade_signature, event_index, ts, trader, mint, source,
+                    score, decision, trader_score, timing_score, size_score,
+                    token_score, consensus_score, market_score, reasons,
+                    market_cap, sol_amount, data_version
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                """,
+                (
+                    f"signature-{suffix}", 0, signal_ts, "tester", mint,
+                    "helius", 60, "WATCH", 10, 10, 10, 10, 10, 10, "[]",
+                    100, 1, app.DATA_VERSION,
+                ),
+            )
+            signal_id = cursor.lastrowid
+            conn.commit()
+        finally:
+            conn.close()
+        outcome_id = app.create_signal_outcome(
+            signal_id=signal_id, mint=mint, trader="tester",
+            signal_ts=signal_ts, price_at_signal=1.0,
+            entry_price_basis="pump",
+        )
+        conn = app.db()
+        try:
+            conn.executemany(
+                """
+                INSERT INTO account_price_checkpoints(
+                    outcome_id, checkpoint_seconds, mint, pool,
+                    price_sol, market_cap_sol, observed_ts, slot
+                ) VALUES(?,?,?,?,?,?,?,?)
+                """,
+                [
+                    (
+                        outcome_id, seconds, mint, "curve", price, 100,
+                        signal_ts + seconds + 1, 1000 + seconds,
+                    )
+                    for (seconds, _grace), price in zip(
+                        app.ACCOUNT_PRICE_CHECKPOINT_WINDOWS, prices
+                    )
+                ],
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        return signal_id
+
     def test_valid_sol_curve_is_recorded_once_without_touching_primary_outcome(self):
         outcome_id = self.outcome()
         snapshot = {"mint-a": {
@@ -185,6 +238,59 @@ class AccountPriceCheckpointTests(unittest.TestCase):
         ]):
             result = app.account_price_checkpoint_once(now=None)
         self.assertEqual(result["checkpoints_recorded"], 0)
+
+    def test_shadow_dataset_labels_tp_before_sl_at_fixed_checkpoints(self):
+        positive = self.checkpoint_dataset_outcome(
+            1, [1.05, 1.30, 1.20, 0.80, 1.10]
+        )
+        negative = self.checkpoint_dataset_outcome(
+            2, [0.85, 1.30, 1.20, 1.10, 1.00]
+        )
+
+        rows = app.get_account_checkpoint_dataset_rows()
+        by_id = {row["signal_id"]: row for row in rows}
+
+        self.assertEqual(by_id[positive]["target_tp25_before_sl10"], 1)
+        self.assertEqual(by_id[positive]["tp_checkpoint_seconds"], 30)
+        self.assertEqual(by_id[positive]["sl_checkpoint_seconds"], 300)
+        self.assertEqual(by_id[negative]["target_tp25_before_sl10"], 0)
+        self.assertEqual(by_id[negative]["sl_checkpoint_seconds"], 10)
+        self.assertEqual(by_id[negative]["tp_checkpoint_seconds"], 30)
+        self.assertEqual(
+            by_id[positive]["label_source"], "account_checkpoints_v1"
+        )
+
+        stats = app.get_account_checkpoint_training_stats()
+        self.assertEqual(stats["complete_rows"], 2)
+        self.assertEqual(stats["target_1"], 1)
+        self.assertEqual(stats["target_0"], 1)
+        self.assertEqual(stats["unique_mints"], 2)
+        self.assertEqual(stats["unique_traders"], 1)
+        self.assertFalse(stats["affects_decisions"])
+
+    def test_shadow_dataset_requires_all_five_checkpoints(self):
+        signal_id = self.checkpoint_dataset_outcome(
+            3, [1.05, 1.10, 1.15, 1.20, 1.30]
+        )
+        conn = app.db()
+        try:
+            conn.execute(
+                "DELETE FROM account_price_checkpoints "
+                "WHERE outcome_id=(SELECT id FROM signal_outcomes "
+                "WHERE signal_id=?) AND checkpoint_seconds=900",
+                (signal_id,),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        self.assertEqual(app.get_account_checkpoint_dataset_rows(), [])
+
+    def test_shadow_label_rejects_invalid_checkpoint_price(self):
+        with self.assertRaisesRegex(
+            ValueError, "ACCOUNT_CHECKPOINT_PRICE_INVALID"
+        ):
+            app.account_checkpoint_target(1.0, [(10, 0, self.signal_ts + 10)])
 
 
 if __name__ == "__main__":

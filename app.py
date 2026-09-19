@@ -15508,6 +15508,139 @@ async def account_price_checkpoint_worker():
         await asyncio.sleep(ACCOUNT_PRICE_CHECKPOINT_POLL_SECONDS)
 
 
+def account_checkpoint_target(price_at_signal, checkpoints):
+    """Label a fixed-checkpoint path without implying continuous coverage."""
+    entry_price = float(price_at_signal or 0)
+    if not math.isfinite(entry_price) or entry_price <= 0:
+        raise ValueError("ACCOUNT_CHECKPOINT_ENTRY_PRICE_INVALID")
+
+    tp_checkpoint = None
+    sl_checkpoint = None
+    for checkpoint_seconds, price, _observed_ts in sorted(checkpoints):
+        price = float(price)
+        if not math.isfinite(price) or price <= 0:
+            raise ValueError("ACCOUNT_CHECKPOINT_PRICE_INVALID")
+        return_pct = ((price - entry_price) / entry_price) * 100
+        if tp_checkpoint is None and return_pct >= 25:
+            tp_checkpoint = int(checkpoint_seconds)
+        if sl_checkpoint is None and return_pct <= -10:
+            sl_checkpoint = int(checkpoint_seconds)
+
+    target = int(
+        tp_checkpoint is not None
+        and (sl_checkpoint is None or tp_checkpoint < sl_checkpoint)
+    )
+    return target, tp_checkpoint, sl_checkpoint
+
+
+def get_account_checkpoint_dataset_rows():
+    """Build a shadow-only dataset from complete fixed on-chain snapshots."""
+    checkpoint_seconds = tuple(
+        seconds for seconds, _grace in ACCOUNT_PRICE_CHECKPOINT_WINDOWS
+    )
+    conn = db()
+    try:
+        rows = conn.execute(
+            """
+            SELECT
+                e.id, e.trader, e.ts, e.mint,
+                e.trader_score, e.timing_score, e.size_score,
+                e.token_score, e.consensus_score, e.market_score,
+                e.score, e.market_cap, e.sol_amount,
+                o.id, o.price_at_signal,
+                c.checkpoint_seconds, c.price_sol, c.observed_ts
+            FROM evaluations e
+            JOIN signal_outcomes o ON o.signal_id = e.id
+            JOIN account_price_checkpoints c ON c.outcome_id = o.id
+            WHERE e.data_version = ?
+              AND o.entry_price_basis IN ('pump', 'pump-amm')
+              AND o.price_at_signal > 0
+              AND e.market_cap > 0
+              AND e.sol_amount > 0
+            ORDER BY e.ts, e.id, c.checkpoint_seconds
+            """,
+            (DATA_VERSION,),
+        ).fetchall()
+    finally:
+        conn.close()
+
+    grouped = {}
+    for row in rows:
+        signal_id = int(row[0])
+        record = grouped.setdefault(signal_id, {
+            "row": row,
+            "checkpoints": {},
+        })
+        record["checkpoints"][int(row[15])] = (
+            float(row[16]), float(row[17])
+        )
+
+    dataset = []
+    required = set(checkpoint_seconds)
+    for signal_id, record in grouped.items():
+        if not required.issubset(record["checkpoints"]):
+            continue
+        row = record["row"]
+        ordered = [
+            (seconds, *record["checkpoints"][seconds])
+            for seconds in checkpoint_seconds
+        ]
+        target, tp_checkpoint, sl_checkpoint = account_checkpoint_target(
+            row[14], ordered
+        )
+        features = build_model_features(
+            trader=str(row[1] or "unknown"),
+            mint=str(row[3] or ""),
+            signal_ts=float(row[2] or 0),
+            trader_score=int(row[4] or 0),
+            timing_score=int(row[5] or 0),
+            size_score=int(row[6] or 0),
+            token_score=int(row[7] or 0),
+            consensus_score=int(row[8] or 0),
+            market_score=int(row[9] or 0),
+            score_total=int(row[10] or 0),
+            market_cap=float(row[11] or 0),
+            sol_amount=float(row[12] or 0),
+            price_at_signal=float(row[14] or 0),
+        )
+        dataset.append({
+            "signal_id": signal_id,
+            "signal_ts": float(row[2] or 0),
+            "mint": str(row[3] or ""),
+            **features,
+            "target_tp25_before_sl10": target,
+            "label_source": "account_checkpoints_v1",
+            "tp_checkpoint_seconds": tp_checkpoint,
+            "sl_checkpoint_seconds": sl_checkpoint,
+        })
+    return dataset
+
+
+def get_account_checkpoint_training_stats():
+    rows = get_account_checkpoint_dataset_rows()
+    by_trader = {}
+    mints = set()
+    positives = 0
+    for row in rows:
+        trader = row.get("trader") or "unknown"
+        by_trader[trader] = by_trader.get(trader, 0) + 1
+        mints.add(row["mint"])
+        positives += int(row["target_tp25_before_sl10"])
+    return {
+        "label_source": "account_checkpoints_v1",
+        "label_semantics": "tp25_before_sl10_at_fixed_checkpoints",
+        "affects_decisions": False,
+        "affects_paper": False,
+        "affects_primary_outcomes": False,
+        "complete_rows": len(rows),
+        "target_1": positives,
+        "target_0": len(rows) - positives,
+        "unique_mints": len(mints),
+        "unique_traders": len(by_trader),
+        "by_trader": by_trader,
+    }
+
+
 async def sync_helius_standard_wss_tokens(
     websocket,
     wallets,
@@ -16598,6 +16731,25 @@ def api_account_price_checkpoint_stats(x_app_token: str = Header(default="")):
         },
         "comparison_last_24h": comparison,
         "recent_comparisons": recent_comparisons,
+    }
+
+
+@app.get("/api/account-checkpoint-training-stats")
+def api_account_checkpoint_training_stats(
+    x_app_token: str = Header(default="")
+):
+    auth(x_app_token)
+    return get_account_checkpoint_training_stats()
+
+
+@app.get("/api/account-checkpoint-training-dataset")
+def api_account_checkpoint_training_dataset(
+    x_app_token: str = Header(default="")
+):
+    auth(x_app_token)
+    return {
+        "label_source": "account_checkpoints_v1",
+        "rows": get_account_checkpoint_dataset_rows(),
     }
 
 
