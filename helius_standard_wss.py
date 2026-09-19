@@ -54,14 +54,22 @@ def build_logs_unsubscribe_request(request_id, subscription_id):
     }
 
 
-def select_tracked_tokens(tracked_tokens, watched_wallets, max_tokens):
+def select_tracked_tokens(
+    tracked_tokens, watched_wallets, max_tokens, priority_tokens=(),
+):
     watched = set(watched_wallets)
-    candidates = sorted({
+    candidates = {
         str(token).strip() for token in tracked_tokens
         if str(token).strip() and str(token).strip() not in watched
-    })
+    }
+    prioritized = []
+    for token in priority_tokens:
+        normalized = str(token).strip()
+        if normalized in candidates and normalized not in prioritized:
+            prioritized.append(normalized)
+    ordered = prioritized + sorted(candidates - set(prioritized))
     limit = max(0, int(max_tokens))
-    return candidates[:limit], len(candidates) - min(len(candidates), limit)
+    return ordered[:limit], len(ordered) - min(len(ordered), limit)
 
 
 def decode_wss_message(raw):

@@ -14604,6 +14604,42 @@ def _tracked_tokens_snapshot():
     raise RuntimeError("TRACKED_TOKENS_CHANGED_DURING_SNAPSHOT")
 
 
+def _tracked_tokens_priority_snapshot(now=None):
+    cutoff = float(now if now is not None else time.time()) - 1200
+    conn = db()
+    try:
+        rows = conn.execute(
+            """
+            SELECT mint, priority, recency FROM (
+                SELECT mint, 0 AS priority, MAX(recorded_ts) AS recency
+                FROM live_positions
+                WHERE status = 'open' AND mint IS NOT NULL AND mint != ''
+                GROUP BY mint
+                UNION ALL
+                SELECT mint, 1 AS priority, MAX(opened_ts) AS recency
+                FROM paper_positions
+                WHERE status = 'open' AND mint IS NOT NULL AND mint != ''
+                GROUP BY mint
+                UNION ALL
+                SELECT mint, 2 AS priority, MAX(signal_ts) AS recency
+                FROM signal_outcomes
+                WHERE status = 'active' AND signal_ts >= ?
+                  AND mint IS NOT NULL AND mint != ''
+                GROUP BY mint
+            )
+            ORDER BY priority, recency DESC, mint
+            """,
+            (cutoff,),
+        ).fetchall()
+    finally:
+        conn.close()
+    prioritized = []
+    for mint, _priority, _recency in rows:
+        if mint not in prioritized:
+            prioritized.append(mint)
+    return prioritized
+
+
 def get_helius_webhook_sync_status():
     try:
         state = get_helius_webhook_sync_state()
@@ -15488,6 +15524,7 @@ async def sync_helius_standard_wss_tokens(
         _tracked_tokens_snapshot(),
         wallets,
         HELIUS_STANDARD_WSS_MAX_TRACKED_TOKENS,
+        priority_tokens=_tracked_tokens_priority_snapshot(),
     )
     desired = set(desired)
     active = {

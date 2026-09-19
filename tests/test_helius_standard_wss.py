@@ -68,6 +68,16 @@ class HeliusStandardWssProtocolTests(unittest.TestCase):
         self.assertEqual(selected, ["mint-a", "mint-b"])
         self.assertEqual(omitted, 1)
 
+    def test_token_selection_honors_priority_before_alphabetical_fallback(self):
+        selected, omitted = select_tracked_tokens(
+            ["mint-a", "mint-b", "mint-c"],
+            [],
+            2,
+            priority_tokens=["mint-c", "mint-b"],
+        )
+        self.assertEqual(selected, ["mint-c", "mint-b"])
+        self.assertEqual(omitted, 1)
+
     def test_builds_unsubscribe_request(self):
         self.assertEqual(
             build_logs_unsubscribe_request(8, 91),
@@ -1046,6 +1056,29 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(socket.sent[1]["params"], [92])
         self.assertEqual(pending_unsubscribes, {3: 92})
         self.assertEqual(subscriptions[91], "wallet-a")
+
+    async def test_token_subscription_prioritizes_latest_active_outcome(self):
+        older = app.create_signal_outcome(
+            signal_id=None, mint="mint-a", trader="tester",
+            signal_ts=1_700_000_000, price_at_signal=1,
+        )
+        newer = app.create_signal_outcome(
+            signal_id=None, mint="mint-b", trader="tester",
+            signal_ts=1_700_000_100, price_at_signal=1,
+        )
+        self.assertLess(older, newer)
+        socket = FakeWebSocket()
+        with (
+            patch.object(app, "TRACKED_TOKENS", {"mint-a", "mint-b"}),
+            patch.object(app, "HELIUS_STANDARD_WSS_MAX_TRACKED_TOKENS", 1),
+            patch.object(app.time, "time", return_value=1_700_000_110),
+        ):
+            await app.sync_helius_standard_wss_tokens(
+                socket, [], {}, {}, {}, {}, {}, {}, {}, 1,
+            )
+        self.assertEqual(
+            socket.sent[0]["params"][0], {"mentions": ["mint-b"]}
+        )
 
     async def test_worker_records_tracked_token_separately_from_wallet(self):
         socket = FakeWebSocket()
