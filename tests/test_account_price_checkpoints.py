@@ -96,8 +96,9 @@ class AccountPriceCheckpointTests(unittest.TestCase):
         conn = app.db()
         try:
             conn.execute(
-                "UPDATE signal_outcomes SET price_10s=? WHERE id=?",
-                (1e-7, outcome_id),
+                "UPDATE signal_outcomes SET price_10s=?, observed_10s_ts=? "
+                "WHERE id=?",
+                (1e-7, self.signal_ts + 13, outcome_id),
             )
             conn.execute(
                 """
@@ -139,6 +140,19 @@ class AccountPriceCheckpointTests(unittest.TestCase):
         self.assertIsNone(
             comparison["30"]["median_absolute_pct_difference"]
         )
+        recent = stats["recent_comparisons"]
+        ten_second = next(
+            item for item in recent if item["checkpoint_seconds"] == 10
+        )
+        self.assertEqual(ten_second["account_lag_seconds"], 2)
+        self.assertEqual(ten_second["primary_lag_seconds"], 3)
+        self.assertEqual(ten_second["observation_gap_seconds"], 1)
+        self.assertAlmostEqual(ten_second["absolute_pct_difference"], 10.0)
+        thirty_second = next(
+            item for item in recent if item["checkpoint_seconds"] == 30
+        )
+        self.assertIsNone(thirty_second["primary_observed_ts"])
+        self.assertIsNone(thirty_second["observation_gap_seconds"])
         conn = app.db()
         try:
             primary = conn.execute(

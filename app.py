@@ -16396,11 +16396,20 @@ def api_account_price_checkpoint_stats(x_app_token: str = Header(default="")):
                        WHEN 60 THEN o.price_1m
                        WHEN 300 THEN o.price_5m
                        WHEN 900 THEN o.price_15m
-                   END AS primary_price
+                   END AS primary_price,
+                   c.observed_ts,
+                   CASE c.checkpoint_seconds
+                       WHEN 10 THEN o.observed_10s_ts
+                       WHEN 30 THEN o.observed_30s_ts
+                       WHEN 60 THEN o.observed_1m_ts
+                       WHEN 300 THEN o.observed_5m_ts
+                       WHEN 900 THEN o.observed_15m_ts
+                   END AS primary_observed_ts,
+                   o.signal_ts, c.mint, c.pool, o.trader
             FROM account_price_checkpoints c
             JOIN signal_outcomes o ON o.id = c.outcome_id
             WHERE c.observed_ts >= ?
-            ORDER BY c.checkpoint_seconds, c.outcome_id
+            ORDER BY c.observed_ts DESC, c.outcome_id DESC
             """,
             (now - 86400,),
         ).fetchall()
@@ -16432,7 +16441,13 @@ def api_account_price_checkpoint_stats(x_app_token: str = Header(default="")):
             "mint": latest_outcome[3],
         }
     comparison = {}
-    for checkpoint_seconds, account_price, primary_price in comparison_rows:
+    recent_comparisons = []
+    for row in comparison_rows:
+        (
+            checkpoint_seconds, account_price, primary_price,
+            account_observed_ts, primary_observed_ts, signal_ts,
+            mint, pool, trader,
+        ) = row
         window = comparison.setdefault(str(checkpoint_seconds), {
             "account_samples": 0,
             "primary_available": 0,
@@ -16440,14 +16455,45 @@ def api_account_price_checkpoint_stats(x_app_token: str = Header(default="")):
             "absolute_pct_differences": [],
         })
         window["account_samples"] += 1
+        target_ts = float(signal_ts) + int(checkpoint_seconds)
+        detail = {
+            "checkpoint_seconds": int(checkpoint_seconds),
+            "mint": mint,
+            "trader": trader,
+            "pool": pool,
+            "target_ts": target_ts,
+            "account_observed_ts": float(account_observed_ts),
+            "account_lag_seconds": float(account_observed_ts) - target_ts,
+            "account_price_sol": float(account_price),
+            "primary_observed_ts": (
+                float(primary_observed_ts)
+                if primary_observed_ts is not None else None
+            ),
+            "primary_lag_seconds": (
+                float(primary_observed_ts) - target_ts
+                if primary_observed_ts is not None else None
+            ),
+            "observation_gap_seconds": (
+                abs(float(account_observed_ts) - float(primary_observed_ts))
+                if primary_observed_ts is not None else None
+            ),
+            "primary_price_sol": (
+                float(primary_price) if primary_price is not None else None
+            ),
+            "absolute_pct_difference": None,
+        }
         if primary_price is None or float(primary_price) <= 0:
             window["primary_missing"] += 1
+            if len(recent_comparisons) < 20:
+                recent_comparisons.append(detail)
             continue
         window["primary_available"] += 1
         difference = abs(float(account_price) - float(primary_price))
-        window["absolute_pct_differences"].append(
-            (difference / float(primary_price)) * 100
-        )
+        pct_difference = (difference / float(primary_price)) * 100
+        window["absolute_pct_differences"].append(pct_difference)
+        detail["absolute_pct_difference"] = pct_difference
+        if len(recent_comparisons) < 20:
+            recent_comparisons.append(detail)
     for window in comparison.values():
         differences = window.pop("absolute_pct_differences")
         window["median_absolute_pct_difference"] = (
@@ -16474,6 +16520,7 @@ def api_account_price_checkpoint_stats(x_app_token: str = Header(default="")):
             "latest_outcome": latest,
         },
         "comparison_last_24h": comparison,
+        "recent_comparisons": recent_comparisons,
     }
 
 
