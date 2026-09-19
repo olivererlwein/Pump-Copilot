@@ -261,7 +261,24 @@ class AccountPriceCheckpointTests(unittest.TestCase):
             by_id[positive]["label_source"], "account_checkpoints_v1"
         )
 
-        stats = app.get_account_checkpoint_training_stats()
+        test_minimums = {
+            **app.ACCOUNT_CHECKPOINT_TRAINING_MINIMUMS,
+            "unique_traders": 1,
+        }
+        with patch.object(
+            app.time,
+            "time",
+            return_value=self.signal_ts + 1000,
+        ), patch.object(
+            app,
+            "build_model_features",
+            side_effect=AssertionError("stats must not build model features"),
+        ), patch.object(
+            app,
+            "ACCOUNT_CHECKPOINT_TRAINING_MINIMUMS",
+            test_minimums,
+        ):
+            stats = app.get_account_checkpoint_training_stats()
         self.assertEqual(stats["complete_rows"], 2)
         self.assertEqual(stats["target_1"], 1)
         self.assertEqual(stats["target_0"], 1)
@@ -271,9 +288,17 @@ class AccountPriceCheckpointTests(unittest.TestCase):
         self.assertFalse(stats["readiness"]["ready_for_diagnostic"])
         self.assertEqual(
             stats["readiness"]["minimums"],
-            app.ACCOUNT_CHECKPOINT_TRAINING_MINIMUMS,
+            test_minimums,
         )
         self.assertIn("complete_rows 2/300", stats["readiness"]["blockers"])
+        self.assertEqual(
+            stats["last_24h"],
+            {"complete_rows": 2, "target_1": 1, "target_0": 1},
+        )
+        self.assertEqual(
+            stats["readiness"]["estimated_days_at_last_24h_rate"],
+            149.0,
+        )
         self.assertEqual(app.count_complete_account_checkpoint_paths(), 2)
 
         with patch.object(app, "APP_TOKEN", "test-token"):

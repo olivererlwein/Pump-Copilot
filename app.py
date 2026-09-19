@@ -15541,8 +15541,8 @@ def account_checkpoint_target(price_at_signal, checkpoints):
     return target, tp_checkpoint, sl_checkpoint
 
 
-def get_account_checkpoint_dataset_rows():
-    """Build a shadow-only dataset from complete fixed on-chain snapshots."""
+def get_account_checkpoint_observations():
+    """Load complete fixed-checkpoint outcomes without building model features."""
     checkpoint_seconds = tuple(
         seconds for seconds, _grace in ACCOUNT_PRICE_CHECKPOINT_WINDOWS
     )
@@ -15576,56 +15576,84 @@ def get_account_checkpoint_dataset_rows():
     for row in rows:
         signal_id = int(row[0])
         record = grouped.setdefault(signal_id, {
-            "row": row,
+            "signal_id": signal_id,
+            "trader": str(row[1] or "unknown"),
+            "signal_ts": float(row[2] or 0),
+            "mint": str(row[3] or ""),
+            "trader_score": int(row[4] or 0),
+            "timing_score": int(row[5] or 0),
+            "size_score": int(row[6] or 0),
+            "token_score": int(row[7] or 0),
+            "consensus_score": int(row[8] or 0),
+            "market_score": int(row[9] or 0),
+            "score_total": int(row[10] or 0),
+            "market_cap": float(row[11] or 0),
+            "sol_amount": float(row[12] or 0),
+            "price_at_signal": float(row[14] or 0),
             "checkpoints": {},
         })
         record["checkpoints"][int(row[15])] = (
             float(row[16]), float(row[17])
         )
 
-    dataset = []
+    observations = []
     required = set(checkpoint_seconds)
-    for signal_id, record in grouped.items():
+    for record in grouped.values():
         if not required.issubset(record["checkpoints"]):
             continue
-        row = record["row"]
         ordered = [
             (seconds, *record["checkpoints"][seconds])
             for seconds in checkpoint_seconds
         ]
         target, tp_checkpoint, sl_checkpoint = account_checkpoint_target(
-            row[14], ordered
+            record["price_at_signal"], ordered
         )
-        features = build_model_features(
-            trader=str(row[1] or "unknown"),
-            mint=str(row[3] or ""),
-            signal_ts=float(row[2] or 0),
-            trader_score=int(row[4] or 0),
-            timing_score=int(row[5] or 0),
-            size_score=int(row[6] or 0),
-            token_score=int(row[7] or 0),
-            consensus_score=int(row[8] or 0),
-            market_score=int(row[9] or 0),
-            score_total=int(row[10] or 0),
-            market_cap=float(row[11] or 0),
-            sol_amount=float(row[12] or 0),
-            price_at_signal=float(row[14] or 0),
-        )
-        dataset.append({
-            "signal_id": signal_id,
-            "signal_ts": float(row[2] or 0),
-            "mint": str(row[3] or ""),
-            **features,
+        observations.append({
+            **{key: value for key, value in record.items()
+               if key != "checkpoints"},
             "target_tp25_before_sl10": target,
-            "label_source": "account_checkpoints_v1",
             "tp_checkpoint_seconds": tp_checkpoint,
             "sl_checkpoint_seconds": sl_checkpoint,
+        })
+    return observations
+
+
+def get_account_checkpoint_dataset_rows():
+    """Build a shadow-only dataset from complete fixed on-chain snapshots."""
+    dataset = []
+    for observation in get_account_checkpoint_observations():
+        features = build_model_features(
+            trader=observation["trader"],
+            mint=observation["mint"],
+            signal_ts=observation["signal_ts"],
+            trader_score=observation["trader_score"],
+            timing_score=observation["timing_score"],
+            size_score=observation["size_score"],
+            token_score=observation["token_score"],
+            consensus_score=observation["consensus_score"],
+            market_score=observation["market_score"],
+            score_total=observation["score_total"],
+            market_cap=observation["market_cap"],
+            sol_amount=observation["sol_amount"],
+            price_at_signal=observation["price_at_signal"],
+        )
+        dataset.append({
+            "signal_id": observation["signal_id"],
+            "signal_ts": observation["signal_ts"],
+            "mint": observation["mint"],
+            **features,
+            "target_tp25_before_sl10": observation[
+                "target_tp25_before_sl10"
+            ],
+            "label_source": "account_checkpoints_v1",
+            "tp_checkpoint_seconds": observation["tp_checkpoint_seconds"],
+            "sl_checkpoint_seconds": observation["sl_checkpoint_seconds"],
         })
     return dataset
 
 
 def get_account_checkpoint_training_stats():
-    rows = get_account_checkpoint_dataset_rows()
+    rows = get_account_checkpoint_observations()
     by_trader = {}
     mints = set()
     positives = 0
@@ -15649,6 +15677,35 @@ def get_account_checkpoint_training_stats():
         name: min(1.0, counts[name] / minimum)
         for name, minimum in ACCOUNT_CHECKPOINT_TRAINING_MINIMUMS.items()
     }
+    cutoff = time.time() - 86400
+    recent = [row for row in rows if row["signal_ts"] >= cutoff]
+    recent_positives = sum(
+        int(row["target_tp25_before_sl10"]) for row in recent
+    )
+    rates = {
+        "complete_rows": len(recent),
+        "target_1": recent_positives,
+        "target_0": len(recent) - recent_positives,
+    }
+    estimated_days = []
+    estimate_available = True
+    for name, rate in rates.items():
+        remaining = max(
+            0, ACCOUNT_CHECKPOINT_TRAINING_MINIMUMS[name] - counts[name]
+        )
+        if remaining and rate <= 0:
+            estimate_available = False
+            break
+        if remaining:
+            estimated_days.append(remaining / rate)
+    if counts["unique_traders"] < (
+        ACCOUNT_CHECKPOINT_TRAINING_MINIMUMS["unique_traders"]
+    ):
+        estimate_available = False
+    estimated_days_to_readiness = (
+        round(max(estimated_days, default=0), 1)
+        if estimate_available else None
+    )
     return {
         "label_source": "account_checkpoints_v1",
         "label_semantics": "tp25_before_sl10_at_fixed_checkpoints",
@@ -15658,11 +15715,13 @@ def get_account_checkpoint_training_stats():
         **counts,
         "unique_mints": len(mints),
         "by_trader": by_trader,
+        "last_24h": rates,
         "readiness": {
             "ready_for_diagnostic": not blockers,
             "minimums": dict(ACCOUNT_CHECKPOINT_TRAINING_MINIMUMS),
             "progress": progress,
             "blockers": blockers,
+            "estimated_days_at_last_24h_rate": estimated_days_to_readiness,
         },
     }
 

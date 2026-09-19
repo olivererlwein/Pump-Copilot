@@ -6,9 +6,9 @@
     "semantic_hash": "5ebef3dd159986e465ab65e4014107ec"
   },
   "app.py": {
-    "mtime": 1789803041.949091,
-    "seen": 1789803094.977163,
-    "ast_hash": "e3c0b2746323a1209b9ec9c38a1e3418",
+    "mtime": 1789803995.690489,
+    "seen": 1789804135.949383,
+    "ast_hash": "1f828b566a3f3cc1bdc1bf700c86a10b",
     "semantic_hash": ""
   },
   "models/baseline_v2_shadow.json": {
@@ -168,9 +168,9 @@
     "semantic_hash": ""
   },
   "static/index.html": {
-    "mtime": 1789803354.8745706,
-    "seen": 1789803386.2157679,
-    "ast_hash": "9d988c714788312ffcfb9a67d60513cf",
+    "mtime": 1789804015.0257125,
+    "seen": 1789804135.9494581,
+    "ast_hash": "5cabb58c78c45f62d8c8876755571616",
     "semantic_hash": ""
   },
   "graphify-out/memory/query_20260908_120214_b041fd8c_sigamos.md": {
@@ -378,9 +378,9 @@
     "semantic_hash": ""
   },
   "tests/test_account_price_checkpoints.py": {
-    "mtime": 1789803041.9510837,
-    "seen": 1789803094.977205,
-    "ast_hash": "ba0bc7c6f4b20b03dbd5ca3f3c89f078",
+    "mtime": 1789804055.9435284,
+    "seen": 1789804135.9494052,
+    "ast_hash": "e29937b45141affeb5d11c331f79d17d",
     "semantic_hash": ""
   },
   "tests/test_training_data_quality.py": {

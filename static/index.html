@@ -1864,7 +1864,9 @@ function renderCheckpointTrainingStats(stats){
   const readiness=stats.readiness||{};
   const minimums=readiness.minimums||{};
   const progress=readiness.progress||{};
+  const rate=stats.last_24h||{};
   const ready=Boolean(readiness.ready_for_diagnostic);
+  const eta=readiness.estimated_days_at_last_24h_rate;
   const metric=(key,label)=>{
     const current=Number(stats[key]||0);
     const minimum=Number(minimums[key]||0);
@@ -1895,7 +1897,9 @@ function renderCheckpointTrainingStats(stats){
       ${metric("target_1","Clase 1")}
       ${metric("unique_traders","Traders")}
     </div>
-    <div class="checkpoint-note">${ready?"Listo para revisión diagnóstica.":`Faltan ${remaining.join(" · ")}.`}</div>
+    <div class="checkpoint-note">${ready
+      ?"Listo para revisión diagnóstica."
+      :`Faltan ${remaining.join(" · ")}. Ritmo 24 h: ${Number(rate.complete_rows||0)} filas${eta===null||eta===undefined?"":` · estimado ${Number(eta).toFixed(1)} días`}.`}</div>
   `;
 }
 
