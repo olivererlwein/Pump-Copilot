@@ -78,7 +78,13 @@ def _rpc_request(rpc_url, method, params, timeout=15):
             if attempt >= len(RPC_RETRY_DELAYS_SECONDS):
                 raise
             time.sleep(RPC_RETRY_DELAYS_SECONDS[attempt])
-    if not isinstance(payload, dict) or payload.get("error") or "result" not in payload:
+    if isinstance(payload, dict) and payload.get("error"):
+        error = payload["error"]
+        code = error.get("code") if isinstance(error, dict) else None
+        if isinstance(code, int):
+            raise ValueError(f"SOLANA_RPC_ERROR_{code}:{method}")
+        raise ValueError(f"INVALID_SOLANA_RPC_RESPONSE:{method}")
+    if not isinstance(payload, dict) or "result" not in payload:
         raise ValueError(f"INVALID_SOLANA_RPC_RESPONSE:{method}")
     return payload["result"]
 

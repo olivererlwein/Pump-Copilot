@@ -14992,6 +14992,14 @@ def helius_standard_wss_error_code(error):
     message = str(error)
     if "429" in message or "rate limit" in message.lower():
         return "HELIUS_STANDARD_WSS_HTTP_429"
+    if (isinstance(error, ValueError)
+            and message.startswith("SOLANA_RPC_ERROR_")
+            and message.endswith(":getTransaction")):
+        rpc_code = message.removesuffix(":getTransaction").removeprefix(
+            "SOLANA_RPC_ERROR_"
+        )
+        if rpc_code.lstrip("-").isdigit():
+            return f"HELIUS_STANDARD_WSS_SOLANA_RPC_ERROR_{rpc_code}"
     if isinstance(error, ValueError) and message in {
         "TRANSACTION_NOT_AVAILABLE",
         "INVALID_SOLANA_TRANSACTION",

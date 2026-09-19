@@ -224,6 +224,7 @@ class HeliusStandardWssProtocolTests(unittest.TestCase):
             ("TRANSACTION_NOT_AVAILABLE", "HELIUS_STANDARD_WSS_TRANSACTION_NOT_AVAILABLE"),
             ("INVALID_SOLANA_TRANSACTION", "HELIUS_STANDARD_WSS_INVALID_SOLANA_TRANSACTION"),
             ("INVALID_SOLANA_RPC_RESPONSE:getTransaction", "HELIUS_STANDARD_WSS_INVALID_SOLANA_RPC_RESPONSE_getTransaction"),
+            ("SOLANA_RPC_ERROR_-32005:getTransaction", "HELIUS_STANDARD_WSS_SOLANA_RPC_ERROR_-32005"),
         ):
             with self.subTest(message=message):
                 self.assertEqual(

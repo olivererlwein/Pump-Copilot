@@ -375,6 +375,30 @@ class RpcFallbackRequestTests(unittest.TestCase):
 
         self.assertEqual(open_rpc.call_count, 1)
 
+    def test_json_rpc_error_preserves_only_safe_numeric_code(self):
+        response = io.BytesIO(json.dumps({
+            "jsonrpc": "2.0",
+            "error": {
+                "code": -32005,
+                "message": "rate limited by secret-provider-key",
+            },
+        }).encode("utf-8"))
+
+        with patch(
+            "solana_rpc_fallback.urlopen", return_value=response
+        ):
+            with self.assertRaisesRegex(
+                ValueError,
+                r"^SOLANA_RPC_ERROR_-32005:getTransaction$",
+            ) as raised:
+                _rpc_request(
+                    "https://rpc.test/secret-provider-key",
+                    "getTransaction",
+                    [],
+                )
+
+        self.assertNotIn("secret-provider-key", str(raised.exception))
+
 
 class RpcFallbackPersistenceTests(unittest.TestCase):
     def setUp(self):
