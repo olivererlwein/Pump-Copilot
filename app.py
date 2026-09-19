@@ -527,6 +527,27 @@ ACCOUNT_PRICE_CHECKPOINT_ENABLED = os.getenv(
 ACCOUNT_PRICE_CHECKPOINT_POLL_SECONDS = max(
     3, int(os.getenv("ACCOUNT_PRICE_CHECKPOINT_POLL_SECONDS", "5"))
 )
+LIVE_ACCOUNT_EXIT_MONITOR_ENABLED = environment_flag(
+    "LIVE_ACCOUNT_EXIT_MONITOR_ENABLED",
+)
+LIVE_ACCOUNT_EXIT_MONITOR_APPLY = environment_flag(
+    "LIVE_ACCOUNT_EXIT_MONITOR_APPLY",
+)
+LIVE_ACCOUNT_EXIT_MONITOR_POLL_SECONDS = max(
+    1, min(30, int(os.getenv("LIVE_ACCOUNT_EXIT_MONITOR_POLL_SECONDS", "3")))
+)
+LIVE_ACCOUNT_EXIT_MONITOR_MAX_MINTS = 20
+LIVE_ACCOUNT_EXIT_MONITOR_STATE_LOCK = threading.Lock()
+LIVE_ACCOUNT_EXIT_MONITOR_STATE = {
+    "last_check_ts": None,
+    "last_success_ts": None,
+    "last_error": None,
+    "status": "disabled",
+    "open_positions": 0,
+    "selected_mints": 0,
+    "priced_mints": 0,
+    "exit_results": 0,
+}
 HELIUS_STANDARD_WSS_STATE_LOCK = threading.Lock()
 HELIUS_STANDARD_WSS_STATE = {
     "connected": False,
@@ -8099,7 +8120,60 @@ def get_latest_helius_pump_event_received_ts(connection=None):
             conn.close()
 
 
+def update_live_account_exit_monitor_state(**updates):
+    with LIVE_ACCOUNT_EXIT_MONITOR_STATE_LOCK:
+        LIVE_ACCOUNT_EXIT_MONITOR_STATE.update(updates)
+
+
+def get_live_account_exit_monitor_status(now=None):
+    with LIVE_ACCOUNT_EXIT_MONITOR_STATE_LOCK:
+        state = dict(LIVE_ACCOUNT_EXIT_MONITOR_STATE)
+
+    blockers = []
+    if not LIVE_ACCOUNT_EXIT_MONITOR_ENABLED:
+        blockers.append("LIVE_ACCOUNT_EXIT_MONITOR_DISABLED")
+    if not LIVE_ACCOUNT_EXIT_MONITOR_APPLY:
+        blockers.append("LIVE_ACCOUNT_EXIT_MONITOR_NOT_APPLIED")
+    if state.get("last_error"):
+        blockers.append("LIVE_ACCOUNT_EXIT_MONITOR_UNHEALTHY")
+
+    current_ts = float(now if now is not None else time.time())
+    last_success_ts = state.get("last_success_ts")
+    maximum_age = max(15, LIVE_ACCOUNT_EXIT_MONITOR_POLL_SECONDS * 3)
+    if (
+        last_success_ts is None
+        or current_ts - float(last_success_ts) > maximum_age
+    ):
+        blockers.append("LIVE_ACCOUNT_EXIT_MONITOR_STALE")
+    if int(state.get("priced_mints") or 0) < int(
+        state.get("selected_mints") or 0
+    ):
+        blockers.append("LIVE_ACCOUNT_EXIT_MONITOR_INCOMPLETE")
+
+    return {
+        "enabled": bool(LIVE_ACCOUNT_EXIT_MONITOR_ENABLED),
+        "apply": bool(LIVE_ACCOUNT_EXIT_MONITOR_APPLY),
+        "affects_decisions": bool(
+            LIVE_ACCOUNT_EXIT_MONITOR_ENABLED
+            and LIVE_ACCOUNT_EXIT_MONITOR_APPLY
+        ),
+        **state,
+        "maximum_age_seconds": maximum_age,
+        "ready": not blockers,
+        "blockers": blockers,
+    }
+
+
 def get_live_exit_feed_readiness(now=None):
+    account_status = get_live_account_exit_monitor_status(now=now)
+    if account_status["ready"]:
+        return {
+            "ready": True,
+            "provider": "account_prices",
+            "blockers": [],
+            "account_monitor": account_status,
+        }
+
     status = get_helius_webhook_sync_status()
     blockers = []
     if not MARKET_EVENT_INBOX_CONSUMER_ENABLED:
@@ -8132,9 +8206,26 @@ def get_live_exit_feed_readiness(now=None):
         or current_ts - last_event_ts > maximum_event_age
     ):
         blockers.append("HELIUS_PUMP_WEBHOOK_STALE")
+    if not blockers:
+        return {
+            "ready": True,
+            "provider": "helius_webhook",
+            "blockers": [],
+            "account_monitor": account_status,
+            "last_success_ts": last_success_ts,
+            "maximum_age_seconds": maximum_age,
+            "last_pump_event_received_ts": last_event_ts,
+            "maximum_pump_event_age_seconds": maximum_event_age,
+        }
+
+    combined_blockers = list(dict.fromkeys(
+        [*account_status["blockers"], *blockers]
+    ))
     return {
-        "ready": not blockers,
-        "blockers": blockers,
+        "ready": False,
+        "provider": None,
+        "blockers": combined_blockers,
+        "account_monitor": account_status,
         "last_success_ts": last_success_ts,
         "maximum_age_seconds": maximum_age,
         "last_pump_event_received_ts": last_event_ts,
@@ -13448,6 +13539,9 @@ async def startup():
 
     if ACCOUNT_PRICE_CHECKPOINT_ENABLED:
         asyncio.create_task(account_price_checkpoint_worker())
+
+    if LIVE_ACCOUNT_EXIT_MONITOR_ENABLED:
+        asyncio.create_task(live_account_exit_monitor_worker())
 # =========================================================
 # AUTENTICACIÓN
 # =========================================================
@@ -15524,6 +15618,135 @@ async def account_price_checkpoint_worker():
         await asyncio.sleep(ACCOUNT_PRICE_CHECKPOINT_POLL_SECONDS)
 
 
+def live_account_exit_monitor_error_code(error):
+    internal_code = str(error).split(":", 1)[0]
+    if internal_code in {
+        "LIVE_ACCOUNT_EXIT_INVALID_MINT",
+        "LIVE_ACCOUNT_EXIT_EVALUATION_FAILED",
+        "LIVE_ACCOUNT_EXIT_TOO_MANY_MINTS",
+        "LIVE_ACCOUNT_EXIT_UNPRICED_MINTS",
+    }:
+        return internal_code
+    return helius_standard_wss_error_code(error)
+
+
+def live_account_exit_monitor_once(now=None):
+    checked_ts = float(now if now is not None else time.time())
+    open_positions = 0
+    selected_mints = 0
+    priced_mints = 0
+    try:
+        conn = db()
+        try:
+            rows = conn.execute(
+                "SELECT mint FROM live_positions "
+                "WHERE status = 'open' ORDER BY mint"
+            ).fetchall()
+        finally:
+            conn.close()
+
+        open_positions = len(rows)
+        if any(
+            not isinstance(row[0], str) or not row[0].strip()
+            for row in rows
+        ):
+            raise ValueError("LIVE_ACCOUNT_EXIT_INVALID_MINT")
+        mints = sorted({row[0].strip() for row in rows})
+        selected_mints = len(mints)
+        if selected_mints > LIVE_ACCOUNT_EXIT_MONITOR_MAX_MINTS:
+            raise ValueError("LIVE_ACCOUNT_EXIT_TOO_MANY_MINTS")
+
+        if not mints:
+            update_live_account_exit_monitor_state(
+                last_check_ts=checked_ts,
+                last_success_ts=checked_ts,
+                last_error=None,
+                status="no_open_positions",
+                open_positions=open_positions,
+                selected_mints=0,
+                priced_mints=0,
+                exit_results=0,
+            )
+            return get_live_account_exit_monitor_status(now=checked_ts)
+
+        snapshots = fetch_account_prices(standard_wss_rpc_url(), mints)
+        market_caps = {}
+        for mint in mints:
+            snapshot = snapshots.get(mint) or {}
+            try:
+                market_cap = float(snapshot.get("market_cap_sol"))
+            except (TypeError, ValueError):
+                continue
+            if (
+                snapshot.get("status") in ("curve", "amm")
+                and math.isfinite(market_cap)
+                and market_cap > 0
+            ):
+                market_caps[mint] = market_cap
+
+        priced_mints = len(market_caps)
+        if priced_mints != selected_mints:
+            raise ValueError("LIVE_ACCOUNT_EXIT_UNPRICED_MINTS")
+
+        exit_results = 0
+        if LIVE_ACCOUNT_EXIT_MONITOR_APPLY:
+            for mint in mints:
+                results = evaluate_live_position_exit(
+                    mint,
+                    "",
+                    "",
+                    market_caps[mint],
+                    None,
+                    event_signature="",
+                    event_index=0,
+                    event_block_event_ts=None,
+                )
+                exit_results += len(results)
+                if any(
+                    not isinstance(result, dict) or not result.get("ok")
+                    for result in results
+                ):
+                    raise ValueError("LIVE_ACCOUNT_EXIT_EVALUATION_FAILED")
+
+        update_live_account_exit_monitor_state(
+            last_check_ts=checked_ts,
+            last_success_ts=checked_ts,
+            last_error=None,
+            status=("applied" if LIVE_ACCOUNT_EXIT_MONITOR_APPLY else "observed"),
+            open_positions=open_positions,
+            selected_mints=selected_mints,
+            priced_mints=priced_mints,
+            exit_results=exit_results,
+        )
+    except Exception as exc:
+        update_live_account_exit_monitor_state(
+            last_check_ts=checked_ts,
+            last_error=live_account_exit_monitor_error_code(exc),
+            status="unhealthy",
+            open_positions=open_positions,
+            selected_mints=selected_mints,
+            priced_mints=priced_mints,
+            exit_results=0,
+        )
+    return get_live_account_exit_monitor_status(now=checked_ts)
+
+
+async def live_account_exit_monitor_worker():
+    while True:
+        try:
+            status = await asyncio.to_thread(live_account_exit_monitor_once)
+            if status.get("last_error"):
+                print(f"[LIVE ACCOUNT EXIT] {status['last_error']}")
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            print(
+                "[LIVE ACCOUNT EXIT] "
+                f"{live_account_exit_monitor_error_code(exc)}"
+            )
+        await asyncio.sleep(LIVE_ACCOUNT_EXIT_MONITOR_POLL_SECONDS)
+
+
 def account_checkpoint_target(price_at_signal, checkpoints):
     """Label a fixed-checkpoint path without implying continuous coverage."""
     entry_price = float(price_at_signal or 0)
@@ -17487,6 +17710,14 @@ def api_live_execution_readiness(
             detail="INVALID_EXECUTION_SIDE",
         )
     return get_live_execution_readiness(normalized_side)
+
+
+@app.get("/api/live-account-exit-monitor-stats")
+def api_live_account_exit_monitor_stats(
+    x_app_token: str = Header(default=""),
+):
+    auth(x_app_token)
+    return get_live_account_exit_monitor_status()
 
 
 @app.get("/api/live-positions")

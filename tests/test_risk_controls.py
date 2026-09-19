@@ -796,6 +796,38 @@ class LiveCanaryGuardTests(unittest.TestCase):
         self.assertFalse(stale["ready"])
         self.assertIn("HELIUS_TOKEN_SYNC_STALE", stale["blockers"])
 
+    def test_exit_feed_accepts_fresh_applied_account_price_monitor(self):
+        account_status = {
+            "enabled": True,
+            "apply": True,
+            "affects_decisions": True,
+            "last_check_ts": 999.0,
+            "last_success_ts": 999.0,
+            "last_error": None,
+            "status": "applied",
+            "open_positions": 1,
+            "selected_mints": 1,
+            "priced_mints": 1,
+            "exit_results": 0,
+            "maximum_age_seconds": 15,
+            "ready": True,
+            "blockers": [],
+        }
+        with patch.object(
+            app,
+            "get_live_account_exit_monitor_status",
+            return_value=account_status,
+        ), patch.object(
+            app,
+            "get_helius_webhook_sync_status",
+            side_effect=AssertionError("Helius should not be required"),
+        ):
+            ready = app.get_live_exit_feed_readiness(now=1000.0)
+
+        self.assertTrue(ready["ready"])
+        self.assertEqual(ready["provider"], "account_prices")
+        self.assertEqual(ready["account_monitor"], account_status)
+
     def test_exit_feed_rejects_silent_webhook_despite_healthy_sync(self):
         healthy = {
             "enabled": True,
@@ -848,9 +880,10 @@ class LiveCanaryGuardTests(unittest.TestCase):
                 conn.close()
             recovered = app.get_live_exit_feed_readiness(now=2000.0)
 
-        self.assertEqual(silent["blockers"], ["HELIUS_PUMP_WEBHOOK_STALE"])
+        self.assertIn("HELIUS_PUMP_WEBHOOK_STALE", silent["blockers"])
         self.assertEqual(silent["last_pump_event_received_ts"], 100.0)
         self.assertTrue(recovered["ready"])
+        self.assertEqual(recovered["provider"], "helius_webhook")
         self.assertEqual(recovered["last_pump_event_received_ts"], 1999.0)
 
 

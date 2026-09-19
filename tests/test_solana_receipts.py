@@ -177,6 +177,187 @@ class LiveReceiptPersistenceTests(unittest.TestCase):
     def record(self):
         return app.record_finalized_buy_position(self.order_id, self.fill, self.receipt)
 
+    def prepare_account_exit_position(self):
+        conn = app.db()
+        conn.execute(
+            "UPDATE execution_orders SET entry_market_cap_sol = ?, "
+            "origin_trader = ? WHERE id = ?",
+            (100.0, "origin-trader", self.order_id),
+        )
+        conn.commit()
+        conn.close()
+        self.record()
+
+    @staticmethod
+    def account_exit_state():
+        return {
+            "last_check_ts": None,
+            "last_success_ts": None,
+            "last_error": None,
+            "status": "disabled",
+            "open_positions": 0,
+            "selected_mints": 0,
+            "priced_mints": 0,
+            "exit_results": 0,
+        }
+
+    def test_account_exit_monitor_observes_without_applying(self):
+        self.prepare_account_exit_position()
+        snapshots = {
+            MINT: {
+                "status": "curve",
+                "market_cap_sol": 110.0,
+                "price_sol": 0.001,
+                "slot": 42,
+            }
+        }
+        with patch.object(
+            app, "LIVE_ACCOUNT_EXIT_MONITOR_ENABLED", True
+        ), patch.object(
+            app, "LIVE_ACCOUNT_EXIT_MONITOR_APPLY", False
+        ), patch.object(
+            app, "LIVE_ACCOUNT_EXIT_MONITOR_STATE", self.account_exit_state()
+        ), patch.object(
+            app, "fetch_account_prices", return_value=snapshots
+        ), patch.object(
+            app, "evaluate_live_position_exit"
+        ) as evaluate:
+            status = app.live_account_exit_monitor_once(now=1000.0)
+
+        evaluate.assert_not_called()
+        self.assertEqual(status["status"], "observed")
+        self.assertEqual(status["open_positions"], 1)
+        self.assertEqual(status["selected_mints"], 1)
+        self.assertEqual(status["priced_mints"], 1)
+        self.assertFalse(status["affects_decisions"])
+        self.assertFalse(status["ready"])
+        self.assertIn(
+            "LIVE_ACCOUNT_EXIT_MONITOR_NOT_APPLIED", status["blockers"]
+        )
+
+    def test_account_exit_monitor_is_ready_without_open_positions(self):
+        with patch.object(
+            app, "LIVE_ACCOUNT_EXIT_MONITOR_ENABLED", True
+        ), patch.object(
+            app, "LIVE_ACCOUNT_EXIT_MONITOR_APPLY", True
+        ), patch.object(
+            app, "LIVE_ACCOUNT_EXIT_MONITOR_STATE", self.account_exit_state()
+        ), patch.object(
+            app, "fetch_account_prices"
+        ) as fetch, patch.object(
+            app, "evaluate_live_position_exit"
+        ) as evaluate:
+            status = app.live_account_exit_monitor_once(now=1000.0)
+
+        fetch.assert_not_called()
+        evaluate.assert_not_called()
+        self.assertTrue(status["ready"])
+        self.assertEqual(status["status"], "no_open_positions")
+        self.assertEqual(status["open_positions"], 0)
+        self.assertEqual(status["selected_mints"], 0)
+
+    def test_account_exit_monitor_applies_price_only_exit_evaluation(self):
+        self.prepare_account_exit_position()
+        snapshots = {
+            MINT: {
+                "status": "amm",
+                "market_cap_sol": 125.0,
+                "price_sol": 0.002,
+                "slot": 43,
+            }
+        }
+        with patch.object(
+            app, "LIVE_ACCOUNT_EXIT_MONITOR_ENABLED", True
+        ), patch.object(
+            app, "LIVE_ACCOUNT_EXIT_MONITOR_APPLY", True
+        ), patch.object(
+            app, "LIVE_ACCOUNT_EXIT_MONITOR_STATE", self.account_exit_state()
+        ), patch.object(
+            app, "fetch_account_prices", return_value=snapshots
+        ), patch.object(
+            app,
+            "evaluate_live_position_exit",
+            return_value=[{"ok": True}],
+        ) as evaluate:
+            status = app.live_account_exit_monitor_once(now=1000.0)
+
+        evaluate.assert_called_once_with(
+            MINT,
+            "",
+            "",
+            125.0,
+            None,
+            event_signature="",
+            event_index=0,
+            event_block_event_ts=None,
+        )
+        self.assertTrue(status["ready"])
+        self.assertTrue(status["affects_decisions"])
+        self.assertEqual(status["status"], "applied")
+        self.assertEqual(status["exit_results"], 1)
+
+    def test_account_exit_monitor_fails_closed_when_a_mint_is_unpriced(self):
+        self.prepare_account_exit_position()
+        with patch.object(
+            app, "LIVE_ACCOUNT_EXIT_MONITOR_ENABLED", True
+        ), patch.object(
+            app, "LIVE_ACCOUNT_EXIT_MONITOR_APPLY", True
+        ), patch.object(
+            app, "LIVE_ACCOUNT_EXIT_MONITOR_STATE", self.account_exit_state()
+        ), patch.object(
+            app,
+            "fetch_account_prices",
+            return_value={MINT: {"status": "pool_missing", "slot": 44}},
+        ), patch.object(
+            app, "evaluate_live_position_exit"
+        ) as evaluate:
+            status = app.live_account_exit_monitor_once(now=1000.0)
+
+        evaluate.assert_not_called()
+        self.assertFalse(status["ready"])
+        self.assertEqual(
+            status["last_error"], "LIVE_ACCOUNT_EXIT_UNPRICED_MINTS"
+        )
+        self.assertIn(
+            "LIVE_ACCOUNT_EXIT_MONITOR_UNHEALTHY", status["blockers"]
+        )
+        self.assertIn(
+            "LIVE_ACCOUNT_EXIT_MONITOR_INCOMPLETE", status["blockers"]
+        )
+
+    def test_account_exit_monitor_reports_rejected_exit_evaluation(self):
+        self.prepare_account_exit_position()
+        snapshots = {
+            MINT: {
+                "status": "curve",
+                "market_cap_sol": 80.0,
+                "price_sol": 0.0008,
+                "slot": 45,
+            }
+        }
+        with patch.object(
+            app, "LIVE_ACCOUNT_EXIT_MONITOR_ENABLED", True
+        ), patch.object(
+            app, "LIVE_ACCOUNT_EXIT_MONITOR_APPLY", True
+        ), patch.object(
+            app, "LIVE_ACCOUNT_EXIT_MONITOR_STATE", self.account_exit_state()
+        ), patch.object(
+            app, "fetch_account_prices", return_value=snapshots
+        ), patch.object(
+            app,
+            "evaluate_live_position_exit",
+            return_value=[{"ok": False, "reason": "LIVE_EXECUTION_NOT_READY"}],
+        ):
+            status = app.live_account_exit_monitor_once(now=1000.0)
+
+        self.assertFalse(status["ready"])
+        self.assertEqual(
+            status["last_error"], "LIVE_ACCOUNT_EXIT_EVALUATION_FAILED"
+        )
+        self.assertIn(
+            "LIVE_ACCOUNT_EXIT_MONITOR_UNHEALTHY", status["blockers"]
+        )
+
     def test_concurrent_reconciliation_records_position_and_event_once(self):
         with ThreadPoolExecutor(max_workers=2) as executor:
             results = list(executor.map(lambda _: self.record(), range(2)))
