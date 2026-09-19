@@ -16387,6 +16387,23 @@ def api_account_price_checkpoint_stats(x_app_token: str = Header(default="")):
             """,
             (now - 960, now),
         ).fetchall()
+        comparison_rows = conn.execute(
+            """
+            SELECT c.checkpoint_seconds, c.price_sol,
+                   CASE c.checkpoint_seconds
+                       WHEN 10 THEN o.price_10s
+                       WHEN 30 THEN o.price_30s
+                       WHEN 60 THEN o.price_1m
+                       WHEN 300 THEN o.price_5m
+                       WHEN 900 THEN o.price_15m
+                   END AS primary_price
+            FROM account_price_checkpoints c
+            JOIN signal_outcomes o ON o.id = c.outcome_id
+            WHERE c.observed_ts >= ?
+            ORDER BY c.checkpoint_seconds, c.outcome_id
+            """,
+            (now - 86400,),
+        ).fetchall()
     finally:
         conn.close()
     eligible = {}
@@ -16414,6 +16431,31 @@ def api_account_price_checkpoint_stats(x_app_token: str = Header(default="")):
             "status": latest_outcome[2],
             "mint": latest_outcome[3],
         }
+    comparison = {}
+    for checkpoint_seconds, account_price, primary_price in comparison_rows:
+        window = comparison.setdefault(str(checkpoint_seconds), {
+            "account_samples": 0,
+            "primary_available": 0,
+            "primary_missing": 0,
+            "absolute_pct_differences": [],
+        })
+        window["account_samples"] += 1
+        if primary_price is None or float(primary_price) <= 0:
+            window["primary_missing"] += 1
+            continue
+        window["primary_available"] += 1
+        difference = abs(float(account_price) - float(primary_price))
+        window["absolute_pct_differences"].append(
+            (difference / float(primary_price)) * 100
+        )
+    for window in comparison.values():
+        differences = window.pop("absolute_pct_differences")
+        window["median_absolute_pct_difference"] = (
+            statistics.median(differences) if differences else None
+        )
+        window["max_absolute_pct_difference"] = (
+            max(differences) if differences else None
+        )
     return {
         "enabled": ACCOUNT_PRICE_CHECKPOINT_ENABLED,
         "affects_decisions": False,
@@ -16431,6 +16473,7 @@ def api_account_price_checkpoint_stats(x_app_token: str = Header(default="")):
             "entry_price_basis_last_24h": dict(basis_counts),
             "latest_outcome": latest,
         },
+        "comparison_last_24h": comparison,
     }
 
 

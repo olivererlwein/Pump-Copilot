@@ -91,6 +91,64 @@ class AccountPriceCheckpointTests(unittest.TestCase):
         )
         self.assertEqual(eligibility["latest_outcome"]["age_seconds"], 12)
 
+    def test_stats_compare_account_and_primary_prices_without_promoting_them(self):
+        outcome_id = self.outcome(basis="pump", mint="curve-entry")
+        conn = app.db()
+        try:
+            conn.execute(
+                "UPDATE signal_outcomes SET price_10s=? WHERE id=?",
+                (1e-7, outcome_id),
+            )
+            conn.execute(
+                """
+                INSERT INTO account_price_checkpoints(
+                    outcome_id, checkpoint_seconds, mint, pool,
+                    price_sol, market_cap_sol, observed_ts, slot
+                ) VALUES(?,?,?,?,?,?,?,?)
+                """,
+                (
+                    outcome_id, 10, "curve-entry", "curve", 1.1e-7,
+                    110, self.signal_ts + 12, 123,
+                ),
+            )
+            conn.execute(
+                """
+                INSERT INTO account_price_checkpoints(
+                    outcome_id, checkpoint_seconds, mint, pool,
+                    price_sol, market_cap_sol, observed_ts, slot
+                ) VALUES(?,?,?,?,?,?,?,?)
+                """,
+                (
+                    outcome_id, 30, "curve-entry", "curve", 1.2e-7,
+                    120, self.signal_ts + 32, 124,
+                ),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        with patch.object(app, "APP_TOKEN", "test-token"), patch.object(
+            app.time, "time", return_value=self.signal_ts + 40
+        ):
+            stats = app.api_account_price_checkpoint_stats("test-token")
+        comparison = stats["comparison_last_24h"]
+        self.assertEqual(comparison["10"]["primary_available"], 1)
+        self.assertAlmostEqual(
+            comparison["10"]["median_absolute_pct_difference"], 10.0
+        )
+        self.assertEqual(comparison["30"]["primary_missing"], 1)
+        self.assertIsNone(
+            comparison["30"]["median_absolute_pct_difference"]
+        )
+        conn = app.db()
+        try:
+            primary = conn.execute(
+                "SELECT price_10s, price_30s FROM signal_outcomes WHERE id=?",
+                (outcome_id,),
+            ).fetchone()
+        finally:
+            conn.close()
+        self.assertEqual(primary, (1e-7, None))
+
     def test_amm_entry_and_missed_checkpoint_are_not_backfilled(self):
         self.outcome(basis="unknown", mint="amm-entry")
         with patch.object(app, "fetch_account_prices") as fetch:
