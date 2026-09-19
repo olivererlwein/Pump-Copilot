@@ -72,6 +72,25 @@ class AccountPriceCheckpointTests(unittest.TestCase):
         self.assertFalse(stats["affects_primary_outcomes"])
         self.assertEqual(stats["last_24h"]["unsupported_mints"], 1)
 
+    def test_stats_explain_when_an_eligible_outcome_is_due(self):
+        self.outcome(basis="pump", mint="curve-entry")
+        self.outcome(basis="unknown", mint="unknown-entry")
+        with patch.object(app, "APP_TOKEN", "test-token"), patch.object(
+            app.time, "time", return_value=self.signal_ts + 12
+        ):
+            stats = app.api_account_price_checkpoint_stats("test-token")
+        eligibility = stats["eligibility"]
+        self.assertEqual(eligibility["active_outcomes_in_window"], 1)
+        self.assertEqual(eligibility["due_now"], 1)
+        self.assertEqual(
+            eligibility["entry_price_basis_last_24h"],
+            {"pump": 1, "unknown": 1},
+        )
+        self.assertEqual(
+            eligibility["latest_outcome"]["entry_price_basis"], "unknown"
+        )
+        self.assertEqual(eligibility["latest_outcome"]["age_seconds"], 12)
+
     def test_amm_entry_and_missed_checkpoint_are_not_backfilled(self):
         self.outcome(basis="unknown", mint="amm-entry")
         with patch.object(app, "fetch_account_prices") as fetch:

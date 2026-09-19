@@ -16348,6 +16348,7 @@ def api_token_rpc_probe_stats(x_app_token: str = Header(default="")):
 @app.get("/api/account-price-checkpoint-stats")
 def api_account_price_checkpoint_stats(x_app_token: str = Header(default="")):
     auth(x_app_token)
+    now = time.time()
     conn = db()
     try:
         totals = conn.execute(
@@ -16359,14 +16360,60 @@ def api_account_price_checkpoint_stats(x_app_token: str = Header(default="")):
                    COALESCE(SUM(rpc_calls), 0)
             FROM account_price_probe_runs WHERE polled_ts >= ?
             """,
-            (time.time() - 86400,),
+            (now - 86400,),
         ).fetchone()
         by_pool = conn.execute(
             "SELECT pool, COUNT(*) FROM account_price_checkpoints "
             "GROUP BY pool"
         ).fetchall()
+        latest_outcome = conn.execute(
+            "SELECT signal_ts, entry_price_basis, status, mint "
+            "FROM signal_outcomes ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        basis_counts = conn.execute(
+            "SELECT entry_price_basis, COUNT(*) FROM signal_outcomes "
+            "WHERE signal_ts >= ? GROUP BY entry_price_basis",
+            (now - 86400,),
+        ).fetchall()
+        eligible_rows = conn.execute(
+            """
+            SELECT o.id, o.signal_ts, c.checkpoint_seconds
+            FROM signal_outcomes o
+            LEFT JOIN account_price_checkpoints c ON c.outcome_id = o.id
+            WHERE o.status = 'active'
+              AND o.entry_price_basis IN ('pump', 'pump-amm')
+              AND o.price_at_signal > 0
+              AND o.signal_ts BETWEEN ? AND ?
+            """,
+            (now - 960, now),
+        ).fetchall()
     finally:
         conn.close()
+    eligible = {}
+    for outcome_id, signal_ts, checkpoint_seconds in eligible_rows:
+        record = eligible.setdefault(
+            outcome_id, {"signal_ts": float(signal_ts), "done": set()}
+        )
+        if checkpoint_seconds is not None:
+            record["done"].add(int(checkpoint_seconds))
+    due_now = 0
+    for record in eligible.values():
+        elapsed = now - record["signal_ts"]
+        if any(
+            seconds <= elapsed <= seconds + grace
+            and seconds not in record["done"]
+            for seconds, grace in ACCOUNT_PRICE_CHECKPOINT_WINDOWS
+        ):
+            due_now += 1
+    latest = None
+    if latest_outcome:
+        latest = {
+            "signal_ts": latest_outcome[0],
+            "age_seconds": max(0.0, now - float(latest_outcome[0])),
+            "entry_price_basis": latest_outcome[1],
+            "status": latest_outcome[2],
+            "mint": latest_outcome[3],
+        }
     return {
         "enabled": ACCOUNT_PRICE_CHECKPOINT_ENABLED,
         "affects_decisions": False,
@@ -16378,6 +16425,12 @@ def api_account_price_checkpoint_stats(x_app_token: str = Header(default="")):
             "checkpoints_recorded", "rpc_calls",
         ), totals)),
         "checkpoint_counts_by_pool": dict(by_pool),
+        "eligibility": {
+            "active_outcomes_in_window": len(eligible),
+            "due_now": due_now,
+            "entry_price_basis_last_24h": dict(basis_counts),
+            "latest_outcome": latest,
+        },
     }
 
 

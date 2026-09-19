@@ -6,9 +6,9 @@
     "semantic_hash": "5ebef3dd159986e465ab65e4014107ec"
   },
   "app.py": {
-    "mtime": 1789778850.6611233,
-    "seen": 1789779004.9543884,
-    "ast_hash": "6712482b33e0d21fd92c61a379953634",
+    "mtime": 1789779281.1017482,
+    "seen": 1789779407.4624538,
+    "ast_hash": "6e4091e29cde0e5e4eeeb59b7dcb877b",
     "semantic_hash": ""
   },
   "models/baseline_v2_shadow.json": {
@@ -378,9 +378,9 @@
     "semantic_hash": ""
   },
   "tests/test_account_price_checkpoints.py": {
-    "mtime": 1789755647.2558167,
-    "seen": 1789755699.0872123,
-    "ast_hash": "d62a0ad2c53c3c22f65670389e40672b",
+    "mtime": 1789779281.1037476,
+    "seen": 1789779407.4624786,
+    "ast_hash": "4c5f898528e461379b76ff22039646f5",
     "semantic_hash": ""
   }
 }
