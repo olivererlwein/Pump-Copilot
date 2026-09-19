@@ -597,6 +597,18 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
         app.record_helius_standard_wss_notification(
             failed_event, True, 200, received_ts=now - 30
         )
+        unparsed_event = {
+            **self.event("wallet-a"),
+            "signature": "signature-d",
+        }
+        app.record_helius_standard_wss_notification(
+            unparsed_event, True, 200, received_ts=now - 20
+        )
+        app.finish_helius_standard_wss_transaction(
+            "signature-d", "unparsed", 1,
+            unparsed_reason="supported_payload_not_decoded",
+            now=now - 19,
+        )
 
         with (
             patch.object(app, "APP_TOKEN", "token"),
@@ -608,20 +620,22 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
         ):
             report = app.api_helius_standard_wss_stats("token")
 
-        self.assertEqual(report["last_24h"]["notifications"], 3)
+        self.assertEqual(report["last_24h"]["notifications"], 4)
         self.assertEqual(
             report["last_24h"]["statuses"],
-            {"applied": 1, "queue_full": 1},
+            {"applied": 1, "queue_full": 1, "unparsed": 1},
         )
         self.assertEqual(report["last_1h"], {
-            "notifications": 2,
-            "pump_log_notifications": 2,
+            "notifications": 3,
+            "pump_log_notifications": 3,
             "failed_notifications": 1,
-            "transactions_selected": 1,
-            "rpc_fetch_attempts": 1,
+            "transactions_selected": 2,
+            "rpc_fetch_attempts": 2,
             "parsed_events": 2,
             "pending_transaction_fetches": 0,
-            "statuses": {"applied": 1},
+            "statuses": {"applied": 1, "unparsed": 1},
+            "fetch_errors": [],
+            "unparsed_reasons": {"supported_payload_not_decoded": 1},
         })
 
     async def test_shadow_fetch_never_persists_to_decision_inbox(self):

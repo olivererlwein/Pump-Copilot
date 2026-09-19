@@ -16972,6 +16972,25 @@ def get_helius_standard_wss_window_health(conn, cutoff):
         """,
         (cutoff,),
     ).fetchall()
+    fetch_errors = conn.execute(
+        """
+        SELECT status, COALESCE(last_error, 'unknown'), COUNT(*)
+        FROM helius_standard_wss_transactions
+        WHERE first_received_ts >= ?
+          AND status IN ('fetch_failed', 'processing_failed')
+        GROUP BY status, COALESCE(last_error, 'unknown')
+        """,
+        (cutoff,),
+    ).fetchall()
+    unparsed_reasons = conn.execute(
+        """
+        SELECT COALESCE(unparsed_reason, 'unknown'), COUNT(*)
+        FROM helius_standard_wss_transactions
+        WHERE first_received_ts >= ? AND status = 'unparsed'
+        GROUP BY COALESCE(unparsed_reason, 'unknown')
+        """,
+        (cutoff,),
+    ).fetchall()
     return {
         "notifications": int(notification[0] or 0),
         "pump_log_notifications": int(notification[1] or 0),
@@ -16982,6 +17001,14 @@ def get_helius_standard_wss_window_health(conn, cutoff):
         "pending_transaction_fetches": int(transactions[3] or 0),
         "statuses": {
             str(status): int(count) for status, count in statuses
+        },
+        "fetch_errors": [
+            {"status": status, "code": code, "count": int(count)}
+            for status, code, count in fetch_errors
+        ],
+        "unparsed_reasons": {
+            str(reason): int(count)
+            for reason, count in unparsed_reasons
         },
     }
 
