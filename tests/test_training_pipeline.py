@@ -1,7 +1,9 @@
 import contextlib
 import io
+import json
 import sys
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 import numpy as np
@@ -109,6 +111,27 @@ class TrainingDatasetValidationTests(unittest.TestCase):
         self.assertIn("diagnostic-only", artifact_save_blocker(schema, False))
         self.assertIsNone(artifact_save_blocker(schema, True))
         self.assertIsNone(artifact_save_blocker({}, False))
+
+    def test_account_checkpoint_schema_excludes_legacy_score_proxies(self):
+        schema_path = (
+            Path(__file__).resolve().parents[1]
+            / "training"
+            / "schema_account_checkpoints_v1.json"
+        )
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        features = set(schema["categorical_features"] + schema["numeric_features"])
+        excluded = {
+            "trader_score",
+            "timing_score",
+            "token_score",
+            "consensus_score",
+            "market_score",
+            "score_total",
+            "token_age_seconds",
+        }
+
+        self.assertIs(schema["artifact_save_allowed"], False)
+        self.assertEqual(features & excluded, set())
 
 
 class TemporalGroupSplitTests(unittest.TestCase):
