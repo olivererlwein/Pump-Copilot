@@ -1,3 +1,4 @@
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -267,6 +268,13 @@ class AccountPriceCheckpointTests(unittest.TestCase):
         self.assertEqual(stats["unique_mints"], 2)
         self.assertEqual(stats["unique_traders"], 1)
         self.assertFalse(stats["affects_decisions"])
+        self.assertFalse(stats["readiness"]["ready_for_diagnostic"])
+        self.assertEqual(
+            stats["readiness"]["minimums"],
+            app.ACCOUNT_CHECKPOINT_TRAINING_MINIMUMS,
+        )
+        self.assertIn("complete_rows 2/300", stats["readiness"]["blockers"])
+        self.assertEqual(app.count_complete_account_checkpoint_paths(), 2)
 
         with patch.object(app, "APP_TOKEN", "test-token"):
             payload = app.api_account_checkpoint_training_dataset("test-token")
@@ -292,6 +300,26 @@ class AccountPriceCheckpointTests(unittest.TestCase):
             conn.close()
 
         self.assertEqual(app.get_account_checkpoint_dataset_rows(), [])
+
+    def test_training_readiness_minimums_match_diagnostic_schema(self):
+        schema_path = (
+            Path(__file__).resolve().parents[1]
+            / "training"
+            / "schema_account_checkpoints_v1.json"
+        )
+        readiness = json.loads(
+            schema_path.read_text(encoding="utf-8")
+        )["readiness"]
+
+        self.assertEqual(
+            app.ACCOUNT_CHECKPOINT_TRAINING_MINIMUMS,
+            {
+                "complete_rows": readiness["minimum_completed_rows"],
+                "target_0": readiness["minimum_target_0"],
+                "target_1": readiness["minimum_target_1"],
+                "unique_traders": readiness["minimum_unique_traders"],
+            },
+        )
 
     def test_shadow_label_rejects_invalid_checkpoint_price(self):
         with self.assertRaisesRegex(

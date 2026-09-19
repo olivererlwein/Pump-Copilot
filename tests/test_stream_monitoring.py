@@ -179,6 +179,121 @@ class ShadowReviewAlertTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(send_alert.await_count, 1)
 
 
+class AccountCheckpointTrainingAlertTests(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.original_db = app.DB
+        self.original_webhook = app.DISCORD_ALERT_WEBHOOK_URL
+        app.DB = Path(self.temp_dir.name) / "checkpoint-alert.db"
+        app.DISCORD_ALERT_WEBHOOK_URL = "https://discord.test/webhook"
+        app.migrate_database()
+
+    def tearDown(self):
+        app.DB = self.original_db
+        app.DISCORD_ALERT_WEBHOOK_URL = self.original_webhook
+        self.temp_dir.cleanup()
+
+    async def test_sends_ready_alert_once_without_training(self):
+        stats = {
+            "label_source": "account_checkpoints_v1",
+            "complete_rows": 300,
+            "target_0": 180,
+            "target_1": 120,
+            "unique_traders": 4,
+            "unique_mints": 280,
+            "readiness": {
+                "ready_for_diagnostic": True,
+                "minimums": app.ACCOUNT_CHECKPOINT_TRAINING_MINIMUMS,
+                "progress": {},
+                "blockers": [],
+            },
+        }
+
+        with patch.object(
+            app,
+            "get_account_checkpoint_training_stats",
+            return_value=stats,
+        ), patch.object(
+            app,
+            "count_complete_account_checkpoint_paths",
+            return_value=300,
+        ), patch.object(
+            app,
+            "send_discord_alert",
+            new=AsyncMock(return_value=True),
+        ) as send_alert:
+            self.assertTrue(
+                await app.maybe_send_account_checkpoint_training_ready_alert()
+            )
+            self.assertFalse(
+                await app.maybe_send_account_checkpoint_training_ready_alert()
+            )
+
+        self.assertEqual(send_alert.await_count, 1)
+        self.assertIn(
+            "No model was trained or promoted automatically",
+            send_alert.await_args.args[0],
+        )
+
+    async def test_failed_ready_alert_is_retried(self):
+        stats = {
+            "label_source": "account_checkpoints_v1",
+            "complete_rows": 300,
+            "target_0": 180,
+            "target_1": 120,
+            "unique_traders": 4,
+            "unique_mints": 280,
+            "readiness": {
+                "ready_for_diagnostic": True,
+                "minimums": app.ACCOUNT_CHECKPOINT_TRAINING_MINIMUMS,
+                "progress": {},
+                "blockers": [],
+            },
+        }
+
+        with patch.object(
+            app,
+            "get_account_checkpoint_training_stats",
+            return_value=stats,
+        ), patch.object(
+            app,
+            "count_complete_account_checkpoint_paths",
+            return_value=300,
+        ), patch.object(
+            app,
+            "send_discord_alert",
+            new=AsyncMock(side_effect=[False, True]),
+        ) as send_alert:
+            self.assertFalse(
+                await app.maybe_send_account_checkpoint_training_ready_alert()
+            )
+            self.assertTrue(
+                await app.maybe_send_account_checkpoint_training_ready_alert()
+            )
+
+        self.assertEqual(send_alert.await_count, 2)
+
+    async def test_below_minimum_skips_expensive_dataset_build(self):
+        with patch.object(
+            app,
+            "count_complete_account_checkpoint_paths",
+            return_value=299,
+        ), patch.object(
+            app,
+            "get_account_checkpoint_training_stats",
+        ) as get_stats, patch.object(
+            app,
+            "send_discord_alert",
+            new=AsyncMock(),
+        ) as send_alert:
+            self.assertFalse(
+                await app.maybe_send_account_checkpoint_training_ready_alert()
+            )
+
+        get_stats.assert_not_called()
+        send_alert.assert_not_awaited()
+
+
 class WatchedWalletSilenceTests(unittest.IsolatedAsyncioTestCase):
     """Una wallet que deja de entregar con el stream sano debe ser visible."""
 

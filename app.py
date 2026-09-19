@@ -15391,6 +15391,12 @@ async def token_rpc_probe_worker():
 ACCOUNT_PRICE_CHECKPOINT_WINDOWS = (
     (10, 5), (30, 10), (60, 15), (300, 30), (900, 60),
 )
+ACCOUNT_CHECKPOINT_TRAINING_MINIMUMS = {
+    "complete_rows": 300,
+    "target_0": 60,
+    "target_1": 60,
+    "unique_traders": 3,
+}
 
 
 def account_price_checkpoint_once(now=None):
@@ -15500,7 +15506,9 @@ def account_price_checkpoint_once(now=None):
 async def account_price_checkpoint_worker():
     while True:
         try:
-            await asyncio.to_thread(account_price_checkpoint_once)
+            result = await asyncio.to_thread(account_price_checkpoint_once)
+            if result.get("checkpoints_recorded", 0) > 0:
+                await maybe_send_account_checkpoint_training_ready_alert()
         except asyncio.CancelledError:
             raise
         except Exception as exc:
@@ -15626,19 +15634,131 @@ def get_account_checkpoint_training_stats():
         by_trader[trader] = by_trader.get(trader, 0) + 1
         mints.add(row["mint"])
         positives += int(row["target_tp25_before_sl10"])
+    counts = {
+        "complete_rows": len(rows),
+        "target_1": positives,
+        "target_0": len(rows) - positives,
+        "unique_traders": len(by_trader),
+    }
+    blockers = [
+        f"{name} {counts[name]}/{minimum}"
+        for name, minimum in ACCOUNT_CHECKPOINT_TRAINING_MINIMUMS.items()
+        if counts[name] < minimum
+    ]
+    progress = {
+        name: min(1.0, counts[name] / minimum)
+        for name, minimum in ACCOUNT_CHECKPOINT_TRAINING_MINIMUMS.items()
+    }
     return {
         "label_source": "account_checkpoints_v1",
         "label_semantics": "tp25_before_sl10_at_fixed_checkpoints",
         "affects_decisions": False,
         "affects_paper": False,
         "affects_primary_outcomes": False,
-        "complete_rows": len(rows),
-        "target_1": positives,
-        "target_0": len(rows) - positives,
+        **counts,
         "unique_mints": len(mints),
-        "unique_traders": len(by_trader),
         "by_trader": by_trader,
+        "readiness": {
+            "ready_for_diagnostic": not blockers,
+            "minimums": dict(ACCOUNT_CHECKPOINT_TRAINING_MINIMUMS),
+            "progress": progress,
+            "blockers": blockers,
+        },
     }
+
+
+def count_complete_account_checkpoint_paths():
+    checkpoint_seconds = tuple(
+        seconds for seconds, _grace in ACCOUNT_PRICE_CHECKPOINT_WINDOWS
+    )
+    placeholders = ",".join("?" for _ in checkpoint_seconds)
+    conn = db()
+    try:
+        row = conn.execute(
+            f"""
+            SELECT COUNT(*)
+            FROM (
+                SELECT o.id
+                FROM evaluations e
+                JOIN signal_outcomes o ON o.signal_id = e.id
+                JOIN account_price_checkpoints c ON c.outcome_id = o.id
+                WHERE e.data_version = ?
+                  AND o.entry_price_basis IN ('pump', 'pump-amm')
+                  AND o.price_at_signal > 0
+                  AND e.market_cap > 0
+                  AND e.sol_amount > 0
+                  AND c.checkpoint_seconds IN ({placeholders})
+                GROUP BY o.id
+                HAVING COUNT(DISTINCT c.checkpoint_seconds) = ?
+            )
+            """,
+            (DATA_VERSION, *checkpoint_seconds, len(checkpoint_seconds)),
+        ).fetchone()
+    finally:
+        conn.close()
+    return int(row[0] or 0)
+
+
+def account_checkpoint_training_alert_state_key():
+    minimums = ACCOUNT_CHECKPOINT_TRAINING_MINIMUMS
+    return (
+        "ACCOUNT_CHECKPOINT_TRAINING_READY_ALERT:"
+        "account_checkpoints_v1:"
+        f"{minimums['complete_rows']}:"
+        f"{minimums['target_0']}:"
+        f"{minimums['target_1']}:"
+        f"{minimums['unique_traders']}"
+    )
+
+
+async def maybe_send_account_checkpoint_training_ready_alert():
+    if not DISCORD_ALERT_WEBHOOK_URL:
+        return False
+
+    state_key = account_checkpoint_training_alert_state_key()
+    conn = db()
+    try:
+        already_sent = conn.execute(
+            "SELECT 1 FROM app_state WHERE key = ? LIMIT 1",
+            (state_key,),
+        ).fetchone()
+    finally:
+        conn.close()
+    if already_sent:
+        return False
+
+    if count_complete_account_checkpoint_paths() < (
+        ACCOUNT_CHECKPOINT_TRAINING_MINIMUMS["complete_rows"]
+    ):
+        return False
+
+    stats = get_account_checkpoint_training_stats()
+    readiness = stats["readiness"]
+    if not readiness["ready_for_diagnostic"]:
+        return False
+
+    sent = await send_discord_alert(
+        "Pump Copilot: on-chain checkpoint dataset ready for diagnostic "
+        "review.\n"
+        f"Complete rows: {stats['complete_rows']}\n"
+        f"Targets 0/1: {stats['target_0']} / {stats['target_1']}\n"
+        f"Unique traders/mints: {stats['unique_traders']} / "
+        f"{stats['unique_mints']}\n"
+        "No model was trained or promoted automatically."
+    )
+    if not sent:
+        return False
+
+    conn = db()
+    try:
+        conn.execute(
+            "INSERT OR IGNORE INTO app_state(key, value) VALUES(?, ?)",
+            (state_key, str(time.time())),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return True
 
 
 async def sync_helius_standard_wss_tokens(
