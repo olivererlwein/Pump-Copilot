@@ -2466,6 +2466,55 @@ AND (
 
         cleanup_finished_outcome_token(mint)
 
+
+def apply_cached_signal_outcome_checkpoints(
+    outcome_id,
+    signal_ts,
+    existing_prices,
+    cached,
+    now,
+):
+    """Apply only a cached price observed inside the checkpoint's own window."""
+    if not isinstance(cached, dict):
+        return False
+    try:
+        current_price = float(cached.get("price") or 0)
+        price_ts = float(cached.get("ts") or 0)
+    except (TypeError, ValueError):
+        return False
+    if (
+        not math.isfinite(current_price)
+        or not math.isfinite(price_ts)
+        or current_price <= 0
+        or price_ts < signal_ts
+    ):
+        return False
+
+    elapsed = now - signal_ts
+    price_elapsed = price_ts - signal_ts
+    updates = (
+        (10, 5, existing_prices[0], update_signal_outcome_10s),
+        (30, 10, existing_prices[1], update_signal_outcome_30s),
+        (60, 15, existing_prices[2], update_signal_outcome_1m),
+        (300, 30, existing_prices[3], update_signal_outcome_5m),
+        (900, 60, existing_prices[4], update_signal_outcome_15m),
+    )
+    applied = False
+    for seconds, grace, existing_price, update in updates:
+        if (
+            existing_price is None
+            and seconds <= elapsed <= seconds + grace
+            and seconds <= price_elapsed <= seconds + grace
+        ):
+            update(
+                outcome_id=outcome_id,
+                current_price=current_price,
+                observed_ts=price_ts,
+            )
+            applied = True
+    return applied
+
+
 async def signal_outcome_checkpoint_worker():
     while True:
         try:
@@ -2526,74 +2575,17 @@ async def signal_outcome_checkpoint_worker():
 
                 if not cached:
                     continue
-
-                current_price = float(
-                    cached.get("price") or 0
-                )
-
-                price_ts = float(
-                    cached.get("ts") or 0
-                )
-
-                if current_price <= 0:
-                    continue
-
-                # Nunca usar un precio observado antes de la señal.
-                if price_ts < signal_ts:
-                    continue
-
-                elapsed = now - signal_ts
-
-                # Solo rellenamos cerca del checkpoint esperado.
-                # Así evitamos reconstruir datos históricos tarde
-                # con un precio que no corresponde a ese momento.
-
-                if (
-                    price_10s is None
-                    and 10 <= elapsed <= 15
+                if apply_cached_signal_outcome_checkpoints(
+                    outcome_id=outcome_id,
+                    signal_ts=signal_ts,
+                    existing_prices=(
+                        price_10s, price_30s, price_1m,
+                        price_5m, price_15m,
+                    ),
+                    cached=cached,
+                    now=now,
                 ):
-                    update_signal_outcome_10s(
-                        outcome_id=outcome_id,
-                        current_price=current_price,
-                    )
-
-                if (
-                    price_30s is None
-                    and 30 <= elapsed <= 40
-                ):
-                    update_signal_outcome_30s(
-                        outcome_id=outcome_id,
-                        current_price=current_price,
-                    )
-
-                if (
-                    price_1m is None
-                    and 60 <= elapsed <= 75
-                ):
-                    update_signal_outcome_1m(
-                        outcome_id=outcome_id,
-                        current_price=current_price,
-                    )
-
-                if (
-                    price_5m is None
-                    and 300 <= elapsed <= 330
-                ):
-                    update_signal_outcome_5m(
-                        outcome_id=outcome_id,
-                        current_price=current_price,
-                    )
-
-                if (
-                    price_15m is None
-                    and 900 <= elapsed <= 960
-                ):
-                    update_signal_outcome_15m(
-                        outcome_id=outcome_id,
-                        current_price=current_price,
-                    )
-
-                touched_mints.add(mint)
+                    touched_mints.add(mint)
 
             for mint in touched_mints:
                 cleanup_finished_outcome_token(mint)

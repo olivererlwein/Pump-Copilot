@@ -728,6 +728,48 @@ class MarketEventChronologyTests(unittest.TestCase):
             {"price": 3.0, "ts": 130.0},
         )
 
+    def test_checkpoint_worker_never_relabels_a_stale_cached_price_as_fresh(self):
+        outcome_id = app.create_signal_outcome(
+            signal_id=3,
+            mint="mint-stale-cache",
+            trader="trader-1",
+            signal_ts=100.0,
+            price_at_signal=1.0,
+        )
+
+        applied = app.apply_cached_signal_outcome_checkpoints(
+            outcome_id=outcome_id,
+            signal_ts=100.0,
+            existing_prices=(None, None, None, None, None),
+            cached={"price": 2.0, "ts": 130.0},
+            now=161.0,
+        )
+        self.assertFalse(applied)
+
+        applied = app.apply_cached_signal_outcome_checkpoints(
+            outcome_id=outcome_id,
+            signal_ts=100.0,
+            existing_prices=(None, None, None, None, None),
+            cached={"price": 2.0, "ts": 130.0},
+            now=132.0,
+        )
+        self.assertTrue(applied)
+
+        conn = app.db()
+        try:
+            row = conn.execute(
+                """
+                SELECT price_10s, observed_10s_ts,
+                       price_30s, observed_30s_ts,
+                       price_1m, observed_1m_ts
+                FROM signal_outcomes WHERE id = ?
+                """,
+                (outcome_id,),
+            ).fetchone()
+        finally:
+            conn.close()
+        self.assertEqual(row, (None, None, 2.0, 130.0, None, None))
+
     def test_event_before_signal_cannot_change_outcome_extremes(self):
         outcome_id = app.create_signal_outcome(
             signal_id=3,
