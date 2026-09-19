@@ -643,6 +643,7 @@ PUMPPORTAL_MESSAGE_LOG = collections.deque(maxlen=50)
 
 DATA_VERSION = 2
 PUMP_TOKEN_SUPPLY = 1_000_000_000.0
+TRAINING_CHECKPOINT_MAX_SOURCE_AGE_SECONDS = 5.0
 
 SHADOW_MODE_ENABLED = os.getenv(
     "SHADOW_MODE_ENABLED",
@@ -8364,11 +8365,34 @@ def get_live_execution_readiness(
     }
 
 
+def training_checkpoint_freshness_sql(outcome_alias="o"):
+    if outcome_alias != "o":
+        raise ValueError("TRAINING_FRESHNESS_ALIAS_UNSUPPORTED")
+    checkpoints = (
+        "observed_10s_ts", "observed_30s_ts", "observed_1m_ts",
+        "observed_5m_ts", "observed_15m_ts",
+    )
+    conditions = []
+    for observed_column in checkpoints:
+        conditions.append(
+            f"""
+            EXISTS (
+                SELECT 1 FROM token_history h
+                WHERE h.mint = {outcome_alias}.mint
+                  AND h.ts <= {outcome_alias}.{observed_column}
+                  AND h.ts >= {outcome_alias}.{observed_column}
+                      - {TRAINING_CHECKPOINT_MAX_SOURCE_AGE_SECONDS}
+            )
+            """
+        )
+    return " AND ".join(conditions)
+
+
 def get_training_dataset_rows():
     conn = db()
 
     rows = conn.execute(
-        """
+        f"""
         SELECT
             e.id,
             e.trader,
@@ -8399,6 +8423,7 @@ def get_training_dataset_rows():
         AND e.market_cap > 0
         AND e.sol_amount > 0
         AND e.data_version = ?
+        AND {training_checkpoint_freshness_sql()}
 
         ORDER BY e.ts ASC
         """,
@@ -8580,15 +8605,38 @@ def get_training_dataset_stats():
         (DATA_VERSION,)
     ).fetchone()
 
+    eligible_row = conn.execute(
+        f"""
+        SELECT COUNT(*)
+        FROM evaluations e
+        JOIN signal_outcomes o ON o.signal_id = e.id
+        WHERE o.price_at_signal > 0
+          AND o.status = 'completed'
+          AND e.market_cap > 0
+          AND e.sol_amount > 0
+          AND e.data_version = ?
+          AND {training_checkpoint_freshness_sql()}
+        """,
+        (DATA_VERSION,),
+    ).fetchone()
+
     conn.close()
+
+    completed = int(row[2] or 0)
+    training_eligible = int(eligible_row[0] or 0)
 
     return {
         "data_version": DATA_VERSION,
 
         "total": int(row[0] or 0),
         "active": int(row[1] or 0),
-        "completed": int(row[2] or 0),
+        "completed": completed,
         "expired": int(row[3] or 0),
+        "training_eligible": training_eligible,
+        "excluded_unfresh": max(0, completed - training_eligible),
+        "checkpoint_max_source_age_seconds": (
+            TRAINING_CHECKPOINT_MAX_SOURCE_AGE_SECONDS
+        ),
 
         "target_1": int(row[4] or 0),
         "target_0": int(row[5] or 0),
