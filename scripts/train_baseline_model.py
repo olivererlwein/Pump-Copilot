@@ -825,11 +825,20 @@ def main():
             "A preliminary model cannot be saved; add --no-save"
         )
 
-    train_rows, test_rows, purged_rows, cutoff_ts = temporal_group_split(
-        rows,
-        schema,
-        args.test_fraction,
-    )
+    try:
+        train_rows, test_rows, purged_rows, cutoff_ts = temporal_group_split(
+            rows,
+            schema,
+            args.test_fraction,
+        )
+    except ValueError as exc:
+        print(json.dumps({
+            "trained": False,
+            "diagnostic_available": False,
+            "readiness_blockers": blockers,
+            "diagnostic_blocker": str(exc),
+        }, indent=2))
+        raise SystemExit(2) from None
     train_matrix, feature_columns = build_matrix(train_rows, schema)
     test_matrix, _ = build_matrix(test_rows, schema)
     target = schema["target"]
