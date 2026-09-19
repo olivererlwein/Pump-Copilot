@@ -567,6 +567,62 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
             (2, 1, 0, 1),
         )
 
+    def test_stats_last_hour_excludes_older_queue_failures(self):
+        now = 1_700_010_000
+        old_event = self.event("wallet-a")
+        app.record_helius_standard_wss_notification(
+            old_event, True, 200, received_ts=now - 7200
+        )
+        app.finish_helius_standard_wss_transaction(
+            "signature-a", "queue_full", 0, now=now - 7199
+        )
+
+        recent_event = {
+            **self.event("wallet-b"),
+            "signature": "signature-b",
+        }
+        app.record_helius_standard_wss_notification(
+            recent_event, True, 200, received_ts=now - 60
+        )
+        app.finish_helius_standard_wss_transaction(
+            "signature-b", "applied", 1, parsed_events=2,
+            now=now - 59,
+        )
+        failed_event = {
+            **self.event("wallet-b"),
+            "signature": "signature-c",
+            "failed": True,
+        }
+        app.record_helius_standard_wss_notification(
+            failed_event, True, 200, received_ts=now - 30
+        )
+
+        with (
+            patch.object(app, "APP_TOKEN", "token"),
+            patch.object(app.time, "time", return_value=now),
+            patch.object(
+                app, "WATCHED",
+                {"trader-a": "wallet-a", "trader-b": "wallet-b"},
+            ),
+        ):
+            report = app.api_helius_standard_wss_stats("token")
+
+        self.assertEqual(report["last_24h"]["notifications"], 3)
+        self.assertEqual(
+            report["last_24h"]["statuses"],
+            {"applied": 1, "queue_full": 1},
+        )
+        self.assertEqual(report["last_1h"], {
+            "notifications": 2,
+            "pump_log_notifications": 2,
+            "failed_notifications": 1,
+            "transactions_selected": 1,
+            "rpc_fetch_attempts": 1,
+            "parsed_events": 2,
+            "pending_transaction_fetches": 0,
+            "statuses": {"applied": 1},
+        })
+
     async def test_shadow_fetch_never_persists_to_decision_inbox(self):
         event = self.event()
         app.record_helius_standard_wss_notification(

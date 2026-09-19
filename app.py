@@ -16935,6 +16935,49 @@ def api_account_checkpoint_training_dataset(
     }
 
 
+def get_helius_standard_wss_window_health(conn, cutoff):
+    notification = conn.execute(
+        """
+        SELECT COUNT(*), COALESCE(SUM(pump_logs), 0),
+               COALESCE(SUM(failed), 0)
+        FROM helius_standard_wss_notifications
+        WHERE received_ts >= ?
+        """,
+        (cutoff,),
+    ).fetchone()
+    transactions = conn.execute(
+        """
+        SELECT COUNT(*), COALESCE(SUM(fetch_attempts), 0),
+               COALESCE(SUM(parsed_events), 0),
+               COALESCE(SUM(CASE WHEN fetched_ts IS NULL THEN 1 ELSE 0 END), 0)
+        FROM helius_standard_wss_transactions
+        WHERE first_received_ts >= ?
+        """,
+        (cutoff,),
+    ).fetchone()
+    statuses = conn.execute(
+        """
+        SELECT status, COUNT(*)
+        FROM helius_standard_wss_transactions
+        WHERE first_received_ts >= ?
+        GROUP BY status
+        """,
+        (cutoff,),
+    ).fetchall()
+    return {
+        "notifications": int(notification[0] or 0),
+        "pump_log_notifications": int(notification[1] or 0),
+        "failed_notifications": int(notification[2] or 0),
+        "transactions_selected": int(transactions[0] or 0),
+        "rpc_fetch_attempts": int(transactions[1] or 0),
+        "parsed_events": int(transactions[2] or 0),
+        "pending_transaction_fetches": int(transactions[3] or 0),
+        "statuses": {
+            str(status): int(count) for status, count in statuses
+        },
+    }
+
+
 @app.get("/api/helius-standard-wss-stats")
 def api_helius_standard_wss_stats(
     x_app_token: str = Header(default="")
@@ -17053,6 +17096,9 @@ def api_helius_standard_wss_stats(
             """,
             (cutoff,),
         ).fetchone()
+        last_1h = get_helius_standard_wss_window_health(
+            conn, now - 3600
+        )
     finally:
         conn.close()
 
@@ -17127,6 +17173,7 @@ def api_helius_standard_wss_stats(
             and MARKET_EVENT_INBOX_CONSUMER_ENABLED
         ),
         "runtime": runtime,
+        "last_1h": last_1h,
         "last_24h": {
             "notifications": int(notification[0] or 0),
             "pump_log_notifications": int(notification[1] or 0),
