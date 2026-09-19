@@ -841,6 +841,20 @@
       white-space:nowrap;
     }
 
+    .shadow-metric small{
+      display:block;
+      margin-top:2px;
+      color:var(--muted-2);
+      font-size:8px;
+    }
+
+    .checkpoint-note{
+      margin-top:10px;
+      color:var(--muted);
+      font-size:9px;
+      line-height:1.5;
+    }
+
     .shadow-matrix{
       display:flex;
       gap:12px;
@@ -1278,6 +1292,7 @@
       <div id="homePositions"></div>
 
       <section id="shadowPanel" class="shadow-card" aria-label="Estado del modelo shadow"></section>
+      <section id="checkpointPanel" class="shadow-card" aria-label="Progreso del dataset on-chain"></section>
     </section>
     <section id="signalsPage" class="page">
       <div class="page-heading">
@@ -1835,6 +1850,52 @@ function renderShadowStats(stats){
       <b>Actual</b><b>${pct(incumbent.precision)}</b><b>${pct(incumbent.recall)}</b><b>${Number(comparison?.incumbent_only_correct||0)}</b>
       <b class="positive">Candidato</b><b>${pct(challenger.precision)}</b><b>${pct(challenger.recall)}</b><b>${Number(comparison?.challenger_only_correct||0)}</b>
     </div>
+  `;
+}
+
+
+function renderCheckpointTrainingStats(stats){
+  const el=document.getElementById("checkpointPanel");
+  if(!stats){
+    el.innerHTML=`<div class="shadow-head"><div><div class="shadow-title">Dataset on-chain</div><div class="shadow-version">sin datos</div></div><div class="shadow-state">no disponible</div></div>`;
+    return;
+  }
+
+  const readiness=stats.readiness||{};
+  const minimums=readiness.minimums||{};
+  const progress=readiness.progress||{};
+  const ready=Boolean(readiness.ready_for_diagnostic);
+  const metric=(key,label)=>{
+    const current=Number(stats[key]||0);
+    const minimum=Number(minimums[key]||0);
+    const percent=Math.round(Math.min(1,Number(progress[key]||0))*100);
+    return `<div class="shadow-metric"><span>${label}</span><b>${percent}%</b><small>${current} / ${minimum}</small></div>`;
+  };
+  const remaining=[
+    ["complete_rows","filas"],
+    ["target_0","clase 0"],
+    ["target_1","clase 1"],
+    ["unique_traders","traders"]
+  ].map(([key,label])=>{
+    const missing=Math.max(0,Number(minimums[key]||0)-Number(stats[key]||0));
+    return missing?`${missing} ${label}`:"";
+  }).filter(Boolean);
+
+  el.innerHTML=`
+    <div class="shadow-head">
+      <div>
+        <div class="shadow-title">Dataset on-chain</div>
+        <div class="shadow-version">checkpoints fijos · solo diagnóstico</div>
+      </div>
+      <div class="shadow-state ${ready?"ready":""}">${ready?"listo":"recolectando"}</div>
+    </div>
+    <div class="shadow-grid">
+      ${metric("complete_rows","Filas")}
+      ${metric("target_0","Clase 0")}
+      ${metric("target_1","Clase 1")}
+      ${metric("unique_traders","Traders")}
+    </div>
+    <div class="checkpoint-note">${ready?"Listo para revisión diagnóstica.":`Faltan ${remaining.join(" · ")}.`}</div>
   `;
 }
 
@@ -2738,14 +2799,15 @@ function closeTokenDetail(){
 
 async function refresh(){
   try{
-    const [statusData,signals,trades,paper,traders,trainingStats,shadowStats]=await Promise.all([
+    const [statusData,signals,trades,paper,traders,trainingStats,shadowStats,checkpointStats]=await Promise.all([
       api("/api/status"),
       api("/api/signals"),
       api("/api/trades?limit=60"),
       api("/api/paper"),
       api("/api/trader-stats"),
       api("/api/training-stats"),
-      api("/api/shadow-stats").catch(()=>null)
+      api("/api/shadow-stats").catch(()=>null),
+      api("/api/account-checkpoint-training-stats").catch(()=>null)
     ]);
 
     document.getElementById("login").hidden=true;
@@ -2819,6 +2881,7 @@ async function refresh(){
       `${Math.min(100,(completedRows/trainingGoal)*100)}%`;
 
     renderShadowStats(shadowStats);
+    renderCheckpointTrainingStats(checkpointStats);
     renderHome(paper,signals);
     renderSignals(signals);
     renderPaper(paper);
