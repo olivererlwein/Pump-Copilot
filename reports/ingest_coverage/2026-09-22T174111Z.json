@@ -1,0 +1,201 @@
+{
+ "captured_at": "2026-09-22T17:41:11+00:00",
+ "stream": {
+  "connected": true,
+  "last_account_event_age_s": null,
+  "last_token_event_age_s": 87
+ },
+ "wss": {
+  "connected": true,
+  "selected_wallets": 13,
+  "active_wallets": null,
+  "subscriptions": 13,
+  "last_error": null,
+  "last_rpc_error_detail": null,
+  "fetch_errors_24h": [
+   {
+    "status": "fetch_failed",
+    "code": "HELIUS_STANDARD_WSS_SOLANA_RPC_ERROR_-32015",
+    "count": 28
+   }
+  ],
+  "statuses_24h": {
+   "applied": 447,
+   "fetch_failed": 28,
+   "unparsed": 1961
+  },
+  "parsed_events_24h": 447
+ },
+ "fallback": {
+  "last_error": "decu: SIGNATURE_BACKLOG_REBASED",
+  "saturated_wallets": [
+   "decu"
+  ],
+  "missing_total": 6196,
+  "matched_total": 1835
+ },
+ "training": {
+  "total": 2693,
+  "training_eligible": 277,
+  "excluded_unfresh": 1312,
+  "target_1": 497,
+  "target_0": 1092
+ },
+ "silent_wallets": 8,
+ "wallets": [
+  {
+   "trader": "sapphy",
+   "silent": true,
+   "age_hours": null,
+   "wss_pump_notifications_24h": 234,
+   "wss_parsed_24h": 0,
+   "wss_unstored_since_start": 0,
+   "wss_muted": false,
+   "fallback_missing_24h": 0,
+   "signals_24h": 0
+  },
+  {
+   "trader": "Anglio",
+   "silent": true,
+   "age_hours": null,
+   "wss_pump_notifications_24h": 0,
+   "wss_parsed_24h": 0,
+   "wss_unstored_since_start": 0,
+   "wss_muted": false,
+   "fallback_missing_24h": 0,
+   "signals_24h": 0
+  },
+  {
+   "trader": "y22",
+   "silent": true,
+   "age_hours": null,
+   "wss_pump_notifications_24h": 0,
+   "wss_parsed_24h": 0,
+   "wss_unstored_since_start": 0,
+   "wss_muted": false,
+   "fallback_missing_24h": 0,
+   "signals_24h": 0
+  },
+  {
+   "trader": "supermandev",
+   "silent": true,
+   "age_hours": 525.89,
+   "wss_pump_notifications_24h": 7,
+   "wss_parsed_24h": 0,
+   "wss_unstored_since_start": 0,
+   "wss_muted": false,
+   "fallback_missing_24h": 0,
+   "signals_24h": 0
+  },
+  {
+   "trader": "hdegroot",
+   "silent": true,
+   "age_hours": 476.23,
+   "wss_pump_notifications_24h": 238,
+   "wss_parsed_24h": 0,
+   "wss_unstored_since_start": 0,
+   "wss_muted": false,
+   "fallback_missing_24h": 0,
+   "signals_24h": 0
+  },
+  {
+   "trader": "gr3gor14n",
+   "silent": true,
+   "age_hours": 283.34,
+   "wss_pump_notifications_24h": 103,
+   "wss_parsed_24h": 0,
+   "wss_unstored_since_start": 0,
+   "wss_muted": false,
+   "fallback_missing_24h": 9,
+   "signals_24h": 0
+  },
+  {
+   "trader": "decu",
+   "silent": true,
+   "age_hours": 283.29,
+   "wss_pump_notifications_24h": 7,
+   "wss_parsed_24h": 0,
+   "wss_unstored_since_start": 0,
+   "wss_muted": false,
+   "fallback_missing_24h": 0,
+   "signals_24h": 0
+  },
+  {
+   "trader": "FlippingProfits",
+   "silent": true,
+   "age_hours": 26.95,
+   "wss_pump_notifications_24h": 341,
+   "wss_parsed_24h": 0,
+   "wss_unstored_since_start": 0,
+   "wss_muted": false,
+   "fallback_missing_24h": 0,
+   "signals_24h": 0
+  },
+  {
+   "trader": "Cooker",
+   "silent": false,
+   "age_hours": 9.43,
+   "wss_pump_notifications_24h": 329,
+   "wss_parsed_24h": 82,
+   "wss_unstored_since_start": 0,
+   "wss_muted": false,
+   "fallback_missing_24h": 0,
+   "signals_24h": 0
+  },
+  {
+   "trader": "ily",
+   "silent": false,
+   "age_hours": 6.04,
+   "wss_pump_notifications_24h": 278,
+   "wss_parsed_24h": 3,
+   "wss_unstored_since_start": 0,
+   "wss_muted": false,
+   "fallback_missing_24h": 0,
+   "signals_24h": 3
+  },
+  {
+   "trader": "chriskogias",
+   "silent": false,
+   "age_hours": 5.26,
+   "wss_pump_notifications_24h": 60,
+   "wss_parsed_24h": 54,
+   "wss_unstored_since_start": 0,
+   "wss_muted": false,
+   "fallback_missing_24h": 0,
+   "signals_24h": 21
+  },
+  {
+   "trader": "marcell",
+   "silent": false,
+   "age_hours": 3.27,
+   "wss_pump_notifications_24h": 4,
+   "wss_parsed_24h": 4,
+   "wss_unstored_since_start": 0,
+   "wss_muted": false,
+   "fallback_missing_24h": 0,
+   "signals_24h": 4
+  },
+  {
+   "trader": "slingoor",
+   "silent": false,
+   "age_hours": 0.54,
+   "wss_pump_notifications_24h": 1170,
+   "wss_parsed_24h": 144,
+   "wss_unstored_since_start": 0,
+   "wss_muted": false,
+   "fallback_missing_24h": 0,
+   "signals_24h": 2
+  },
+  {
+   "trader": "epicsealdarkeye",
+   "silent": false,
+   "age_hours": 0.06,
+   "wss_pump_notifications_24h": 251,
+   "wss_parsed_24h": 160,
+   "wss_unstored_since_start": 0,
+   "wss_muted": false,
+   "fallback_missing_24h": 3,
+   "signals_24h": 20
+  }
+ ]
+}

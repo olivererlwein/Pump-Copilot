@@ -2434,3 +2434,50 @@ de ruteo trasladan el transporte; el test de solapamiento del WSS siembra
 `transport` y vuelve a distinguir los transportes.
 Verificación: **465 tests, OK**; el test nuevo falla contra el código anterior
 (`no such column: transport`). `RPC_FALLBACK_APPLY` sigue apagado.
+
+## El salto 36,1% -> 28,7% era el umbral, y cruza el equilibrio — 2026-09-22
+
+El dataset on-chain (`account_checkpoints_v1`, 609 filas en producción, 308
+mints, 7 traders, tasa base 24,8 %) entrena un modelo sin bloqueos de
+deployment, con holdout de 122 filas sin ningún mint compartido con el
+entrenamiento y 76 filas purgadas: ROC AUC 0,760, average precision 0,472
+contra 0,213 del baseline tonto, y la señal sobrevive al balanceo por trader
+(AUC 0,736). Es la primera evidencia real del proyecto, no infraestructura.
+
+Pero el reporte del clasificador daba 36,1 % de precisión y el backtest
+económico 28,7 %, y el equilibrio del proxy con 2 % de coste está en 34,3 %:
+la conclusión cambiaba de signo según cuál se mirara. `scripts/reconcile_
+threshold_economics.py` lo resuelve reutilizando el split y el modelo de los
+scripts existentes.
+
+**Misma población, mismo modelo, mismas probabilidades de holdout. La única
+diferencia es el umbral.** `select_threshold` elige 0,45 por validación
+cruzada, que selecciona 80 señales con 28,7 %; a 0,50 selecciona 61 con
+36,1 %. No hay filas excluidas ni subconjuntos distintos.
+
+| umbral | selecc | aciertos | precisión | neto@0% | neto@2% | neto@3% |
+|---|---|---|---|---|---|---|
+| 0,45 (CV) | 80 | 23 | 28,7 % | +0,05 | −1,55 | −2,35 |
+| 0,50 | 61 | 22 | 36,1 % | +1,60 | **+0,38** | −0,23 |
+| 0,70 | 23 | 12 | 52,2 % | +1,90 | +1,44 | +1,21 |
+
+Hallazgo de fondo: **el umbral se afina contra una métrica de clasificación,
+no contra la economía**, y por eso la validación cruzada eligió el peor de los
+dos económicamente.
+
+Lo que NO se hace con esto: elegir 0,50 ni 0,70 porque rinden mejor acá. Eso
+sería ajustar un hiperparámetro contra el holdout. Y los intervalos de Wilson
+al 95 % lo dejan claro: **todos los umbrales cruzan el equilibrio**
+(0,50 → [25,2 %, 48,6 %]; 0,70 → [33,0 %, 70,8 %] con n=23). Con 122 filas de
+holdout la muestra no distingue rentable de no rentable.
+
+Descomposición del 2 %: es **solo** PumpPortal Lightning, 1 % por lado,
+constante en `compare_model_economics.py:6`. No incluye fee del protocolo,
+slippage ni priority fees. Para dimensionarlo: `MAX_SLIPPAGE_PCT = 5.0`
+permite hasta 5 % de slippage *por lado*, así que el peor escenario del script
+(5 % ida y vuelta) queda por debajo de lo que la propia configuración de
+riesgo tolera solo en slippage. El 2 % es un piso, no una estimación
+conservadora.
+
+Veredicto corregido: no es "pierde". Es **"la muestra todavía no puede
+decidir"**, y el costo real está sin descomponer. Live sigue cerrado.

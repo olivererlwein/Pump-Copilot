@@ -168,6 +168,10 @@ def evaluate_strategy(rows, schema, test_fraction, sample_weighting):
         ),
         "rows": test_rows,
         "predictions": predictions,
+        # Sin las probabilidades no se puede reconciliar la precisión del
+        # clasificador con la del backtest: son el mismo holdout mirado con
+        # dos umbrales distintos.
+        "probabilities": probabilities,
     }
 
 
