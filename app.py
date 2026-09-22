@@ -13097,7 +13097,20 @@ def get_rpc_fallback_stats():
                       WHERE stream.wallet = rpc_fallback_events.wallet
                         AND stream.mint = rpc_fallback_events.mint
                         AND LOWER(stream.side) = LOWER(rpc_fallback_events.side)
-                        AND ABS(stream.ts - rpc_fallback_events.block_time) <= 300)
+                        AND ABS(stream.ts - rpc_fallback_events.block_time) <= 300),
+               -- Una operación que nadie aplicó tiene dos causas muy
+               -- distintas: el transporte nunca la trajo, o la trajo y algo
+               -- falló después. Sin esto no se pueden separar. Ambas
+               -- subconsultas filtran por `signature`, que es la primera
+               -- columna de la clave primaria de las dos tablas.
+               EXISTS(SELECT 1 FROM helius_standard_wss_notifications AS wss
+                      WHERE wss.signature = rpc_fallback_events.signature),
+               (SELECT MAX(wss.pump_logs)
+                  FROM helius_standard_wss_notifications AS wss
+                 WHERE wss.signature = rpc_fallback_events.signature),
+               (SELECT wss.status
+                  FROM helius_standard_wss_transactions AS wss
+                 WHERE wss.signature = rpc_fallback_events.signature)
         FROM rpc_fallback_events
         WHERE status = 'missing'
         ORDER BY detected_ts DESC
@@ -13147,6 +13160,11 @@ def get_rpc_fallback_stats():
                 "block_time": row[5],
                 "detected_ts": row[6],
                 "approximate_match": bool(row[7]),
+                "wss_notified": bool(row[8]),
+                "wss_pump_logs": (
+                    None if row[9] is None else bool(row[9])
+                ),
+                "wss_fetch_status": row[10],
             }
             for row in missing_rows
         ],

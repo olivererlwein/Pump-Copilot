@@ -510,6 +510,52 @@ class RpcFallbackPersistenceTests(unittest.TestCase):
         self.assertEqual(stats["missing"], 0)
         self.assertEqual(stats["matched_identity"], 1)
 
+    def test_missing_event_reports_what_the_wss_transport_saw(self):
+        """Separa "el transporte nunca lo trajo" de "lo trajo y falló"."""
+        app.record_rpc_fallback_event(
+            "trader-a", WALLET, pump_receipt(), self.parsed()
+        )
+        second = {**pump_receipt(), "transaction": {
+            **pump_receipt()["transaction"],
+            "signatures": ["never-notified-signature"],
+        }}
+        app.record_rpc_fallback_event(
+            "trader-a", WALLET, second,
+            parse_watched_wallet_pump_events(
+                second, WALLET, "never-notified-signature"
+            )[0],
+        )
+        with patch.object(app, "RPC_FALLBACK_GRACE_SECONDS", 0):
+            app.reconcile_rpc_fallback_events()
+
+        app.record_helius_standard_wss_notification(
+            {
+                "wallet": WALLET, "signature": SIGNATURE, "slot": 7,
+                "failed": False, "logs": [],
+            },
+            True, 400, received_ts=1_700_000_000,
+        )
+        app.finish_helius_standard_wss_transaction(
+            SIGNATURE, "fetch_failed", 3,
+            error="HELIUS_STANDARD_WSS_SOLANA_RPC_ERROR_-32015",
+            now=1_700_000_001,
+        )
+
+        events = {
+            row["signature"]: row
+            for row in app.get_rpc_fallback_stats()["missing_events"]
+        }
+
+        delivered = events[SIGNATURE]
+        self.assertTrue(delivered["wss_notified"])
+        self.assertTrue(delivered["wss_pump_logs"])
+        self.assertEqual(delivered["wss_fetch_status"], "fetch_failed")
+
+        never_seen = events["never-notified-signature"]
+        self.assertFalse(never_seen["wss_notified"])
+        self.assertIsNone(never_seen["wss_pump_logs"])
+        self.assertIsNone(never_seen["wss_fetch_status"])
+
     def test_second_operation_of_a_transaction_is_not_hidden_by_the_first(self):
         """Con firma sola, la operación 1 quedaba "matched" por la operación 0.
 

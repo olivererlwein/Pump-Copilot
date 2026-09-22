@@ -2322,3 +2322,25 @@ Cooker 21, epicsealdarkeye 6, chriskogias 4. Dataset principal:
 4. Gates para operar siguen todos en `false`; sin modelo aprobable
    (`training_eligible < 300`, challenger con blocker de holdout). Nada de
    esto cambia hasta tener semanas de datos con 13 wallets.
+
+## Qué vio el WSS de cada operación faltante — 2026-09-22
+
+La medición de las 17:41 dejó una pregunta sin respuesta: gr3gor14n tenía 9
+operaciones reales que nadie aplicó y 103 notificaciones con logs de Pump sin
+un solo evento parseado. Ocho de las nueve son anteriores al fix de
+transacciones v1, pero una es posterior, y con los datos de hoy no se puede
+distinguir "el transporte nunca la trajo" de "la trajo y algo falló después".
+
+`missing_events` en `/api/rpc-fallback-stats` agrega tres campos por
+operación: `wss_notified` (hay alguna notificación para esa firma),
+`wss_pump_logs` (si alguna traía logs de Pump; `null` si no hubo
+notificación) y `wss_fetch_status` (el estado de
+`helius_standard_wss_transactions`, por ejemplo `fetch_failed` o `unparsed`).
+Las dos subconsultas filtran por `signature`, primera columna de la clave
+primaria de ambas tablas, sobre una lista ya acotada a 20 filas.
+
+Dato del contexto: gr3gor14n opera a través de Jupiter (`JUP6LkbZbjS1` en el
+nivel superior, Pump como CPI interno) y firma en segundo lugar. Bajadas por
+RPC, el parser las procesa bien (`parsed=1`, índice 0), así que el problema no
+está en el parser.
+Verificación: **461 tests, OK**; el test nuevo falla contra el código anterior.
