@@ -2264,3 +2264,61 @@ Baseline tomado 06:01 UTC, veinte minutos después de pasar a 13 wallets:
 hdegroot 9, ily 8, decu 7, gr3gor14n 2) pero `parsed 0`, a confirmar mañana si
 es `wallet_not_signer` o falta de tiempo. Los 66 `fetch_failed -32015` de la
 ventana de 24 h son anteriores al fix v1.
+
+# Informe para Codex — sesión 2026-09-22 (00:00–06:15 UTC)
+
+## Commits
+
+| Commit | Qué | Dinero | Producción |
+|---|---|---|---|
+| `07a865b` | `last_rpc_error_detail` (mensaje JSON-RPC redactado) + `stream_last_account_event_ts` / `stream_last_token_event_ts` | no | desplegado |
+| `3ebac26` | Aceptar transacciones Solana versión 1 en ingesta y recibos; fixture real v1 | sí (guarda del parser de recibos) | desplegado |
+| `2657f6a` | Slot del snapshot como orden real en salidas por precio de cuenta; columna `account_exit_last_slot` | sí (`apply=false`) | desplegado |
+| `ebbc1c4` | Hook pre-push cubre `parse_*_receipt`, `fetch_finalized_solana_transaction`, `live_account_exit_monitor_once` | — | desplegado |
+| `13ded74` | Notificaciones WSS sin Pump en memoria; freno automático por wallet (600/min) | no | **local** |
+| `e9b1076` | `scripts/ingest_coverage_report.py` + baseline | no | **local** |
+
+Producción = `ebbc1c4`. Los dos últimos esperan OK para push (no entran en
+`RISK_PATTERN`; el hook no los frena).
+
+## Hallazgos verificados en producción
+
+1. **Helius muerto desde 17-09 03:12 UTC**: créditos free agotados
+   (1.044.217/1.000.000). El 90 % de las 633 k transacciones del webhook eran
+   entregas por los 30 tokens que el sync mantenía. `HELIUS_WEBHOOK_SYNC_APPLY`
+   ahora `false` (usuario, 01:40 UTC).
+2. **9 de 14 wallets ciegas desde entonces**, el WSS de Alchemy filtraba a 5.
+   Usuario amplió a 14 (01:37 UTC) y luego a 13 (01:49 UTC) al sacar decu.
+3. **`-32015` = transacciones versión 1.** Ambos `getTransaction` pedían
+   `maxSupportedTransactionVersion: 0`. Fix desplegado; `fetch_errors: []`
+   desde entonces y el fallback desbloqueó gr3gor14n, epicsealdarkeye,
+   supermandev, Cooker.
+4. **decu no sirve por `logsSubscribe` por mención**: 44 notificaciones/s de
+   spam, cero Pump, 31.571 filas en 12 minutos. Fuera del WSS hasta que
+   `13ded74` esté desplegado; aun así, para decu hace falta otro transporte
+   (filtrar por programa Pump, no por mención) o confirmar que el fallback
+   RPC no se ahoga con el mismo spam (`SIGNATURE_BACKLOG_REBASED` sugiere que
+   sí).
+5. El watchdog de PumpPortal a 120 s no es bug: `stream_last_account_event_ts`
+   es `null` desde el deploy; PumpPortal solo entrega tokens suscritos.
+
+## Números de cierre (06:01 UTC, `reports/ingest_coverage/2026-09-22T060106Z.json`)
+
+WSS 13/13 suscripciones, sin error. `silent: 9` (todavía; edad 185–514 h, 3
+nunca vistas). Nuevas con notificaciones Pump en 20 min: sapphy 7, hdegroot 9,
+ily 8, decu 7, gr3gor14n 2; `parsed 0` en todas. Señales 24 h: slingoor 19,
+Cooker 21, epicsealdarkeye 6, chriskogias 4. Dataset principal:
+`training_eligible 274`, `excluded_unfresh 1312`.
+
+## Pendiente, en orden
+
+1. Push + verificación de `13ded74` y `e9b1076` (mañana, con OK).
+2. Correr `scripts/ingest_coverage_report.py` a las 24 h del cambio de
+   wallets: `silent` debe bajar, `parsed` de las nuevas debe ser > 0 o
+   `unparsed_reasons` debe explicar por qué, `fetch_errors` vacío.
+3. decu: decidir transporte. Opciones: `logsSubscribe` con `mentions` del
+   programa Pump y filtrar por firmante (más volumen, menos spam) o
+   `getSignaturesForAddress` con filtro de programa en el fallback.
+4. Gates para operar siguen todos en `false`; sin modelo aprobable
+   (`training_eligible < 300`, challenger con blocker de holdout). Nada de
+   esto cambia hasta tener semanas de datos con 13 wallets.
