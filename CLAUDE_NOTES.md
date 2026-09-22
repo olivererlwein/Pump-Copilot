@@ -2595,3 +2595,52 @@ Prioridad que queda: **definir la salida del último 25 %** es ahora el
 bloqueo real, porque sin ella el 44,5 % de las operaciones no tiene resultado
 económico definido y no hay función de payoff completa que un modelo pueda
 aprender.
+
+## Cierre del último 25%: tres contrafactuales — 2026-09-22
+
+`scripts/remainder_exit_backtest.py`. Ladder, stop, entradas, señales,
+probabilidades y umbrales intactos; lo único que cambia es la regla del
+remanente. El trailing (30 % desde el pico) y el horizonte de 15 minutos se
+declararon antes de mirar resultados.
+
+**Las dos poblaciones no se parecen en nada.** De las 36 posiciones abiertas a
+umbral 0,45: **5 llegaron al TP100** y **31 nunca alcanzaron ninguna salida
+terminal**. `tp100` y `trailing` solo tocan las 5; `time` resuelve las 36.
+
+| política | cerradas | neto @0,45 | neto @0,50 | neto @0,55 | del 25 % | DD oper. |
+|---|---|---|---|---|---|---|
+| baseline | 44/80 | −5,344 | −0,927 | −0,353 | +0,000 | −2,819 |
+| tp100 | 49/80 | −3,469 | +0,949 | +1,522 | +1,888 | −2,021 |
+| trailing | 47/80 | −4,888 | −0,471 | +0,103 | +0,463 | −2,494 |
+| time | 80/80 | −4,320 | +0,081 | +0,640 | +1,317 | −3,226 |
+| tp100_time | 80/80 | −3,284 | +1,117 | +1,676 | +2,353 | −2,496 |
+
+Hallazgos:
+
+- **Cinco posiciones valen más que treinta y seis.** Liquidar el remanente al
+  tocar +100 % aporta +1,888 desde 5 posiciones; cerrar las 36 a los 15
+  minutos aporta +1,317. Dejar correr al ganador grande hasta el final del
+  horizonte devuelve buena parte de lo ganado.
+- **`tp100` no completa la función de pago**: deja 31 posiciones abiertas. Es
+  la mejor por PnL y por drawdown, pero no resuelve el problema que
+  motivó el ejercicio.
+- **`time` sí lo completa**, pero realiza muchas pérdidas medianas: la mediana
+  cae de −0,0100 a −0,1003 y el drawdown operativo empeora a −3,226. Sube el
+  win rate (26 % → 34 %) y baja la mediana: cierra ganadores chicos y
+  perdedores medianos que antes quedaban en suspenso.
+- **Una regla por población domina a cualquiera sola.** `tp100_time` cierra el
+  100 % y da el mejor neto en los tres umbrales, con drawdown cercano al de
+  `tp100`.
+- **El trailing no es evaluable con estos datos.** Con 20 %, 30 % y 40 % da
+  exactamente el mismo resultado: con solo 5 checkpoints y 5 posiciones que
+  llegan al TP100, la regla casi nunca se dispara de forma distinta. No hay
+  que leer sus números como evidencia a favor ni en contra.
+
+Límite que manda sobre todo lo demás: **ningún intervalo de confianza excluye
+el cero**, salvo el baseline a 0,45 que es negativo. La mediana sigue negativa
+en las cinco políticas. Y las cinco mejores operaciones aportan varias veces
+el neto total, o sea que el resto en conjunto destruye valor.
+
+Nada de esto elige política: este holdout ya fue inspeccionado muchas veces.
+Lo que sí deja es una especificación candidata —una regla por población— para
+congelar y medir contra datos nuevos.
