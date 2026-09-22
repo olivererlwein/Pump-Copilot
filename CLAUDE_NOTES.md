@@ -2247,3 +2247,20 @@ cruzar el umbral y el tráfico lento nunca acumula; el worker con
 resuscribe la sobreviviente.
 Verificación: **460 tests, OK**; los tres nuevos fallan contra el código
 anterior. No toca el camino del dinero ni ningún flag.
+
+## `scripts/ingest_coverage_report.py` — 2026-09-22 (noche)
+
+Un comando para la medición diaria: `python scripts/ingest_coverage_report.py`
+(token de `APP_TOKEN` en entorno o `.env`; `--base` para otro host). Lee
+`/api/status`, `/api/watched-wallets`, `/api/helius-standard-wss-stats`,
+`/api/rpc-fallback-stats`, `/api/signals` y `/api/training-stats`, imprime una
+tabla por wallet (silenciosa, edad, notificaciones Pump y parseadas 24 h, no
+almacenadas, muda, faltantes del fallback 24 h, señales 24 h) y guarda un
+snapshot en `reports/ingest_coverage/<UTC>.json`; si hay uno anterior,
+muestra el valor previo de wallets silenciosas. Solo lectura.
+
+Baseline tomado 06:01 UTC, veinte minutos después de pasar a 13 wallets:
+`silent: 9`; las nueve nuevas ya muestran notificaciones Pump (sapphy 7,
+hdegroot 9, ily 8, decu 7, gr3gor14n 2) pero `parsed 0`, a confirmar mañana si
+es `wallet_not_signer` o falta de tiempo. Los 66 `fetch_failed -32015` de la
+ventana de 24 h son anteriores al fix v1.
