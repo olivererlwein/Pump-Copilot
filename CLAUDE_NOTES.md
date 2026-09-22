@@ -2745,3 +2745,68 @@ mismos traders no es muestra independiente para la pregunta "¿la estrategia
 funciona?", solo para "¿funciona con estos traders?".** La validación necesita
 diversidad de traders, no solo volumen. Por eso el trabajo de cobertura de hoy
 —que sumó ily y marcell al dataset— es precondición estadística, no higiene.
+
+### Dos preguntas distintas, dos validaciones distintas
+
+Decir "n efectivo = 5" sirve para mostrar el problema, pero no es una
+equivalencia exacta. Son dos preguntas y solo una está limitada por los
+traders:
+
+**A. ¿`tp100_time` persiste en estos traders?** Acumular operaciones nuevas de
+los mismos traders **sí** sirve: gana precisión temporal sobre este universo.
+Diseño: datos temporalmente nuevos, mismos traders, umbral 0,45, misma
+política, leave-one-out por operación y por mint, concentración del PnL, IC
+sobre la muestra futura.
+
+**B. ¿`tp100_time` generaliza a traders nuevos?** Acá el cuello son los
+traders independientes, y con 5 —hoy 7— la evidencia transversal es muy
+débil. Diseño: más traders reales, resultado individual por trader,
+**leave-one-trader-out**, cuánto cambia el PnL al quitar cada uno, porcentaje
+de traders con resultado positivo, y comprobar que el agregado no depende de
+uno solo.
+
+Con 5–7 clusters **no hay que confiar en errores estándar clusterizados ni en
+bootstrap por cluster**: técnicamente se calculan, pero la inferencia es
+frágil. Ver los resultados trader por trader y hacer leave-one-trader-out es
+más informativo y más honesto.
+
+#### Evidencia actual sobre la pregunta B (holdout, diagnóstico)
+
+`tp100_time` @0,45, medio agregado −0,0410:
+
+| trader | n | medio | positivas |
+|---|---|---|---|
+| slingoor | 28 | +0,1083 | 11/28 |
+| epicsealdarkeye | 19 | −0,2509 | 1/19 |
+| Cooker | 17 | −0,0740 | 4/17 |
+| chriskogias | 15 | −0,0227 | 6/15 |
+| ily | 1 | +0,0498 | 1/1 |
+
+Leave-one-trader-out: sin epicsealdarkeye el medio pasa a **+0,0243**; sin
+slingoor cae a **−0,1215**. **Quitar un solo trader mueve la media ±0,08, el
+doble del efecto agregado.** Solo 2 de 5 traders tienen media positiva y uno
+tiene n=1. El resultado agregado es la cancelación entre un trader muy bueno y
+uno catastrófico, no una propiedad de la política.
+
+### Preregistro de los criterios
+
+Los criterios de aprobación y el de diversidad de traders **se añadieron
+después de analizar el holdout actual**. No se usan para reinterpretar el
+resultado existente y quedan preregistrados exclusivamente para datos futuros.
+Que nadie dentro de dos semanas los confunda con reglas que existían antes del
+holdout anterior.
+
+### Cobertura parcial: peor que excluir
+
+Sumar un trader con cobertura incompleta **puede ser peor que dejarlo fuera**:
+parece diversidad y en realidad introduce selección de operaciones.
+
+Riesgo concreto abierto: `RPC_FALLBACK_APPLY` está activo y decu sigue en
+`WATCHED`. Su cola de firmas cubre menos de un segundo y el fallback procesa
+~2 transacciones por poll cada 90 s, así que lo que capture de decu será **una
+muestra arbitraria de sus operaciones, no sus operaciones**. Aparecería como
+un trader más con un puñado de filas no representativas.
+
+Mitigación propuesta, **no aplicada**: que el fallback no aplique operaciones
+de wallets marcadas en `saturated_wallets` —se siguen registrando para medir
+cobertura, pero no alimentan decisiones ni dataset—. El estado ya existe.
