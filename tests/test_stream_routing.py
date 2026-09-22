@@ -40,6 +40,7 @@ class MarketEventRoutingTests(unittest.TestCase):
             source="live",
             allow_live_buys=True,
             allow_live_exits=True,
+            transport="live",
         )
         self.effects["process_signal_outcomes_event"].assert_not_called()
 
@@ -50,6 +51,7 @@ class MarketEventRoutingTests(unittest.TestCase):
             event,
             allow_live_buys=False,
             allow_live_exits=True,
+            transport="rpc",
         )
 
         self.effects["save_trade"].assert_called_once_with(
@@ -59,6 +61,7 @@ class MarketEventRoutingTests(unittest.TestCase):
             source="live",
             allow_live_buys=False,
             allow_live_exits=True,
+            transport="rpc",
         )
 
     def test_tracking_removed_by_wallet_update_still_records_outcome(self):

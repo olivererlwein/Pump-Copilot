@@ -354,7 +354,57 @@ class MarketEventInboxConsumerTests(unittest.TestCase):
         self.assertEqual(route.call_args.kwargs, {
             "allow_live_buys": False,
             "allow_live_exits": False,
+            "transport": "rpc",
         })
+
+    def test_rpc_signal_is_marked_in_trades_and_evaluations(self):
+        """Una entrada detectada tarde tiene que ser separable del dataset.
+
+        Paper abre al market cap del evento, no al del momento en que lo
+        detectamos: sin la marca, esas filas parecen fills alcanzables.
+        """
+        self.insert_validated_event(
+            source="rpc",
+            event_fields={
+                "traderPublicKey": "wallet-1",
+                "solAmount": 1.0,
+                "marketCapSol": 100.0,
+                "tokenAmount": 10.0,
+                "newTokenBalance": 10.0,
+            },
+        )
+        app.establish_market_event_inbox_activation(now=200.5)
+
+        with (
+            patch.object(app, "WATCHED", {"trader-1": "wallet-1"}),
+            patch.object(app, "open_paper_position"),
+            patch.object(app, "observe_shadow_signal"),
+        ):
+            app.consume_market_event_inbox_once(now=205.0)
+
+        conn = app.db()
+        try:
+            trade = conn.execute(
+                "SELECT source, transport FROM trades "
+                "WHERE signature = 'sig-1'"
+            ).fetchone()
+            evaluation = conn.execute(
+                "SELECT source, transport FROM evaluations "
+                "WHERE trade_signature = 'sig-1'"
+            ).fetchone()
+            activity = conn.execute(
+                "SELECT events FROM watched_wallet_activity "
+                "WHERE wallet = 'wallet-1'"
+            ).fetchone()
+        finally:
+            conn.close()
+
+        # `source` sigue diciendo real-o-demo, que es lo que filtra el
+        # scoring; el transporte va aparte.
+        self.assertEqual(trade, ("live", "rpc"))
+        self.assertEqual(evaluation, ("live", "rpc"))
+        # Y la wallet cuenta como entregando, venga por donde venga.
+        self.assertEqual(activity[0], 1)
 
     def test_rpc_event_already_applied_by_another_transport_is_a_duplicate(self):
         self.insert_validated_event(source="rpc")
@@ -397,7 +447,11 @@ class MarketEventInboxConsumerTests(unittest.TestCase):
         self.assertEqual(routed["eventIndex"], 0)
         self.assertEqual(
             route.call_args.kwargs,
-            {"allow_live_buys": False, "allow_live_exits": True},
+            {
+                "allow_live_buys": False,
+                "allow_live_exits": True,
+                "transport": "helius",
+            },
         )
         self.assertEqual(self.row()[0], "processed")
 

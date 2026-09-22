@@ -2395,3 +2395,42 @@ con `source='rpc'` y se rutea con ambas banderas live en falso; una fila `rpc`
 que otro transporte ya aplicó queda duplicada sin rutear.
 Verificación: **464 tests, OK**; los tests nuevos fallan contra el código
 anterior. El flag queda apagado: activarlo es una decisión aparte.
+
+## El transporte llega hasta `trades` y `evaluations` — 2026-09-22
+
+Antes de activar `RPC_FALLBACK_APPLY` faltaba poder distinguir sus filas.
+`route_market_event()` pasaba `source="live"` fijo, así que una señal del
+fallback quedaba idéntica a una del stream en `trades`, `evaluations` y por lo
+tanto en el dataset. Importa porque paper abre al market cap del evento, que
+es el precio del momento del trade y no el de la detección: una entrada del
+fallback registra un fill que no era alcanzable, y sin marca el modelo
+aprende de entradas optimistas sin forma de filtrarlas después.
+
+La primera idea —sobrescribir `trades.source` con el transporte— era un bug
+esperando: cinco consultas filtran por `source = 'live'` para decir "real, no
+demo", entre ellas el consenso de scoring (`app.py:9514`) y las estadísticas
+de trader (`6454`, `6705`). Habrían dejado fuera todo lo que no viniera del
+stream. `source` sigue significando real-o-demo; el transporte va en una
+columna nueva.
+
+- `trades.transport` y `evaluations.transport`, ambas `DEFAULT 'live'` por
+  `ALTER TABLE` idempotente: las filas históricas quedan como lo que eran.
+- `transport` viaja por `route_market_event()` → `save_trade()` →
+  `evaluate_buy()`. El consumidor del inbox pasa el suyo (`helius` o `rpc`);
+  el stream conserva `live`.
+- `/api/signals` expone `transport` por señal.
+- El guard del detector de silencio pasa de `source == "live"` a
+  `source != "demo"`: pregunta si la wallet nos está llegando, no por dónde.
+  Con el transporte real en juego, la condición vieja habría marcado como
+  silenciosas a wallets que sí entregan por Helius o RPC.
+- `signature_overlap` en las estadísticas del WSS ya comparaba
+  `trades.source = 'helius'`, que nunca podía darse porque todo se escribía
+  como `live`: `trades_helius` era siempre 0. Ahora mira `transport` y mide lo
+  que decía medir.
+
+Tests: una señal `rpc` queda con `source='live'` y `transport='rpc'` en
+`trades` y en `evaluations`, y cuenta como entrega de la wallet; las llamadas
+de ruteo trasladan el transporte; el test de solapamiento del WSS siembra
+`transport` y vuelve a distinguir los transportes.
+Verificación: **465 tests, OK**; el test nuevo falla contra el código anterior
+(`no such column: transport`). `RPC_FALLBACK_APPLY` sigue apagado.

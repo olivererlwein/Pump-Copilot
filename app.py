@@ -5515,7 +5515,15 @@ def migrate_database():
 
         "pool":
             "ALTER TABLE trades "
-            "ADD COLUMN pool TEXT DEFAULT ''"
+            "ADD COLUMN pool TEXT DEFAULT ''",
+
+        # `source` distingue real de demo y varias consultas de scoring
+        # filtran por `source = 'live'`; sobrescribirlo con el transporte
+        # dejaría fuera del consenso y de las estadísticas de trader todo lo
+        # que no venga del stream. El transporte va en su propia columna.
+        "transport":
+            "ALTER TABLE trades "
+            "ADD COLUMN transport TEXT DEFAULT 'live'",
     }
 
 
@@ -5730,7 +5738,14 @@ def migrate_database():
 
         "data_version":
             "ALTER TABLE evaluations "
-            "ADD COLUMN data_version INTEGER DEFAULT 0",    
+            "ADD COLUMN data_version INTEGER DEFAULT 0",
+
+        # Qué transporte trajo la señal. El fallback RPC detecta hasta 90
+        # segundos tarde, así que una fila suya tiene un precio de entrada que
+        # no era alcanzable: el dataset necesita poder separarlas.
+        "transport":
+            "ALTER TABLE evaluations "
+            "ADD COLUMN transport TEXT DEFAULT 'live'",
     }
 
     for column, sql in evaluation_migrations.items():
@@ -9837,6 +9852,7 @@ def evaluate_buy(
     source="live",
     price_at_signal=0.0,
     allow_live_buys=True,
+    transport="live",
 ):
 
     mint = (
@@ -10017,12 +10033,14 @@ def evaluate_buy(
 
                 data_version,
 
-                reasons
+                reasons,
+
+                transport
 
             )
 
             VALUES(
-                ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+                ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
             )
             """,
             (
@@ -10059,7 +10077,8 @@ def evaluate_buy(
                 sol_amount,
 
                 DATA_VERSION,
-                json.dumps(reasons)
+                json.dumps(reasons),
+                transport
             )
         )
 
@@ -11466,6 +11485,7 @@ def consume_market_event_inbox_once(limit=None, now=None):
                         event,
                         allow_live_buys=False,
                         allow_live_exits=(transport != "rpc"),
+                        transport=transport,
                     )
                     status = "processed"
                     error = None
@@ -11952,6 +11972,7 @@ def save_trade(
     source="live",
     allow_live_buys=True,
     allow_live_exits=True,
+    transport="live",
 ):
 
     side = str(
@@ -12061,12 +12082,14 @@ def save_trade(
 
             new_token_balance,
 
-            pool
+            pool,
+
+            transport
 
         )
 
         VALUES(
-            ?,?,?,?,?,?,?,?,?,?,?,?
+            ?,?,?,?,?,?,?,?,?,?,?,?,?
         )
         """,
         (
@@ -12092,12 +12115,17 @@ def save_trade(
 
             paper_new_token_balance,
 
-            pool
+            pool,
+
+            transport
         )
     )
 
 
-    if source == "live" and wallet:
+    # Cualquier transporte real cuenta como entrega de la wallet: el detector
+    # de silencio pregunta si la wallet nos está llegando, no por dónde. Solo
+    # la ruta de demo queda afuera.
+    if source != "demo" and wallet:
         conn.execute(
             """
             INSERT INTO watched_wallet_activity(
@@ -12151,6 +12179,7 @@ def save_trade(
             source,
             price_at_signal,
             allow_live_buys=allow_live_buys,
+            transport=transport,
         )
     
 
@@ -13262,7 +13291,12 @@ async def mark_stream_recovered():
             "Pump Copilot: PumpPortal data connection recovered."
         )
 
-def route_market_event(event, allow_live_buys=True, allow_live_exits=True):
+def route_market_event(
+    event,
+    allow_live_buys=True,
+    allow_live_exits=True,
+    transport="live",
+):
     """Apply an already deduplicated event using the existing live semantics.
 
     Transport authentication, deduplication and retry handling belong to the
@@ -13295,6 +13329,7 @@ def route_market_event(event, allow_live_buys=True, allow_live_exits=True):
             source="live",
             allow_live_buys=allow_live_buys,
             allow_live_exits=allow_live_exits,
+            transport=transport,
         )
 
     if not is_tracked_token:
@@ -14422,7 +14457,9 @@ def signals(
                 FROM signal_outcomes o
                 WHERE o.signal_id = evaluations.id
                 LIMIT 1
-            )
+            ),
+
+            transport
 
         FROM evaluations
 
@@ -14473,7 +14510,10 @@ def signals(
                 int(r[9] or 0),
 
             "outcome_status":
-                r[10]
+                r[10],
+
+            "transport":
+                r[11] or "live"
 
         }
 
@@ -17706,11 +17746,13 @@ def api_helius_standard_wss_stats(
             SELECT COUNT(*),
                    COALESCE(SUM(EXISTS(
                        SELECT 1 FROM trades t
-                       WHERE t.signature = w.signature AND t.source = 'live'
+                       WHERE t.signature = w.signature
+                         AND t.transport = 'live'
                    )), 0),
                    COALESCE(SUM(EXISTS(
                        SELECT 1 FROM trades t
-                       WHERE t.signature = w.signature AND t.source = 'helius'
+                       WHERE t.signature = w.signature
+                         AND t.transport = 'helius'
                    )), 0),
                    COALESCE(SUM(EXISTS(
                        SELECT 1 FROM helius_webhook_events h

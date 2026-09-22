@@ -801,19 +801,21 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
         conn = app.db()
         try:
             conn.execute(
-                "INSERT INTO trades(ts, signature, source) "
-                "VALUES (?, ?, ?)",
-                (1_700_000_000, "signature-a", "live"),
+                "INSERT INTO trades(ts, signature, source, transport) "
+                "VALUES (?, ?, ?, ?)",
+                (1_700_000_000, "signature-a", "live", "live"),
             )
             conn.execute(
-                "INSERT INTO trades(ts, signature, source) "
-                "VALUES (?, ?, ?)",
-                (1_700_000_000, "signature-a", "live"),
+                "INSERT INTO trades(ts, signature, source, transport) "
+                "VALUES (?, ?, ?, ?)",
+                (1_700_000_000, "signature-a", "live", "live"),
             )
+            # El transporte vive en su propia columna: `source` sigue
+            # distinguiendo real de demo para el scoring.
             conn.execute(
-                "INSERT INTO trades(ts, signature, source) "
-                "VALUES (?, ?, ?)",
-                (1_700_000_000, "signature-a", "helius"),
+                "INSERT INTO trades(ts, signature, source, transport) "
+                "VALUES (?, ?, ?, ?)",
+                (1_700_000_000, "signature-a", "live", "helius"),
             )
             conn.execute(
                 "INSERT INTO helius_webhook_events"
