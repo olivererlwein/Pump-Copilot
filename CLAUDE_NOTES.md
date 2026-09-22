@@ -2810,3 +2810,34 @@ un trader más con un puñado de filas no representativas.
 Mitigación propuesta, **no aplicada**: que el fallback no aplique operaciones
 de wallets marcadas en `saturated_wallets` —se siguen registrando para medir
 cobertura, pero no alimentan decisiones ni dataset—. El estado ya existe.
+
+## Cobertura incompleta: medir sin aplicar — 2026-09-22
+
+Corrección de un riesgo que planteé mal. Dije que `RPC_FALLBACK_APPLY` podía
+aplicar una muestra arbitraria de decu. **Falso**: una wallet que desborda el
+poll (≥1000 firmas) hace `continue` y **nunca se encola**, así que decu ya no
+se aplicaba. Lo destapó el test, que dejaba el contador en cero.
+
+Pero verificarlo expuso el riesgo real, que sí estaba abierto y es peor: **la
+wallet intermitente**. Se cubre entera en los polls tranquilos y descarta
+historia en los agitados. Los eventos que sí se aplican son entonces una
+muestra **sesgada hacia sus períodos de calma**, que son justo los que no
+importan: los pumps ocurren en los agitados. Y como al poll siguiente vuelve a
+parecer bien cubierta, nada lo delata.
+
+- `rpc_fallback_wallet_state.last_rebase_ts` (ALTER idempotente) registra
+  cuándo la wallet descartó historia por última vez.
+- Mientras esté dentro de `RPC_FALLBACK_COVERAGE_RECOVERY_SECONDS` (3600 por
+  defecto), sus operaciones **se registran para medir cobertura pero no se
+  aplican**. Vuelve a ser aplicable tras una ventana completa sin rebasar.
+- `/api/rpc-fallback-stats` expone `withheld_incomplete_coverage`.
+
+La regla es la que corresponde: **si no se puede demostrar cobertura
+suficiente de una wallet, sus operaciones no se usan para inferencia nueva.**
+Cobertura parcial es peor que exclusión porque parece diversidad e introduce
+selección silenciosa justo en el dataset con el que se quiere validar
+generalización.
+
+Test: la wallet desborda, rebasa, y en el poll tranquilo siguiente —cuando ya
+no está saturada— sus eventos quedan retenidos; pasada la ventana vuelve a
+aplicar. Verificación: **466 tests, OK**.

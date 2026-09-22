@@ -568,6 +568,61 @@ class RpcFallbackPersistenceTests(unittest.TestCase):
             block_event_ts, receipt_for(applied_signature)["blockTime"]
         )
 
+    def test_saturated_wallet_is_measured_but_never_applied(self):
+        """Cobertura parcial es peor que exclusión: parece diversidad.
+
+        De una wallet cuya cola de firmas desborda el poll solo se captura una
+        muestra arbitraria. Entra al dataset como un trader más con filas no
+        representativas, y esa selección es muy difícil de detectar después.
+        """
+        receipt = pump_receipt()
+
+        def poll(rows, recovery_seconds=3600):
+            with (
+                patch.object(app, "WATCHED", {"trader-a": WALLET}),
+                patch.object(
+                    app, "fetch_signatures_for_address", return_value=rows
+                ),
+                patch.object(
+                    app, "fetch_confirmed_transaction", return_value=receipt
+                ),
+                patch.object(app, "RPC_FALLBACK_APPLY", True),
+                patch.object(
+                    app, "RPC_FALLBACK_COVERAGE_RECOVERY_SECONDS",
+                    recovery_seconds,
+                ),
+                patch.object(
+                    app, "record_helius_webhook_transactions"
+                ) as apply_fn,
+            ):
+                app.poll_rpc_fallback_once()
+                return apply_fn
+
+        quiet = [{"signature": SIGNATURE, "slot": 10, "err": None}]
+        flooded = quiet + [
+            {"signature": f"pad-{index}", "slot": 10, "err": None}
+            for index in range(1000)
+        ]
+
+        poll(quiet)                       # línea base de la wallet
+        poll(flooded)                     # desborda: descarta historia
+        self.assertIn("trader-a", app.get_rpc_fallback_stats()["saturated_wallets"])
+
+        # El poll siguiente la encuentra tranquila y la procesa entera. Sin la
+        # marca persistente volvería a parecer bien cubierta, y lo aplicado
+        # sería una muestra sesgada hacia sus períodos de calma.
+        withheld = poll(quiet)
+        withheld.assert_not_called()
+        stats = app.get_rpc_fallback_stats()
+        self.assertGreater(stats["withheld_incomplete_coverage"], 0)
+        # Se sigue registrando para medir cobertura aunque no alimente nada.
+        self.assertGreater(stats["total"], 0)
+
+        # Pasada la ventana sin volver a descartar historia, vuelve a aplicar.
+        # Ventana cero equivale a que ya transcurrió: el rebase fue antes.
+        applied = poll(quiet, recovery_seconds=0)
+        applied.assert_called_once()
+
     def test_missing_event_reports_what_the_wss_transport_saw(self):
         """Separa "el transporte nunca lo trajo" de "lo trajo y falló"."""
         app.record_rpc_fallback_event(

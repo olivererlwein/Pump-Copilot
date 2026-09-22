@@ -684,6 +684,19 @@ RPC_FALLBACK_LAST_ERROR = ""
 RPC_FALLBACK_SCANNED_SIGNATURES = 0
 RPC_FALLBACK_PARSED_EVENTS = 0
 RPC_FALLBACK_SATURATED_WALLETS = []
+# Una wallet saturada devuelve más firmas de las que el poll puede recorrer:
+# de decu, las últimas 100 cubren menos de un segundo. Lo que se capture de
+# ella es una muestra arbitraria de sus operaciones, no sus operaciones, y
+# aplicarla la haría aparecer en el dataset como un trader más con filas no
+# representativas. Cobertura parcial es peor que exclusión: parece diversidad
+# e introduce selección silenciosa. Se siguen registrando para medir
+# cobertura; simplemente no alimentan decisiones.
+RPC_FALLBACK_WITHHELD_EVENTS = 0
+# Cuánto tiene que aguantar una wallet sin descartar historia para volver a
+# ser aplicable. Una hora cubre de sobra varios polls de 90 segundos.
+RPC_FALLBACK_COVERAGE_RECOVERY_SECONDS = max(
+    60, int(os.getenv("RPC_FALLBACK_COVERAGE_RECOVERY_SECONDS", "3600"))
+)
 
 # Historial corto de mensajes del proveedor. Antes solo se guardaba el último,
 # así que la respuesta a subscribeAccountTrade se perdía apenas llegaba
@@ -5780,6 +5793,17 @@ def migrate_database():
     except Exception:
         pass
     conn.execute("UPDATE rpc_fallback_wallet_state SET baseline_ts = COALESCE(baseline_ts, ?)", (time.time(),))
+
+    # Cuándo fue la última vez que esta wallet desbordó el poll y hubo que
+    # rebasar su cursor. Rebasar descarta historia: la wallet queda con huecos
+    # justo en sus períodos más activos, que son los que importan. Sin esta
+    # marca, en el siguiente poll tranquilo vuelve a parecer bien cubierta.
+    try:
+        conn.execute(
+            "ALTER TABLE rpc_fallback_wallet_state ADD COLUMN last_rebase_ts REAL"
+        )
+    except Exception:
+        pass
 
     conn.execute(
         """
@@ -12622,7 +12646,7 @@ def get_rpc_fallback_wallet_states():
         """
         SELECT
             wallet, trader, last_signature, last_slot,
-            last_polled_ts, baseline_ts, last_error
+            last_polled_ts, baseline_ts, last_error, last_rebase_ts
         FROM rpc_fallback_wallet_state
         """
     ).fetchall()
@@ -12636,6 +12660,7 @@ def get_rpc_fallback_wallet_states():
             "last_polled_ts": row[4],
             "baseline_ts": row[5],
             "last_error": row[6] or "",
+            "last_rebase_ts": row[7],
         }
         for row in rows
     }
@@ -12647,15 +12672,16 @@ def update_rpc_fallback_wallet_state(
     last_signature=None,
     last_slot=None,
     last_error="",
+    rebased=False,
 ):
     conn = db()
     conn.execute(
         """
         INSERT INTO rpc_fallback_wallet_state(
             wallet, trader, last_signature, last_slot,
-            last_polled_ts, baseline_ts, last_error
+            last_polled_ts, baseline_ts, last_error, last_rebase_ts
         )
-        VALUES(?,?,?,?,?,?,?)
+        VALUES(?,?,?,?,?,?,?,?)
         ON CONFLICT(wallet) DO UPDATE SET
             trader = excluded.trader,
             last_signature = COALESCE(
@@ -12668,7 +12694,11 @@ def update_rpc_fallback_wallet_state(
             ),
             last_polled_ts = excluded.last_polled_ts,
             baseline_ts = COALESCE(rpc_fallback_wallet_state.baseline_ts, excluded.baseline_ts),
-            last_error = excluded.last_error
+            last_error = excluded.last_error,
+            last_rebase_ts = COALESCE(
+                excluded.last_rebase_ts,
+                rpc_fallback_wallet_state.last_rebase_ts
+            )
         """,
         (
             wallet,
@@ -12678,6 +12708,7 @@ def update_rpc_fallback_wallet_state(
             time.time(),
             time.time(),
             str(last_error or "")[:500],
+            time.time() if rebased else None,
         ),
     )
     conn.commit()
@@ -12834,12 +12865,23 @@ def poll_rpc_fallback_once():
     global RPC_FALLBACK_SCANNED_SIGNATURES
     global RPC_FALLBACK_PARSED_EVENTS
     global RPC_FALLBACK_SATURATED_WALLETS
+    global RPC_FALLBACK_WITHHELD_EVENTS
 
     RPC_FALLBACK_LAST_POLL_TS = time.time()
     states = get_rpc_fallback_wallet_states()
     queues = {}
     errors = []
     saturated = []
+    # Una wallet vuelve a ser aplicable recién tras una ventana completa sin
+    # descartar historia. Se lee una vez por poll, no por transacción.
+    recovery_cutoff = time.time() - RPC_FALLBACK_COVERAGE_RECOVERY_SECONDS
+    rebased_recently = {
+        wallet: bool(
+            state.get("last_rebase_ts")
+            and float(state["last_rebase_ts"]) >= recovery_cutoff
+        )
+        for wallet, state in get_rpc_fallback_wallet_states().items()
+    }
     successful_queries = 0
 
     for trader, wallet in WATCHED.items():
@@ -12906,6 +12948,7 @@ def poll_rpc_fallback_once():
                 last_signature=str(rows[0]["signature"]),
                 last_slot=rows[0].get("slot"),
                 last_error=error,
+                rebased=True,
             )
             continue
 
@@ -12970,13 +13013,22 @@ def poll_rpc_fallback_once():
             # otro transporte ya aplicó la operación, el consumidor la marca
             # duplicada y no se aplica dos veces.
             if RPC_FALLBACK_APPLY and parsed_events:
-                record_helius_webhook_transactions(
-                    [receipt],
-                    received_ts=time.time(),
-                    persist_inbox=True,
-                    persist_observation=False,
-                    inbox_source="rpc",
-                )
+                # No alcanza con mirar si desbordó en este poll: una wallet
+                # intermitente se cubre entera en los polls tranquilos y
+                # descarta historia en los agitados, que son justo los que
+                # importan. Lo aplicado sería una muestra sesgada hacia sus
+                # períodos de calma. Hasta que pase una ventana completa sin
+                # rebasar, sus operaciones se miden pero no se aplican.
+                if rebased_recently.get(wallet):
+                    RPC_FALLBACK_WITHHELD_EVENTS += len(parsed_events)
+                else:
+                    record_helius_webhook_transactions(
+                        [receipt],
+                        received_ts=time.time(),
+                        persist_inbox=True,
+                        persist_observation=False,
+                        inbox_source="rpc",
+                    )
 
             update_rpc_fallback_wallet_state(
                 wallet,
@@ -13189,6 +13241,9 @@ def get_rpc_fallback_stats():
     return {
         "enabled": bool(RPC_FALLBACK_SHADOW_ENABLED),
         "apply": bool(RPC_FALLBACK_APPLY),
+        # Operaciones que el fallback vio pero no aplicó por venir de una
+        # wallet cuya cobertura no puede demostrarse.
+        "withheld_incomplete_coverage": RPC_FALLBACK_WITHHELD_EVENTS,
         "observational": not RPC_FALLBACK_APPLY,
         "affects_decisions": bool(
             RPC_FALLBACK_APPLY and MARKET_EVENT_INBOX_CONSUMER_ENABLED
