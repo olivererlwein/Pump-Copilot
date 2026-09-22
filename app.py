@@ -16241,6 +16241,17 @@ def get_account_checkpoint_observations():
             "target_tp25_before_sl10": target,
             "tp_checkpoint_seconds": tp_checkpoint,
             "sl_checkpoint_seconds": sl_checkpoint,
+            # La etiqueta binaria no alcanza para estimar PnL: la política real
+            # vende escalonado en +25/+50/+100 y corta en -20, así que hace
+            # falta la trayectoria, no solo si tocó +25 antes que -10.
+            "checkpoint_path": [
+                {
+                    "checkpoint_seconds": seconds,
+                    "price_sol": price,
+                    "observed_ts": observed_ts,
+                }
+                for seconds, price, observed_ts in ordered
+            ],
         })
     return observations
 
@@ -17608,6 +17619,39 @@ def api_account_checkpoint_training_dataset(
     return {
         "data_version": DATA_VERSION,
         "label_source": "account_checkpoints_v1",
+        "count": len(rows),
+        "rows": rows,
+    }
+
+
+@app.get("/api/account-checkpoint-paths")
+def api_account_checkpoint_paths(
+    x_app_token: str = Header(default="")
+):
+    """Trayectoria de precios por señal, para estimar PnL fuera del servicio.
+
+    La etiqueta binaria dice si tocó +25% antes que -10%; no alcanza para
+    saber qué habría rendido la política real, que vende escalonado y corta
+    en -20%. Solo lectura: no entrena, no etiqueta y no decide nada.
+    """
+    auth(x_app_token)
+    rows = [
+        {
+            "signal_id": row["signal_id"],
+            "signal_ts": row["signal_ts"],
+            "trader": row["trader"],
+            "mint": row["mint"],
+            "price_at_signal": row["price_at_signal"],
+            "target_tp25_before_sl10": row["target_tp25_before_sl10"],
+            "tp_checkpoint_seconds": row["tp_checkpoint_seconds"],
+            "sl_checkpoint_seconds": row["sl_checkpoint_seconds"],
+            "checkpoint_path": row["checkpoint_path"],
+        }
+        for row in get_account_checkpoint_observations()
+    ]
+    return {
+        "label_source": "account_checkpoints_v1",
+        "affects_decisions": False,
         "count": len(rows),
         "rows": rows,
     }
