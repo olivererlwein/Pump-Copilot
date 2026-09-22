@@ -4471,7 +4471,8 @@ def fetch_finalized_solana_transaction(signature):
             "jsonrpc": "2.0", "id": 1, "method": "getTransaction",
             "params": [signature, {
                 "encoding": "jsonParsed", "commitment": "finalized",
-                "maxSupportedTransactionVersion": 0,
+                "maxSupportedTransactionVersion":
+                    solana_rpc_fallback.MAX_SUPPORTED_TRANSACTION_VERSION,
             }],
         }).encode("utf-8"),
         headers={"Content-Type": "application/json"},

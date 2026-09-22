@@ -6,9 +6,9 @@
     "semantic_hash": "5ebef3dd159986e465ab65e4014107ec"
   },
   "app.py": {
-    "mtime": 1790051327.4102526,
-    "seen": 1790051382.8249125,
-    "ast_hash": "536421f21ea12c0e2cfac960671b3a60",
+    "mtime": 1790054014.9318573,
+    "seen": 1790054049.0743701,
+    "ast_hash": "4a57dbd34a7433d0df160325e2c342e7",
     "semantic_hash": ""
   },
   "models/baseline_v2_shadow.json": {
@@ -234,15 +234,15 @@
     "semantic_hash": ""
   },
   "solana_receipts.py": {
-    "mtime": 1788997290.3075304,
-    "seen": 1788997469.078629,
-    "ast_hash": "284e782a82137ec27770227134a034a0",
+    "mtime": 1790054014.9343433,
+    "seen": 1790054049.0744488,
+    "ast_hash": "90486d0b1d5f4c8f9cc92ab04b54fe7a",
     "semantic_hash": ""
   },
   "tests/test_solana_receipts.py": {
-    "mtime": 1789856204.2872791,
-    "seen": 1789856412.982597,
-    "ast_hash": "45f85d6272f3e32fee16cb2c7e74e6c9",
+    "mtime": 1790053897.4671931,
+    "seen": 1790054049.0745049,
+    "ast_hash": "72d9bb4ba2cf12dd344e4d71731c60b9",
     "semantic_hash": ""
   },
   "tests/test_trader_quality.py": {
@@ -252,9 +252,9 @@
     "semantic_hash": ""
   },
   "CLAUDE_NOTES.md": {
-    "mtime": 1789359002.4639993,
-    "seen": 1789410087.1350648,
-    "ast_hash": "a29708565594431b97fdde5ba301caf4",
+    "mtime": 1790054039.9943159,
+    "seen": 1790054049.0745797,
+    "ast_hash": "3553725af1a08a5c87910be410e87cef",
     "semantic_hash": ""
   },
   "2026-09-10.md": {
@@ -264,15 +264,15 @@
     "semantic_hash": ""
   },
   "solana_rpc_fallback.py": {
-    "mtime": 1790051327.4112525,
-    "seen": 1790051382.824933,
-    "ast_hash": "ac8e49efcb947e50118c30be8ffaff80",
+    "mtime": 1790054014.9366016,
+    "seen": 1790054049.0744524,
+    "ast_hash": "af16a430ca04b7b85a1f87d8f7df4a6e",
     "semantic_hash": ""
   },
   "tests/test_rpc_fallback.py": {
-    "mtime": 1790051255.9512115,
-    "seen": 1790051382.824943,
-    "ast_hash": "ed80cf50d4224d61323955d888e86ed8",
+    "mtime": 1790053897.466207,
+    "seen": 1790054049.0744956,
+    "ast_hash": "6dc756ebf9ff4a7ac776d88362983074",
     "semantic_hash": ""
   },
   "reports/ablation_report_2026-09-11.json": {
@@ -393,6 +393,12 @@
     "mtime": 1789802391.8415105,
     "seen": 1789802621.569728,
     "ast_hash": "6e6690bfbf912dcb7bbdd5aab96473f2",
+    "semantic_hash": ""
+  },
+  "tests/fixtures/pumpswap_sell_v1.json": {
+    "mtime": 1790053873.7280715,
+    "seen": 1790054049.0744574,
+    "ast_hash": "59d1f001e0c6fbebe34b91886713271a",
     "semantic_hash": ""
   }
 }

@@ -113,12 +113,34 @@ class ReceiptAccountingTests(unittest.TestCase):
         self.assertEqual(payload["method"], "getTransaction")
         self.assertEqual(payload["params"][1], {
             "encoding": "jsonParsed", "commitment": "finalized",
-            "maxSupportedTransactionVersion": 0,
+            "maxSupportedTransactionVersion": 1,
         })
         for payload in ({"error": {}}, {"result": []}, {}):
             response.read.return_value = json.dumps(payload).encode()
             with patch.object(app, "urlopen", return_value=response), self.assertRaises(ValueError):
                 app.fetch_finalized_solana_transaction(SIGNATURE)
+
+    def test_real_version_one_sell_receipt_is_accepted_and_version_two_is_not(self):
+        fixture = json.loads(
+            (Path(__file__).parent / "fixtures" / "pumpswap_sell_v1.json")
+            .read_text(encoding="utf-8")
+        )
+        receipt = fixture["transaction"]
+        mint = "EkEq6teGMFEwrs2pWNbCEgSqEoV4q8WLBg9k6SKcgvh"
+        self.assertEqual(receipt["version"], 1)
+
+        fill = parse_sell_receipt(
+            receipt, fixture["signature"], fixture["wallet"], mint
+        )
+        self.assertEqual(fill["token_amount_raw"], "1542898009062")
+        self.assertEqual(fill["net_sol_credit_lamports"], "560623763")
+        self.assertEqual(fill["network_fee_lamports"], "74391")
+
+        receipt["version"] = 2
+        with self.assertRaisesRegex(ValueError, "UNSUPPORTED_TRANSACTION_VERSION"):
+            parse_sell_receipt(
+                receipt, fixture["signature"], fixture["wallet"], mint
+            )
 
     def test_sell_receipt_reports_exact_tokens_and_net_proceeds(self):
         receipt = sell_receipt()

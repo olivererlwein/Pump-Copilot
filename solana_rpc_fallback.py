@@ -22,6 +22,13 @@ BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 LAMPORTS_PER_SOL = 1_000_000_000
 PUMP_TOKEN_SUPPLY = 1_000_000_000
 
+# Solana ya produce transacciones versión 1 (mensaje con `transactionConfig`).
+# Con 0, el RPC responde `-32015` y cada trade v1 de una wallet vigilada se
+# perdía como `fetch_failed`. Para `jsonParsed` la forma de meta, balances y
+# accountKeys es la misma; el parser de recibos lo comprobó con uno real
+# (tests/fixtures/pumpswap_sell_v1.json).
+MAX_SUPPORTED_TRANSACTION_VERSION = 1
+
 RPC_MIN_REQUEST_INTERVAL_SECONDS = 0.2
 RPC_RETRY_DELAYS_SECONDS = (0.5, 1.0, 2.0)
 _RPC_REQUEST_LOCK = threading.Lock()
@@ -137,7 +144,7 @@ def fetch_confirmed_transaction(rpc_url, signature):
         [signature, {
             "encoding": "jsonParsed",
             "commitment": "confirmed",
-            "maxSupportedTransactionVersion": 0,
+            "maxSupportedTransactionVersion": MAX_SUPPORTED_TRANSACTION_VERSION,
         }],
     )
     if result is not None and not isinstance(result, dict):

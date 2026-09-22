@@ -91,7 +91,7 @@ def _parse_sell_receipt(receipt, signature, wallet, mint):
 def _parse_receipt_balances(receipt, signature, wallet, mint):
     if not wallet or not mint or mint == WSOL_MINT:
         raise ValueError("UNSUPPORTED_TRADE_IDENTITY")
-    if receipt.get("version", "legacy") not in ("legacy", 0):
+    if receipt.get("version", "legacy") not in ("legacy", 0, 1):
         raise ValueError("UNSUPPORTED_TRANSACTION_VERSION")
     transaction = receipt["transaction"]
     if transaction["signatures"][0] != signature:

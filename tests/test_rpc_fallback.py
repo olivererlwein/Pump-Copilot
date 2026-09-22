@@ -19,6 +19,7 @@ from solana_rpc_fallback import (
     _base58_encode,
     _rpc_request,
     LAST_RPC_ERROR_DETAIL,
+    fetch_confirmed_transaction,
     diagnose_unparsed_pump_receipt,
     parse_tracked_token_pump_events,
     parse_watched_wallet_pump_events,
@@ -424,6 +425,39 @@ class RpcFallbackRequestTests(unittest.TestCase):
         self.assertEqual(LAST_RPC_ERROR_DETAIL["method"], "getTransaction")
         self.assertIn("not supported", LAST_RPC_ERROR_DETAIL["message"])
         self.assertNotIn("secret-provider-key", LAST_RPC_ERROR_DETAIL["message"])
+
+
+class TransactionVersionTests(unittest.TestCase):
+    FIXTURE = Path(__file__).parent / "fixtures" / "pumpswap_sell_v1.json"
+
+    def test_fetch_requests_version_one_transactions(self):
+        response = io.BytesIO(json.dumps({"result": None}).encode("utf-8"))
+        with patch("solana_rpc_fallback.urlopen", return_value=response) as fetch:
+            self.assertIsNone(
+                fetch_confirmed_transaction("https://rpc.test", "sig")
+            )
+        payload = json.loads(fetch.call_args.args[0].data)
+        self.assertEqual(payload["params"][1]["maxSupportedTransactionVersion"], 1)
+
+    def test_real_version_one_pumpswap_sell_is_parsed(self):
+        fixture = json.loads(self.FIXTURE.read_text(encoding="utf-8"))
+        receipt = fixture["transaction"]
+        self.assertEqual(receipt["version"], 1)
+        self.assertIn("transactionConfig", receipt["transaction"]["message"])
+
+        events = parse_watched_wallet_pump_events(
+            receipt, fixture["wallet"], fixture["signature"]
+        )
+
+        self.assertEqual(len(events), 1)
+        event = events[0]["event"]
+        self.assertEqual(event["txType"], "sell")
+        self.assertEqual(event["pool"], "pump-amm")
+        self.assertEqual(event["traderPublicKey"], fixture["wallet"])
+        self.assertEqual(event["mint"], "EkEq6teGMFEwrs2pWNbCEgSqEoV4q8WLBg9k6SKcgvh")
+        self.assertAlmostEqual(event["tokenAmount"], 1542898.009062)
+        self.assertEqual(event["newTokenBalance"], 0.0)
+        self.assertEqual(event["blockEventTs"], receipt["blockTime"])
 
 
 class RpcFallbackPersistenceTests(unittest.TestCase):

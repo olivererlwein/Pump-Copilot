@@ -2144,3 +2144,31 @@ nueva. Sin impacto con `apply=false`; bloqueante antes de APPLY.
 
 Verificación: **452 tests, OK**; `git diff --check` limpio; ambos tests nuevos
 fallan contra el código anterior.
+
+## Transacciones versión 1 — causa del `-32015` y fix, 2026-09-22
+
+Cinco segundos después de desplegar `last_rpc_error_detail`, producción mostró
+el mensaje completo: *"Transaction version (1) is not supported by the
+requesting client… maxSupportedTransactionVersion: 1"*. Solana ya produce
+transacciones versión 1 (mensaje con `transactionConfig`, sin
+`addressTableLookups`) y los dos `getTransaction` del repo pedían `0`. Cada
+trade v1 de una wallet vigilada se perdía como `fetch_failed` (66 en 24 h en
+el WSS) y bloqueaba la cola del fallback (4 wallets). La prueba manual del
+día anterior contra el RPC público no lo reprodujo porque las 8 firmas
+probadas eran v0/legacy.
+
+Cambio: `MAX_SUPPORTED_TRANSACTION_VERSION = 1` en `solana_rpc_fallback`,
+usado por `fetch_confirmed_transaction` (ingesta WSS + fallback) y por
+`fetch_finalized_solana_transaction` en `app.py` (recibos de órdenes reales).
+`_parse_receipt_balances` acepta ahora versión 1; la 2 sigue rechazada con
+`UNSUPPORTED_TRANSACTION_VERSION`. Este último punto toca el camino de
+reconciliación: sin él, una compra real confirmada en una tx v1 no se podía
+reconciliar nunca (fallaba primero en el RPC y, con el fetch arreglado, en la
+guarda). Se verificó con un recibo real de PumpSwap v1
+(`tests/fixtures/pumpswap_sell_v1.json`, sell de epicsealdarkeye, 2026-09-21):
+el parser de ingesta produce el `SellEvent` correcto y el de recibos devuelve
+1.542.898,009062 tokens, 560.623.763 lamports netos, fee 74.391, coherente con
+el evento del programa.
+
+Verificación: **455 tests, OK**; los tres tests nuevos y el ajuste del
+existente fallan contra el código anterior.
