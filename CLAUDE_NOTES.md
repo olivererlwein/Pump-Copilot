@@ -2481,3 +2481,63 @@ conservadora.
 
 Veredicto corregido: no es "pierde". Es **"la muestra todavía no puede
 decidir"**, y el costo real está sin descomponer. Live sigue cerrado.
+
+## El payoff escalonado real: peor que el proxy, no mejor — 2026-09-22
+
+`scripts/staged_payoff_backtest.py` reproduce `decide_live_position_exit()`
+sobre las trayectorias on-chain, consumiendo las probabilidades del holdout ya
+generadas: no reentrena, no mueve umbrales y no elige umbral por resultado.
+
+La hipótesis era que el proxy plano (+0,25 / −0,10) subestimaba a los
+ganadores grandes. **Es al revés.** La política real rinde peor que la
+etiqueta por dos razones estructurales:
+
+- El stop está en **−20 %**, mientras la etiqueta usaba −10 %. Los perdedores
+  se sostienen el doble.
+- Un TP25 vende **solo el 25 %** de la posición. Una señal que toca +25 % y
+  después cae al stop liquida 25 % a +25 % y 75 % a −20 %: neto −0,0875. La
+  etiqueta la contaba como acierto completo (+0,25).
+
+Por eso a umbral 0,45 la etiqueta daba 23 aciertos de 80 y la política deja
+17 posiciones con PnL positivo.
+
+| umbral | selecc | gana | pierde | sin mov. | stop | neto total | neto medio | IC95 del medio |
+|---|---|---|---|---|---|---|---|---|
+| 0,45 (CV) | 80 | 17 | 41 | 22 | 44 | −5,344 | −0,0668 | **[−0,127, −0,004]** |
+| 0,50 | 61 | 16 | 24 | 21 | 26 | −0,927 | −0,0152 | [−0,085, +0,065] |
+| 0,55 | 58 | 16 | 22 | 20 | 24 | −0,353 | −0,0061 | [−0,080, +0,074] |
+| 0,70 | 23 | 9 | 5 | 9 | 6 | +1,450 | +0,0630 | [−0,043, +0,193] |
+
+**En el umbral que la validación cruzada eligió, el intervalo de confianza es
+enteramente negativo.** Es el primer resultado estadísticamente limpio del
+proyecto, y dice que pierde. En los umbrales altos el intervalo cruza cero:
+indistinguible de no operar.
+
+La mediana del PnL neto es −0,01 en casi todos los umbrales: **la operación
+típica pierde exactamente la comisión**. La media la mueven unos pocos
+ganadores grandes. A umbral 0,70 las cinco mejores operaciones aportan el
+161 % del PnL total —el resto en conjunto resta—, con n=23. Eso no es una
+estrategia, es una muestra chica con cola gorda.
+
+Límites declarados, no tapados:
+
+- **Ambigüedad**: solo hay 5 observaciones por señal. Entre dos checkpoints el
+  precio no se ve. 21 de 80 señales a umbral 0,45 (26 %) tienen tramos donde
+  el orden entre TP y stop es indeterminable. No se asume el caso favorable.
+- **El último 25 % no tiene salida por precio.** Tras el TP100 la política
+  solo lo cierra con el stop, con la venta total del trader o con una parcial
+  suya. Y el stop se mide **desde la entrada**, así que después de un +100 %
+  ese resto solo se vende si el precio cae un 60 % desde el pico. 36 de 80
+  posiciones terminan así. Valorarlo al último precio sumaría +1,317, pero esa
+  plata **no es realizable con la política actual** y por eso va aparte.
+- **Las ventas del trader de origen no se simulan**: la trayectoria on-chain
+  no trae sus eventos. `TRADER_EXIT` y `TRADER_PARTIAL` cerrarían posiciones
+  antes, a menudo mejor. Es una omisión conocida que puede subestimar.
+- El coste aplicado es 1 % por lado, **solo PumpPortal Lightning**, y se cobra
+  sobre la compra entera más cada fracción vendida.
+
+Conclusión: con la política de salidas que el proyecto ya tenía, estas señales
+no ganan plata. El problema no es solo el modelo: **la política de salidas
+tiene dos defectos propios** —stop al doble de distancia que la etiqueta que
+entrena el modelo, y un 25 % de cada posición sin regla de cierre— que
+conviene revisar antes de culpar al clasificador.
