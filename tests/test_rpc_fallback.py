@@ -18,6 +18,7 @@ from solana_rpc_fallback import (
     WSOL_MINT,
     _base58_encode,
     _rpc_request,
+    LAST_RPC_ERROR_DETAIL,
     diagnose_unparsed_pump_receipt,
     parse_tracked_token_pump_events,
     parse_watched_wallet_pump_events,
@@ -398,6 +399,31 @@ class RpcFallbackRequestTests(unittest.TestCase):
                 )
 
         self.assertNotIn("secret-provider-key", str(raised.exception))
+
+    def test_json_rpc_error_detail_is_kept_for_diagnostics_without_the_key(self):
+        response = io.BytesIO(json.dumps({
+            "jsonrpc": "2.0",
+            "error": {
+                "code": -32015,
+                "message": (
+                    "Transaction version (0) is not supported by "
+                    "https://rpc.test/secret-provider-key-0123456789"
+                ),
+            },
+        }).encode("utf-8"))
+
+        with patch("solana_rpc_fallback.urlopen", return_value=response):
+            with self.assertRaises(ValueError):
+                _rpc_request(
+                    "https://rpc.test/secret-provider-key-0123456789",
+                    "getTransaction",
+                    [],
+                )
+
+        self.assertEqual(LAST_RPC_ERROR_DETAIL["code"], -32015)
+        self.assertEqual(LAST_RPC_ERROR_DETAIL["method"], "getTransaction")
+        self.assertIn("not supported", LAST_RPC_ERROR_DETAIL["message"])
+        self.assertNotIn("secret-provider-key", LAST_RPC_ERROR_DETAIL["message"])
 
 
 class RpcFallbackPersistenceTests(unittest.TestCase):

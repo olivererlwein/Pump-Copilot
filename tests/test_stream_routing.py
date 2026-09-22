@@ -206,6 +206,81 @@ class StreamRoutingTests(unittest.IsolatedAsyncioTestCase):
         problem.assert_not_awaited()
         route.assert_called_once_with(valid_event)
 
+    async def test_status_separates_account_events_from_token_events(self):
+        token_event = {
+            "signature": "token-signature",
+            "traderPublicKey": "other-wallet",
+            "mint": "tracked-mint",
+            "txType": "buy",
+        }
+        account_event = {
+            **token_event,
+            "signature": "account-signature",
+            "traderPublicKey": "watched-wallet",
+        }
+        socket = AsyncMock()
+        socket.recv.side_effect = [
+            json.dumps(token_event),
+            asyncio.CancelledError(),
+        ]
+        connection = AsyncMock()
+        connection.__aenter__.return_value = socket
+
+        with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
+            for name, value in {
+                "DB": Path(directory) / "split-ts.db",
+                "API_KEY": "test-key",
+                "WATCHED": {"test-trader": "watched-wallet"},
+                "TRACKED_TOKENS": set(),
+                "SUBSCRIBED_TOKENS": set(),
+                "TOKENS_TO_UNSUBSCRIBE": set(),
+                "SEEN_EVENT_IDS": set(),
+                "FORCE_STREAM_ERROR": False,
+                "STREAM_CONNECTED": False,
+                "LAST_STREAM_MESSAGE_TS": 0,
+                "LAST_STREAM_EVENT_TS": 0,
+                "LAST_STREAM_ACCOUNT_EVENT_TS": 0.0,
+                "LAST_STREAM_TOKEN_EVENT_TS": 0.0,
+            }.items():
+                stack.enter_context(patch.object(app, name, value))
+            stack.enter_context(patch.object(
+                app.websockets, "connect", return_value=connection,
+            ))
+            stack.enter_context(patch.object(
+                app, "mark_stream_recovered", new=AsyncMock(),
+            ))
+            stack.enter_context(patch.object(
+                app, "mark_stream_problem", new=AsyncMock(),
+            ))
+            stack.enter_context(patch.object(
+                app.asyncio,
+                "sleep",
+                new=AsyncMock(side_effect=asyncio.CancelledError()),
+            ))
+            stack.enter_context(patch.object(app, "route_market_event"))
+            app.migrate_database()
+
+            with self.assertRaises(asyncio.CancelledError):
+                await app.stream()
+
+            status = app.status(x_app_token=app.APP_TOKEN)
+            self.assertIsNone(status["stream_last_account_event_ts"])
+            self.assertGreater(status["stream_last_token_event_ts"], 0)
+
+            socket.recv.side_effect = [
+                json.dumps(account_event),
+                asyncio.CancelledError(),
+            ]
+            with self.assertRaises(asyncio.CancelledError):
+                await app.stream()
+
+            status = app.status(x_app_token=app.APP_TOKEN)
+            self.assertGreater(status["stream_last_account_event_ts"], 0)
+            self.assertGreaterEqual(
+                status["stream_last_account_event_ts"],
+                status["stream_last_token_event_ts"],
+            )
+
     async def test_unusable_balance_becomes_unknown_without_stopping_the_stream(self):
         """PumpPortal es frontera de confianza: basura no tira la conexión.
 

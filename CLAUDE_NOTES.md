@@ -2096,3 +2096,51 @@ cada poll, el worker no registraba nada (`rpc_fallback_last_success_ts` nulo en
 producción) y la auditoría de cobertura quedaba ciega. La migración reconstruye
 la tabla conservando IDs y corre antes de recrear el índice; es idempotente.
 Nada lee esa columna: el consumidor usa `event_json`.
+
+# Auditoría de ingesta y dos diffs de observabilidad — 2026-09-22
+
+Estado verificado en producción (04:10 UTC): el webhook de Helius no entrega
+nada desde el 17-09 03:12 UTC (créditos del plan free agotados: 1.044.217 de
+1.000.000; el sync recibe `HTTP_429 max usage reached` cada 300 s, que es el
+backoff previsto, no un reintento descontrolado). El único transporte que
+aplica decisiones es el piloto WSS sobre Alchemy, filtrado a 5 wallets. Las
+otras 9 (decu incluida, origen de 16 de 17 posiciones paper) están ciegas:
+`/api/watched-wallets` → `silent: 9`. El fallback RPC ve compras reales de
+esas wallets que nadie aplica. Del tráfico del webhook, 633.360 transacciones
+recibidas contra 62.967 eventos de wallets vigiladas: el 90 % eran entregas por
+los 30 tokens que el sync mantenía en el webhook, y es la explicación más
+probable del consumo de créditos. Ninguna de estas dos cosas se arregla con
+código; son variables de Railway (`HELIUS_STANDARD_WSS_TRADERS`,
+`HELIUS_WEBHOOK_SYNC_APPLY`).
+
+El watchdog de 120 s no es un bug: PumpPortal solo entrega
+`subscribeTokenTrade` de mints con outcome activo, y cuando no hay ninguno la
+conexión queda muda. Faltaba el dato para afirmar si entrega alguna operación
+de cuenta.
+
+## Dos cambios, solo diagnóstico
+
+- `/api/status` separa `stream_last_account_event_ts` (wallet vigilada) de
+  `stream_last_token_event_ts` (token suscrito). Antes `stream_last_event_ts`
+  mezclaba ambos y no se podía saber si las suscripciones de cuenta de
+  PumpPortal entregan algo.
+- `solana_rpc_fallback._rpc_request` guarda el último error JSON-RPC del
+  proveedor en `LAST_RPC_ERROR_DETAIL` (código, método, mensaje truncado a 300
+  caracteres con todo fragmento largo de la URL del RPC redactado, porque ahí
+  viaja la API key). Se expone como `last_rpc_error_detail` en
+  `/api/rpc-fallback-stats` y `/api/helius-standard-wss-stats`. Motivo: en
+  producción aparece `SOLANA_RPC_ERROR_-32015:getTransaction` (66 fetch fallidos
+  del WSS en 24 h y 4 wallets del fallback bloqueadas) aunque ambos call sites
+  pasan `maxSupportedTransactionVersion: 0`, y contra el RPC público la misma
+  firma responde bien. Sin el mensaje del proveedor no hay forma de saber qué
+  significa ese código en Alchemy. La excepción conserva el formato
+  `SOLANA_RPC_ERROR_{code}:{method}` que la clasificación ya parsea.
+
+Riesgo abierto anotado, sin tocar: `live_account_exit_monitor_once` pasa
+`account_price_observed_ts=checked_ts` (reloj local tomado antes del RPC) y
+descarta `snapshot["slot"]`; la guarda `ACCOUNT_PRICE_BEFORE_LAST_OBSERVATION`
+solo compara ese reloj, así que un nodo RPC rezagado pasa como observación
+nueva. Sin impacto con `apply=false`; bloqueante antes de APPLY.
+
+Verificación: **452 tests, OK**; `git diff --check` limpio; ambos tests nuevos
+fallan contra el código anterior.

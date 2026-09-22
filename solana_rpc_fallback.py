@@ -2,6 +2,7 @@
 
 import base64
 import json
+import re
 import struct
 import threading
 import time
@@ -25,6 +26,19 @@ RPC_MIN_REQUEST_INTERVAL_SECONDS = 0.2
 RPC_RETRY_DELAYS_SECONDS = (0.5, 1.0, 2.0)
 _RPC_REQUEST_LOCK = threading.Lock()
 _RPC_LAST_REQUEST_TS = 0.0
+
+# Último error JSON-RPC devuelto por el proveedor, con el texto que la
+# excepción `SOLANA_RPC_ERROR_{code}` descarta a propósito. Solo diagnóstico:
+# nada lo lee para decidir. Se redacta todo fragmento largo de la URL del RPC
+# porque ahí viaja la API key.
+LAST_RPC_ERROR_DETAIL = {}
+
+
+def _redact_rpc_url(text, rpc_url):
+    text = str(text or "")[:300]
+    for fragment in re.findall(r"[A-Za-z0-9_-]{16,}", str(rpc_url or "")):
+        text = text.replace(fragment, "[redacted]")
+    return text
 
 
 def _wait_for_rpc_slot():
@@ -81,6 +95,16 @@ def _rpc_request(rpc_url, method, params, timeout=15):
     if isinstance(payload, dict) and payload.get("error"):
         error = payload["error"]
         code = error.get("code") if isinstance(error, dict) else None
+        LAST_RPC_ERROR_DETAIL.clear()
+        LAST_RPC_ERROR_DETAIL.update({
+            "ts": time.time(),
+            "method": method,
+            "code": code if isinstance(code, int) else None,
+            "message": _redact_rpc_url(
+                error.get("message") if isinstance(error, dict) else error,
+                rpc_url,
+            ),
+        })
         if isinstance(code, int):
             raise ValueError(f"SOLANA_RPC_ERROR_{code}:{method}")
         raise ValueError(f"INVALID_SOLANA_RPC_RESPONSE:{method}")

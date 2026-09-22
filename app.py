@@ -46,6 +46,7 @@ from solana_rpc_fallback import (
     parse_tracked_token_pump_events,
     _rpc_request,
 )
+import solana_rpc_fallback
 from onchain_account_prices import fetch_account_prices
 
 
@@ -231,6 +232,11 @@ TOKENS_TO_UNSUBSCRIBE = set()
 LAST_TOKEN_PRICE = {}
 LAST_STREAM_MESSAGE_TS = 0.0
 LAST_STREAM_EVENT_TS = 0.0
+# Separados para saber si PumpPortal entrega operaciones de las wallets
+# vigiladas o solo trades de los tokens suscritos: el watchdog y
+# LAST_STREAM_EVENT_TS no distinguen una cosa de la otra.
+LAST_STREAM_ACCOUNT_EVENT_TS = 0.0
+LAST_STREAM_TOKEN_EVENT_TS = 0.0
 LAST_PUMPPORTAL_MESSAGE = ""
 STREAM_CONNECTED = False
 STREAM_LAST_ERROR = ""
@@ -13075,6 +13081,7 @@ def get_rpc_fallback_stats():
         "last_poll_ts": RPC_FALLBACK_LAST_POLL_TS or None,
         "last_success_ts": RPC_FALLBACK_LAST_SUCCESS_TS or None,
         "last_error": RPC_FALLBACK_LAST_ERROR or None,
+        "last_rpc_error_detail": dict(solana_rpc_fallback.LAST_RPC_ERROR_DETAIL) or None,
         "scanned_signatures": RPC_FALLBACK_SCANNED_SIGNATURES,
         "parsed_events": RPC_FALLBACK_PARSED_EVENTS,
         "saturated_wallets": list(RPC_FALLBACK_SATURATED_WALLETS),
@@ -13250,6 +13257,8 @@ async def stream():
     global LAST_STREAM_MESSAGE_TS
     global LAST_STREAM_EVENT_TS
     global LAST_PUMPPORTAL_MESSAGE
+    global LAST_STREAM_ACCOUNT_EVENT_TS
+    global LAST_STREAM_TOKEN_EVENT_TS
 
     if not API_KEY:
 
@@ -13486,6 +13495,12 @@ async def stream():
                         continue
 
                     LAST_STREAM_EVENT_TS = time.time()
+                    if (
+                        event.get("traderPublicKey") or event.get("user")
+                    ) in WATCHED.values():
+                        LAST_STREAM_ACCOUNT_EVENT_TS = LAST_STREAM_EVENT_TS
+                    else:
+                        LAST_STREAM_TOKEN_EVENT_TS = LAST_STREAM_EVENT_TS
                     await mark_stream_recovered()
 
                     # =========================================================
@@ -13922,6 +13937,12 @@ def status(
                 if LAST_STREAM_EVENT_TS > 0
                 else None
             ),
+
+        "stream_last_account_event_ts":
+            LAST_STREAM_ACCOUNT_EVENT_TS or None,
+
+        "stream_last_token_event_ts":
+            LAST_STREAM_TOKEN_EVENT_TS or None,
 
         "stream_last_error":
             (STREAM_LAST_ERROR or None),
@@ -17620,6 +17641,7 @@ def api_helius_standard_wss_stats(
             and MARKET_EVENT_INBOX_CONSUMER_ENABLED
         ),
         "runtime": runtime,
+        "last_rpc_error_detail": dict(solana_rpc_fallback.LAST_RPC_ERROR_DETAIL) or None,
         "last_1h": last_1h,
         "last_24h": {
             "notifications": int(notification[0] or 0),
