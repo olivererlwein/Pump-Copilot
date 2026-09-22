@@ -2199,3 +2199,15 @@ No cambia la ruta por eventos ni ningún flag; `apply` sigue en `false`.
 Verificación: **457 tests, OK**; los tests nuevos y los ajustados fallan
 contra el código anterior. Este commit sí toca `evaluate_live_position_exit`,
 así que el hook pre-push lo frena con razón.
+
+## Hook pre-push: cubre recibos y el monitor de cuenta — 2026-09-22
+
+El commit `3ebac26` (aceptar transacciones v1) cambió la guarda de versión de
+`_parse_receipt_balances`, que decide si una orden real se reconcilia, y el
+hook no lo frenó: `parse_*_receipt` y `fetch_finalized_solana_transaction` no
+estaban en `RISK_PATTERN`. Se agregan esos tres nombres y
+`live_account_exit_monitor_once` (única función que llama a
+`evaluate_live_position_exit` con precios de cuenta). Comprobado con
+`git diff -W` sobre `3ebac26`: ahora habría frenado por
+`fetch_finalized_solana_transaction` y `parse_sell_receipt`. Solo amplía el
+patrón; no quita nada.
