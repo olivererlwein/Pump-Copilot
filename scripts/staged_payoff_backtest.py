@@ -37,7 +37,7 @@ QUARTER = 0.25
 PUMPPORTAL_FEE_PER_SIDE = 0.01
 
 
-def simulate_position(entry_price, path):
+def simulate_position(entry_price, path, stop_loss_pct=STOP_LOSS_PCT):
     """Aplica la política real a una trayectoria. Devuelve fracciones vendidas.
 
     Espeja `decide_live_position_exit`: el stop cierra todo lo que queda, y
@@ -55,7 +55,7 @@ def simulate_position(entry_price, path):
             continue
         change = price / entry_price - 1
 
-        if change <= STOP_LOSS_PCT:
+        if change <= stop_loss_pct:
             if remaining > 0:
                 fills.append((remaining, change))
                 remaining = 0.0
@@ -164,7 +164,8 @@ def bootstrap_ci(values, iterations=2000, seed=11):
     return (means[int(0.025 * iterations)], means[int(0.975 * iterations)])
 
 
-def run(rows, thresholds, cost_per_side, one_position_seconds):
+def run(rows, thresholds, cost_per_side, one_position_seconds,
+        stop_loss_pct=STOP_LOSS_PCT):
     report = []
     for threshold in thresholds:
         selected = [row for row in rows if row["probability"] >= threshold]
@@ -172,7 +173,9 @@ def run(rows, thresholds, cost_per_side, one_position_seconds):
         ambiguous = 0
         tails = 0
         for row in selected:
-            result = simulate_position(row["price_at_signal"], row["path"])
+            result = simulate_position(
+                row["price_at_signal"], row["path"], stop_loss_pct
+            )
             pnl = position_pnl(result, cost_per_side)
             ambiguous += int(row["ambiguous"])
             tails += int(result["remaining"] > 0)
@@ -230,6 +233,8 @@ def main():
         "--cost-per-side", type=float, default=PUMPPORTAL_FEE_PER_SIDE
     )
     parser.add_argument("--one-position-seconds", type=float, default=900)
+    # Contrafactual: mismo ladder, mismos costes, mismas predicciones.
+    parser.add_argument("--stop-pct", type=float, default=STOP_LOSS_PCT)
     args = parser.parse_args()
 
     paths = {
@@ -266,8 +271,10 @@ def main():
           f"(solo PumpPortal Lightning)")
     print()
 
+    print(f"stop aplicado: {args.stop_pct:.0%}")
+    print()
     for entry in run(rows, args.thresholds, args.cost_per_side,
-                     args.one_position_seconds):
+                     args.one_position_seconds, args.stop_pct):
         print("=" * 74)
         print(f"UMBRAL {entry['threshold']:.2f}"
               f"   seleccionadas {entry['selected']}"

@@ -2541,3 +2541,57 @@ no ganan plata. El problema no es solo el modelo: **la política de salidas
 tiene dos defectos propios** —stop al doble de distancia que la etiqueta que
 entrena el modelo, y un 25 % de cada posición sin regla de cierre— que
 conviene revisar antes de culpar al clasificador.
+
+## Alinear la etiqueta al stop real: el mismatch no era el problema — 2026-09-22
+
+`scripts/relabel_stop_alignment.py` re-etiqueta las 609 observaciones con el
+stop que la ejecución realmente usa (−20 %) sobre las mismas trayectorias y el
+mismo split, y construye además un objetivo económico con el signo del PnL que
+la política habría realizado.
+
+**Solo 4 etiquetas de 609 cambian (0,7 %).** La tasa base pasa de 24,8 % a
+25,5 % y las métricas quedan iguales: AUC 0,760 → 0,750, AP 0,472 → 0,471.
+
+Con cinco checkpoints gruesos, un token que perfora −10 % casi siempre perfora
+también −20 % en el mismo tramo, o se recupera antes de que se lo observe. La
+resolución no alcanza para distinguirlos.
+
+**Corrección de la hipótesis anterior:** que el modelo entrenara con −10 % y
+la ejecución cortara en −20 % era coherentemente feo, pero **no es la causa de
+que la estrategia pierda plata**. La causa es la otra: **el TP25 vende solo el
+25 % de la posición y deja el 75 % expuesto al stop**. De las ~151 señales
+etiquetadas como ganadoras, **38 (el 25 %) terminan económicamente negativas**
+por exactamente eso.
+
+### Objetivo económico
+
+- La política cierra entera solo el **55,5 %** de las posiciones; el 44,5 %
+  queda con el último cuarto abierto, sin regla que lo cierre.
+- Tasa base del objetivo económico: **19,0 %** en total, **10,9 % entre las
+  cerradas** (n=338). Bajo la política real, una de cada nueve operaciones
+  cerradas gana plata.
+- Entrenando contra ese objetivo con el mismo split: **AUC 0,726, AP 0,385**
+  contra una base de 16,4 % (lift ≈ 2,3×). **La señal sobrevive a la pregunta
+  difícil**; lo que no alcanza es el tamaño del efecto frente a los costes.
+- Trayectorias ambiguas: 187 de 609 (30,7 %).
+
+### Contrafactual: stop en −10 % en vez de −20 %
+
+Mismo ladder, mismos costes, mismas predicciones, solo cambia el stop:
+
+| umbral | stop | neto total | neto medio | IC95 | mediana |
+|---|---|---|---|---|---|
+| 0,45 | −20 % | −5,344 | −0,0668 | [−0,127, −0,004] | −0,0931 |
+| 0,45 | −10 % | −5,097 | −0,0637 | [−0,118, −0,006] | −0,1356 |
+| 0,50 | −20 % | −0,927 | −0,0152 | [−0,085, +0,065] | −0,0100 |
+| 0,50 | −10 % | −1,347 | −0,0221 | [−0,087, +0,054] | −0,0781 |
+
+**El stop no decide nada.** Cortar antes mejora marginalmente a umbral 0,45 y
+empeora a 0,50; ambos intervalos se solapan casi por completo. No hay
+evidencia de que el −20 % esté destruyendo valor, ni de que el −10 % lo
+rescate. La palanca está en otro lado.
+
+Prioridad que queda: **definir la salida del último 25 %** es ahora el
+bloqueo real, porque sin ella el 44,5 % de las operaciones no tiene resultado
+económico definido y no hay función de payoff completa que un modelo pueda
+aprender.
