@@ -1277,5 +1277,200 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
                     await worker
 
 
+class HeliusStandardWssFloodTests(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.original_db = app.DB
+        app.DB = Path(self.temp_dir.name) / "wss-flood.db"
+        app.migrate_database()
+        self.reset_memory()
+
+    def tearDown(self):
+        self.reset_memory()
+        app.DB = self.original_db
+        self.temp_dir.cleanup()
+
+    @staticmethod
+    def reset_memory():
+        with app.HELIUS_STANDARD_WSS_STATE_LOCK:
+            app.HELIUS_STANDARD_WSS_UNSTORED.clear()
+            app.HELIUS_STANDARD_WSS_UNSTORED_RECENT.clear()
+            app.HELIUS_STANDARD_WSS_STATE["muted_wallets"] = {}
+
+    @staticmethod
+    def notification(subscription, signature, pump=False):
+        logs = (
+            [f"Program {app.PUMP_PROGRAM_ID} invoke [1]"] if pump
+            else ["Program SpamProgram1111111111111111111111111111111 invoke [1]"]
+        )
+        return json.dumps({
+            "jsonrpc": "2.0", "method": "logsNotification",
+            "params": {
+                "subscription": subscription,
+                "result": {
+                    "context": {"slot": 1},
+                    "value": {"signature": signature, "err": None, "logs": logs},
+                },
+            },
+        })
+
+    def test_notifications_without_pump_logs_are_counted_not_stored(self):
+        event = {
+            "wallet": "wallet-a", "signature": "spam-1", "slot": 1,
+            "failed": True, "logs": [],
+        }
+        self.assertFalse(app.record_helius_standard_wss_notification(
+            event, False, 300, received_ts=1_700_000_000
+        ))
+        self.assertFalse(app.record_helius_standard_wss_notification(
+            {**event, "signature": "spam-2"}, False, 200,
+            received_ts=1_700_000_001,
+        ))
+        conn = app.db()
+        try:
+            stored = conn.execute(
+                "SELECT COUNT(*) FROM helius_standard_wss_notifications"
+            ).fetchone()[0]
+        finally:
+            conn.close()
+        self.assertEqual(stored, 0)
+        self.assertEqual(app.HELIUS_STANDARD_WSS_UNSTORED["wallet-a"], {
+            "notifications": 2, "failed": 2, "message_bytes": 500,
+            "first_ts": 1_700_000_000, "last_ts": 1_700_000_001,
+        })
+
+        with patch.object(app, "APP_TOKEN", "token"), patch.object(
+            app, "WATCHED", {"trader-a": "wallet-a"}
+        ):
+            report = app.api_helius_standard_wss_stats("token")
+        self.assertEqual(report["last_24h"]["notifications"], 0)
+        unstored = report["unstored_notifications_since_start"]
+        self.assertEqual(unstored["notifications"], 2)
+        self.assertEqual(unstored["wallets"][0]["trader"], "trader-a")
+
+    def test_flood_guard_fires_once_per_wallet_within_a_minute(self):
+        limit = app.HELIUS_STANDARD_WSS_MAX_OTHER_PER_MINUTE
+        base = 1_700_000_000.0
+        with patch.object(app, "WATCHED", {"trader-a": "wallet-a"}):
+            for index in range(limit):
+                rate = app.note_unstored_helius_standard_wss_notification(
+                    "wallet-a", 10, False, base + index * 0.01
+                )
+                self.assertFalse(
+                    app.helius_standard_wss_wallet_flooded("wallet-a", rate)
+                )
+            rate = app.note_unstored_helius_standard_wss_notification(
+                "wallet-a", 10, False, base + 1
+            )
+            self.assertEqual(rate, limit + 1)
+            self.assertTrue(
+                app.helius_standard_wss_wallet_flooded("wallet-a", rate)
+            )
+            self.assertFalse(
+                app.helius_standard_wss_wallet_flooded("wallet-a", rate)
+            )
+            muted = app.HELIUS_STANDARD_WSS_STATE["muted_wallets"]["wallet-a"]
+            self.assertEqual(muted["trader"], "trader-a")
+            self.assertEqual(muted["rate_per_minute"], limit + 1)
+
+            # Slow traffic never accumulates: one notification per minute.
+            for index in range(limit + 5):
+                rate = app.note_unstored_helius_standard_wss_notification(
+                    "wallet-b", 10, False, base + index * 61
+                )
+                self.assertEqual(rate, 1)
+
+    async def test_worker_unsubscribes_flooded_wallet_and_skips_it_on_reconnect(self):
+        socket = FakeWebSocket()
+        with (
+            patch.object(app, "HELIUS_STANDARD_WSS_URL", "wss://example.test"),
+            patch.object(app, "HELIUS_STANDARD_WSS_RPC_URL", "https://example.test/rpc"),
+            patch.object(app, "HELIUS_STANDARD_WSS_APPLY", False),
+            patch.object(app, "HELIUS_STANDARD_WSS_MAX_OTHER_PER_MINUTE", 60),
+            patch.object(app, "HELIUS_STANDARD_WSS_RECONNECT_SECONDS", 0.01),
+            patch.object(
+                app, "WATCHED",
+                {"trader-a": "wallet-a", "trader-b": "wallet-b"},
+            ),
+            patch.object(app, "HELIUS_STANDARD_WSS_TRADERS", ""),
+            patch.object(app.websockets, "connect", return_value=socket),
+            patch.object(
+                app, "send_discord_alert", new=unittest.mock.AsyncMock()
+            ) as alert,
+        ):
+            worker = asyncio.create_task(app.helius_standard_wss_worker())
+            try:
+                for _ in range(100):
+                    if len(socket.sent) == 2:
+                        break
+                    await asyncio.sleep(0.01)
+                self.assertEqual(
+                    [req["params"][0]["mentions"] for req in socket.sent],
+                    [["wallet-a"], ["wallet-b"]],
+                )
+                await socket.incoming.put(json.dumps(
+                    {"jsonrpc": "2.0", "id": 1, "result": 91}
+                ))
+                await socket.incoming.put(json.dumps(
+                    {"jsonrpc": "2.0", "id": 2, "result": 92}
+                ))
+                for index in range(61):
+                    await socket.incoming.put(
+                        self.notification(91, f"spam-{index}")
+                    )
+                for _ in range(300):
+                    if len(socket.sent) == 3:
+                        break
+                    await asyncio.sleep(0.01)
+                self.assertEqual(socket.sent[2]["method"], "logsUnsubscribe")
+                self.assertEqual(socket.sent[2]["params"], [91])
+                unsubscribe_id = socket.sent[2]["id"]
+                await socket.incoming.put(json.dumps(
+                    {"jsonrpc": "2.0", "id": unsubscribe_id, "result": True}
+                ))
+                for _ in range(100):
+                    if app.HELIUS_STANDARD_WSS_STATE["subscriptions"] == 1:
+                        break
+                    await asyncio.sleep(0.01)
+                self.assertEqual(app.HELIUS_STANDARD_WSS_STATE["subscriptions"], 1)
+                self.assertIn(
+                    "wallet-a", app.HELIUS_STANDARD_WSS_STATE["muted_wallets"]
+                )
+                alert.assert_awaited_once()
+                self.assertIn("trader-a", alert.await_args.args[0])
+
+                with patch.object(app, "APP_TOKEN", "token"):
+                    report = app.api_helius_standard_wss_stats("token")
+                self.assertEqual(report["selected_wallets"], 2)
+                self.assertEqual(report["active_wallets"], 1)
+                self.assertTrue(report["wallet_subscriptions_ready"])
+                self.assertEqual(
+                    report["muted_wallets"][0]["trader"], "trader-a"
+                )
+                conn = app.db()
+                try:
+                    stored = conn.execute(
+                        "SELECT COUNT(*) FROM helius_standard_wss_notifications"
+                    ).fetchone()[0]
+                finally:
+                    conn.close()
+                self.assertEqual(stored, 0)
+
+                # Force a reconnect: only the surviving wallet resubscribes.
+                await socket.incoming.put("not json")
+                for _ in range(300):
+                    if len(socket.sent) == 4:
+                        break
+                    await asyncio.sleep(0.01)
+                self.assertEqual(len(socket.sent), 4)
+                self.assertEqual(
+                    socket.sent[3]["params"][0], {"mentions": ["wallet-b"]}
+                )
+            finally:
+                worker.cancel()
+                with self.assertRaises(asyncio.CancelledError):
+                    await worker
+
+
 if __name__ == "__main__":
     unittest.main()

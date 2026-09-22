@@ -512,6 +512,13 @@ HELIUS_STANDARD_WSS_FETCH_INTERVAL_SECONDS = max(
 HELIUS_STANDARD_WSS_MAX_PENDING = max(
     10, min(5000, int(os.getenv("HELIUS_STANDARD_WSS_MAX_PENDING", "500")))
 )
+# `logsSubscribe` por mención entrega cualquier transacción que nombre la
+# wallet, incluido spam de tokens. decu recibió 44 por segundo, ninguna de
+# Pump. Por encima de este ritmo la wallet se desuscribe sola hasta el próximo
+# reinicio y se avisa; las demás siguen.
+HELIUS_STANDARD_WSS_MAX_OTHER_PER_MINUTE = max(
+    60, int(os.getenv("HELIUS_STANDARD_WSS_MAX_OTHER_PER_MINUTE", "600"))
+)
 HELIUS_STANDARD_WSS_TRACK_TOKENS_ENABLED = os.getenv(
     "HELIUS_STANDARD_WSS_TRACK_TOKENS_ENABLED", "false"
 ).lower() == "true"
@@ -570,7 +577,14 @@ HELIUS_STANDARD_WSS_STATE = {
     "reconnects": 0,
     "retry_seconds": None,
     "next_retry_ts": None,
+    "muted_wallets": {},
 }
+# Notificaciones sin logs de Pump: se cuentan acá y no se guardan. Cada una
+# era un INSERT en SQLite; a 44 por segundo son 3,8 millones de filas por día
+# en un volumen de 5 GB. Solo importan como volumen por wallet y como señal
+# de spam, y para eso alcanza la memoria del proceso.
+HELIUS_STANDARD_WSS_UNSTORED = {}
+HELIUS_STANDARD_WSS_UNSTORED_RECENT = {}
 
 MARKET_EVENT_INBOX_ACTIVATION_STATE_KEY = (
     "market_event_inbox_processing_activation_ts"
@@ -15346,6 +15360,48 @@ def helius_standard_wss_error_code(error):
     return f"HELIUS_STANDARD_WSS_{error.__class__.__name__}"
 
 
+def note_unstored_helius_standard_wss_notification(
+    wallet, message_bytes, failed, received_ts
+):
+    """Cuenta una notificación sin Pump. Devuelve el ritmo del último minuto."""
+    with HELIUS_STANDARD_WSS_STATE_LOCK:
+        row = HELIUS_STANDARD_WSS_UNSTORED.setdefault(wallet, {
+            "notifications": 0,
+            "failed": 0,
+            "message_bytes": 0,
+            "first_ts": received_ts,
+            "last_ts": received_ts,
+        })
+        row["notifications"] += 1
+        row["failed"] += int(bool(failed))
+        row["message_bytes"] += max(0, int(message_bytes))
+        row["last_ts"] = received_ts
+        recent = HELIUS_STANDARD_WSS_UNSTORED_RECENT.setdefault(
+            wallet, collections.deque()
+        )
+        recent.append(received_ts)
+        while recent and recent[0] < received_ts - 60:
+            recent.popleft()
+        return len(recent)
+
+
+def helius_standard_wss_wallet_flooded(wallet, rate_per_minute):
+    """True la primera vez que la wallet cruza el umbral; luego queda muda."""
+    if rate_per_minute <= HELIUS_STANDARD_WSS_MAX_OTHER_PER_MINUTE:
+        return False
+    with HELIUS_STANDARD_WSS_STATE_LOCK:
+        muted = HELIUS_STANDARD_WSS_STATE["muted_wallets"]
+        if wallet in muted:
+            return False
+        muted[wallet] = {
+            "trader": trader_for(wallet),
+            "muted_ts": time.time(),
+            "rate_per_minute": int(rate_per_minute),
+        }
+        HELIUS_STANDARD_WSS_UNSTORED_RECENT.pop(wallet, None)
+    return True
+
+
 def record_helius_standard_wss_notification(
     event,
     pump_logs,
@@ -15356,6 +15412,11 @@ def record_helius_standard_wss_notification(
         received_ts if received_ts is not None else time.time()
     )
     signature = event["signature"]
+    if not pump_logs:
+        note_unstored_helius_standard_wss_notification(
+            event["wallet"], message_bytes, event.get("failed"), received_ts
+        )
+        return False
     conn = db()
     try:
         notification = conn.execute(
@@ -16379,9 +16440,14 @@ async def helius_standard_wss_worker():
     consecutive_failures = 0
 
     while True:
-        wallets = select_watched_wallets(
-            WATCHED, HELIUS_STANDARD_WSS_TRADERS
-        )
+        with HELIUS_STANDARD_WSS_STATE_LOCK:
+            muted = set(HELIUS_STANDARD_WSS_STATE["muted_wallets"])
+        wallets = [
+            wallet for wallet in select_watched_wallets(
+                WATCHED, HELIUS_STANDARD_WSS_TRADERS
+            )
+            if wallet not in muted
+        ]
         if not wallets:
             update_helius_standard_wss_state(
                 connected=False,
@@ -16569,6 +16635,51 @@ async def helius_standard_wss_worker():
                         update_helius_standard_wss_state(
                             last_pump_log_ts=received_ts
                         )
+                    elif event["subject_type"] == "wallet":
+                        rate = note_unstored_helius_standard_wss_notification(
+                            event["wallet"],
+                            len(
+                                raw if isinstance(raw, bytes)
+                                else raw.encode("utf-8")
+                            ),
+                            event.get("failed"),
+                            received_ts,
+                        )
+                        if helius_standard_wss_wallet_flooded(
+                            event["wallet"], rate
+                        ):
+                            wallet = event["wallet"]
+                            if wallet in wallets:
+                                wallets.remove(wallet)
+                            subscribed_wallets.discard(wallet)
+                            pending_unsubscribes[next_request_id] = int(
+                                subscription_id
+                            )
+                            pending_unsubscribe_started[next_request_id] = (
+                                time.monotonic()
+                            )
+                            await websocket.send(json.dumps(
+                                build_logs_unsubscribe_request(
+                                    next_request_id, subscription_id
+                                ),
+                                separators=(",", ":"),
+                            ))
+                            next_request_id += 1
+                            print(
+                                f"[HELIUS WSS] {trader_for(wallet)} "
+                                f"desuscrita: {rate} notificaciones sin "
+                                "Pump por minuto"
+                            )
+                            await send_discord_alert(
+                                "Pump Copilot: WSS wallet muted.\n"
+                                f"Trader: {trader_for(wallet)}\n"
+                                f"Rate: {rate} non-Pump notifications/min "
+                                "(limit "
+                                f"{HELIUS_STANDARD_WSS_MAX_OTHER_PER_MINUTE})."
+                                "\nUnsubscribed until the next restart; "
+                                "other wallets continue."
+                            )
+                        continue
                     should_fetch = await asyncio.to_thread(
                         record_helius_standard_wss_notification,
                         event,
@@ -17632,12 +17743,21 @@ def api_helius_standard_wss_stats(
         )
     except ValueError as exc:
         configuration_error = str(exc)
+    muted_wallets = runtime.get("muted_wallets") or {}
     watched_count = len(selected_wallets)
+    active_count = len([
+        wallet for wallet in selected_wallets if wallet not in muted_wallets
+    ])
     wallet_subscriptions_ready = bool(
         runtime["connected"]
         and runtime["subscriptions"]
-        - runtime["tracked_token_subscriptions"] == watched_count
+        - runtime["tracked_token_subscriptions"] == active_count
     )
+    with HELIUS_STANDARD_WSS_STATE_LOCK:
+        unstored = {
+            wallet: dict(row)
+            for wallet, row in HELIUS_STANDARD_WSS_UNSTORED.items()
+        }
     tracked_token_subscriptions_ready = bool(
         HELIUS_STANDARD_WSS_TRACK_TOKENS_ENABLED
         and runtime["connected"]
@@ -17664,6 +17784,31 @@ def api_helius_standard_wss_stats(
         "configured": configured,
         "configuration_error": configuration_error,
         "selected_wallets": watched_count,
+        "active_wallets": active_count,
+        "muted_wallets": [
+            {"wallet": wallet, **info}
+            for wallet, info in sorted(muted_wallets.items())
+        ],
+        "unstored_notifications_since_start": {
+            "limit_per_minute": HELIUS_STANDARD_WSS_MAX_OTHER_PER_MINUTE,
+            "notifications": sum(
+                row["notifications"] for row in unstored.values()
+            ),
+            "message_bytes": sum(
+                row["message_bytes"] for row in unstored.values()
+            ),
+            "wallets": [
+                {
+                    "wallet": wallet,
+                    "trader": traders_by_wallet.get(wallet),
+                    **row,
+                }
+                for wallet, row in sorted(
+                    unstored.items(),
+                    key=lambda item: -item[1]["notifications"],
+                )
+            ],
+        },
         "track_tokens_enabled": bool(
             HELIUS_STANDARD_WSS_TRACK_TOKENS_ENABLED
         ),

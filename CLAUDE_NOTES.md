@@ -2211,3 +2211,39 @@ estaban en `RISK_PATTERN`. Se agregan esos tres nombres y
 `git diff -W` sobre `3ebac26`: ahora habría frenado por
 `fetch_finalized_solana_transaction` y `parse_sell_receipt`. Solo amplía el
 patrón; no quita nada.
+
+## Notificaciones WSS sin Pump: memoria y freno por wallet — 2026-09-22 (noche)
+
+Al ampliar el WSS a 14 wallets, decu entregó 44 notificaciones por segundo
+sin un solo log de Pump: su dirección aparece mencionada en spam de tokens y
+`logsSubscribe` por mención lo trae todo. Cada notificación era un `INSERT`
+en `helius_standard_wss_notifications` (sin retención): 3,8 millones de filas
+y ~500 MB por día, más 44 escrituras por segundo compitiendo con el stream y
+paper en el mismo SQLite. Se sacó decu de `HELIUS_STANDARD_WSS_TRADERS` a
+mano (quedan 13). Este cambio evita depender de que alguien lo vea.
+
+- `record_helius_standard_wss_notification` ya no escribe las notificaciones
+  sin logs de Pump: las cuenta en memoria por wallet
+  (`HELIUS_STANDARD_WSS_UNSTORED`: cantidad, fallidas, bytes, primera y última)
+  y devuelve `False`. Las que traen Pump se guardan exactamente igual. En
+  `/api/helius-standard-wss-stats`, `last_24h.notifications` y
+  `message_bytes` pasan a contar solo lo almacenado; el resto aparece en
+  `unstored_notifications_since_start`, por wallet. Límite conocido: con
+  proveedor Helius, `credit_estimate` ya no ve los bytes no almacenados
+  (hoy el proveedor es Alchemy y ese estimado no aplica).
+- Freno: `note_unstored_helius_standard_wss_notification` devuelve el ritmo
+  del último minuto; si supera `HELIUS_STANDARD_WSS_MAX_OTHER_PER_MINUTE`
+  (600; decu hacía 2.600), el worker manda `logsUnsubscribe` para esa wallet,
+  la anota en `runtime.muted_wallets` (trader, hora, ritmo), imprime y avisa
+  por Discord una sola vez. Al reconectar, las wallets mudas no se vuelven a
+  suscribir; se limpia con un reinicio. `wallet_subscriptions_ready` compara
+  contra `active_wallets` (seleccionadas menos mudas) y el timeout de
+  suscripción también. Las notificaciones de tokens no entran al freno.
+
+Tests: sin Pump no hay fila y sí contador; el freno dispara una sola vez al
+cruzar el umbral y el tráfico lento nunca acumula; el worker con
+`FakeWebSocket` desuscribe la wallet inundada, deja la otra, avisa, expone
+`active_wallets=1` con `ready=true`, y tras un reconnect forzado solo
+resuscribe la sobreviviente.
+Verificación: **460 tests, OK**; los tres nuevos fallan contra el código
+anterior. No toca el camino del dinero ni ningún flag.
