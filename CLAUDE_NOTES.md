@@ -2720,3 +2720,28 @@ subestima: son pisos, no metas.**
 - Política de salidas: incompleta; esta candidata la completa.
 - Cuello actual: demostrar que la mejora persiste en datos nuevos y que no
   depende de cinco operaciones.
+
+### Corrección al cálculo de potencia (mismo día)
+
+El cálculo anterior confundía filas nuevas con operaciones. La cadena real,
+medida sobre el holdout:
+
+122 filas → **65,6 % pasa el umbral 0,45** → 80 señales → 67 mints distintos
+(grupo medio 1,19) → desvío por mint 0,3599.
+
+| efecto | mints indep. | señales | filas nuevas | días a 163/día |
+|---|---|---|---|---|
+| +0,05 | ~199 | ~238 | ~362 | ~2 |
+| +0,03 | ~553 | ~660 | ~1.007 | ~6 |
+| +0,02 | ~1.244 | ~1.485 | ~2.265 | ~14 |
+
+**Y hay un límite de independencia mayor que el agrupamiento por mint: las 80
+señales provienen de 5 traders.** Agrupar por mint casi no corrige porque los
+mints ya son casi únicos; agrupar por trader deja n efectivo = 5, y con 5
+clusters ni siquiera se puede estimar su desvío de forma creíble.
+
+Consecuencia para el criterio 1 de aprobación: **acumular más filas de los
+mismos traders no es muestra independiente para la pregunta "¿la estrategia
+funciona?", solo para "¿funciona con estos traders?".** La validación necesita
+diversidad de traders, no solo volumen. Por eso el trabajo de cobertura de hoy
+—que sumó ily y marcell al dataset— es precondición estadística, no higiene.
