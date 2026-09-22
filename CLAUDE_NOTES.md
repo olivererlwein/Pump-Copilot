@@ -2644,3 +2644,79 @@ el neto total, o sea que el resto en conjunto destruye valor.
 Nada de esto elige política: este holdout ya fue inspeccionado muchas veces.
 Lo que sí deja es una especificación candidata —una regla por población— para
 congelar y medir contra datos nuevos.
+
+## ESPECIFICACIÓN CONGELADA — candidata `tp100_time` (2026-09-22)
+
+Congelada para validar contra datos nuevos. **No adoptada en paper ni en
+live.** Nada de esto está activo en producción.
+
+### La regla
+
+Sobre la política actual, sin tocar nada más:
+
+- TP25 → vende 25 % del original. **Sin cambios.**
+- TP50 → vende 25 % del original. **Sin cambios.**
+- TP100 → vende 25 % del original **y liquida todo el remanente**.
+- Stop −20 % → cierra todo. **Sin cambios.**
+- Cualquier remanente que siga abierto al final del horizonte se cierra ahí.
+
+Justificación declarada **antes** de ver datos nuevos: una posición que llegó
+a +100 % ya demostró comportamiento de cola positiva y cerrar ahí evita
+devolver una ganancia extrema; una que nunca alcanzó salida terminal se cierra
+al terminar la observación para que toda operación tenga pago definido. No
+agrega ningún parámetro de precio optimizado y resuelve el 100 % de las
+posiciones.
+
+### El horizonte
+
+**15 minutos, porque es el máximo observable del dataset actual. No se
+interpreta como horizonte económico óptimo.** Si mañana los checkpoints llegan
+más lejos, este número hay que rediscutirlo, no heredarlo.
+
+### El umbral
+
+**0,45**, el que eligió la validación cruzada sin mirar el holdout. Los
+resultados a 0,50 y 0,55 son sensibilidad posterior al holdout y **no
+habilitan** su uso, por mejores que se vean.
+
+### Lo que hoy muestra, para que no se recuerde de más
+
+En el umbral congelado el estimador puntual es **negativo**: medio −0,0410,
+IC95 [−0,124, +0,042]. Todos los números positivos de esta candidata vienen de
+umbrales que no se pueden usar. **La validación no es confirmar una mejora: es
+averiguar si existe.**
+
+### Fragilidad conocida
+
+`tp100` trunca la cola en +100 %, que es lo contrario de preservar convexidad.
+Acá funcionó porque las 5 posiciones que llegaron al TP100 devolvieron
+ganancias antes de los 15 minutos. **Con 5 casos no se sabe si +100 % es un
+techo acertado o si corta donde vive el edge.** Es la parte más frágil de la
+especificación y debe medirse aparte cuando haya más casos de TP100.
+
+### Criterios de aprobación, fijados de antemano
+
+1. Muestra **independiente**, sin reutilizar filas ya inspeccionadas.
+2. Umbral elegido sin mirar esa muestra.
+3. IC95 del neto medio **excluye el cero** por arriba.
+4. **Leave-one-out**: el medio sigue positivo al quitar la mejor operación.
+   Hoy a 0,50 quitar una sola la da vuelta (+0,0183 → −0,0067).
+5. Concentración reportada: aporte del top 5 y top 10, y por trader y por
+   mint. Ni siquiera un medio positivo alcanza si tres tokens lo explican.
+6. Reportar además: % que llega a TP100, % que cierra por tiempo, aporte del
+   remanente, mediana, drawdown operativo y casos ambiguos.
+
+### Tamaño de muestra necesario
+
+Con el desvío observado (0,379 por operación): ~221 operaciones para detectar
++0,05 por operación, ~613 para +0,03, ~1.379 para +0,02. A 163 filas/día son
+unos 2, 6 y 13 días respectivamente. **Con colas gordas el desvío muestral
+subestima: son pisos, no metas.**
+
+### Estado del diagnóstico
+
+- Modelo: tiene señal (AUC 0,726 contra el objetivo económico, lift 2,3×).
+- Stop: no es el problema (SL10 vs SL20 cambia 4 etiquetas de 609).
+- Política de salidas: incompleta; esta candidata la completa.
+- Cuello actual: demostrar que la mejora persiste en datos nuevos y que no
+  depende de cinco operaciones.
