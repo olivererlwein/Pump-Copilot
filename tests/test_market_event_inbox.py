@@ -280,6 +280,7 @@ class MarketEventInboxConsumerTests(unittest.TestCase):
         block_event_ts=202.0,
         stored_block_event_ts=None,
         event_fields=None,
+        source="helius",
     ):
         event = {
             "signature": signature,
@@ -301,7 +302,7 @@ class MarketEventInboxConsumerTests(unittest.TestCase):
             (
                 signature,
                 event_index,
-                "helius",
+                source,
                 "wallet-1",
                 "trader-1",
                 "mint-1",
@@ -333,6 +334,43 @@ class MarketEventInboxConsumerTests(unittest.TestCase):
             ).fetchone()
         finally:
             conn.close()
+
+    def test_rpc_sourced_event_feeds_signals_but_never_live_exits(self):
+        """El fallback detecta hasta 90 s tarde: una salida live decidiría
+        sobre un precio viejo. Puede alimentar scoring, señales y paper."""
+        self.insert_validated_event(source="rpc")
+        app.establish_market_event_inbox_activation(now=200.5)
+
+        with (
+            patch.object(
+                app, "mark_market_event_processed", return_value=True
+            ) as mark,
+            patch.object(app, "route_market_event") as route,
+        ):
+            result = app.consume_market_event_inbox_once(now=205.0)
+
+        self.assertEqual(result["processed"], 1)
+        mark.assert_called_once_with("sig-1", 0, source="rpc")
+        self.assertEqual(route.call_args.kwargs, {
+            "allow_live_buys": False,
+            "allow_live_exits": False,
+        })
+
+    def test_rpc_event_already_applied_by_another_transport_is_a_duplicate(self):
+        self.insert_validated_event(source="rpc")
+        app.establish_market_event_inbox_activation(now=200.5)
+
+        with (
+            patch.object(
+                app, "mark_market_event_processed", return_value=False
+            ),
+            patch.object(app, "route_market_event") as route,
+        ):
+            result = app.consume_market_event_inbox_once(now=205.0)
+
+        self.assertEqual(result["duplicates"], 1)
+        self.assertEqual(result["processed"], 0)
+        route.assert_not_called()
 
     def test_post_activation_event_is_reserved_and_routed_once(self):
         self.insert_validated_event()

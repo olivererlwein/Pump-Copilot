@@ -510,6 +510,64 @@ class RpcFallbackPersistenceTests(unittest.TestCase):
         self.assertEqual(stats["missing"], 0)
         self.assertEqual(stats["matched_identity"], 1)
 
+    def test_apply_flag_decides_whether_the_fallback_feeds_the_inbox(self):
+        """Sin el flag solo cuenta; con el flag escribe al inbox como `rpc`."""
+        def receipt_for(signature):
+            receipt = pump_receipt()
+            receipt["transaction"] = {
+                **receipt["transaction"],
+                "signatures": [signature],
+            }
+            return receipt
+
+        applied_signature = "4" * 88
+
+        def poll(signature):
+            with (
+                patch.object(app, "WATCHED", {"trader-a": WALLET}),
+                patch.object(
+                    app, "fetch_signatures_for_address",
+                    return_value=[
+                        {"signature": signature, "slot": 10, "err": None}
+                    ],
+                ),
+                patch.object(
+                    app, "fetch_confirmed_transaction",
+                    return_value=receipt_for(signature),
+                ),
+            ):
+                app.poll_rpc_fallback_once()
+
+        def inbox(signature):
+            conn = app.db()
+            try:
+                return conn.execute(
+                    "SELECT source, block_event_ts, status "
+                    "FROM market_event_inbox WHERE signature = ?",
+                    (signature,),
+                ).fetchall()
+            finally:
+                conn.close()
+
+        # El primer poll de una wallet sin estado solo fija la línea base.
+        with patch.object(app, "RPC_FALLBACK_APPLY", False):
+            poll("1" * 88)
+            poll(SIGNATURE)
+        self.assertEqual(inbox(SIGNATURE), [])
+
+        with patch.object(app, "RPC_FALLBACK_APPLY", True):
+            poll(applied_signature)
+        stored = inbox(applied_signature)
+        self.assertEqual(len(stored), 1)
+        source, block_event_ts, status = stored[0]
+        self.assertEqual(source, "rpc")
+        self.assertEqual(status, "observed")
+        # La cronología es la del bloque, no la de la detección: el fallback
+        # llega tarde y una hora de recepción corrompería los checkpoints.
+        self.assertEqual(
+            block_event_ts, receipt_for(applied_signature)["blockTime"]
+        )
+
     def test_missing_event_reports_what_the_wss_transport_saw(self):
         """Separa "el transporte nunca lo trajo" de "lo trajo y falló"."""
         app.record_rpc_fallback_event(

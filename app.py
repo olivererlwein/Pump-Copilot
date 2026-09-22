@@ -664,6 +664,15 @@ RPC_FALLBACK_MAX_TRANSACTIONS_PER_POLL = max(
     int(os.getenv("RPC_FALLBACK_MAX_TRANSACTIONS_PER_POLL", "30")),
 )
 
+# El WSS no entrega las transacciones que usan Address Lookup Tables: las 14
+# operaciones reales de gr3gor14n (todas por Jupiter) llegaron con
+# `wss_notified: false`, mientras sus menciones ajenas sí llegaban. El fallback
+# RPC las ve bien; con esto puede aplicarlas en vez de solo contarlas.
+# Observacional por defecto: la frontera la fija una decisión deliberada.
+RPC_FALLBACK_APPLY = os.getenv(
+    "RPC_FALLBACK_APPLY", "false"
+).lower() == "true"
+
 RPC_FALLBACK_GRACE_SECONDS = max(
     10,
     int(os.getenv("RPC_FALLBACK_GRACE_SECONDS", "45")),
@@ -11273,7 +11282,8 @@ def claim_market_event_inbox_processing_batch(limit=None, now=None):
                 wallet,
                 event_json,
                 received_ts,
-                block_event_ts
+                block_event_ts,
+                source
             FROM market_event_inbox
             WHERE status = 'validated'
             OR (
@@ -11286,7 +11296,7 @@ def claim_market_event_inbox_processing_batch(limit=None, now=None):
             (stale_before, limit),
         ).fetchall()
 
-        for signature, event_index, _, _, _, _ in rows:
+        for signature, event_index, _, _, _, _, _ in rows:
             conn.execute(
                 """
                 UPDATE market_event_inbox
@@ -11316,6 +11326,7 @@ def claim_market_event_inbox_processing_batch(limit=None, now=None):
             "event_json": row[3],
             "received_ts": row[4],
             "block_event_ts": row[5],
+            "source": row[6],
             "claim_token": claim_token,
         }
         for row in rows
@@ -11427,11 +11438,17 @@ def consume_market_event_inbox_once(limit=None, now=None):
                     block_event_ts=row["block_event_ts"],
                 )
 
+                # El fallback RPC detecta hasta 90 segundos tarde: aplicar una
+                # salida live con ese retraso decidiría sobre un precio viejo.
+                # Alimenta scoring, señales y paper; las salidas siguen siendo
+                # del transporte en vivo.
+                transport = "rpc" if row.get("source") == "rpc" else "helius"
+
                 reserving = True
                 reserved = mark_market_event_processed(
                     row["signature"],
                     row["event_index"],
-                    source="helius",
+                    source=transport,
                 )
                 reserving = False
 
@@ -11448,7 +11465,7 @@ def consume_market_event_inbox_once(limit=None, now=None):
                     route_market_event(
                         event,
                         allow_live_buys=False,
-                        allow_live_exits=True,
+                        allow_live_exits=(transport != "rpc"),
                     )
                     status = "processed"
                     error = None
@@ -12920,6 +12937,18 @@ def poll_rpc_fallback_once():
                 ):
                     RPC_FALLBACK_PARSED_EVENTS += 1
 
+            # La identidad completa la arbitra `processed_market_events`: si
+            # otro transporte ya aplicó la operación, el consumidor la marca
+            # duplicada y no se aplica dos veces.
+            if RPC_FALLBACK_APPLY and parsed_events:
+                record_helius_webhook_transactions(
+                    [receipt],
+                    received_ts=time.time(),
+                    persist_inbox=True,
+                    persist_observation=False,
+                    inbox_source="rpc",
+                )
+
             update_rpc_fallback_wallet_state(
                 wallet,
                 queue["trader"],
@@ -13130,8 +13159,12 @@ def get_rpc_fallback_stats():
     matched = counts.get("matched", 0)
     return {
         "enabled": bool(RPC_FALLBACK_SHADOW_ENABLED),
-        "observational": True,
-        "affects_decisions": False,
+        "apply": bool(RPC_FALLBACK_APPLY),
+        "observational": not RPC_FALLBACK_APPLY,
+        "affects_decisions": bool(
+            RPC_FALLBACK_APPLY and MARKET_EVENT_INBOX_CONSUMER_ENABLED
+        ),
+        "affects_live_exits": False,
         "poll_seconds": RPC_FALLBACK_POLL_SECONDS,
         "grace_seconds": RPC_FALLBACK_GRACE_SECONDS,
         "last_poll_ts": RPC_FALLBACK_LAST_POLL_TS or None,
@@ -16748,6 +16781,7 @@ def record_helius_webhook_transactions(
     received_ts=None,
     persist_inbox=True,
     persist_observation=True,
+    inbox_source="helius",
 ):
     """Registra lo que llegó por webhook. Observacional: no dispara nada.
 
@@ -16913,7 +16947,7 @@ def record_helius_webhook_transactions(
                                 normalized_event, required=True
                             ),
                             "ordinal-v2",
-                            "helius",
+                            inbox_source,
                             event_wallet,
                             event_trader,
                             normalized_event.get("mint"),

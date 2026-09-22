@@ -2344,3 +2344,54 @@ nivel superior, Pump como CPI interno) y firma en segundo lugar. Bajadas por
 RPC, el parser las procesa bien (`parsed=1`, índice 0), así que el problema no
 está en el parser.
 Verificación: **461 tests, OK**; el test nuevo falla contra el código anterior.
+
+## El fallback RPC puede aplicar lo que el WSS no entrega — 2026-09-22
+
+Cerrado el diagnóstico del día: `missing_events` con los campos nuevos mostró
+dos causas separadas. Seis operaciones (epicsealdarkeye, chriskogias) con
+`wss_notified: true` y `wss_fetch_status: fetch_failed`, todas anteriores al
+fix de transacciones v1: backlog ya resuelto. Y **catorce de gr3gor14n con
+`wss_notified: false`**: la notificación nunca llegó.
+
+Las dos que se inspeccionaron por RPC usan Address Lookup Tables (4 y 1) y van
+por Jupiter, con gr3gor14n como segundo firmante; el parser las procesa bien.
+De sus 30 transacciones más recientes, 22 son menciones ajenas sin ALT —todas
+entregadas— y ninguna es propia. La correlación en la muestra es 2/2 faltantes
+con ALT contra 22/22 entregadas sin ALT: `logsSubscribe` con `mentions` no
+entrega las transacciones con ALT aunque la wallet esté en las claves
+estáticas como firmante. Es una limitación del transporte, no del parser.
+
+Importa más allá de gr3gor14n (que tiene 1 acierto en 102): cualquier trader
+que pase a operar por un agregador se vuelve invisible para el único
+transporte que aplica, sin aviso.
+
+`RPC_FALLBACK_APPLY` (default `false`) hace que el fallback, además de
+registrar el evento, escriba el recibo al inbox con
+`record_helius_webhook_transactions(..., persist_inbox=True,
+inbox_source="rpc")`, igual que el WSS. No hay camino nuevo: el consumidor del
+inbox ya existente valida, reserva identidad y aplica.
+
+Dos diferencias respecto de Helius, por la latencia de hasta 90 segundos del
+fallback:
+
+- El consumidor rutea según `market_event_inbox.source`. Una fila `rpc` se
+  reserva en `processed_market_events` con `source='rpc'` —la atribución por
+  transporte sigue siendo honesta— y se rutea con `allow_live_exits=False`
+  además de `allow_live_buys=False`. Decidir una salida live con un precio de
+  hasta 90 segundos atrás sería peor que no decidirla; las salidas siguen
+  siendo del transporte en vivo. `/api/rpc-fallback-stats` lo expone como
+  `affects_live_exits: false`.
+- La cronología es la del bloque: el inbox guarda `block_event_ts` del evento,
+  no la hora de detección, que corrompería los checkpoints.
+
+La doble aplicación la sigue bloqueando `processed_market_events` por
+identidad completa, el mismo árbitro que ya usan el stream, el webhook y el
+WSS entre sí: si otro transporte ganó la operación, la fila queda `duplicate`
+y no se rutea.
+
+Tests: con el flag apagado no se escribe nada al inbox y con el flag encendido
+se escribe una fila `rpc` con el tiempo de bloque; una fila `rpc` se reserva
+con `source='rpc'` y se rutea con ambas banderas live en falso; una fila `rpc`
+que otro transporte ya aplicó queda duplicada sin rutear.
+Verificación: **464 tests, OK**; los tests nuevos fallan contra el código
+anterior. El flag queda apagado: activarlo es una decisión aparte.
