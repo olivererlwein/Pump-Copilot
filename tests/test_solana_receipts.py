@@ -315,6 +315,7 @@ class LiveReceiptPersistenceTests(unittest.TestCase):
             entry_market_cap_source="account",
             account_price_sol=0.002,
             account_price_observed_ts=1000.0,
+            account_price_slot=43,
         )
         self.assertTrue(status["ready"])
         self.assertTrue(status["affects_decisions"])
@@ -405,6 +406,7 @@ class LiveReceiptPersistenceTests(unittest.TestCase):
                 entry_market_cap_source="account",
                 account_price_sol=current_price,
                 account_price_observed_ts=2000.0,
+                account_price_slot=500,
             )
             out_of_order = app.evaluate_live_position_exit(
                 MINT,
@@ -415,6 +417,18 @@ class LiveReceiptPersistenceTests(unittest.TestCase):
                 entry_market_cap_source="account",
                 account_price_sol=current_price,
                 account_price_observed_ts=1999.0,
+                account_price_slot=501,
+            )
+            stale_node = app.evaluate_live_position_exit(
+                MINT,
+                "",
+                "",
+                current_market_cap,
+                None,
+                entry_market_cap_source="account",
+                account_price_sol=current_price,
+                account_price_observed_ts=2001.0,
+                account_price_slot=499,
             )
 
         self.assertTrue(result[0]["ok"])
@@ -422,6 +436,11 @@ class LiveReceiptPersistenceTests(unittest.TestCase):
             out_of_order[0]["reason"],
             "ACCOUNT_PRICE_BEFORE_LAST_OBSERVATION",
         )
+        self.assertEqual(
+            stale_node[0]["reason"],
+            "ACCOUNT_PRICE_SLOT_BEFORE_LAST_OBSERVATION",
+        )
+        self.assertEqual(execute.call_count, 1)
         self.assertEqual(execute.call_args.kwargs["exit_reason"], "TAKE_PROFIT")
         self.assertEqual(execute.call_args.kwargs["target_tp_stage"], 1)
         conn = app.db()
@@ -431,7 +450,8 @@ class LiveReceiptPersistenceTests(unittest.TestCase):
                 "account_exit_entry_market_cap_sol, "
                 "account_exit_current_market_cap_sol, "
                 "account_exit_entry_observed_ts, "
-                "account_exit_last_observed_ts "
+                "account_exit_last_observed_ts, "
+                "account_exit_last_slot "
                 "FROM live_positions WHERE order_id = ?",
                 (self.order_id,),
             ).fetchone()
@@ -439,7 +459,49 @@ class LiveReceiptPersistenceTests(unittest.TestCase):
             conn.close()
         self.assertEqual(state[0:2], (100.0, 100.0))
         self.assertAlmostEqual(state[2], expected_entry_market_cap)
-        self.assertEqual(state[3:], (15.0, 2000.0, 2000.0))
+        self.assertEqual(state[3:], (15.0, 2000.0, 2000.0, 500))
+
+    def test_account_exit_requires_a_real_slot(self):
+        self.prepare_account_exit_position()
+        for slot in (None, 0, -1, 1.5, True, "500"):
+            with self.subTest(slot=slot), self.assertRaisesRegex(
+                ValueError, "ACCOUNT_EXIT_CONTEXT_INVALID"
+            ):
+                app.evaluate_live_position_exit(
+                    MINT,
+                    "",
+                    "",
+                    15.0,
+                    None,
+                    entry_market_cap_source="account",
+                    account_price_sol=1.5e-11,
+                    account_price_observed_ts=2000.0,
+                    account_price_slot=slot,
+                )
+        with self.assertRaisesRegex(ValueError, "LIVE_EXIT_ENTRY_SOURCE_INVALID"):
+            app.evaluate_live_position_exit(
+                MINT, "", "", 15.0, None, account_price_slot=500
+            )
+
+    def test_account_exit_monitor_treats_snapshot_without_slot_as_unpriced(self):
+        self.prepare_account_exit_position()
+        snapshots = {
+            MINT: {"status": "amm", "market_cap_sol": 125.0, "price_sol": 0.002}
+        }
+        with patch.object(
+            app, "LIVE_ACCOUNT_EXIT_MONITOR_ENABLED", True
+        ), patch.object(
+            app, "LIVE_ACCOUNT_EXIT_MONITOR_APPLY", True
+        ), patch.object(
+            app, "LIVE_ACCOUNT_EXIT_MONITOR_STATE", self.account_exit_state()
+        ), patch.object(
+            app, "fetch_account_prices", return_value=snapshots
+        ), patch.object(app, "evaluate_live_position_exit") as evaluate:
+            status = app.live_account_exit_monitor_once(now=1000.0)
+
+        evaluate.assert_not_called()
+        self.assertEqual(status["last_error"], "LIVE_ACCOUNT_EXIT_UNPRICED_MINTS")
+        self.assertFalse(status["ready"])
 
     def test_account_exit_rejects_event_identity_and_trader_context(self):
         self.prepare_account_exit_position()
@@ -455,6 +517,7 @@ class LiveReceiptPersistenceTests(unittest.TestCase):
                 entry_market_cap_source="account",
                 account_price_sol=1.5e-11,
                 account_price_observed_ts=2000.0,
+                account_price_slot=500,
             )
 
     def test_account_exit_rejects_partial_baseline_state(self):
@@ -479,6 +542,7 @@ class LiveReceiptPersistenceTests(unittest.TestCase):
                 entry_market_cap_source="account",
                 account_price_sol=1.5e-11,
                 account_price_observed_ts=2000.0,
+                account_price_slot=500,
             )
 
         execute.assert_not_called()

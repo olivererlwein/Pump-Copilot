@@ -2172,3 +2172,30 @@ el evento del programa.
 
 Verificación: **455 tests, OK**; los tres tests nuevos y el ajuste del
 existente fallan contra el código anterior.
+
+## Slot en las salidas por precio de cuenta — 2026-09-22
+
+Cierra el riesgo abierto del monitor: `live_account_exit_monitor_once` pasaba
+solo `checked_ts` (reloj local tomado antes del RPC) y descartaba
+`snapshot["slot"]`, así que la guarda `ACCOUNT_PRICE_BEFORE_LAST_OBSERVATION`
+no distinguía un precio nuevo de la respuesta de un nodo RPC rezagado con
+reloj local más alto.
+
+Cambio, todo dentro de la ruta `entry_market_cap_source="account"`:
+
+- `evaluate_live_position_exit(..., account_price_slot=)` es obligatorio en
+  esa ruta (entero positivo real, no bool ni string) y prohibido en la ruta
+  por eventos; ambos casos fallan cerrado con los errores ya existentes.
+- Columna nueva `live_positions.account_exit_last_slot` (migración por
+  `ALTER TABLE` idempotente, como las anteriores).
+- Guarda nueva `ACCOUNT_PRICE_SLOT_BEFORE_LAST_OBSERVATION`: un snapshot con
+  slot menor al último aplicado se rechaza aunque su timestamp sea mayor. La
+  guarda por timestamp sigue igual.
+- El monitor solo considera "priced" un mint cuyo snapshot trae slot válido;
+  sin slot, el mint cuenta como no valuado y el ciclo entero falla con
+  `LIVE_ACCOUNT_EXIT_UNPRICED_MINTS`, como ya hacía con precios inválidos.
+
+No cambia la ruta por eventos ni ningún flag; `apply` sigue en `false`.
+Verificación: **457 tests, OK**; los tests nuevos y los ajustados fallan
+contra el código anterior. Este commit sí toca `evaluate_live_position_exit`,
+así que el hook pre-push lo frena con razón.
