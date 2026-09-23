@@ -13,7 +13,7 @@
   --border-strong:#333c46;
   --text:#e6eaef;
   --muted:#939eaa;
-  --muted-2:#6b7681;
+  --muted-2:#7f8b97;
   --green:#35c98a;
   --green-2:#2aa872;
   --red:#f05c5c;
@@ -42,7 +42,7 @@ html[data-theme="light"]{
   --border-strong:#c3ccd5;
   --text:#10151a;
   --muted:#5b6672;
-  --muted-2:#8a939d;
+  --muted-2:#5b6773;
   /* En claro bajan de luminosidad y suben de saturación para conservar AA
      sobre blanco: no es la paleta oscura con el brillo invertido. */
   --green:#0f7a4f;
@@ -174,6 +174,7 @@ header{
 }
 
 .header-actions{display:flex;align-items:center;gap:8px}
+.mobile-brand .logo{background:linear-gradient(145deg,#2f7cf6,#5e9cff)}
 .theme-toggle{
   width:32px;
   height:32px;
@@ -483,6 +484,7 @@ main{padding-top:28px}
 .list-count{margin:2px 2px 10px;font-size:10px}
 
 #signalList,#paperList,#tradeList,#traderList{display:grid;gap:10px}
+#signalList>*,#paperList>*,#tradeList>*,#traderList>*{min-width:0}
 #signalList{grid-template-columns:repeat(2,minmax(0,1fr))}
 #signalList .signal-card{margin:0}
 
@@ -567,7 +569,7 @@ nav{
   height:38px;
   border:0;
   border-radius:11px;
-  background:linear-gradient(145deg,#2f7cf6,#32d583);
+  background:linear-gradient(145deg,#2f7cf6,#5e9cff);
   color:white;
   font-size:11px;
 }
@@ -689,6 +691,10 @@ button:focus-visible,input:focus-visible,select:focus-visible,.position-card:foc
   #homePage.active{grid-template-columns:minmax(0,1.2fr) minmax(280px,.8fr)}
 }
 
+@media(max-width:800px){
+  .hero>.between{flex-wrap:wrap}
+}
+
 @media(max-width:720px){
   body{background:var(--bg)}
   .app-shell{
@@ -800,16 +806,44 @@ html[data-theme="light"] nav button.active{background:rgba(0,0,0,.065)}
   .status{padding:6px 9px}
   .hero{padding:18px}
   .hero>.between{flex-wrap:wrap;row-gap:10px}
+  .hero-pnl,.token-title,.token-sub,.mint,.activity-main,.activity-meta,.reason{overflow-wrap:anywhere}
   .mode{font-size:8px}
   .summary-cell{padding:0 9px}
   .summary-cell b{font-size:15px}
   .signal-top{align-items:flex-start}
+  .signal-top>div:first-child,.position-top>div:first-child,
+  .activity-card>.between>div,.trader-card>.between>div{min-width:0}
+  .position-top,.activity-card>.between,.trader-card>.between{flex-wrap:wrap}
+  .status-row .pill{max-width:100%;white-space:normal;overflow-wrap:anywhere}
   .pos-grid{grid-template-columns:1fr;gap:7px}
   .position-card .mini{padding:7px 0;border-right:0;border-bottom:1px solid var(--border)}
   .position-card .mini:last-child{border-bottom:0}
   .trader-card .pos-grid{grid-template-columns:repeat(2,1fr)}
   .trader-card .mini{padding:8px;border-right:1px solid var(--border);border-bottom:1px solid var(--border)}
   .trader-card .mini:nth-child(2n){border-right:0}
+}
+
+@media(max-width:260px){
+  .summary-grid{grid-template-columns:1fr;gap:10px}
+  .summary-cell{padding:0 0 10px;border-right:0;border-bottom:1px solid var(--border)}
+  .summary-cell:last-child{padding-bottom:0;border-bottom:0}
+  .position-top,.trader-card>.between,.shadow-head{align-items:flex-start;flex-wrap:wrap}
+  .position-top>div:first-child,.trader-card>.between>div:first-child{min-width:0;max-width:100%}
+  .token-title,.shadow-title,.shadow-version,.shadow-metric span,.shadow-versus span,.shadow-versus b{
+    min-width:0;
+    white-space:normal;
+    overflow-wrap:anywhere;
+  }
+  .signal-fact b{white-space:normal;overflow-wrap:anywhere}
+  .hero>.between,.mode{min-width:0;max-width:100%}
+  .hero>.between,.activity-card>.between{align-items:flex-start;flex-direction:column}
+  .activity-card>.between>div:last-child{text-align:left!important}
+  .mode{white-space:normal;overflow-wrap:anywhere}
+  #datasetReadout{font-size:12px}
+  .control-bar,.segment{min-width:0;overflow:hidden}
+  .segment button{min-width:0;padding-right:3px;padding-left:3px;overflow:hidden;font-size:8px;text-overflow:ellipsis}
+  .trader-card .pos-grid{grid-template-columns:1fr}
+  .trader-card .mini{border-right:0}
 }
 
 @media(prefers-reduced-motion:reduce){

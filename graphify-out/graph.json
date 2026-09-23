@@ -9317,7 +9317,7 @@
       "file_type": "code",
       "norm_label": "run()",
       "source_file": "scripts/ui_render_fixture.py",
-      "source_location": "L83"
+      "source_location": "L139"
     },
     {
       "id": "app_apply_paper_event",
@@ -29753,7 +29753,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/ui_render_fixture.py",
-      "source_location": "L84",
+      "source_location": "L140",
       "weight": 1.0
     },
     {
@@ -29765,7 +29765,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/ui_render_fixture.py",
-      "source_location": "L92",
+      "source_location": "L148",
       "weight": 1.0
     },
     {
@@ -29777,7 +29777,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/ui_render_fixture.py",
-      "source_location": "L93",
+      "source_location": "L149",
       "weight": 1.0
     },
     {
@@ -47407,7 +47407,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/ui_render_fixture.py",
-      "source_location": "L83",
+      "source_location": "L139",
       "weight": 1.0
     },
     {
@@ -58694,5 +58694,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "180a92f7f431ce4666ba8889ab8438cc3203a8b0"
+  "built_at_commit": "fb3ce17e27cb4cf3cfc31c13813a0ae2daec7dbe"
 }

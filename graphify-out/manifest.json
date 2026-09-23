@@ -168,9 +168,9 @@
     "semantic_hash": ""
   },
   "static/index.html": {
-    "mtime": 1790186922.0384421,
-    "seen": 1790187051.6341696,
-    "ast_hash": "04cc4fef0d61292f13dabf6fbabbcb5c",
+    "mtime": 1790190001.6978183,
+    "seen": 1790190043.532589,
+    "ast_hash": "fb732d87745485281397732955b33b7a",
     "semantic_hash": ""
   },
   "graphify-out/memory/query_20260908_120214_b041fd8c_sigamos.md": {
@@ -462,9 +462,9 @@
     "semantic_hash": ""
   },
   "scripts/ui_render_fixture.py": {
-    "mtime": 1790187104.6795852,
-    "seen": 1790187138.4586904,
-    "ast_hash": "8d9165372cd1a242a4e67612bba9c16f",
+    "mtime": 1790190024.302031,
+    "seen": 1790190043.5325143,
+    "ast_hash": "ebc2d37f8cac1b4f46c6406ac09256de",
     "semantic_hash": ""
   }
 }

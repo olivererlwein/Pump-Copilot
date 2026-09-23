@@ -79,6 +79,62 @@ COVERAGE_CASES = (
     ),
 )
 
+MALFORMED_CASES = (
+    (
+        "posición",
+        "positionCard({mint:{},origin_trader:{},entry_mc:'bad',"
+        "current_mc:{},pnl_usd:'oops',realized_pnl_usd:null,"
+        "unrealized_pnl_usd:undefined,remaining_pct:'wat',status:{},"
+        "last_action:{}})",
+    ),
+    (
+        "señal",
+        "signalCard({decision:{},reasons:{},market_cap:'bad',"
+        "sol_amount:{},score:'bad',ts:'bad',mint:{},trader:{},"
+        "outcome_status:{}})",
+    ),
+    (
+        "actividad",
+        "(()=>{renderTrades([{side:{},trader:{},ts:'bad',sol:'bad',"
+        "market_cap_sol:{},mint:{}}]);return tradeList.innerHTML})()",
+    ),
+    (
+        "trader",
+        "(()=>{renderTraders([{name:{},wallet:{},events:'bad',buys:{},"
+        "sells:undefined,evaluations:'bad',quality_rated:true,"
+        "effective_quality:'bad'}]);return traderList.innerHTML})()",
+    ),
+    (
+        "modelo",
+        "(()=>{renderShadowStats({model_loaded:true,challenger_model_loaded:true,"
+        "comparison:{total:'bad',completed:{},pending:'bad',"
+        "agreement_rate:'bad',incumbent_metrics:{precision:'bad'},"
+        "challenger_metrics:{recall:{}}}});return shadowPanel.innerHTML})()",
+    ),
+    (
+        "dataset",
+        "(()=>{renderCheckpointTrainingStats({readiness:{minimums:"
+        "{complete_rows:'bad'},progress:{complete_rows:'bad'}},last_24h:"
+        "{complete_rows:'bad'},complete_rows:'bad'});"
+        "return checkpointPanel.innerHTML})()",
+    ),
+    (
+        "exit monitor",
+        "(()=>{renderExitMonitor({apply:false,status:{},open_positions:{},"
+        "selected_mints:'bad',priced_mints:null,exit_results:undefined,"
+        "maximum_age_seconds:'bad',blockers:['x']},{total:'bad',open:{}});"
+        "return exitPanel.innerHTML})()",
+    ),
+    (
+        "detalle",
+        "(async()=>{const previous=LAST_PAPER;LAST_PAPER=[{mint:'fixture-bad',"
+        "origin_trader:{},entry_mc:'bad',current_mc:{},pnl_usd:'oops',"
+        "status:{},last_action:{}}];await openTokenDetail('fixture-bad');"
+        "const html=tokenDetail.innerHTML;closeTokenDetail();LAST_PAPER=previous;"
+        "return html})()",
+    ),
+)
+
 
 async def run():
     chrome = Chrome(port=9356)
@@ -139,6 +195,41 @@ async def run():
                 f"{'OK' if result['state'] == state else 'FALLA'}"
             )
 
+        for name, expression in MALFORMED_CASES:
+            html = await chrome.evaluate(expression)
+            leaked = [
+                marker for marker in ("NaN", "undefined", "[object Object]")
+                if marker in html
+            ]
+            if leaked or "—" not in html:
+                failures.append(
+                    f"{name}: degradación inválida, filtró {leaked!r}"
+                )
+            print(
+                f"  payload inválido {name:<12} -> — sin basura "
+                f"{'OK' if not leaked and '—' in html else 'FALLA'}"
+            )
+
+        source_failures = json.loads(await chrome.evaluate("""
+          (async()=>{
+            const original=window.fetch;
+            try{
+              window.fetch=async()=>({ok:false,status:503});
+              const http=await source('/fixture-http',20);
+              window.fetch=(_path,options)=>new Promise((_resolve,reject)=>{
+                options.signal.addEventListener('abort',()=>reject(new Error('aborted')));
+              });
+              const timeout=await source('/fixture-timeout',10);
+              return JSON.stringify({http,timeout});
+            }finally{window.fetch=original;}
+          })()
+        """))
+        if source_failures != {"http": None, "timeout": None}:
+            failures.append(f"source failures: {source_failures!r}")
+        print("  fuente HTTP/timeout -> null aislado          "
+              + ("OK" if source_failures == {"http": None, "timeout": None}
+                 else "FALLA"))
+
         palette = json.loads(await chrome.evaluate("""
           (()=>{
             const host=document.createElement("div");
@@ -164,6 +255,65 @@ async def run():
             failures.append(f"palette: {palette!r}")
         print("  estados informativos -> azul del sistema      "
               + ("OK" if palette["colors"] == [palette["expected"]] * 4 else "FALLA"))
+
+        contrast_results = {}
+        for theme in ("dark", "light"):
+            contrast_results[theme] = json.loads(await chrome.evaluate(f"""
+              (()=>{{
+                document.documentElement.dataset.theme={json.dumps(theme)};
+                const root=getComputedStyle(document.documentElement);
+                const rgb=value=>value.match(/[\\d.]+/g).slice(0,3).map(Number);
+                const luminance=value=>rgb(value).map(channel=>{{
+                  channel/=255;
+                  return channel<=.04045?channel/12.92:
+                    Math.pow((channel+.055)/1.055,2.4);
+                }}).reduce((sum,value,index)=>
+                  sum+value*[.2126,.7152,.0722][index],0);
+                const foreground=root.getPropertyValue('--muted-2');
+                return JSON.stringify(['--bg','--surface','--surface-2','--surface-3']
+                  .map(name=>{{
+                    const marker=document.createElement('i');
+                    marker.style.color=foreground;
+                    marker.style.backgroundColor=root.getPropertyValue(name);
+                    document.body.append(marker);
+                    const style=getComputedStyle(marker);
+                    const a=luminance(style.color),b=luminance(style.backgroundColor);
+                    marker.remove();
+                    return (Math.max(a,b)+.05)/(Math.min(a,b)+.05);
+                  }}));
+              }})()
+            """))
+        if min(min(values) for values in contrast_results.values()) < 4.5:
+            failures.append(f"contrast: {contrast_results!r}")
+        print("  contraste muted-2 -> AA en cuatro superficies "
+              + ("OK" if min(min(values) for values in contrast_results.values()) >= 4.5
+                 else "FALLA"))
+
+        await chrome.send(
+            "Emulation.setDeviceMetricsOverride",
+            width=195, height=844, deviceScaleFactor=1, mobile=True,
+        )
+        for view in ("home", "signals", "paper", "activity", "traders"):
+            responsive = json.loads(await chrome.evaluate(f"""
+              (()=>{{
+                showPage({json.dumps(view)});
+                const root=document.documentElement;
+                const page=document.querySelector('.page.active');
+                const outside=[...page.querySelectorAll('*')].some(element=>{{
+                  const rect=element.getBoundingClientRect();
+                  return rect.left < -1 || rect.right > innerWidth + 1;
+                }});
+                return JSON.stringify({{
+                  overflow:root.scrollWidth > root.clientWidth + 1,
+                  outside
+                }});
+              }})()
+            """))
+            if responsive["overflow"] or responsive["outside"]:
+                failures.append(f"195px {view}: {responsive!r}")
+        print("  responsive 195 px -> cinco vistas contenidas  "
+              + ("OK" if not any(item.startswith("195px") for item in failures)
+                 else "FALLA"))
 
         # Y que el entorno real de la página siga siendo el que afirma el backend.
         live = await chrome.evaluate("JSON.stringify(EXECUTION_ENV)")

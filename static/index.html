@@ -1102,7 +1102,8 @@
   </div>
 </nav>
 
-  <div id="tokenDetail" class="detail-overlay" aria-hidden="true">
+  <div id="tokenDetail" class="detail-overlay" role="dialog" aria-modal="true"
+       aria-labelledby="detailTrader" aria-hidden="true">
     <div class="detail-shell">
       <div class="detail-header">
         <button class="back-button" onclick="closeTokenDetail()" aria-label="Volver">‹</button>
@@ -1124,6 +1125,7 @@ let LAST_PAPER = [];
 let LAST_SIGNALS = [];
 let LAST_TRADES = [];
 let DETAIL_TIMEFRAME = "all";
+let DETAIL_RETURN_FOCUS = null;
 let SIGNAL_DECISION_FILTER = "all";
 let SIGNAL_TRADER_FILTER = "all";
 let TRADE_SIDE_FILTER = "all";
@@ -1155,7 +1157,8 @@ systemTheme.addEventListener?.("change",event=>{
 });
 
 function esc(v){
-  return String(v ?? "")
+  const text=typeof v==="string"||typeof v==="number"?String(v):"";
+  return text
     .replaceAll("&","&amp;")
     .replaceAll("<","&lt;")
     .replaceAll(">","&gt;")
@@ -1164,19 +1167,40 @@ function esc(v){
 }
 
 function shortMint(v){
-  const s = String(v || "");
+  const s=typeof v==="string"||typeof v==="number"?String(v):"";
   return s.length > 18 ? `${s.slice(0,8)}…${s.slice(-6)}` : s;
 }
 
+function finiteNumber(v){
+  if(v===null||v===undefined||v===""||typeof v==="boolean") return null;
+  const n=Number(v);
+  return Number.isFinite(n)?n:null;
+}
+
+function numberText(v,digits=0){
+  const n=finiteNumber(v);
+  return n===null?"—":n.toFixed(digits);
+}
+
+function plainText(v,fallback="—"){
+  return typeof v==="string"||typeof v==="number"?String(v):fallback;
+}
+
 function money(v){
-  const n = Number(v || 0);
+  const n=finiteNumber(v);
+  if(n===null) return "—";
   return `${n < 0 ? "-" : ""}$${Math.abs(n).toFixed(2)}`;
 }
 
-function cls(v){ return Number(v || 0) >= 0 ? "positive" : "negative"; }
+function cls(v){
+  const n=finiteNumber(v);
+  return n===null?"":n>=0?"positive":"negative";
+}
 
 function ago(ts){
-  const sec = Math.max(0,Math.floor(Date.now()/1000 - Number(ts || 0)));
+  const value=finiteNumber(ts);
+  if(value===null||value<=0) return "—";
+  const sec=Math.max(0,Math.floor(Date.now()/1000-value));
   if(sec < 60) return `${sec}s`;
   if(sec < 3600) return `${Math.floor(sec/60)}m`;
   if(sec < 86400) return `${Math.floor(sec/3600)}h`;
@@ -1213,7 +1237,7 @@ function setTradeTraderFilter(value){
 
 function updateTraderFilter(id,items,currentValue){
   const select=document.getElementById(id);
-  const names=[...new Set(items.map(item=>String(item.trader||"unknown")))].sort();
+  const names=[...new Set(items.map(item=>plainText(item.trader,"unknown")))].sort();
   select.innerHTML=`<option value="all">Todos los traders</option>${names.map(name=>
     `<option value="${esc(name)}">@${esc(name)}</option>`
   ).join("")}`;
@@ -1363,15 +1387,18 @@ function envSurface(){
 }
 
 function positionCard(p){
-  const pnl=Number(p.pnl_usd||0);
-  const realized=Number(p.realized_pnl_usd||0);
-  const unrealized=Number(p.unrealized_pnl_usd||0);
-  const remaining=Math.max(0,Math.min(100,Number(p.remaining_pct||0)*100));
-  const entry=Number(p.entry_mc||0);
-  const current=Number(p.current_mc||0);
-  const change=entry>0 && current>0 ? ((current/entry)-1)*100 : 0;
-  const status=String(p.status||"open").toUpperCase();
-  const action=String(p.last_action||"HOLD").toUpperCase();
+  const pnl=finiteNumber(p.pnl_usd);
+  const realized=finiteNumber(p.realized_pnl_usd);
+  const unrealized=finiteNumber(p.unrealized_pnl_usd);
+  const remainingValue=finiteNumber(p.remaining_pct);
+  const remaining=remainingValue===null
+    ?null:Math.max(0,Math.min(100,remainingValue*100));
+  const entry=finiteNumber(p.entry_mc);
+  const current=finiteNumber(p.current_mc);
+  const change=entry!==null&&current!==null&&entry>0&&current>0
+    ?((current/entry)-1)*100:null;
+  const status=plainText(p.status,"open").toUpperCase();
+  const action=plainText(p.last_action,"HOLD").toUpperCase();
 
   return `
     <div class="card ${envSurface()} position-card" role="button" tabindex="0" onclick="openTokenDetail('${esc(p.mint)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openTokenDetail('${esc(p.mint)}')}">
@@ -1380,25 +1407,25 @@ function positionCard(p){
           <div class="token-title">@${esc(p.origin_trader||"unknown")}</div>
           <div class="token-sub">${esc(shortMint(p.mint))}</div>
         </div>
-        <div class="change ${change>=0?"positive":"negative"}">
-          ${change>=0?"+":""}${change.toFixed(1)}%
+        <div class="change ${cls(change)}">
+          ${change===null?"—":`${change>=0?"+":""}${change.toFixed(1)}%`}
         </div>
       </div>
 
       <div class="status-row">
         <span class="pill ${status==="OPEN"?"open":"closed"}">${esc(status)}</span>
         <span class="pill ${actionPill(action)}">${esc(action)}</span>
-        <span class="pill">${remaining.toFixed(0)}% restante</span>
+        <span class="pill">${remaining===null?"—":`${remaining.toFixed(0)}% restante`}</span>
       </div>
 
       <div class="pos-grid">
         <div class="mini">
           <span>Entrada MC</span>
-          <b>${entry.toFixed(2)}</b>
+          <b>${numberText(entry,2)}</b>
         </div>
         <div class="mini">
           <span>MC actual</span>
-          <b>${current.toFixed(2)}</b>
+          <b>${numberText(current,2)}</b>
         </div>
         <div class="mini">
           <span>PnL estimado</span>
@@ -1408,9 +1435,9 @@ function positionCard(p){
 
       <div class="progress-meta">
         <span>Posición abierta</span>
-        <span>${remaining.toFixed(0)}%</span>
+        <span>${remaining===null?"—":`${remaining.toFixed(0)}%`}</span>
       </div>
-      <div class="progress"><span style="width:${remaining}%"></span></div>
+      <div class="progress"><span style="width:${remaining??0}%"></span></div>
 
       <div class="levels">
         <div class="level">TP1<br>+25%</div>
@@ -1437,13 +1464,14 @@ function positionCard(p){
 }
 
 function signalCard(s){
-  const d=String(s.decision||"WATCH").toUpperCase();
+  const d=plainText(s.decision,"WATCH").toUpperCase();
   const dclass=d==="COPY"?"copy":d==="SKIP"?"skip":"watch";
   const textclass=d==="COPY"?"positive":d==="SKIP"?"negative":"warning";
   const reasons=Array.isArray(s.reasons)?s.reasons:[];
-  const marketCap=Number(s.market_cap||0);
-  const solAmount=Number(s.sol_amount||0);
-  const outcomeKey=String(s.outcome_status||"pending").toLowerCase();
+  const marketCap=finiteNumber(s.market_cap);
+  const solAmount=finiteNumber(s.sol_amount);
+  const score=finiteNumber(s.score);
+  const outcomeKey=plainText(s.outcome_status,"pending").toLowerCase();
   const outcomeLabels={
     active:"EN CURSO",
     completed:"COMPLETADO",
@@ -1463,8 +1491,8 @@ function signalCard(s){
           </div>
           <div class="decision ${textclass}" style="margin-top:11px;">${esc(d)}</div>
         </div>
-        <div class="score" style="--score:${Math.max(0,Math.min(100,Number(s.score||0)))}">
-          ${Number(s.score||0)}
+        <div class="score" style="--score:${score===null?0:Math.max(0,Math.min(100,score))}">
+          ${score===null?"—":score}
           <small>/ 100</small>
         </div>
       </div>
@@ -1472,8 +1500,8 @@ function signalCard(s){
       <div class="mint" style="margin-top:10px;" title="${esc(s.mint)}">${esc(shortMint(s.mint))}</div>
 
       <div class="signal-facts">
-        <div class="signal-fact"><span>Market cap</span><b>${marketCap>0?`${marketCap.toFixed(2)} SOL`:"—"}</b></div>
-        <div class="signal-fact"><span>Tamaño</span><b>${solAmount>0?`${solAmount.toFixed(3)} SOL`:"—"}</b></div>
+        <div class="signal-fact"><span>Market cap</span><b>${marketCap!==null&&marketCap>0?`${marketCap.toFixed(2)} SOL`:"—"}</b></div>
+        <div class="signal-fact"><span>Tamaño</span><b>${solAmount!==null&&solAmount>0?`${solAmount.toFixed(3)} SOL`:"—"}</b></div>
         <div class="signal-fact"><span>Resultado</span><b>${esc(outcome)}</b></div>
       </div>
 
@@ -1496,7 +1524,7 @@ function renderSignals(list){
   const el=document.getElementById("signalList");
   const filtered=list.filter(signal=>{
     const decision=String(signal.decision||"").toLowerCase();
-    const trader=String(signal.trader||"unknown");
+    const trader=plainText(signal.trader,"unknown");
     return (SIGNAL_DECISION_FILTER==="all"||decision===SIGNAL_DECISION_FILTER)
       && (SIGNAL_TRADER_FILTER==="all"||trader===SIGNAL_TRADER_FILTER);
   });
@@ -1509,9 +1537,9 @@ function renderSignals(list){
 function renderTrades(list){
   const el=document.getElementById("tradeList");
   const filtered=list.filter(trade=>{
-    const side=String(trade.side||"").toLowerCase();
+    const side=plainText(trade.side,"").toLowerCase();
     const normalizedSide=side.includes("buy")||side==="create"?"buy":"sell";
-    const trader=String(trade.trader||"unknown");
+    const trader=plainText(trade.trader,"unknown");
     return (TRADE_SIDE_FILTER==="all"||normalizedSide===TRADE_SIDE_FILTER)
       && (TRADE_TRADER_FILTER==="all"||trader===TRADE_TRADER_FILTER);
   });
@@ -1522,18 +1550,18 @@ function renderTrades(list){
   }
 
   el.innerHTML=filtered.map(t=>{
-    const side=String(t.side||"").toLowerCase();
+    const side=plainText(t.side,"").toLowerCase();
     const buy=side.includes("buy")||side==="create";
     return `
       <div class="card activity-card">
         <div class="between">
           <div>
-            <div class="activity-main ${buy?"positive":"negative"}">${esc(String(t.side||"").toUpperCase())}</div>
+            <div class="activity-main ${buy?"positive":"negative"}">${esc(plainText(t.side,"").toUpperCase())}</div>
             <div class="activity-meta">@${esc(t.trader||"unknown")} · ${ago(t.ts)}</div>
           </div>
           <div style="text-align:right;">
-            <div class="activity-main">${Number(t.sol||0).toFixed(3)} SOL</div>
-            <div class="activity-meta">MC ${Number(t.market_cap_sol||0).toFixed(2)}</div>
+            <div class="activity-main">${numberText(t.sol,3)}${finiteNumber(t.sol)===null?"":" SOL"}</div>
+            <div class="activity-meta">MC ${numberText(t.market_cap_sol,2)}</div>
           </div>
         </div>
         <div class="mint wallet" title="${esc(t.mint)}">${esc(shortMint(t.mint))}</div>
@@ -1562,7 +1590,7 @@ function renderTraders(list){
 
   el.innerHTML=sorted.map((t,i)=>{
     const active=Boolean(t.active_last_24h);
-    const lastEvent=Number(t.last_event_ts||0);
+    const lastEvent=finiteNumber(t.last_event_ts);
     const lastEventLabel=lastEvent>0?ago(lastEvent):"sin eventos";
 
     return `
@@ -1581,12 +1609,12 @@ function renderTraders(list){
         </div>
 
         <div class="pos-grid">
-          <div class="mini"><span>Eventos</span><b>${Number(t.events||0)}</b></div>
-          <div class="mini"><span>Compras</span><b class="positive">${Number(t.buys||0)}</b></div>
-          <div class="mini"><span>Ventas</span><b class="negative">${Number(t.sells||0)}</b></div>
-          <div class="mini"><span>Evaluaciones</span><b>${Number(t.evaluations||0)}</b></div>
+          <div class="mini"><span>Eventos</span><b>${numberText(t.events)}</b></div>
+          <div class="mini"><span>Compras</span><b class="positive">${numberText(t.buys)}</b></div>
+          <div class="mini"><span>Ventas</span><b class="negative">${numberText(t.sells)}</b></div>
+          <div class="mini"><span>Evaluaciones</span><b>${numberText(t.evaluations)}</b></div>
           <div class="mini"><span>Último evento</span><b>${esc(lastEventLabel)}</b></div>
-          <div class="mini"><span>Calidad</span><b>${t.quality_rated ? Number(t.effective_quality ?? t.quality ?? 0) : esc(t.quality_label || "Sin calificar")}</b></div>
+          <div class="mini"><span>Calidad</span><b>${t.quality_rated ? numberText(t.effective_quality ?? t.quality) : esc(t.quality_label || "Sin calificar")}</b></div>
         </div>
       </div>
     `;
@@ -1629,26 +1657,26 @@ function renderShadowStats(stats){
   const loaded=Boolean(stats.model_loaded);
   const challengerLoaded=Boolean(stats.challenger_model_loaded);
   const comparison=stats.comparison||null;
-  const paired=Number(comparison?.total||0);
-  const completed=Number(comparison?.completed||0);
-  const pending=Number(comparison?.pending||0);
-  const agreement=comparison?.agreement_rate===null
-    ?"—"
-    :`${(Number(comparison?.agreement_rate||0)*100).toFixed(0)}%`;
+  const paired=finiteNumber(comparison?.total);
+  const completed=finiteNumber(comparison?.completed);
+  const pending=finiteNumber(comparison?.pending);
+  const agreementValue=finiteNumber(comparison?.agreement_rate);
+  const agreement=agreementValue===null?"—":`${(agreementValue*100).toFixed(0)}%`;
   const incumbent=comparison?.incumbent_metrics||{};
   const challenger=comparison?.challenger_metrics||{};
-  const pct=value=>value===null||value===undefined
-    ?"—"
-    :`${(Number(value)*100).toFixed(0)}%`;
-  const incumbentVersion=String(stats.model_version||"sin modelo");
-  const challengerVersion=String(
-    stats.challenger_model_version||"sin candidato"
+  const pct=value=>{
+    const n=finiteNumber(value);
+    return n===null?"—":`${(n*100).toFixed(0)}%`;
+  };
+  const incumbentVersion=plainText(stats.model_version,"sin modelo");
+  const challengerVersion=plainText(
+    stats.challenger_model_version,"sin candidato"
   );
   const state=!loaded
     ?"sin modelo"
     :!challengerLoaded
       ?"sin candidato"
-      :paired
+      :paired!==null&&paired>0
         ?"evaluando"
         :"esperando";
 
@@ -1661,15 +1689,15 @@ function renderShadowStats(stats){
       <div class="shadow-state ${loaded&&challengerLoaded?"ready":""}">${state}</div>
     </div>
     <div class="shadow-grid">
-      <div class="shadow-metric"><span>Compartidas</span><b>${paired}</b></div>
-      <div class="shadow-metric"><span>Pendientes</span><b>${pending}</b></div>
-      <div class="shadow-metric"><span>Completadas</span><b>${completed}</b></div>
+      <div class="shadow-metric"><span>Compartidas</span><b>${numberText(paired)}</b></div>
+      <div class="shadow-metric"><span>Pendientes</span><b>${numberText(pending)}</b></div>
+      <div class="shadow-metric"><span>Completadas</span><b>${numberText(completed)}</b></div>
       <div class="shadow-metric"><span>Acuerdo</span><b>${agreement}</b></div>
     </div>
     <div class="shadow-versus">
       <span>Modelo</span><span>Precisión</span><span>Recall</span><span>Aciertos únicos</span>
-      <b>Actual</b><b>${pct(incumbent.precision)}</b><b>${pct(incumbent.recall)}</b><b>${Number(comparison?.incumbent_only_correct||0)}</b>
-      <b class="candidate">Candidato</b><b>${pct(challenger.precision)}</b><b>${pct(challenger.recall)}</b><b>${Number(comparison?.challenger_only_correct||0)}</b>
+      <b>Actual</b><b>${pct(incumbent.precision)}</b><b>${pct(incumbent.recall)}</b><b>${numberText(comparison?.incumbent_only_correct)}</b>
+      <b class="candidate">Candidato</b><b>${pct(challenger.precision)}</b><b>${pct(challenger.recall)}</b><b>${numberText(comparison?.challenger_only_correct)}</b>
     </div>
   `;
 }
@@ -1689,10 +1717,11 @@ function renderCheckpointTrainingStats(stats){
   const ready=Boolean(readiness.ready_for_diagnostic);
   const eta=readiness.estimated_days_at_last_24h_rate;
   const metric=(key,label)=>{
-    const current=Number(stats[key]||0);
-    const minimum=Number(minimums[key]||0);
-    const percent=Math.round(Math.min(1,Number(progress[key]||0))*100);
-    return `<div class="shadow-metric"><span>${label}</span><b>${percent}%</b><small>${current} / ${minimum}</small></div>`;
+    const current=finiteNumber(stats[key]);
+    const minimum=finiteNumber(minimums[key]);
+    const ratio=finiteNumber(progress[key]);
+    const percent=ratio===null?"—":`${Math.round(Math.min(1,Math.max(0,ratio))*100)}%`;
+    return `<div class="shadow-metric"><span>${label}</span><b>${percent}</b><small>${numberText(current)} / ${numberText(minimum)}</small></div>`;
   };
   const remaining=[
     ["complete_rows","filas"],
@@ -1700,7 +1729,9 @@ function renderCheckpointTrainingStats(stats){
     ["target_1","clase 1"],
     ["unique_traders","traders"]
   ].map(([key,label])=>{
-    const missing=Math.max(0,Number(minimums[key]||0)-Number(stats[key]||0));
+    const minimum=finiteNumber(minimums[key]);
+    const current=finiteNumber(stats[key]);
+    const missing=minimum===null||current===null?null:Math.max(0,minimum-current);
     return missing?`${missing} ${label}`:"";
   }).filter(Boolean);
 
@@ -1720,7 +1751,7 @@ function renderCheckpointTrainingStats(stats){
     </div>
     <div class="checkpoint-note">${ready
       ?"Listo para revisión diagnóstica."
-      :`Faltan ${remaining.join(" · ")}. Ritmo 24 h: ${Number(rate.complete_rows||0)} filas${eta===null||eta===undefined?"":` · estimado ${Number(eta).toFixed(1)} días`}.`}</div>
+      :`Faltan ${remaining.join(" · ")||"datos suficientes"}. Ritmo 24 h: ${numberText(rate.complete_rows)} filas${finiteNumber(eta)===null?"":` · estimado ${numberText(eta,1)} días`}.`}</div>
   `;
 }
 
@@ -1900,8 +1931,8 @@ function filterHistoryByTime(history,timeframe){
 
 function chartSvg(history,p,positionEvents=[]){
 
-  const entry=Number(p?.entry_mc||0);
-  const current=Number(p?.current_mc||0);
+  const entry=finiteNumber(p?.entry_mc)??0;
+  const current=finiteNumber(p?.current_mc)??0;
 
   history=filterHistoryByTime(
   history,
@@ -2387,10 +2418,10 @@ function riskLabel(change,momentum,action){
 }
 
 function agentInsight(p,history,pressure){
-  const entry=Number(p.entry_mc||0);
-  const current=Number(p.current_mc||0);
+  const entry=finiteNumber(p.entry_mc)??0;
+  const current=finiteNumber(p.current_mc)??0;
   const change=entry>0&&current>0?((current/entry)-1)*100:0;
-  const action=String(p.last_action||"HOLD").toUpperCase();
+  const action=plainText(p.last_action,"HOLD").toUpperCase();
   const momentum=recentMomentum(history);
 
   let confidence=68;
@@ -2446,6 +2477,7 @@ function setDetailTimeframe(
 async function openTokenDetail(mint){
   const p=LAST_PAPER.find(x=>String(x.mint||"")===String(mint||""));
   if(!p) return;
+  DETAIL_RETURN_FOCUS=document.activeElement;
 
  const history=await getBackendHistory(mint);
 const positionEvents=await getPositionEvents(mint);
@@ -2453,30 +2485,33 @@ const positionEvents=await getPositionEvents(mint);
 const pressure=marketPressure(mint);
   const insight=agentInsight(p,history,pressure);
 
-  const entry=Number(p.entry_mc||0);
-  const current=Number(p.current_mc||0);
-  const pnl=Number(p.pnl_usd||0);
-  const change=entry>0&&current>0?((current/entry)-1)*100:0;
-  const risk=riskLabel(change,insight.momentum,insight.action);
+  const entry=finiteNumber(p.entry_mc);
+  const current=finiteNumber(p.current_mc);
+  const pnl=finiteNumber(p.pnl_usd);
+  const change=entry!==null&&current!==null&&entry>0&&current>0
+    ?((current/entry)-1)*100:null;
+  const risk=riskLabel(change??0,insight.momentum,insight.action);
 
-  document.getElementById("detailTrader").textContent=`@${p.origin_trader||"unknown"}`;
+  document.getElementById("detailTrader").textContent=
+    `@${plainText(p.origin_trader,"unknown")}`;
   document.getElementById("detailMint").textContent=shortMint(mint);
 
   const statusEl=document.getElementById("detailStatus");
-  statusEl.textContent=String(p.status||"open").toUpperCase();
-  statusEl.className=`pill ${String(p.status||"open").toLowerCase()==="open"?"open":"closed"}`;
+  const positionStatus=plainText(p.status,"open");
+  statusEl.textContent=positionStatus.toUpperCase();
+  statusEl.className=`pill ${positionStatus.toLowerCase()==="open"?"open":"closed"}`;
 
   document.getElementById("detailContent").innerHTML=`
     <div class="card chart-card">
       <div class="chart-head">
         <div>
           <div class="hero-label">Market Cap en vivo</div>
-          <div class="chart-price">${current.toFixed(2)} SOL</div>
+          <div class="chart-price">${numberText(current,2)}${current===null?"":" SOL"}</div>
         </div>
 
         <div style="text-align:right;">
-          <div class="change ${change>=0?"positive":"negative"}" style="font-size:21px;">
-            ${change>=0?"+":""}${change.toFixed(1)}%
+          <div class="change ${cls(change)}" style="font-size:21px;">
+            ${change===null?"—":`${change>=0?"+":""}${change.toFixed(1)}%`}
           </div>
           <div class="activity-meta">desde entrada</div>
         </div>
@@ -2612,6 +2647,7 @@ const pressure=marketPressure(mint);
   overlay.setAttribute("aria-hidden","false");
   document.body.style.overflow="hidden";
   overlay.scrollTop=0;
+  overlay.querySelector(".back-button")?.focus();
 }
 
 function closeTokenDetail(){
@@ -2619,7 +2655,15 @@ function closeTokenDetail(){
   overlay.classList.remove("open");
   overlay.setAttribute("aria-hidden","true");
   document.body.style.overflow="";
+  if(DETAIL_RETURN_FOCUS?.isConnected) DETAIL_RETURN_FOCUS.focus();
+  DETAIL_RETURN_FOCUS=null;
 }
+
+document.addEventListener("keydown",event=>{
+  if(event.key==="Escape"&&document.getElementById("tokenDetail").classList.contains("open")){
+    closeTokenDetail();
+  }
+});
 
 
 // Las cuatro lámparas del rail. Verde solo cuando de verdad está sano,
@@ -2643,8 +2687,8 @@ function renderExitMonitor(monitor, livePositions){
   const apply=Boolean(monitor.apply);
   const state=apply?"APLICANDO":"OBSERVANDO";
   const blockers=Array.isArray(monitor.blockers)?monitor.blockers:[];
-  const age=Number(monitor.last_success_ts)>0
-    ? ago(Number(monitor.last_success_ts)) : "—";
+  const lastSuccess=finiteNumber(monitor.last_success_ts);
+  const age=lastSuccess!==null&&lastSuccess>0?ago(lastSuccess):"—";
 
   // De /api/live-positions solo se usan los agregados. `positions[]` trae
   // filas sin campo de modo, así que no se pintan como posiciones: contarlas
@@ -2655,12 +2699,12 @@ function renderExitMonitor(monitor, livePositions){
     ? Number(livePositions.open) : null;
 
   const cell=(label,value,extra="")=>`
-    <div class="shadow-metric"><span>${esc(label)}</span><b>${esc(String(value))}${extra}</b></div>`;
+    <div class="shadow-metric"><span>${esc(label)}</span><b>${esc(plainText(value))}${extra}</b></div>`;
 
   el.innerHTML=`
     <div class="shadow-head">
       <div><div class="shadow-title">Exit Monitor</div>
-        <div class="shadow-version">${esc(String(monitor.status||"—"))}</div></div>
+        <div class="shadow-version">${esc(plainText(monitor.status))}</div></div>
       <span class="shadow-state${apply?"":" ready"}">${esc(state)}</span>
     </div>
     <div class="shadow-grid">
@@ -2668,7 +2712,7 @@ function renderExitMonitor(monitor, livePositions){
       ${cell("Vigilados",monitor.selected_mints??"—")}
       ${cell("Con precio",monitor.priced_mints??"—")}
       ${cell("Resultados",monitor.exit_results??"—")}
-      ${cell("Antigüedad máx",monitor.maximum_age_seconds!=null?monitor.maximum_age_seconds+" s":"—")}
+      ${cell("Antigüedad máx",finiteNumber(monitor.maximum_age_seconds)===null?"—":numberText(monitor.maximum_age_seconds)+" s")}
       ${cell("Última lectura",age)}
     </div>
     ${realTotal!==null?`
