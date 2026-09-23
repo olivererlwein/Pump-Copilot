@@ -1267,6 +1267,32 @@ function lamp(id, state, value){
   if(label) label.textContent = value;
 }
 
+function coverageLampState(wallets, fallback){
+  const count=(payload,key)=>{
+    if(!payload
+      || !Object.prototype.hasOwnProperty.call(payload,key)
+      || payload[key]===null){
+      return null;
+    }
+    const value=payload[key];
+    return typeof value==="number"&&Number.isFinite(value)&&value>=0
+      ?value:null;
+  };
+  const silent=count(wallets,"silent");
+  const withheld=count(fallback,"withheld_incomplete_coverage");
+  const saturated=fallback&&Array.isArray(fallback.saturated_wallets)
+    ?fallback.saturated_wallets.length:null;
+  const partial=!wallets||!fallback
+    || silent===null||withheld===null||saturated===null;
+  const degraded=(silent||0)>0||(saturated||0)>0;
+  const state=(withheld||0)>0?"down":degraded||partial?"warn":"ok";
+  const parts=[];
+  if(silent!==null) parts.push(`${silent} mudas`);
+  if(withheld!==null&&withheld>0) parts.push(`${withheld} retenidas`);
+  if(partial) parts.push("parcial");
+  return {partial,state,label:parts.join(" · ")||"completa"};
+}
+
 async function api(path,options={}){
   options.headers = {...(options.headers||{}),"X-App-Token":TOKEN};
   const r = await fetch(path,options);
@@ -1643,7 +1669,7 @@ function renderShadowStats(stats){
     <div class="shadow-versus">
       <span>Modelo</span><span>Precisión</span><span>Recall</span><span>Aciertos únicos</span>
       <b>Actual</b><b>${pct(incumbent.precision)}</b><b>${pct(incumbent.recall)}</b><b>${Number(comparison?.incumbent_only_correct||0)}</b>
-      <b class="positive">Candidato</b><b>${pct(challenger.precision)}</b><b>${pct(challenger.recall)}</b><b>${Number(comparison?.challenger_only_correct||0)}</b>
+      <b class="candidate">Candidato</b><b>${pct(challenger.precision)}</b><b>${pct(challenger.recall)}</b><b>${Number(comparison?.challenger_only_correct||0)}</b>
     </div>
   `;
 }
@@ -2689,26 +2715,11 @@ async function refreshSystemPanel(){
     lamp("sysCoverage","","sin dato");
     if(dot) dot.title="Ninguna de las dos fuentes de cobertura respondió.";
   }else{
-    const silent=wallets?Number(wallets.silent||0):null;
-    const withheld=fallback?Number(fallback.withheld_incomplete_coverage||0):null;
-    const saturated=fallback&&Array.isArray(fallback.saturated_wallets)
-      ?fallback.saturated_wallets.length:null;
-    const partial=!wallets||!fallback;
-    const degraded=(silent||0)>0||(saturated||0)>0;
-    let state;
-    if((withheld||0)>0) state="down";
-    else if(degraded||partial) state="warn";
-    else state="ok";
-    const parts=[];
-    if(silent!==null) parts.push(`${silent} mudas`);
-    if(withheld!==null&&withheld>0) parts.push(`${withheld} retenidas`);
-    if(partial) parts.push("parcial");
-    lamp("sysCoverage",state,parts.join(" · ")||"completa");
+    const coverage=coverageLampState(wallets,fallback);
+    lamp("sysCoverage",coverage.state,coverage.label);
     if(dot){
-      dot.title=partial
-        ? "Evidencia incompleta: respondió "
-          +(wallets?"watched-wallets":"rpc-fallback-stats")
-          +" y la otra fuente no."
+      dot.title=coverage.partial
+        ? "Evidencia incompleta: falta una fuente o alguno de sus campos requeridos."
         : "Ambas fuentes respondieron.";
     }
   }

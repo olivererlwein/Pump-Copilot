@@ -6,9 +6,9 @@
     "semantic_hash": "5ebef3dd159986e465ab65e4014107ec"
   },
   "app.py": {
-    "mtime": 1790101210.2611356,
-    "seen": 1790101314.4692013,
-    "ast_hash": "f44a2f0d79081e5dbb8a59705b94b7bd",
+    "mtime": 1790115073.17962,
+    "seen": 1790187051.6340292,
+    "ast_hash": "5abc42ac9c6f449642114a61c468226a",
     "semantic_hash": ""
   },
   "models/baseline_v2_shadow.json": {
@@ -168,9 +168,9 @@
     "semantic_hash": ""
   },
   "static/index.html": {
-    "mtime": 1789804015.0257125,
-    "seen": 1789804135.9494581,
-    "ast_hash": "5cabb58c78c45f62d8c8876755571616",
+    "mtime": 1790186922.0384421,
+    "seen": 1790187051.6341696,
+    "ast_hash": "04cc4fef0d61292f13dabf6fbabbcb5c",
     "semantic_hash": ""
   },
   "graphify-out/memory/query_20260908_120214_b041fd8c_sigamos.md": {
@@ -180,9 +180,9 @@
     "semantic_hash": ""
   },
   "scripts/compare_model_economics.py": {
-    "mtime": 1788977777.5892155,
-    "seen": 1788977811.6206331,
-    "ast_hash": "9b28a766f72427deaab2b2f4e366dcfd",
+    "mtime": 1790109038.4295907,
+    "seen": 1790187051.6340623,
+    "ast_hash": "2758f6805a347b70bc0fc2c6cf47fef9",
     "semantic_hash": ""
   },
   "tests/test_model_economics.py": {
@@ -252,9 +252,9 @@
     "semantic_hash": ""
   },
   "CLAUDE_NOTES.md": {
-    "mtime": 1790101307.753816,
-    "seen": 1790101314.4693103,
-    "ast_hash": "59880644cdd1613b21566d0efc7975c2",
+    "mtime": 1790115182.2227228,
+    "seen": 1790187051.6341498,
+    "ast_hash": "a53704d784401fd260b51cc6dc5deb0f",
     "semantic_hash": ""
   },
   "2026-09-10.md": {
@@ -270,9 +270,9 @@
     "semantic_hash": ""
   },
   "tests/test_rpc_fallback.py": {
-    "mtime": 1790100211.8862443,
-    "seen": 1790100347.0929804,
-    "ast_hash": "9cf8820362ebf0ffc3e55988f3babe86",
+    "mtime": 1790115052.4006362,
+    "seen": 1790187051.6341062,
+    "ast_hash": "f815c4e1c7d8930d0f3967d77e0d8a25",
     "semantic_hash": ""
   },
   "reports/ablation_report_2026-09-11.json": {
@@ -417,6 +417,54 @@
     "mtime": 1790056857.6594987,
     "seen": 1790099362.4551396,
     "ast_hash": "7855ec67aef059bde46ff36d8cd7f73b",
+    "semantic_hash": ""
+  },
+  "reports/ingest_coverage/2026-09-23T154650Z.json": {
+    "mtime": 1790178421.112839,
+    "seen": 1790187051.6340559,
+    "ast_hash": "def829f911a28c1178d2dbf18700a89b",
+    "semantic_hash": ""
+  },
+  "scripts/prune_dead_css.py": {
+    "mtime": 1790138533.634243,
+    "seen": 1790187051.6340694,
+    "ast_hash": "bb2f8379edc949f8b5e97e0a091e212f",
+    "semantic_hash": ""
+  },
+  "scripts/reconcile_threshold_economics.py": {
+    "mtime": 1790109022.5433373,
+    "seen": 1790187051.6340714,
+    "ast_hash": "55416ef50c788465accbfbf063759c5f",
+    "semantic_hash": ""
+  },
+  "scripts/relabel_stop_alignment.py": {
+    "mtime": 1790109889.8701248,
+    "seen": 1790187051.6340725,
+    "ast_hash": "8dd708b5e0295c69b1c7bd9d4fd49467",
+    "semantic_hash": ""
+  },
+  "scripts/remainder_exit_backtest.py": {
+    "mtime": 1790110402.3826797,
+    "seen": 1790187051.634074,
+    "ast_hash": "33d0ffe716bdb44eb5fb219202e41f70",
+    "semantic_hash": ""
+  },
+  "scripts/staged_payoff_backtest.py": {
+    "mtime": 1790109929.9376943,
+    "seen": 1790187051.6340752,
+    "ast_hash": "5d848e42d43c804f30eb65eb231153b7",
+    "semantic_hash": ""
+  },
+  "scripts/ui_baseline.py": {
+    "mtime": 1790184471.1423304,
+    "seen": 1790187051.6340785,
+    "ast_hash": "101aea9693b19468318f874c421f3d8f",
+    "semantic_hash": ""
+  },
+  "scripts/ui_render_fixture.py": {
+    "mtime": 1790187104.6795852,
+    "seen": 1790187138.4586904,
+    "ast_hash": "8d9165372cd1a242a4e67612bba9c16f",
     "semantic_hash": ""
   }
 }

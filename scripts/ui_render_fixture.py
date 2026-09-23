@@ -54,6 +54,31 @@ CASES = (
     ({"mode": "real", "explicit": False}, "MODO SIN CONFIRMAR", "PAPER", "env-unknown"),
 )
 
+COVERAGE_CASES = (
+    ({}, {}, True, "warn", "parcial"),
+    (
+        {"silent": None},
+        {"withheld_incomplete_coverage": "", "saturated_wallets": []},
+        True,
+        "warn",
+        "parcial",
+    ),
+    (
+        {"silent": 0},
+        {"withheld_incomplete_coverage": 0, "saturated_wallets": []},
+        False,
+        "ok",
+        "0 mudas",
+    ),
+    (
+        {"silent": 0},
+        {"withheld_incomplete_coverage": 1, "saturated_wallets": []},
+        False,
+        "down",
+        "0 mudas · 1 retenidas",
+    ),
+)
+
 
 async def run():
     chrome = Chrome(port=9356)
@@ -98,6 +123,47 @@ async def run():
                 failures.append(f"{name}: marcó REAL sin dato que lo confirme")
             state = "OK" if not failures or not failures[-1].startswith(name) else "FALLA"
             print(f"  entorno {name:<8} -> {expected:<20} superficie {surface:<12} {state}")
+
+        for wallets, fallback, partial, state, label in COVERAGE_CASES:
+            result = json.loads(await chrome.evaluate(
+                "JSON.stringify(coverageLampState("
+                f"{json.dumps(wallets)},{json.dumps(fallback)}))"
+            ))
+            if result != {"partial": partial, "state": state, "label": label}:
+                failures.append(
+                    f"coverage: {result!r} != "
+                    f"{(partial, state, label)!r}"
+                )
+            print(
+                f"  cobertura {state:<5} -> {label:<20} "
+                f"{'OK' if result['state'] == state else 'FALLA'}"
+            )
+
+        palette = json.loads(await chrome.evaluate("""
+          (()=>{
+            const host=document.createElement("div");
+            host.innerHTML='<div class="status online"><span class="dot"></span></div>'+
+              '<div class="system-metric"><b class="healthy">en vivo</b></div>'+
+              '<div class="shadow-state ready">listo</div>'+
+              '<div class="shadow-versus"><b class="candidate">Candidato</b></div>';
+            document.body.append(host);
+            const blue=getComputedStyle(document.documentElement)
+              .getPropertyValue("--blue").trim();
+            const colors=[getComputedStyle(host.querySelector(".dot")).backgroundColor,
+              ...[...host.querySelectorAll(".healthy,.ready,.candidate")]
+                .map(element=>getComputedStyle(element).color)];
+            const marker=document.createElement("span");
+            marker.style.color=blue;
+            host.append(marker);
+            const expected=getComputedStyle(marker).color;
+            host.remove();
+            return JSON.stringify({expected,colors});
+          })()
+        """))
+        if any(color != palette["expected"] for color in palette["colors"]):
+            failures.append(f"palette: {palette!r}")
+        print("  estados informativos -> azul del sistema      "
+              + ("OK" if palette["colors"] == [palette["expected"]] * 4 else "FALLA"))
 
         # Y que el entorno real de la página siga siendo el que afirma el backend.
         live = await chrome.evaluate("JSON.stringify(EXECUTION_ENV)")
