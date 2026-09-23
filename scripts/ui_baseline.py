@@ -121,19 +121,46 @@ class Chrome:
 
     async def connect(self, url):
         self.socket = await websockets.connect(url, max_size=80_000_000)
+        self.pending = {}
+        self.handlers = {}
+        self.reader = asyncio.ensure_future(self._read())
+
+    async def _read(self):
+        """Un único lector reparte respuestas y eventos.
+
+        Si `send()` leyera del socket por su cuenta descartaría los eventos que
+        llegan entremedio —y la interceptación de peticiones es justamente un
+        evento—, así que la cola se despacha en un solo lugar.
+        """
+        try:
+            async for raw in self.socket:
+                payload = json.loads(raw)
+                future = self.pending.pop(payload.get("id"), None)
+                if future is not None:
+                    if not future.done():
+                        future.set_result(payload)
+                    continue
+                handler = self.handlers.get(payload.get("method"))
+                if handler:
+                    asyncio.ensure_future(handler(payload["params"]))
+        except Exception:
+            pass
+
+    def on(self, method, handler):
+        self.handlers[method] = handler
 
     async def send(self, method, **params):
         self.message_id += 1
         message_id = self.message_id
+        future = asyncio.get_running_loop().create_future()
+        self.pending[message_id] = future
         await self.socket.send(
             json.dumps({"id": message_id, "method": method, "params": params})
         )
-        while True:
-            payload = json.loads(await self.socket.recv())
-            if payload.get("id") == message_id:
-                if "error" in payload:
-                    raise RuntimeError(f"{method}: {payload['error']}")
-                return payload.get("result", {})
+        payload = await asyncio.wait_for(future, timeout=120)
+        if "error" in payload:
+            raise RuntimeError(f"{method}: {payload['error']}")
+        return payload.get("result", {})
 
     async def evaluate(self, expression):
         result = await self.send(
@@ -510,3 +537,75 @@ async def collect_cssom(chrome, url, label):
 
 if __name__ == "__main__":
     main()
+
+
+# ---------------------------------------------------------------------------
+# Verificación con marcado local
+#
+# El intercambio de hojas de estilo alcanza mientras solo cambia el CSS, pero
+# no prueba nada cuando cambia el marcado: el DOM sigue siendo el de
+# producción. Acá se interceptan los estáticos y se sirven los locales contra
+# las mismas APIs de producción, de modo que el navegador ejecute exactamente
+# el frontend del repo.
+# ---------------------------------------------------------------------------
+
+STRUCTURE_JS = """
+(()=>{
+  const d=document.documentElement;
+  const q=s=>document.querySelector(s);
+  const over=[...document.querySelectorAll('*')].filter(e=>{
+    const r=e.getBoundingClientRect();
+    return r.width>0 && (r.right>d.clientWidth+1||r.left<-1);
+  }).map(e=>e.tagName.toLowerCase()+(e.id?'#'+e.id:''));
+  const focusables=[...document.querySelectorAll(
+    'a[href],button:not([disabled]),input,select,[tabindex]:not([tabindex="-1"])')]
+    .filter(e=>!e.closest('[hidden]')&&e.offsetParent!==null);
+  return {
+    scrollWidth:d.scrollWidth, clientWidth:d.clientWidth,
+    overflowing:[...new Set(over)].slice(0,6),
+    live:[...document.querySelectorAll('[aria-live]')].map(e=>e.id||e.tagName),
+    sysRows:document.querySelectorAll('#systemPanel .sys-row').length,
+    headerPos:q('header')?getComputedStyle(q('header')).position:null,
+    navPos:q('nav')?getComputedStyle(q('nav')).position:null,
+    focusOrder:focusables.slice(0,14).map(e=>e.id||e.textContent.trim().slice(0,12)),
+    domOrder:[...document.querySelectorAll('#homePage > *')].map(e=>e.id||e.className.split(' ')[0]),
+    errors:window.__errs||[]
+  };
+})()
+"""
+
+
+async def serve_local(chrome):
+    """Sirve static/index.html y static/app-v6.css locales sobre producción."""
+    files = {
+        "index.html": ("text/html", pathlib.Path("static/index.html")),
+        "app-v6.css": ("text/css", pathlib.Path("static/app-v6.css")),
+    }
+
+    async def paused(params):
+        name = params["request"]["url"].rsplit("/", 1)[-1].split("?")[0]
+        entry = files.get(name)
+        try:
+            if entry is None:
+                await chrome.send("Fetch.continueRequest",
+                                  requestId=params["requestId"])
+                return
+            mime, path = entry
+            body = base64.b64encode(
+                path.read_text(encoding="utf-8").encode("utf-8")
+            ).decode("ascii")
+            await chrome.send(
+                "Fetch.fulfillRequest", requestId=params["requestId"],
+                responseCode=200, body=body,
+                responseHeaders=[{"name": "Content-Type",
+                                  "value": mime + "; charset=utf-8"}],
+            )
+        except Exception:
+            pass
+
+    chrome.on("Fetch.requestPaused", paused)
+    await chrome.send(
+        "Fetch.enable",
+        patterns=[{"urlPattern": "*/static/index.html"},
+                  {"urlPattern": "*/static/app-v6.css"}],
+    )

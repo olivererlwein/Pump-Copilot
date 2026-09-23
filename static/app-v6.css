@@ -222,17 +222,29 @@ main{padding-top:28px}
   box-shadow:none;
 }
 
+/* Jerarquía por urgencia: un módulo sube de nivel solo si exige una decisión
+   humana en los próximos minutos. Antes `shadow` compartía la fila superior
+   con el hero —nivel 4 ocupando la posición de nivel 1— mientras la señal
+   activa quedaba debajo. Ahora la columna derecha es una banda de contexto
+   persistente y el dataset baja al final, que es la información menos urgente
+   del producto. */
 #homePage.active{
   display:grid;
-  grid-template-columns:minmax(0,1.35fr) minmax(320px,.65fr);
+  grid-template-columns:minmax(0,1.5fr) minmax(300px,.5fr);
   grid-template-areas:
     "heading heading"
     "system system"
-    "hero shadow"
-    "signal-head positions-head"
-    "signal positions";
+    "signal-head hero"
+    "signal hero"
+    "positions-head shadow"
+    "positions shadow"
+    "checkpoint checkpoint";
   gap:0 22px;
 }
+/* Ambos paneles comparten la clase .shadow-card, así que sin reglas por id
+   caerían en la misma celda y se superpondrían. */
+#homePage>#shadowPanel{grid-area:shadow}
+#homePage>#checkpointPanel{grid-area:checkpoint;margin-top:22px}
 
 #homePage>.page-heading{grid-area:heading}
 #homePage>.system-strip{grid-area:system}
@@ -583,18 +595,27 @@ nav button.active::before{
   border-radius:3px;
   background:var(--blue);
 }
+/* Estado del sistema al pie del rail: ocupa espacio que de otro modo queda
+   muerto y no compite con el contenido. */
 .nav-foot{
   margin-top:auto;
-  padding:12px;
+  padding:10px 12px 4px;
   display:flex;
-  align-items:center;
-  gap:10px;
-  border-radius:var(--radius);
-  background:rgba(255,255,255,.045);
+  flex-direction:column;
+  gap:2px;
+  border-top:1px solid var(--border);
+  border-radius:0;
+  background:none;
 }
-.nav-foot-dot{width:8px;height:8px;border-radius:50%;background:var(--green)}
-.nav-foot b,.nav-foot small{display:block}
-.nav-foot b{font-size:10px}.nav-foot small{margin-top:2px;color:var(--muted-2);font-size:9px}
+.sys-row{display:flex;align-items:center;gap:7px;padding:3px 0;font-size:11px;color:var(--muted)}
+.sys-name{min-width:0}
+.sys-value{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--muted-2)}
+.sys-dot{width:6px;height:6px;border-radius:50%;flex:none;background:var(--muted-2)}
+/* Verde solo cuando de verdad está sano; ámbar es degradación y rojo es caída.
+   Sin dato, gris: no se inventa un estado sano. */
+.sys-dot.ok{background:var(--green)}
+.sys-dot.warn{background:var(--amber)}
+.sys-dot.down{background:var(--red)}
 
 .detail-overlay{background:var(--bg)}
 .detail-shell{width:min(100%,1120px);padding:0 28px 48px}
@@ -680,14 +701,20 @@ button:focus-visible,input:focus-visible,select:focus-visible,.position-card:foc
     display:flex;
     flex-direction:column;
   }
+  /* En móvil el orden lo fija la urgencia, no el desktop: estado → señal →
+     posiciones → PnL → dataset. El PnL acumulado baja del primer lugar porque
+     es consecuencia de decisiones ya tomadas; lo que puede exigir una acción
+     en los próximos minutos es la señal. El estado sube porque decide si algo
+     de lo demás significa algo. */
   #homePage>.page-heading{order:1}
-  #homePage>.hero{order:2}
+  #homePage>.system-strip{order:2;margin-top:0}
   #homePage>.signal-section-head{order:3}
   #homePage>#homeSignal{order:4}
   #homePage>.positions-section-head{order:5}
   #homePage>#homePositions{order:6}
-  #homePage>.system-strip{order:7;margin-top:28px}
-  #homePage>.shadow-card{order:8}
+  #homePage>.hero{order:7;margin-top:24px}
+  #homePage>#shadowPanel{order:8}
+  #homePage>#checkpointPanel{order:9}
 
   .hero{min-height:0;padding:20px;border-radius:var(--radius)}
   .hero-pnl{font-size:40px}

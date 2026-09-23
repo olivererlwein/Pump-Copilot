@@ -909,7 +909,7 @@
     </div>
 
     <div class="header-actions">
-      <div id="statusChip" class="status">
+      <div id="statusChip" class="status" role="status" aria-live="polite">
         <span class="dot"></span>
         <span id="status">offline</span>
       </div>
@@ -974,7 +974,11 @@
         <h3>Última señal</h3>
         <span>agente</span>
       </div>
-      <div id="homeSignal"></div>
+      <!-- La señal activa es lo único que puede exigir una decisión en minutos:
+           un lector de pantalla tiene que enterarse sin volver a recorrer la
+           página. Es "polite" y no "assertive" para no cortar lo que se esté
+           leyendo en ese momento. -->
+      <div id="homeSignal" role="region" aria-live="polite" aria-label="Señal actual"></div>
 
       <div class="section-head positions-section-head">
         <h3>Posiciones abiertas</h3>
@@ -1071,9 +1075,25 @@
     <svg viewBox="0 0 24 24"><circle cx="8" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M2.5 20c.7-4 3-6 5.5-6s4.8 2 5.5 6"/><path d="M14 15c3.4-.4 5.8 1.2 7 4"/></svg>
     Traders
   </button>
-  <div class="nav-foot" aria-hidden="true">
-    <span class="nav-foot-dot"></span>
-    <div><b>Paper mode</b><small>Capital protegido</small></div>
+  <!-- Estado del sistema, anclado y visible en toda vista. El backend puede
+       responder perfecto mientras el transporte no entrega nada: durante cinco
+       días de septiembre nueve wallets estuvieron ciegas sin que la interfaz lo
+       insinuara. Cada lámpara se llena en el grupo C con su propio endpoint;
+       hasta entonces muestran "—" en vez de inventar un estado sano. -->
+  <div class="nav-foot" id="systemPanel" role="status" aria-live="polite"
+       aria-label="Estado del sistema">
+    <div class="sys-row"><span class="sys-dot" id="sysTransportDot"></span>
+      <span class="sys-name">Transporte</span>
+      <span class="sys-value" id="sysTransport">—</span></div>
+    <div class="sys-row"><span class="sys-dot" id="sysCoverageDot"></span>
+      <span class="sys-name">Cobertura</span>
+      <span class="sys-value" id="sysCoverage">—</span></div>
+    <div class="sys-row"><span class="sys-dot" id="sysModelDot"></span>
+      <span class="sys-name">Modelo</span>
+      <span class="sys-value" id="sysModel">—</span></div>
+    <div class="sys-row"><span class="sys-dot" id="sysExecDot"></span>
+      <span class="sys-name">Ejecución</span>
+      <span class="sys-value" id="sysExec">—</span></div>
   </div>
 </nav>
 
