@@ -1222,6 +1222,46 @@ function saveToken(){
   refresh();
 }
 
+// Cada fuente del grupo C se lee por separado y tolera lo suyo: timeout,
+// error HTTP, JSON inválido, campos ausentes, respuesta vacía. Una caída
+// devuelve null y el módulo que la usa degrada solo; nunca tumba refresh()
+// entero ni deja el panel sin pintar.
+const SOURCE_AGE = {};
+
+async function source(path, timeoutMs = 4000){
+  const control = new AbortController();
+  const timer = setTimeout(()=>control.abort(), timeoutMs);
+  try{
+    const response = await fetch(path, {
+      headers:{"X-App-Token":TOKEN},
+      signal:control.signal
+    });
+    if(!response.ok) throw new Error("HTTP " + response.status);
+    const data = await response.json();
+    if(data === null || typeof data !== "object") throw new Error("payload");
+    SOURCE_AGE[path] = Date.now();
+    return data;
+  }catch(err){
+    return null;
+  }finally{
+    clearTimeout(timer);
+  }
+}
+
+// El dato se considera viejo pasado un minuto sin lectura buena. No se oculta:
+// se atenúa, porque esconderlo deja al usuario sin nada.
+function sourceIsStale(path){
+  const at = SOURCE_AGE[path];
+  return !at || (Date.now() - at) > 60000;
+}
+
+function lamp(id, state, value){
+  const dot = document.getElementById(id + "Dot");
+  const label = document.getElementById(id);
+  if(dot) dot.className = "sys-dot" + (state ? " " + state : "");
+  if(label) label.textContent = value;
+}
+
 async function api(path,options={}){
   options.headers = {...(options.headers||{}),"X-App-Token":TOKEN};
   const r = await fetch(path,options);
@@ -1252,6 +1292,45 @@ function actionPill(action){
   return "hold";
 }
 
+// Entorno de ejecución. La regla: REAL solo con un dato explícito e
+// inequívoco. Hoy ese dato NO existe por fila —`live_positions` no tiene
+// columna `mode`, sólo `execution_orders` la tiene y `get_live_position_summary()`
+// no hace join, y `/api/paper` tampoco la expone—, así que REAL es
+// inalcanzable por diseño y cualquier fila que de otro modo calificaría cae a
+// "modo no confirmado", que se ve más alarmante que PAPER, nunca menos.
+//
+// Lo que sí es explícito es el entorno global: `/api/status` afirma
+// `execution_provider` y las cinco banderas live. Mientras diga "simulation",
+// nada del sistema puede ser dinero real; eso no es inferencia del frontend.
+let EXECUTION_ENV = {mode:"unknown", explicit:false};
+
+function readExecutionEnvironment(statusData){
+  if(!statusData || typeof statusData !== "object"){
+    return {mode:"unknown", explicit:false};
+  }
+  const provider = String(statusData.execution_provider || "").toLowerCase();
+  const anyLive = Boolean(statusData.live_trading_active)
+    || Boolean(statusData.live_buy_active)
+    || Boolean(statusData.live_sell_active);
+  if(provider === "simulation" && !anyLive){
+    return {mode:"paper", explicit:true};
+  }
+  // Ni el proveedor afirma simulación ni hay confirmación por fila: no se
+  // asume real y tampoco se deja pasar por paper.
+  return {mode:"unknown", explicit:false};
+}
+
+function envTag(){
+  if(EXECUTION_ENV.mode === "paper"){
+    return '<span class="env-tag paper" title="Simulación: el backend informa execution_provider=simulation">PAPER</span>';
+  }
+  return '<span class="env-tag unknown" title="El backend no expone el modo de ejecución por posición">MODO SIN CONFIRMAR</span>';
+}
+
+function envSurface(){
+  return EXECUTION_ENV.mode === "paper" ? "env-paper" : "env-unknown";
+}
+
 function positionCard(p){
   const pnl=Number(p.pnl_usd||0);
   const realized=Number(p.realized_pnl_usd||0);
@@ -1264,7 +1343,7 @@ function positionCard(p){
   const action=String(p.last_action||"HOLD").toUpperCase();
 
   return `
-    <div class="card position-card" role="button" tabindex="0" onclick="openTokenDetail('${esc(p.mint)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openTokenDetail('${esc(p.mint)}')}">
+    <div class="card ${envSurface()} position-card" role="button" tabindex="0" onclick="openTokenDetail('${esc(p.mint)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openTokenDetail('${esc(p.mint)}')}">
       <div class="position-top">
         <div>
           <div class="token-title">@${esc(p.origin_trader||"unknown")}</div>
@@ -1292,7 +1371,7 @@ function positionCard(p){
         </div>
         <div class="mini">
           <span>PnL estimado</span>
-          <b class="${cls(pnl)}">${money(pnl)}</b>
+          <b class="${cls(pnl)}">${money(pnl)}</b>${envTag()}
         </div>
       </div>
 
@@ -1312,11 +1391,11 @@ function positionCard(p){
       <div class="pos-grid" style="grid-template-columns:repeat(2,1fr);">
         <div class="mini">
           <span>Cerrado (simulado)</span>
-          <b class="${cls(realized)}">${money(realized)}</b>
+          <b class="${cls(realized)}">${money(realized)}</b>${envTag()}
         </div>
         <div class="mini">
           <span>Abierto (estimado)</span>
-          <b class="${cls(unrealized)}">${money(unrealized)}</b>
+          <b class="${cls(unrealized)}">${money(unrealized)}</b>${envTag()}
         </div>
       </div>
 
@@ -1489,7 +1568,7 @@ function renderHome(paper,signals){
   const winRate=closed.length?(wins/closed.length*100):0;
   const pnl=paper.reduce((sum,p)=>sum+Number(p.pnl_usd||0),0);
 
-  document.getElementById("heroPnl").textContent=money(pnl);
+  document.getElementById("heroPnl").innerHTML=esc(money(pnl))+envTag();
   document.getElementById("heroPnl").className=`hero-pnl ${cls(pnl)}`;
   document.getElementById("heroSub").textContent=`${open.length} ${open.length===1?"posición abierta":"posiciones abiertas"}`;
   document.getElementById("openCaption").textContent=`${open.length} ${open.length===1?"abierta":"abiertas"}`;
@@ -2454,7 +2533,7 @@ const pressure=marketPressure(mint);
 
       <div class="read-card">
         <span>PnL Paper</span>
-        <b class="${cls(pnl)}">${money(pnl)}</b>
+        <b class="${cls(pnl)}">${money(pnl)}</b>${envTag()}
       </div>
 
       <div class="read-card">
@@ -2512,6 +2591,60 @@ function closeTokenDetail(){
 }
 
 
+// Las cuatro lámparas del rail. Verde solo cuando de verdad está sano,
+// ámbar para degradación, rojo para caída y gris cuando no hay dato: nunca se
+// inventa un estado sano a partir de una fuente ausente.
+async function refreshSystemPanel(){
+  const [wss,wallets,fallback,readiness]=await Promise.all([
+    source("/api/helius-standard-wss-stats"),
+    source("/api/watched-wallets"),
+    source("/api/rpc-fallback-stats"),
+    source("/api/live-execution-readiness")
+  ]);
+
+  if(!wss||!wss.runtime){
+    lamp("sysTransport","","sin dato");
+  }else{
+    const subs=Number(wss.runtime.subscriptions||0);
+    const want=Number(wss.active_wallets||wss.selected_wallets||0);
+    const up=Boolean(wss.runtime.connected)&&subs>0;
+    lamp("sysTransport",!up?"down":(subs<want?"warn":"ok"),
+      up?`${subs}/${want||subs}`:"caído");
+  }
+
+  if(!wallets&&!fallback){
+    lamp("sysCoverage","","sin dato");
+  }else{
+    const silent=wallets?Number(wallets.silent||0):null;
+    const withheld=fallback?Number(fallback.withheld_incomplete_coverage||0):0;
+    const saturated=fallback&&Array.isArray(fallback.saturated_wallets)
+      ?fallback.saturated_wallets.length:0;
+    const state=withheld>0?"down":((silent||saturated)?"warn":"ok");
+    lamp("sysCoverage",state,
+      silent===null?`${withheld} retenidas`:`${silent} mudas`);
+  }
+
+  // El modelo vive en shadow: no se pinta verde por estar cargado, porque
+  // cargado no es aprobado.
+  if(!statusSnapshot){
+    lamp("sysModel","","sin dato");
+  }else if(!statusSnapshot.shadow_model_loaded){
+    lamp("sysModel","down","no cargado");
+  }else{
+    lamp("sysModel","warn","shadow");
+  }
+
+  if(!readiness){
+    lamp("sysExec","","sin dato");
+  }else{
+    const blockers=Array.isArray(readiness.blockers)?readiness.blockers.length:0;
+    lamp("sysExec",readiness.ready?"ok":(blockers?"down":"warn"),
+      readiness.ready?"abierta":`${blockers} bloqueos`);
+  }
+}
+
+let statusSnapshot=null;
+
 async function refresh(){
   try{
     const [statusData,signals,trades,paper,traders,trainingStats,shadowStats,checkpointStats]=await Promise.all([
@@ -2528,6 +2661,16 @@ async function refresh(){
     document.getElementById("login").hidden=true;
     document.getElementById("app").hidden=false;
     document.getElementById("bottomNav").hidden=false;
+
+    // El entorno se lee del propio backend, no se infiere.
+    EXECUTION_ENV=readExecutionEnvironment(statusData);
+    // Antes de pintar las lámparas: si no, en el primer ciclo la del modelo
+    // leería el snapshot todavía nulo y diría "sin dato" sin motivo.
+    statusSnapshot=statusData;
+
+    // Cada lámpara se pide aparte y tolera su propia caída: si una fuente no
+    // responde queda en gris y el resto del panel sigue igual.
+    refreshSystemPanel();
 
     LAST_PAPER=paper;
     LAST_SIGNALS=signals;
