@@ -2,7 +2,11 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <!-- Se devuelve el pinch-to-zoom: `maximum-scale=1,user-scalable=no` es una
+       barrera de accesibilidad real en una interfaz densa de cifras chicas, y
+       Safari lo ignora desde iOS 10 de todos modos — se pagaba el costo sin
+       obtener el efecto. -->
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#0b0b0d">
@@ -2590,18 +2594,10 @@ async function refresh(){
 }
 
 
-document.addEventListener("gesturestart",e=>e.preventDefault(),{passive:false});
-document.addEventListener("gesturechange",e=>e.preventDefault(),{passive:false});
-document.addEventListener("gestureend",e=>e.preventDefault(),{passive:false});
-
-let lastTouchEnd=0;
-document.addEventListener("touchend",e=>{
-  const now=Date.now();
-  if(now-lastTouchEnd<=300){
-    e.preventDefault();
-  }
-  lastTouchEnd=now;
-},{passive:false});
+// El zoom queda habilitado a propósito. Quitar `user-scalable=no` del
+// viewport no alcanza en iOS: Safari implementa el pellizco con los eventos
+// `gesture*`, y el handler de `touchend` cancelaba además el doble toque. Los
+// tres existían solo para bloquear el zoom, así que se van con él.
 
 
 syncThemeControl();
