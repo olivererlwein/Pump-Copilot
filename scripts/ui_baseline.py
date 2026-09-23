@@ -24,6 +24,7 @@ mide. No envía nada.
 import argparse
 import asyncio
 import base64
+import collections
 import json
 import os
 import pathlib
@@ -400,10 +401,28 @@ async def verify_css(chrome, url):
     token = app_token()
     local = pathlib.Path("static/index.html").read_text(encoding="utf-8")
     new_css = local.split("<style>", 1)[1].split("</style>", 1)[0]
+    new_ext = pathlib.Path("static/app-v6.css").read_text(encoding="utf-8")
+    # El <link> se reemplaza por un <style> en su MISMA posición del DOM: el
+    # orden de cascada depende de la posición, así que insertarlo en otro
+    # lugar cambiaría qué regla gana y falsearía la comparación.
+    swap = (
+        "(()=>{const s=document.querySelector('style');"
+        "window.__old=s.textContent;s.textContent=%s;"
+        "const l=[...document.querySelectorAll('link[rel=stylesheet]')]"
+        ".find(x=>x.href.includes('app-v6'));"
+        "if(l){const n=document.createElement('style');n.id='__ext';"
+        "n.textContent=%s;window.__link=l;l.replaceWith(n);}return true})()"
+    )
+    restore = (
+        "(()=>{document.querySelector('style').textContent=window.__old;"
+        "const n=document.getElementById('__ext');"
+        "if(n&&window.__link)n.replaceWith(window.__link);return true})()"
+    )
 
     await chrome.send("Page.enable")
     await chrome.send("Runtime.enable")
     total = 0
+    changed = collections.Counter()
 
     for theme in THEMES:
         for name, width, height in BREAKPOINTS:
@@ -433,16 +452,11 @@ async def verify_css(chrome, url):
                 await asyncio.sleep(0.5)
                 before = await chrome.evaluate(FINGERPRINT_JS)
                 await chrome.evaluate(
-                    "(()=>{const s=document.querySelector('style');"
-                    f"window.__old=s.textContent;s.textContent={json.dumps(new_css)};"
-                    "return true})()"
+                    swap % (json.dumps(new_css), json.dumps(new_ext))
                 )
                 await asyncio.sleep(0.4)
                 after = await chrome.evaluate(FINGERPRINT_JS)
-                await chrome.evaluate(
-                    "(()=>{document.querySelector('style').textContent=window.__old;"
-                    "return true})()"
-                )
+                await chrome.evaluate(restore)
 
                 left = {item[0]: item[1] for item in before}
                 right = {item[0]: item[1] for item in after}
@@ -453,15 +467,28 @@ async def verify_css(chrome, url):
                             diffs.append((element, prop, value, right[element][prop]))
                 only = set(left) ^ set(right)
                 key = f"{theme}-{name}-{view}"
-                mark = "OK" if not diffs and not only else "DIFERENCIAS"
+                for _, prop, _, _ in diffs:
+                    changed[prop] += 1
+                mark = "igual" if not diffs and not only else f"{len(diffs)} dif."
                 print(f"  {key:<28} {len(left):>4} elementos  {mark}")
-                for element, prop, a, b in diffs[:6]:
-                    print(f"       {element[:52]}  {prop}: {a} -> {b}")
                 total += len(diffs) + len(only)
 
     print(f"\nDIFERENCIAS TOTALES: {total}")
-    print("Idéntico en 5 vistas x 3 anchos x 2 temas." if total == 0
-          else "REGRESIÓN: hay que revisar antes de continuar.")
+    if changed:
+        # Un cambio de color que mueva `width` o `display` es regresión; que
+        # mueva `color` es el trabajo. Agrupar por propiedad hace visible la
+        # diferencia entre las dos cosas sin leer 4 millones de comparaciones.
+        print("\nPROPIEDADES QUE CAMBIARON")
+        layout = {"width", "height", "__box", "display", "position",
+                  "grid-template-columns", "flex-direction", "justify-content",
+                  "align-items", "overflow-x", "overflow-y", "z-index",
+                  "transform", "visibility", "max-width", "min-height"}
+        for prop, count in sorted(changed.items(), key=lambda x: -x[1]):
+            flag = "  <-- LAYOUT" if prop in layout else ""
+            print(f"  {prop:<28} {count:>6}{flag}")
+        touched = set(changed) & layout
+        print(f"\npropiedades de layout afectadas: "
+              f"{', '.join(sorted(touched)) if touched else 'ninguna'}")
     return total
 
 
