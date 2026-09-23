@@ -987,6 +987,11 @@
       <div id="homePositions"></div>
 
       <section id="shadowPanel" class="shadow-card" aria-label="Estado del modelo shadow"></section>
+      <!-- Exit Monitor. Solo agregados: la respuesta no trae filas por mint,
+           ni market caps individuales, ni timestamps por posición, así que el
+           panel queda más chico que el mockup y eso es correcto. Un panel
+           incompleto y verdadero antes que uno lleno de datos inferidos. -->
+      <section id="exitPanel" class="shadow-card" aria-label="Exit Monitor"></section>
       <section id="checkpointPanel" class="shadow-card" aria-label="Progreso del dataset on-chain"></section>
     </section>
     <section id="signalsPage" class="page">
@@ -2594,13 +2599,76 @@ function closeTokenDetail(){
 // Las cuatro lámparas del rail. Verde solo cuando de verdad está sano,
 // ámbar para degradación, rojo para caída y gris cuando no hay dato: nunca se
 // inventa un estado sano a partir de una fuente ausente.
+// Exit Monitor y posiciones reales. Cada campo de acá sale literal de la
+// respuesta; no se deriva ni se completa nada que la ruta no exponga.
+function renderExitMonitor(monitor, livePositions){
+  const el=document.getElementById("exitPanel");
+  if(!el) return;
+
+  if(!monitor){
+    el.innerHTML=`
+      <div class="shadow-head"><div class="shadow-title">Exit Monitor</div></div>
+      <div class="empty"><b>Sin datos</b>La fuente no respondió en este ciclo.</div>`;
+    el.classList.add("is-stale");
+    return;
+  }
+  el.classList.toggle("is-stale", sourceIsStale("/api/live-account-exit-monitor-stats"));
+
+  const apply=Boolean(monitor.apply);
+  const state=apply?"APLICANDO":"OBSERVANDO";
+  const blockers=Array.isArray(monitor.blockers)?monitor.blockers:[];
+  const age=Number(monitor.last_success_ts)>0
+    ? ago(Number(monitor.last_success_ts)) : "—";
+
+  // De /api/live-positions solo se usan los agregados. `positions[]` trae
+  // filas sin campo de modo, así que no se pintan como posiciones: contarlas
+  // es información verdadera, atribuirles un modo no lo sería.
+  const realTotal=livePositions&&Number.isFinite(Number(livePositions.total))
+    ? Number(livePositions.total) : null;
+  const realOpen=livePositions&&Number.isFinite(Number(livePositions.open))
+    ? Number(livePositions.open) : null;
+
+  const cell=(label,value,extra="")=>`
+    <div class="shadow-metric"><span>${esc(label)}</span><b>${esc(String(value))}${extra}</b></div>`;
+
+  el.innerHTML=`
+    <div class="shadow-head">
+      <div><div class="shadow-title">Exit Monitor</div>
+        <div class="shadow-version">${esc(String(monitor.status||"—"))}</div></div>
+      <span class="shadow-state${apply?"":" ready"}">${esc(state)}</span>
+    </div>
+    <div class="shadow-grid">
+      ${cell("Abiertas",monitor.open_positions??"—")}
+      ${cell("Vigilados",monitor.selected_mints??"—")}
+      ${cell("Con precio",monitor.priced_mints??"—")}
+      ${cell("Resultados",monitor.exit_results??"—")}
+      ${cell("Antigüedad máx",monitor.maximum_age_seconds!=null?monitor.maximum_age_seconds+" s":"—")}
+      ${cell("Última lectura",age)}
+    </div>
+    ${realTotal!==null?`
+      <div class="shadow-foot">
+        Posiciones registradas on-chain: <b>${realOpen} abiertas</b> de ${realTotal}.
+        ${realTotal===0?"":envTag()}
+      </div>`:""}
+    ${blockers.length?`
+      <div class="state-note">${blockers.map(esc).join(" · ")}</div>`:""}
+  `;
+}
+
 async function refreshSystemPanel(){
-  const [wss,wallets,fallback,readiness]=await Promise.all([
+  const [wss,wallets,fallback,readiness,monitor,livePositions]=await Promise.all([
     source("/api/helius-standard-wss-stats"),
     source("/api/watched-wallets"),
-    source("/api/rpc-fallback-stats"),
-    source("/api/live-execution-readiness")
+    // Esta ruta recorre los eventos faltantes y tarda unos 4,4 s medidos en
+    // producción: con el timeout por defecto se cortaba siempre y la cobertura
+    // quedaba permanentemente "parcial" por culpa del cliente, no del backend.
+    source("/api/rpc-fallback-stats",9000),
+    source("/api/live-execution-readiness"),
+    source("/api/live-account-exit-monitor-stats"),
+    source("/api/live-positions")
   ]);
+
+  renderExitMonitor(monitor, livePositions);
 
   if(!wss||!wss.runtime){
     lamp("sysTransport","","sin dato");
@@ -2612,16 +2680,37 @@ async function refreshSystemPanel(){
       up?`${subs}/${want||subs}`:"caído");
   }
 
+  // La cobertura se arma con dos fuentes y hay que decir cuántas contestaron:
+  // un estado calculado con la mitad de la evidencia no puede presentarse
+  // igual que uno completo. Verde exige que ambas respondan y que ninguna
+  // reporte degradación; con una sola nunca se afirma cobertura completa.
+  const dot=document.getElementById("sysCoverageDot");
   if(!wallets&&!fallback){
     lamp("sysCoverage","","sin dato");
+    if(dot) dot.title="Ninguna de las dos fuentes de cobertura respondió.";
   }else{
     const silent=wallets?Number(wallets.silent||0):null;
-    const withheld=fallback?Number(fallback.withheld_incomplete_coverage||0):0;
+    const withheld=fallback?Number(fallback.withheld_incomplete_coverage||0):null;
     const saturated=fallback&&Array.isArray(fallback.saturated_wallets)
-      ?fallback.saturated_wallets.length:0;
-    const state=withheld>0?"down":((silent||saturated)?"warn":"ok");
-    lamp("sysCoverage",state,
-      silent===null?`${withheld} retenidas`:`${silent} mudas`);
+      ?fallback.saturated_wallets.length:null;
+    const partial=!wallets||!fallback;
+    const degraded=(silent||0)>0||(saturated||0)>0;
+    let state;
+    if((withheld||0)>0) state="down";
+    else if(degraded||partial) state="warn";
+    else state="ok";
+    const parts=[];
+    if(silent!==null) parts.push(`${silent} mudas`);
+    if(withheld!==null&&withheld>0) parts.push(`${withheld} retenidas`);
+    if(partial) parts.push("parcial");
+    lamp("sysCoverage",state,parts.join(" · ")||"completa");
+    if(dot){
+      dot.title=partial
+        ? "Evidencia incompleta: respondió "
+          +(wallets?"watched-wallets":"rpc-fallback-stats")
+          +" y la otra fuente no."
+        : "Ambas fuentes respondieron.";
+    }
   }
 
   // El modelo vive en shadow: no se pinta verde por estar cargado, porque
@@ -2644,6 +2733,7 @@ async function refreshSystemPanel(){
 }
 
 let statusSnapshot=null;
+let LAST_SYSTEM_REFRESH=0;
 
 async function refresh(){
   try{
@@ -2669,8 +2759,14 @@ async function refresh(){
     statusSnapshot=statusData;
 
     // Cada lámpara se pide aparte y tolera su propia caída: si una fuente no
-    // responde queda en gris y el resto del panel sigue igual.
-    refreshSystemPanel();
+    // responde queda en gris y el resto del panel sigue igual. Se consulta cada
+    // 15 s y no en cada ciclo de 5: el estado del sistema no cambia tan rápido
+    // y una de sus rutas es cara, así que pedirla tres veces más seguido solo
+    // cargaría producción.
+    if(Date.now()-LAST_SYSTEM_REFRESH>15000){
+      LAST_SYSTEM_REFRESH=Date.now();
+      refreshSystemPanel();
+    }
 
     LAST_PAPER=paper;
     LAST_SIGNALS=signals;

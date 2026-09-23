@@ -238,12 +238,14 @@ main{padding-top:28px}
     "signal hero"
     "positions-head shadow"
     "positions shadow"
+    "positions exit"
     "checkpoint checkpoint";
   gap:0 22px;
 }
 /* Ambos paneles comparten la clase .shadow-card, así que sin reglas por id
    caerían en la misma celda y se superpondrían. */
 #homePage>#shadowPanel{grid-area:shadow}
+#homePage>#exitPanel{grid-area:exit;margin-top:22px}
 #homePage>#checkpointPanel{grid-area:checkpoint;margin-top:22px}
 
 #homePage>.page-heading{grid-area:heading}
@@ -712,9 +714,11 @@ button:focus-visible,input:focus-visible,select:focus-visible,.position-card:foc
   #homePage>#homeSignal{order:4}
   #homePage>.positions-section-head{order:5}
   #homePage>#homePositions{order:6}
-  #homePage>.hero{order:7;margin-top:24px}
-  #homePage>#shadowPanel{order:8}
-  #homePage>#checkpointPanel{order:9}
+  /* El Exit Monitor es nivel 2: va con las posiciones, no al final. */
+  #homePage>#exitPanel{order:7}
+  #homePage>.hero{order:8;margin-top:24px}
+  #homePage>#shadowPanel{order:9}
+  #homePage>#checkpointPanel{order:10}
 
   .hero{min-height:0;padding:20px;border-radius:var(--radius)}
   .hero-pnl{font-size:40px}
@@ -895,3 +899,15 @@ html[data-theme="light"] nav button.active{background:rgba(0,0,0,.065)}
 @media(prefers-reduced-motion:reduce){
   .is-stale{transition:none}
 }
+
+/* Pie del Exit Monitor: el recuento de posiciones registradas on-chain sale
+   de /api/live-positions, que no expone modo de ejecución. Se cuenta, no se
+   les atribuye un entorno. */
+.shadow-foot{
+  margin-top:12px;
+  padding-top:10px;
+  border-top:1px solid var(--border);
+  color:var(--muted);
+  font-size:11.5px;
+}
+.shadow-foot b{color:var(--text);font-weight:600}

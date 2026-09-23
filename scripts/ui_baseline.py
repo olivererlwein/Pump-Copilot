@@ -168,7 +168,14 @@ class Chrome:
             returnByValue=True, awaitPromise=True,
         )
         if result.get("exceptionDetails"):
-            raise RuntimeError(result["exceptionDetails"].get("text"))
+            detail = result["exceptionDetails"]
+            # `text` casi siempre dice solo "Uncaught": el mensaje útil está en
+            # la excepción, y sin él cada fallo cuesta una ronda de adivinanza.
+            thrown = (detail.get("exception") or {})
+            message = (thrown.get("description")
+                       or thrown.get("value")
+                       or detail.get("text"))
+            raise RuntimeError(str(message)[:400])
         return result["result"].get("value")
 
     def close(self):
