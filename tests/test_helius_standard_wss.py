@@ -640,6 +640,12 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
             app.record_helius_standard_wss_notification(
                 event, True, message_bytes, received_ts=received_ts,
             )
+        app.finish_helius_standard_wss_transaction(
+            "token-a-recent", "queue_full", 0, now=now - 1799,
+        )
+        app.finish_helius_standard_wss_transaction(
+            "token-a-old", "fetch_failed", 1, now=now - 7199,
+        )
 
         with (
             patch.object(app, "APP_TOKEN", "token"),
@@ -655,7 +661,10 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(report["last_1h"]["tokens_observed"], 2)
         self.assertEqual(report["last_1h"]["message_bytes"], 400)
         self.assertEqual(one_hour["mint-a"]["message_bytes"], 100)
+        self.assertEqual(one_hour["mint-a"]["queue_full_transactions"], 1)
+        self.assertEqual(one_hour["mint-a"]["fetch_failed_transactions"], 0)
         self.assertEqual(one_hour["mint-b"]["failed_notifications"], 1)
+        self.assertEqual(one_hour["mint-b"]["queue_full_transactions"], 0)
 
         day = {
             row["mint"]: row for row in report["last_24h"]["tokens"]
@@ -664,6 +673,8 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(report["last_24h"]["tokens_observed"], 2)
         self.assertEqual(day["mint-a"]["notifications"], 2)
         self.assertEqual(day["mint-a"]["message_bytes"], 300)
+        self.assertEqual(day["mint-a"]["queue_full_transactions"], 1)
+        self.assertEqual(day["mint-a"]["fetch_failed_transactions"], 1)
 
     def test_stats_last_hour_excludes_older_queue_failures(self):
         now = 1_700_010_000

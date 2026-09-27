@@ -930,6 +930,11 @@ def db():
             "ADD COLUMN subject_type TEXT NOT NULL DEFAULT 'wallet'"
         )
     conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_helius_wss_token_received "
+        "ON helius_standard_wss_notifications(wallet, received_ts) "
+        "WHERE subject_type = 'token'"
+    )
+    conn.execute(
         """
         CREATE TABLE IF NOT EXISTS helius_standard_wss_transactions(
             signature TEXT PRIMARY KEY,
@@ -16394,7 +16399,7 @@ def get_account_checkpoint_event_paths(observations):
 
 
 def get_account_checkpoint_subscription_coverage(observations):
-    """Measure conservatively observed WSS time inside each 15m horizon."""
+    """Measure WSS subscription time and known token delivery losses."""
     signals = {
         int(row["signal_id"]): (
             str(row["mint"]), float(row["signal_ts"])
@@ -16405,6 +16410,7 @@ def get_account_checkpoint_subscription_coverage(observations):
         return {}
 
     intervals = {signal_id: [] for signal_id in signals}
+    delivery_failures = {signal_id: 0 for signal_id in signals}
     signal_ids = list(signals)
     conn = db()
     try:
@@ -16433,6 +16439,26 @@ def get_account_checkpoint_subscription_coverage(observations):
                 end = min(float(signal_ts) + 900.0, float(end_ts))
                 if end > start:
                     intervals[int(signal_id)].append((start, end))
+        if activation_ts is not None:
+            for signal_id, (mint, signal_ts) in signals.items():
+                if signal_ts + 900.0 <= activation_ts:
+                    continue
+                # Dropped fetches have no block_time; reception time is the
+                # only available bound for known delivery losses.
+                delivery_failures[signal_id] = conn.execute(
+                    """
+                    SELECT COUNT(*)
+                    FROM helius_standard_wss_notifications n
+                    JOIN helius_standard_wss_transactions t
+                      ON t.signature = n.signature
+                    WHERE n.wallet = ? AND n.subject_type = 'token'
+                      AND n.received_ts >= ? AND n.received_ts <= ?
+                      AND t.status IN (
+                          'queue_full', 'fetch_failed', 'processing_failed'
+                      )
+                    """,
+                    (mint, signal_ts, signal_ts + 900.0),
+                ).fetchone()[0]
     finally:
         conn.close()
 
@@ -16446,6 +16472,13 @@ def get_account_checkpoint_subscription_coverage(observations):
                 merged.append((start, end))
         covered_seconds = sum(end - start for start, end in merged)
         first_start = merged[0][0] if merged else None
+        subscription_continuous = bool(
+            len(merged) == 1
+            and merged[0][0] <= (
+                signal_ts + HELIUS_TOKEN_COVERAGE_MAX_START_DELAY_SECONDS
+            )
+            and merged[0][1] >= signal_ts + 900.0
+        )
         coverage[signal_id] = {
             "measurement_available": bool(
                 activation_ts is not None
@@ -16461,13 +16494,11 @@ def get_account_checkpoint_subscription_coverage(observations):
                 HELIUS_TOKEN_COVERAGE_MAX_START_DELAY_SECONDS
             ),
             "intervals": len(merged),
+            "subscription_continuous": subscription_continuous,
+            "known_delivery_failures": int(delivery_failures[signal_id]),
             "complete": bool(
-                len(merged) == 1
-                and merged[0][0] <= (
-                    signal_ts
-                    + HELIUS_TOKEN_COVERAGE_MAX_START_DELAY_SECONDS
-                )
-                and merged[0][1] >= signal_ts + 900.0
+                subscription_continuous
+                and not delivery_failures[signal_id]
             ),
         }
     return coverage
@@ -16520,6 +16551,10 @@ def get_exit_subscription_coverage_progress(observations=None):
     complete_rows = sum(
         bool(item.get("complete")) for item in coverage.values()
     )
+    known_loss_rows = sum(
+        bool(item.get("known_delivery_failures"))
+        for item in coverage.values()
+    )
     next_milestone = next(
         (
             milestone
@@ -16532,6 +16567,7 @@ def get_exit_subscription_coverage_progress(observations=None):
         "affects_decisions": False,
         "measured_observation_rows": measured_rows,
         "complete_observation_rows": complete_rows,
+        "known_delivery_loss_observation_rows": known_loss_rows,
         "milestones": list(EXIT_SUBSCRIPTION_COVERAGE_MILESTONES),
         "next_milestone": next_milestone,
         "requires_frozen_validator": True,
@@ -18199,14 +18235,19 @@ def api_account_checkpoint_paths(
 def get_helius_standard_wss_token_traffic(conn, cutoff):
     rows = conn.execute(
         """
-        SELECT wallet, COUNT(*), COALESCE(SUM(failed), 0),
-               COALESCE(SUM(message_bytes), 0),
-               MIN(received_ts), MAX(received_ts)
-        FROM helius_standard_wss_notifications
-        WHERE received_ts >= ? AND subject_type = 'token'
-        GROUP BY wallet
-        ORDER BY COALESCE(SUM(message_bytes), 0) DESC,
-                 COUNT(*) DESC, wallet
+        SELECT n.wallet, COUNT(*), COALESCE(SUM(n.failed), 0),
+               COALESCE(SUM(n.message_bytes), 0),
+               MIN(n.received_ts), MAX(n.received_ts),
+               COALESCE(SUM(t.status = 'queue_full'), 0),
+               COALESCE(SUM(t.status = 'fetch_failed'), 0),
+               COALESCE(SUM(t.status = 'processing_failed'), 0)
+        FROM helius_standard_wss_notifications n
+        LEFT JOIN helius_standard_wss_transactions t
+          ON t.signature = n.signature
+        WHERE n.received_ts >= ? AND n.subject_type = 'token'
+        GROUP BY n.wallet
+        ORDER BY COALESCE(SUM(n.message_bytes), 0) DESC,
+                 COUNT(*) DESC, n.wallet
         """,
         (cutoff,),
     ).fetchall()
@@ -18218,9 +18259,13 @@ def get_helius_standard_wss_token_traffic(conn, cutoff):
             "message_bytes": int(message_bytes),
             "first_received_ts": first_received_ts,
             "last_received_ts": last_received_ts,
+            "queue_full_transactions": int(queue_full),
+            "fetch_failed_transactions": int(fetch_failed),
+            "processing_failed_transactions": int(processing_failed),
         }
         for mint, count, failed, message_bytes,
-            first_received_ts, last_received_ts in rows
+            first_received_ts, last_received_ts, queue_full,
+            fetch_failed, processing_failed in rows
     ]
 
 

@@ -487,6 +487,88 @@ class AccountPriceCheckpointTests(unittest.TestCase):
         self.assertEqual(coverage["maximum_start_delay_seconds"], 10.0)
         self.assertAlmostEqual(coverage["coverage_ratio"], 895.0 / 900.0)
 
+    def test_subscription_coverage_rejects_known_token_delivery_losses(self):
+        signal_id = self.checkpoint_dataset_outcome(
+            9, [1.05, 1.10, 1.15, 1.20, 1.30]
+        )
+        signal_ts = self.signal_ts + 9 * 2_000
+        app.establish_helius_token_coverage_activation(now=signal_ts)
+        conn = app.db()
+        try:
+            conn.execute(
+                """
+                INSERT INTO helius_standard_wss_token_intervals(
+                    mint, subscribed_ts, last_confirmed_ts,
+                    unsubscribed_ts, close_reason
+                ) VALUES(?,?,?,?,?)
+                """,
+                (
+                    "mint-9", signal_ts + 5, signal_ts + 900,
+                    signal_ts + 900, "unsubscribe_confirmed",
+                ),
+            )
+            for signature, wallet, subject_type, received_ts, status in (
+                ("lost-queue", "mint-9", "token", signal_ts + 100,
+                 "queue_full"),
+                ("lost-fetch", "mint-9", "token", signal_ts + 200,
+                 "fetch_failed"),
+                ("lost-process", "mint-9", "token", signal_ts + 300,
+                 "processing_failed"),
+                ("other-token", "mint-other", "token", signal_ts + 400,
+                 "queue_full"),
+                ("wallet-only", "mint-9", "wallet", signal_ts + 500,
+                 "queue_full"),
+                ("too-late", "mint-9", "token", signal_ts + 901,
+                 "queue_full"),
+            ):
+                conn.execute(
+                    """
+                    INSERT INTO helius_standard_wss_notifications(
+                        signature, wallet, received_ts, failed, pump_logs,
+                        message_bytes, subject_type
+                    ) VALUES(?,?,?,0,1,100,?)
+                    """,
+                    (signature, wallet, received_ts, subject_type),
+                )
+                conn.execute(
+                    """
+                    INSERT INTO helius_standard_wss_transactions(
+                        signature, first_received_ts, status
+                    ) VALUES(?,?,?)
+                    """,
+                    (signature, received_ts, status),
+                )
+            conn.commit()
+        finally:
+            conn.close()
+
+        row = {"signal_id": signal_id, "mint": "mint-9",
+               "signal_ts": signal_ts}
+        coverage = app.get_account_checkpoint_subscription_coverage(
+            [row]
+        )[signal_id]
+        self.assertTrue(coverage["subscription_continuous"])
+        self.assertEqual(coverage["known_delivery_failures"], 3)
+        self.assertFalse(coverage["complete"])
+        progress = app.get_exit_subscription_coverage_progress([row])
+        self.assertEqual(progress["known_delivery_loss_observation_rows"], 1)
+        self.assertEqual(progress["complete_observation_rows"], 0)
+
+        conn = app.db()
+        try:
+            conn.execute(
+                "DELETE FROM helius_standard_wss_transactions "
+                "WHERE signature IN ('lost-queue', 'lost-fetch', 'lost-process')"
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        recovered = app.get_account_checkpoint_subscription_coverage(
+            [row]
+        )[signal_id]
+        self.assertEqual(recovered["known_delivery_failures"], 0)
+        self.assertTrue(recovered["complete"])
+
     def test_subscription_coverage_rejects_excessive_startup_delay(self):
         signal_id = self.checkpoint_dataset_outcome(
             8, [1.05, 1.10, 1.15, 1.20, 1.30]
