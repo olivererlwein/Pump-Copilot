@@ -4,7 +4,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 from urllib.error import HTTPError
 
 import app
@@ -1176,6 +1176,31 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(pending_unsubscribes, {3: 92})
         self.assertEqual(subscriptions[91], "wallet-a")
 
+    async def test_token_capacity_alerts_once_and_then_reports_recovery(self):
+        with (
+            patch.object(app, "DISCORD_ALERT_WEBHOOK_URL", "https://example.test"),
+            patch.object(app, "HELIUS_STANDARD_WSS_MAX_TRACKED_TOKENS", 7),
+            patch.object(app, "HELIUS_STANDARD_WSS_CAPACITY_ALERT_ACTIVE", False),
+            patch.object(
+                app, "send_discord_alert", new_callable=AsyncMock,
+                return_value=True,
+            ) as alert,
+        ):
+            await app.update_helius_standard_wss_capacity_alert(7, 2)
+            await app.update_helius_standard_wss_capacity_alert(7, 2)
+
+            self.assertTrue(app.HELIUS_STANDARD_WSS_CAPACITY_ALERT_ACTIVE)
+            alert.assert_awaited_once()
+            self.assertIn("Omitted: 2", alert.await_args.args[0])
+            self.assertIn("Configured limit: 7", alert.await_args.args[0])
+
+            await app.update_helius_standard_wss_capacity_alert(6, 0)
+            await app.update_helius_standard_wss_capacity_alert(6, 0)
+
+            self.assertFalse(app.HELIUS_STANDARD_WSS_CAPACITY_ALERT_ACTIVE)
+            self.assertEqual(alert.await_count, 2)
+            self.assertIn("capacity recovered", alert.await_args.args[0])
+
     async def test_token_subscription_prioritizes_latest_active_outcome(self):
         older = app.create_signal_outcome(
             signal_id=None, mint="mint-a", trader="tester",
@@ -1232,6 +1257,10 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
                 app, "record_helius_webhook_transactions",
                 return_value={"parsed_events": 1},
             ) as record,
+            patch.object(
+                app, "update_helius_standard_wss_capacity_alert",
+                new_callable=AsyncMock,
+            ) as capacity_alert,
             patch.object(app, "APP_TOKEN", "token"),
         ):
             worker = asyncio.create_task(app.helius_standard_wss_worker())
@@ -1244,6 +1273,7 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(socket.sent[1]["params"][0], {
                     "mentions": ["mint-a"]
                 })
+                capacity_alert.assert_any_await(1, 0)
                 await socket.incoming.put(json.dumps({
                     "jsonrpc": "2.0", "id": 1, "result": 91,
                 }))
@@ -1342,6 +1372,7 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(interval[0], "mint-a")
                 self.assertIsNotNone(interval[1])
                 self.assertEqual(interval[2], "unsubscribe_confirmed")
+                capacity_alert.assert_any_await(0, 0)
                 report = app.api_helius_standard_wss_stats("token")
                 self.assertTrue(report["wallet_subscriptions_ready"])
                 self.assertTrue(report["tracked_token_subscriptions_ready"])

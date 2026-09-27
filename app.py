@@ -579,6 +579,7 @@ HELIUS_STANDARD_WSS_STATE = {
     "next_retry_ts": None,
     "muted_wallets": {},
 }
+HELIUS_STANDARD_WSS_CAPACITY_ALERT_ACTIVE = False
 # Notificaciones sin logs de Pump: se cuentan acá y no se guardan. Cada una
 # era un INSERT en SQLite; a 44 por segundo son 3,8 millones de filas por día
 # en un volumen de 5 GB. Solo importan como volumen por wallet y como señal
@@ -16880,6 +16881,37 @@ async def sync_helius_standard_wss_tokens(
     return next_request_id
 
 
+async def update_helius_standard_wss_capacity_alert(
+    desired_tokens,
+    omitted_tokens,
+):
+    """Notify once when the tracked-token subscription cap loses coverage."""
+    global HELIUS_STANDARD_WSS_CAPACITY_ALERT_ACTIVE
+
+    desired = max(0, int(desired_tokens or 0))
+    omitted = max(0, int(omitted_tokens or 0))
+    saturated = omitted > 0
+
+    if saturated and not HELIUS_STANDARD_WSS_CAPACITY_ALERT_ACTIVE:
+        HELIUS_STANDARD_WSS_CAPACITY_ALERT_ACTIVE = True
+        if DISCORD_ALERT_WEBHOOK_URL:
+            await send_discord_alert(
+                "Pump Copilot: tracked-token WSS capacity saturated.\n"
+                f"Selected within limit: {desired}\n"
+                f"Omitted: {omitted}\n"
+                f"Configured limit: {HELIUS_STANDARD_WSS_MAX_TRACKED_TOKENS}\n"
+                "Omitted tokens will not count as completely observed."
+            )
+    elif not saturated and HELIUS_STANDARD_WSS_CAPACITY_ALERT_ACTIVE:
+        HELIUS_STANDARD_WSS_CAPACITY_ALERT_ACTIVE = False
+        if DISCORD_ALERT_WEBHOOK_URL:
+            await send_discord_alert(
+                "Pump Copilot: tracked-token WSS capacity recovered.\n"
+                f"Selected within limit: {desired}\n"
+                "No tracked tokens are currently omitted by the capacity limit."
+            )
+
+
 async def helius_standard_wss_worker():
     try:
         url = build_helius_standard_wss_url(
@@ -16995,6 +17027,17 @@ async def helius_standard_wss_worker():
                             pending_unsubscribes,
                             pending_unsubscribe_started,
                             next_request_id,
+                        )
+                        with HELIUS_STANDARD_WSS_STATE_LOCK:
+                            desired_tokens = HELIUS_STANDARD_WSS_STATE[
+                                "tracked_tokens_desired"
+                            ]
+                            omitted_tokens = HELIUS_STANDARD_WSS_STATE[
+                                "tracked_tokens_omitted"
+                            ]
+                        await update_helius_standard_wss_capacity_alert(
+                            desired_tokens,
+                            omitted_tokens,
                         )
                         last_token_poll = time.monotonic()
                     try:
