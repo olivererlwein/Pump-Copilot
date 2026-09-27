@@ -15967,6 +15967,7 @@ ACCOUNT_CHECKPOINT_TRAINING_MINIMUMS = {
     "target_1": 60,
     "unique_traders": 3,
 }
+EXIT_SUBSCRIPTION_COVERAGE_MILESTONES = (1, 25, 50, 100)
 
 
 def account_price_checkpoint_once(now=None):
@@ -16079,6 +16080,7 @@ async def account_price_checkpoint_worker():
             result = await asyncio.to_thread(account_price_checkpoint_once)
             if result.get("checkpoints_recorded", 0) > 0:
                 await maybe_send_account_checkpoint_training_ready_alert()
+                await maybe_send_exit_subscription_coverage_milestone_alert()
         except asyncio.CancelledError:
             raise
         except Exception as exc:
@@ -16505,8 +16507,40 @@ def get_account_checkpoint_dataset_rows():
     return dataset
 
 
+def get_exit_subscription_coverage_progress(observations=None):
+    rows = (
+        get_account_checkpoint_observations()
+        if observations is None else observations
+    )
+    coverage = get_account_checkpoint_subscription_coverage(rows)
+    measured_rows = sum(
+        bool(item.get("measurement_available"))
+        for item in coverage.values()
+    )
+    complete_rows = sum(
+        bool(item.get("complete")) for item in coverage.values()
+    )
+    next_milestone = next(
+        (
+            milestone
+            for milestone in EXIT_SUBSCRIPTION_COVERAGE_MILESTONES
+            if complete_rows < milestone
+        ),
+        None,
+    )
+    return {
+        "affects_decisions": False,
+        "measured_observation_rows": measured_rows,
+        "complete_observation_rows": complete_rows,
+        "milestones": list(EXIT_SUBSCRIPTION_COVERAGE_MILESTONES),
+        "next_milestone": next_milestone,
+        "requires_frozen_validator": True,
+    }
+
+
 def get_account_checkpoint_training_stats():
     rows = get_account_checkpoint_observations()
+    subscription_coverage = get_exit_subscription_coverage_progress(rows)
     by_trader = {}
     mints = set()
     positives = 0
@@ -16569,6 +16603,7 @@ def get_account_checkpoint_training_stats():
         "unique_mints": len(mints),
         "by_trader": by_trader,
         "last_24h": rates,
+        "subscription_coverage": subscription_coverage,
         "readiness": {
             "ready_for_diagnostic": not blockers,
             "minimums": dict(ACCOUNT_CHECKPOINT_TRAINING_MINIMUMS),
@@ -16657,6 +16692,57 @@ async def maybe_send_account_checkpoint_training_ready_alert():
         f"Unique traders/mints: {stats['unique_traders']} / "
         f"{stats['unique_mints']}\n"
         "No model was trained or promoted automatically."
+    )
+    if not sent:
+        return False
+
+    conn = db()
+    try:
+        conn.execute(
+            "INSERT OR IGNORE INTO app_state(key, value) VALUES(?, ?)",
+            (state_key, str(time.time())),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return True
+
+
+async def maybe_send_exit_subscription_coverage_milestone_alert():
+    if not DISCORD_ALERT_WEBHOOK_URL:
+        return False
+
+    progress = get_exit_subscription_coverage_progress()
+    complete_rows = progress["complete_observation_rows"]
+    reached = [
+        milestone
+        for milestone in EXIT_SUBSCRIPTION_COVERAGE_MILESTONES
+        if complete_rows >= milestone
+    ]
+    if not reached:
+        return False
+
+    milestone = max(reached)
+    state_key = f"EXIT_SUBSCRIPTION_COVERAGE_MILESTONE:{milestone}"
+    conn = db()
+    try:
+        already_sent = conn.execute(
+            "SELECT 1 FROM app_state WHERE key = ? LIMIT 1",
+            (state_key,),
+        ).fetchone()
+    finally:
+        conn.close()
+    if already_sent:
+        return False
+
+    sent = await send_discord_alert(
+        "Pump Copilot: hito de cobertura completa de tokens alcanzado.\n"
+        f"Filas de observacion con cobertura completa: {complete_rows}\n"
+        f"Hito: {milestone}\n"
+        "Ejecuta el validador prospectivo congelado para contar las "
+        "posiciones seleccionadas por el modelo.\n"
+        "Este hito por si solo no aprueba una politica de salida ni "
+        "habilita trading."
     )
     if not sent:
         return False

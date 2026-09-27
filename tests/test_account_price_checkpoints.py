@@ -277,6 +277,19 @@ class AccountPriceCheckpointTests(unittest.TestCase):
             app,
             "ACCOUNT_CHECKPOINT_TRAINING_MINIMUMS",
             test_minimums,
+        ), patch.object(
+            app,
+            "get_account_checkpoint_subscription_coverage",
+            return_value={
+                positive: {
+                    "measurement_available": True,
+                    "complete": True,
+                },
+                negative: {
+                    "measurement_available": True,
+                    "complete": False,
+                },
+            },
         ):
             stats = app.get_account_checkpoint_training_stats()
         self.assertEqual(stats["complete_rows"], 2)
@@ -298,6 +311,18 @@ class AccountPriceCheckpointTests(unittest.TestCase):
         self.assertEqual(
             stats["readiness"]["estimated_days_at_last_24h_rate"],
             149.0,
+        )
+        self.assertEqual(
+            stats["subscription_coverage"]["measured_observation_rows"],
+            2,
+        )
+        self.assertEqual(
+            stats["subscription_coverage"]["complete_observation_rows"],
+            1,
+        )
+        self.assertEqual(
+            stats["subscription_coverage"]["next_milestone"],
+            25,
         )
         self.assertEqual(app.count_complete_account_checkpoint_paths(), 2)
 

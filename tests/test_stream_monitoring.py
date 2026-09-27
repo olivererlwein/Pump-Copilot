@@ -293,6 +293,76 @@ class AccountCheckpointTrainingAlertTests(unittest.IsolatedAsyncioTestCase):
         get_stats.assert_not_called()
         send_alert.assert_not_awaited()
 
+    async def test_subscription_coverage_alerts_once_per_milestone(self):
+        with patch.object(
+            app,
+            "get_exit_subscription_coverage_progress",
+            side_effect=[
+                {"complete_observation_rows": 1},
+                {"complete_observation_rows": 1},
+                {"complete_observation_rows": 25},
+            ],
+        ), patch.object(
+            app,
+            "send_discord_alert",
+            new=AsyncMock(return_value=True),
+        ) as send_alert:
+            self.assertTrue(
+                await app.maybe_send_exit_subscription_coverage_milestone_alert()
+            )
+            self.assertFalse(
+                await app.maybe_send_exit_subscription_coverage_milestone_alert()
+            )
+            self.assertTrue(
+                await app.maybe_send_exit_subscription_coverage_milestone_alert()
+            )
+
+        self.assertEqual(send_alert.await_count, 2)
+        self.assertIn("Hito: 25", send_alert.await_args.args[0])
+        self.assertIn(
+            "no aprueba una politica de salida",
+            send_alert.await_args.args[0],
+        )
+
+    async def test_subscription_coverage_alert_retries_failed_delivery(self):
+        with patch.object(
+            app,
+            "get_exit_subscription_coverage_progress",
+            return_value={"complete_observation_rows": 25},
+        ), patch.object(
+            app,
+            "send_discord_alert",
+            new=AsyncMock(side_effect=[False, True]),
+        ) as send_alert:
+            self.assertFalse(
+                await app.maybe_send_exit_subscription_coverage_milestone_alert()
+            )
+            self.assertTrue(
+                await app.maybe_send_exit_subscription_coverage_milestone_alert()
+            )
+
+        self.assertEqual(send_alert.await_count, 2)
+
+    async def test_subscription_coverage_jump_sends_highest_milestone_only(self):
+        with patch.object(
+            app,
+            "get_exit_subscription_coverage_progress",
+            return_value={"complete_observation_rows": 100},
+        ), patch.object(
+            app,
+            "send_discord_alert",
+            new=AsyncMock(return_value=True),
+        ) as send_alert:
+            self.assertTrue(
+                await app.maybe_send_exit_subscription_coverage_milestone_alert()
+            )
+            self.assertFalse(
+                await app.maybe_send_exit_subscription_coverage_milestone_alert()
+            )
+
+        self.assertEqual(send_alert.await_count, 1)
+        self.assertIn("Hito: 100", send_alert.await_args.args[0])
+
 
 class WatchedWalletSilenceTests(unittest.IsolatedAsyncioTestCase):
     """Una wallet que deja de entregar con el stream sano debe ser visible."""
