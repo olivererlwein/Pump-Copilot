@@ -18496,6 +18496,10 @@ def api_helius_standard_wss_stats(
         "configured": configured,
         "configuration_error": configuration_error,
         "selected_wallets": watched_count,
+        "selected_traders": sorted(
+            trader for trader, wallet in WATCHED.items()
+            if wallet in selected_wallets
+        ),
         "active_wallets": active_count,
         "muted_wallets": [
             {"wallet": wallet, **info}

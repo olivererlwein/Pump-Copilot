@@ -1602,6 +1602,9 @@ class HeliusStandardWssFloodTests(unittest.IsolatedAsyncioTestCase):
                 with patch.object(app, "APP_TOKEN", "token"):
                     report = app.api_helius_standard_wss_stats("token")
                 self.assertEqual(report["selected_wallets"], 2)
+                self.assertEqual(
+                    report["selected_traders"], ["trader-a", "trader-b"]
+                )
                 self.assertEqual(report["active_wallets"], 1)
                 self.assertTrue(report["wallet_subscriptions_ready"])
                 self.assertEqual(
