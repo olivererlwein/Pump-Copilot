@@ -1,16 +1,16 @@
 # Graph Report - pump fun  (2026-09-27)
 
 ## Corpus Check
-- 76 files · ~138,221 words
+- 76 files · ~139,017 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1704 nodes · 3489 edges · 90 communities (76 shown, 12 thin omitted)
-- Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 114 edges (avg confidence: 0.85)
+- 1712 nodes · 3508 edges · 86 communities (72 shown, 12 thin omitted)
+- Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 119 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `6a201113`
+- Built from commit: `963b1466`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -24,7 +24,7 @@
 - WatchedWalletSilenceTests
 - auth
 - graphify reference: query, path, explain
-- helius_webhook_sync.py
+- RuntimeError
 - Q: ¿Cuál es el flujo completo desde que recibimos información de un token/trader hasta que se genera una señal?
 - Q: ¿Qué componentes participan en paper trading?
 - Q: ¿Dónde deberíamos integrar Binance sin acoplarlo directamente a la lógica específica de Pump.fun?
@@ -45,7 +45,7 @@
 - db
 - Notas de Claude — auditoría de riesgo (2026-09-09/10)
 - get_trader_quality_profile
-- helius_standard_wss_worker
+- ValueError
 - CLAUDE_NOTES.md
 - PreviewHandler
 - TraderQualityProfileTests
@@ -59,7 +59,7 @@
 - HeliusStandardWssPersistenceTests
 - Evaluación del streaming de Helius y arreglo del parser — 2026-09-10
 - Q: ¿Qué contratos dependen de la identidad de evaluations al consumir eventos Helius con varias operaciones?
-- execute_pumpportal_lightning_buy
+- open_paper_position
 - pre-push
 - Informe para Codex — sesión 2026-09-22 (00:00–06:15 UTC)
 - migrate_database
@@ -74,64 +74,60 @@
 - fetch_helius_credit_usage
 - LegacyDataMigrationTests
 - HeliusWebhookTests
-- RuntimeError
-- apply_paper_event
+- ui_baseline.py
 - app.py
 - relabel_stop_alignment.py
-- ValueError
+- route_market_event
 - test_onchain_account_prices.py
 - parse_watched_wallet_pump_events
-- test_rpc_fallback.py
 - AccountPriceCheckpointTests
 - TokenRpcProbeTests
 - solana_rpc_fallback.py
 - Auditoría de ingesta y dos diffs de observabilidad — 2026-09-22
-- _rpc_request
+- test_rpc_fallback.py
 - validate_dataset
 - RpcFallbackBaselineTests
 - HeliusWebhookDeliveryAlertTests
 - validate_frozen_exit_candidate.py
 - validate_market_event_inbox_once
 - simulate_execution
-- get_account_checkpoint_observations
+- api_account_checkpoint_paths
 - analyze_feature_ablation.py
 - simulate_payoff
-- reconcile_pumpportal_execution_order
+- execute_pumpportal_lightning_buy
 - prune_dead_css.py
 - ShadowLogisticModel
 - Confirmación contra producción (2026-09-10)
 - onchain_account_prices.py
-- api_watched_wallets
-- api_rpc_fallback_stats
 
 ## God Nodes (most connected - your core abstractions)
-1. `db()` - 144 edges
+1. `db()` - 149 edges
 2. `auth()` - 82 edges
 3. `require_debug_mode()` - 54 edges
 4. `LiveReceiptPersistenceTests` - 51 edges
 5. `pump_receipt()` - 32 edges
 6. `ExecutionAdapterTests` - 27 edges
-7. `HeliusWebhookTests` - 26 edges
-8. `HeliusStandardWssPersistenceTests` - 25 edges
-9. `startup()` - 23 edges
-10. `helius_standard_wss_worker()` - 23 edges
+7. `helius_standard_wss_worker()` - 26 edges
+8. `HeliusStandardWssPersistenceTests` - 26 edges
+9. `HeliusWebhookTests` - 26 edges
+10. `startup()` - 23 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `fetch_helius_standard_wss_transaction()` --indirect_call--> `fetch_confirmed_transaction()`  [INFERRED]
   app.py → solana_rpc_fallback.py
+- `record_finalized_buy_position()` --calls--> `parse_buy_receipt()`  [EXTRACTED]
+  app.py → solana_receipts.py
 - `record_finalized_sell_position()` --calls--> `parse_sell_receipt()`  [EXTRACTED]
   app.py → solana_receipts.py
 - `reconcile_pumpportal_execution_order()` --calls--> `parse_buy_receipt()`  [EXTRACTED]
   app.py → solana_receipts.py
 - `reconcile_pumpportal_execution_order()` --calls--> `parse_sell_receipt()`  [EXTRACTED]
   app.py → solana_receipts.py
-- `load_shadow_model()` --uses--> `ShadowLogisticModel`  [INFERRED]
-  app.py → shadow_model.py
 
 ## Import Cycles
 - None detected.
 
-## Communities (90 total, 12 thin omitted)
+## Communities (86 total, 12 thin omitted)
 
 ### Community 0 - "train_baseline_model.py"
 Cohesion: 0.23
@@ -163,15 +159,15 @@ Nodes (7): AccountCheckpointTrainingAlertTests, PumpPortalBalanceTests, PumpPort
 
 ### Community 7 - "auth"
 Cohesion: 0.08
-Nodes (65): api_account_price_checkpoint_stats(), api_helius_webhook_sample(), api_token_rpc_probe_stats(), auth(), demo(), demo_can_retry(), demo_cannot_retry_risk(), demo_close_old() (+57 more)
+Nodes (68): api_account_checkpoint_training_stats(), api_account_price_checkpoint_stats(), api_helius_webhook_sample(), api_live_account_exit_monitor_stats(), api_live_execution_readiness(), api_shadow_predictions(), api_shadow_stats(), api_token_rpc_probe_stats() (+60 more)
 
 ### Community 8 - "graphify reference: query, path, explain"
 Cohesion: 0.33
 Nodes (5): For /graphify explain, For /graphify path, graphify reference: query, path, explain, Step 0 — Constrained query expansion (REQUIRED before traversal), Step 1 — Traversal
 
-### Community 9 - "helius_webhook_sync.py"
-Cohesion: 0.19
-Nodes (19): _decode_helius_sync_addresses(), build_webhook_update_payload(), fetch_helius_webhook(), HeliusWebhookSyncError, _http_error_detail(), _http_error_message(), _http_error_retry_after_seconds(), normalize_addresses() (+11 more)
+### Community 9 - "RuntimeError"
+Cohesion: 0.06
+Nodes (33): _decode_helius_sync_addresses(), _encoded_helius_sync_addresses(), get_helius_webhook_sync_state(), get_helius_webhook_sync_status(), _helius_webhook_sync_retry_seconds(), Reconcile tracked tokens without taking ownership of base addresses., sync_helius_webhook_tokens_once(), _tracked_tokens_snapshot() (+25 more)
 
 ### Community 10 - "Q: ¿Cuál es el flujo completo desde que recibimos información de un token/trader hasta que se genera una señal?"
 Cohesion: 0.40
@@ -218,8 +214,8 @@ Cohesion: 0.05
 Nodes (8): AmbiguousExecutionOrderAlertTests, EvaluationIdempotencyTests, EvaluationIdentityMigrationTests, LiveCanaryGuardTests, LiveCopyDispatchTests, LiveTradingGuardTests, NumericRiskValidationTests, PositionConcurrencyTests
 
 ### Community 28 - "db"
-Cohesion: 0.06
-Nodes (53): account_checkpoint_training_alert_state_key(), account_price_checkpoint_once(), account_price_checkpoint_worker(), api_helius_webhook_stats(), apply_cached_signal_outcome_checkpoints(), calculate_copyability_score(), cleanup_finished_outcome_token(), complete_finished_signal_outcomes() (+45 more)
+Cohesion: 0.05
+Nodes (65): api_helius_webhook_stats(), api_rpc_fallback_stats(), apply_cached_signal_outcome_checkpoints(), assess_shadow_challenger(), calculate_copyability_score(), cleanup_finished_outcome_token(), close_helius_token_subscription_interval(), close_stale_helius_token_subscription_intervals() (+57 more)
 
 ### Community 29 - "Notas de Claude — auditoría de riesgo (2026-09-09/10)"
 Cohesion: 0.20
@@ -229,9 +225,9 @@ Nodes (10): 1. Cómo se genera una señal, 2. Cómo entra a paper trading, 3. C�
 Cohesion: 0.08
 Nodes (26): api_trader_quality_profile(), calculate_trader_profile_score(), get_trader_activity_concentration(), get_trader_entry_samples(), get_trader_exit_cycles(), get_trader_quality_profile(), get_trader_quality_profiles(), Perfil integral de calidad. Observacional: no mueve dinero ni decide. (+18 more)
 
-### Community 31 - "helius_standard_wss_worker"
-Cohesion: 0.08
-Nodes (32): fetch_helius_standard_wss_transaction(), finish_helius_standard_wss_transaction(), helius_standard_wss_error_code(), helius_standard_wss_retry_seconds(), helius_standard_wss_wallet_flooded(), helius_standard_wss_worker(), live_account_exit_monitor_error_code(), live_account_exit_monitor_once() (+24 more)
+### Community 31 - "ValueError"
+Cohesion: 0.06
+Nodes (48): account_checkpoint_target(), api_helius_standard_wss_stats(), build_pumpportal_exact_sell_payload(), build_pumpportal_lightning_sell_payload(), calculate_wallet_sell_percentage(), fetch_helius_standard_wss_transaction(), finish_helius_standard_wss_transaction(), get_helius_standard_wss_window_health() (+40 more)
 
 ### Community 32 - "CLAUDE_NOTES.md"
 Cohesion: 0.15
@@ -246,8 +242,8 @@ Cohesion: 0.08
 Nodes (3): Perfil integral y observacional de calidad del trader., TraderQualityCandidateTests, TraderQualityProfileTests
 
 ### Community 36 - "pump_receipt"
-Cohesion: 0.12
-Nodes (9): pump_receipt(), Sin el flag solo cuenta; con el flag escribe al inbox como `rpc`., Cobertura parcial es peor que exclusión: parece diversidad. De una wallet cuya…, Separa "el transporte nunca lo trajo" de "lo trajo y falló"., Con firma sola, la operación 1 quedaba "matched" por la operación 0. PumpPortal…, Un trade del índice cero no prueba que PumpPortal entregó el uno., Lo que el consumidor del inbox aplicó no lo perdió el agente., El parser entrega ``None`` cuando no puede reconstruir el saldo. En producción… (+1 more)
+Cohesion: 0.09
+Nodes (13): parse_tracked_token_pump_events(), Return official Pump events for the requested token mints. Unlike the watched-…, pump_receipt(), Sin el flag solo cuenta; con el flag escribe al inbox como `rpc`., Cobertura parcial es peor que exclusión: parece diversidad. De una wallet cuya…, Separa "el transporte nunca lo trajo" de "lo trajo y falló"., Con firma sola, la operación 1 quedaba "matched" por la operación 0. PumpPortal…, Un trade del índice cero no prueba que PumpPortal entregó el uno. (+5 more)
 
 ### Community 37 - "Conectar el webhook al pipeline — brief para Codex, 2026-09-11"
 Cohesion: 0.29
@@ -285,9 +281,9 @@ Nodes (6): Cambio implementado, Evaluación del streaming de Helius y arreglo de
 Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: ¿Qué contratos dependen de la identidad de evaluations al consumir eventos Helius con varias operaciones?, Source Nodes
 
-### Community 46 - "execute_pumpportal_lightning_buy"
-Cohesion: 0.14
-Nodes (20): api_live_execution_readiness(), api_live_positions(), assess_live_model_approval(), build_pumpportal_lightning_buy_payload(), count_open_positions(), execute_pumpportal_lightning_buy(), execute_pumpportal_lightning_sell(), fetch_sol_usd_quote() (+12 more)
+### Community 46 - "open_paper_position"
+Cohesion: 0.12
+Nodes (19): api_live_positions(), apply_paper_event(), build_pumpportal_lightning_buy_payload(), count_open_positions(), decide_paper_position_action(), fetch_sol_usd_quote(), get_daily_live_realized_pnl_sol(), get_daily_realized_pnl() (+11 more)
 
 ### Community 48 - "Informe para Codex — sesión 2026-09-22 (00:00–06:15 UTC)"
 Cohesion: 0.07
@@ -334,52 +330,44 @@ Cohesion: 0.35
 Nodes (3): LegacyDataMigrationTests, La transición con datos reales viejos, que es donde esto puede doler. Una base…, Una base como la de producción antes de este bloque.
 
 ### Community 60 - "HeliusWebhookTests"
-Cohesion: 0.11
+Cohesion: 0.12
 Nodes (5): HeliusWebhookTests, Piloto del webhook: registra qué llegó y cuándo, sin decidir nada., Lo que el consumidor del inbox escribe en `trades` no es PumpPortal. Con el…, Las consultas por firma recorren tablas que crecen con cada evento. Sin índice,…, Un token seguido de una wallet no vigilada no llega a `trades`. El stream igual…
 
-### Community 61 - "RuntimeError"
-Cohesion: 0.06
-Nodes (23): RuntimeError, analyse_cssom(), app_token(), capture(), Chrome, collect_cssom(), compare(), find_chrome() (+15 more)
-
-### Community 62 - "apply_paper_event"
-Cohesion: 0.25
-Nodes (8): apply_paper_event(), decide_paper_position_action(), Lee un timestamp que guardamos nosotros; inservible cuenta como ausente.…, Decide qué hacer con una posición paper. No toca la base de datos. Separado de…, Aplica el evento en una sola transacción y describe qué pasó. Deliberadamente…, Registra un evento de posición. Con ``connection`` escribe dentro de la…, save_position_event(), stored_block_event_ts()
+### Community 61 - "ui_baseline.py"
+Cohesion: 0.13
+Nodes (19): analyse_cssom(), app_token(), capture(), Chrome, collect_cssom(), compare(), find_chrome(), main() (+11 more)
 
 ### Community 63 - "app.py"
 Cohesion: 0.06
-Nodes (60): api_helius_standard_wss_stats(), api_live_account_exit_monitor_stats(), api_shadow_predictions(), api_shadow_stats(), api_training_checkpoint_freshness(), api_training_expired_preview(), api_training_stats_by_trader(), assess_shadow_challenger() (+52 more)
+Nodes (64): account_checkpoint_training_alert_state_key(), account_price_checkpoint_once(), account_price_checkpoint_worker(), api_account_checkpoint_training_dataset(), api_training_checkpoint_freshness(), api_training_dataset(), api_training_dataset_preview(), api_training_expired_preview() (+56 more)
 
 ### Community 64 - "relabel_stop_alignment.py"
 Cohesion: 0.20
 Nodes (15): checkpoint_target(), evaluate(), main(), Alinea la etiqueta con el stop que la política realmente usa. El modelo entrena…, Espeja `app.account_checkpoint_target()` con el stop parametrizado., Entrena con el split y el modelo de siempre, cambiando solo la etiqueta., bootstrap_ci(), describe() (+7 more)
 
-### Community 65 - "ValueError"
-Cohesion: 0.06
-Nodes (58): account_checkpoint_target(), account_exit_entry_market_cap(), build_pumpportal_exact_sell_payload(), build_pumpportal_lightning_sell_payload(), calculate_wallet_sell_percentage(), claim_market_event_inbox_processing_batch(), consume_market_event_inbox_once(), decide_live_position_exit() (+50 more)
+### Community 65 - "route_market_event"
+Cohesion: 0.07
+Nodes (43): account_exit_entry_market_cap(), claim_market_event_inbox_processing_batch(), consume_market_event_inbox_once(), decide_live_position_exit(), evaluate_live_position_exit(), finish_market_event_inbox_processing(), get_rpc_fallback_wallet_states(), helius_webhook() (+35 more)
 
 ### Community 66 - "test_onchain_account_prices.py"
 Cohesion: 0.23
 Nodes (6): account(), AccountPriceTests, curve_account(), mint_account(), pool_account(), vault_account()
 
 ### Community 67 - "parse_watched_wallet_pump_events"
-Cohesion: 0.14
-Nodes (9): diagnose_unparsed_pump_receipt(), _is_signed_by(), parse_watched_wallet_pump_events(), ¿Firmó ``wallet`` esta transacción? Solana devuelve ``accountKeys`` en dos…, Return official Pump events signed by and attributed to ``wallet``., Classify a rejected receipt without retaining its raw contents., AccountKeyEncodingTests, El parser debe aceptar las dos codificaciones de ``accountKeys``.… (+1 more)
-
-### Community 68 - "test_rpc_fallback.py"
-Cohesion: 0.25
-Nodes (7): parse_tracked_token_pump_events(), Return official Pump events for the requested token mints. Unlike the watched-…, OutboundRequestTests, pump_amm_receipt(), receipt_with_payload(), token_balance(), TrackedTokenParserTests
+Cohesion: 0.13
+Nodes (11): diagnose_unparsed_pump_receipt(), _is_signed_by(), parse_watched_wallet_pump_events(), ¿Firmó ``wallet`` esta transacción? Solana devuelve ``accountKeys`` en dos…, Return official Pump events signed by and attributed to ``wallet``., Classify a rejected receipt without retaining its raw contents., AccountKeyEncodingTests, pump_amm_receipt() (+3 more)
 
 ### Community 71 - "solana_rpc_fallback.py"
-Cohesion: 0.29
-Nodes (12): _base58_encode(), _event_payloads(), _optional_post_token_amount(), _parse_official_pump_events(), _parse_pump_amm_trade(), _parse_pump_trade(), _pump_amm_virtual_quote_reserves(), Strict, observational parsing for Pump trades on Solana RPC. (+4 more)
+Cohesion: 0.20
+Nodes (15): _base58_encode(), _event_payloads(), fetch_signatures_for_address(), _optional_post_token_amount(), _parse_official_pump_events(), _parse_pump_amm_trade(), _parse_pump_trade(), _pump_amm_virtual_quote_reserves() (+7 more)
 
 ### Community 72 - "Auditoría de ingesta y dos diffs de observabilidad — 2026-09-22"
 Cohesion: 0.29
 Nodes (7): Auditoría de ingesta y dos diffs de observabilidad — 2026-09-22, Dos cambios, solo diagnóstico, Hook pre-push: cubre recibos y el monitor de cuenta — 2026-09-22, Notificaciones WSS sin Pump: memoria y freno por wallet — 2026-09-22 (noche), `scripts/ingest_coverage_report.py` — 2026-09-22 (noche), Slot en las salidas por precio de cuenta — 2026-09-22, Transacciones versión 1 — causa del `-32015` y fix, 2026-09-22
 
-### Community 73 - "_rpc_request"
-Cohesion: 0.21
-Nodes (6): fetch_confirmed_transaction(), _redact_rpc_url(), _rpc_request(), _wait_for_rpc_slot(), RpcFallbackRequestTests, TransactionVersionTests
+### Community 73 - "test_rpc_fallback.py"
+Cohesion: 0.23
+Nodes (5): fetch_confirmed_transaction(), _rpc_request(), OutboundRequestTests, RpcFallbackRequestTests, TransactionVersionTests
 
 ### Community 74 - "validate_dataset"
 Cohesion: 0.20
@@ -390,16 +378,16 @@ Cohesion: 0.12
 Nodes (22): analyse(), main(), max_drawdown(), pnl_of(), Qué hacer con el 25% final de la posición: tres cierres, mismo todo lo demás.…, Peor caída de la curva de capital, en orden temporal., Ladder y stop intactos; solo cambia qué pasa con el último cuarto., simulate() (+14 more)
 
 ### Community 78 - "validate_market_event_inbox_once"
-Cohesion: 0.25
-Nodes (8): claim_market_event_inbox_validation_batch(), finish_market_event_inbox_validation(), market_event_inbox_validation_worker(), Reserva eventos observados para validarlos sin ejecutar sus efectos. La reserva…, Finaliza una reserva solo si todavía pertenece al mismo worker., Valida un lote del inbox sin llamar al router ni aplicar efectos., Valida continuamente el inbox; nunca enruta eventos., validate_market_event_inbox_once()
+Cohesion: 0.12
+Nodes (15): api_watched_wallets(), check_watched_wallet_silence(), claim_market_event_inbox_validation_batch(), finish_market_event_inbox_validation(), get_watched_wallet_activity(), market_event_inbox_validation_worker(), Reserva eventos observados para validarlos sin ejecutar sus efectos. La reserva…, Finaliza una reserva solo si todavía pertenece al mismo worker. (+7 more)
 
 ### Community 79 - "simulate_execution"
 Cohesion: 0.20
 Nodes (21): can_retry_execution(), check_execution_timeout(), create_execution_order(), create_execution_order_idempotent(), demo_controlled_retry(), demo_execution_timeout(), demo_idempotency_sent(), demo_idempotency_sent_failed() (+13 more)
 
-### Community 80 - "get_account_checkpoint_observations"
-Cohesion: 0.10
-Nodes (20): api_account_checkpoint_paths(), api_account_checkpoint_training_dataset(), api_account_checkpoint_training_stats(), api_training_dataset(), api_training_dataset_preview(), api_training_stats(), build_model_features(), get_account_checkpoint_dataset_rows() (+12 more)
+### Community 80 - "api_account_checkpoint_paths"
+Cohesion: 0.33
+Nodes (6): api_account_checkpoint_paths(), get_account_checkpoint_event_paths(), get_account_checkpoint_subscription_coverage(), Return stored market events inside each observation's 15m horizon., Measure conservatively observed WSS time inside each 15m horizon., Trayectoria de precios por señal, para estimar PnL fuera del servicio. La…
 
 ### Community 81 - "analyze_feature_ablation.py"
 Cohesion: 0.24
@@ -409,9 +397,9 @@ Nodes (5): main(), schema_without_features(), selection_diagnostics(), FeatureAb
 Cohesion: 0.26
 Nodes (8): main(), simulate_payoff(), breakeven_precision(), main(), Reconcilia la precisión del clasificador con la del backtest económico. El…, Precisión mínima para no perder: w*0.25 - (1-w)*0.10 - coste = 0., load_json(), PayoffSimulationTests
 
-### Community 83 - "reconcile_pumpportal_execution_order"
-Cohesion: 0.20
-Nodes (11): fetch_finalized_solana_transaction(), fetch_solana_signature_status(), get_ambiguous_pumpportal_execution_orders(), maybe_send_ambiguous_execution_order_alerts(), normalize_solana_signature(), pumpportal_execution_reconciliation_worker(), Return live orders that cannot be reconciled without manual review., Alert once per live order that PumpPortal left without a signature. (+3 more)
+### Community 83 - "execute_pumpportal_lightning_buy"
+Cohesion: 0.24
+Nodes (13): execute_pumpportal_lightning_buy(), execute_pumpportal_lightning_sell(), fetch_finalized_solana_transaction(), fetch_solana_signature_status(), get_daily_live_buy_exposure(), get_execution_order_status(), get_live_canary_blockers(), get_live_execution_readiness() (+5 more)
 
 ### Community 84 - "prune_dead_css.py"
 Cohesion: 0.24
@@ -429,17 +417,9 @@ Nodes (6): Causas descartadas, Confirmación contra producción (2026-09-10), Hi
 Cohesion: 0.40
 Nodes (9): account_addresses(), _curve_price(), _data(), fetch_account_prices(), _mint_info(), _pool_vaults(), Read current Pump and canonical PumpSwap prices without trading effects., Return current prices only; never infer a missing pool or historical price. (+1 more)
 
-### Community 88 - "api_watched_wallets"
-Cohesion: 0.29
-Nodes (7): api_watched_wallets(), check_watched_wallet_silence(), get_watched_wallet_activity(), Estado de entrega de cada wallet vigilada. Una wallet puede dejar de entregar…, Avisa cuando una wallet vigilada deja de entregar con el stream sano. Solo se…, Entrega de datos por wallet vigilada: detecta silencios individuales., watched_wallet_monitor()
-
-### Community 89 - "api_rpc_fallback_stats"
-Cohesion: 0.67
-Nodes (3): api_rpc_fallback_stats(), get_rpc_fallback_stats(), Auditoría RPC de trades Pump ausentes del stream de PumpPortal.
-
 ## Knowledge Gaps
 - **199 isolated node(s):** `Usage`, `What graphify is for`, `Step 0 - GitHub repos and multi-path merge (only if a URL or several paths)`, `Step 1 - Ensure graphify is installed`, `Step 2 - Detect files` (+194 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 623 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 626 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
 - **12 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Work-memory lessons
@@ -456,12 +436,12 @@ Nodes (3): api_rpc_fallback_stats(), get_rpc_fallback_stats(), Auditoría RPC de
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `HeliusStandardWssPersistenceTests` connect `HeliusStandardWssPersistenceTests` to `helius_standard_wss_worker`?**
-  _High betweenness centrality (0.029) - this node is a cross-community bridge._
+- **Why does `HeliusStandardWssPersistenceTests` connect `HeliusStandardWssPersistenceTests` to `ValueError`?**
+  _High betweenness centrality (0.034) - this node is a cross-community bridge._
 - **Why does `ShadowLogisticModel` connect `ShadowLogisticModel` to `train_baseline_model.py`, `app.py`?**
-  _High betweenness centrality (0.028) - this node is a cross-community bridge._
-- **Are the 62 inferred relationships involving `ValueError` (e.g. with `account_checkpoint_target()` and `account_exit_entry_market_cap()`) actually correct?**
-  _`ValueError` has 62 INFERRED edges - model-reasoned connections that need verification._
+  _High betweenness centrality (0.032) - this node is a cross-community bridge._
+- **Are the 63 inferred relationships involving `ValueError` (e.g. with `account_checkpoint_target()` and `account_exit_entry_market_cap()`) actually correct?**
+  _`ValueError` has 63 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `Usage`, `What graphify is for`, `Step 0 - GitHub repos and multi-path merge (only if a URL or several paths)` to the rest of the system?**
   _199 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `TokenHistoryIdempotencyTests` be split into smaller, more focused modules?**

@@ -969,6 +969,27 @@ def db():
         "CREATE INDEX IF NOT EXISTS idx_helius_wss_transactions_received "
         "ON helius_standard_wss_transactions(first_received_ts)"
     )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS helius_standard_wss_token_intervals(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            mint TEXT NOT NULL,
+            subscribed_ts REAL NOT NULL,
+            last_confirmed_ts REAL NOT NULL,
+            unsubscribed_ts REAL,
+            close_reason TEXT
+        )
+        """
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_helius_wss_token_intervals_mint "
+        "ON helius_standard_wss_token_intervals(mint, subscribed_ts)"
+    )
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_helius_wss_token_active "
+        "ON helius_standard_wss_token_intervals(mint) "
+        "WHERE unsubscribed_ts IS NULL"
+    )
 
     # Eventos normalizados preservados antes de activar cualquier efecto. Una
     # transacción puede contener más de una operación Pump válida.
@@ -16362,6 +16383,72 @@ def get_account_checkpoint_event_paths(observations):
     return event_paths
 
 
+def get_account_checkpoint_subscription_coverage(observations):
+    """Measure conservatively observed WSS time inside each 15m horizon."""
+    signals = {
+        int(row["signal_id"]): (
+            str(row["mint"]), float(row["signal_ts"])
+        )
+        for row in observations
+    }
+    if not signals:
+        return {}
+
+    intervals = {signal_id: [] for signal_id in signals}
+    signal_ids = list(signals)
+    conn = db()
+    try:
+        for offset in range(0, len(signal_ids), 400):
+            batch = signal_ids[offset:offset + 400]
+            placeholders = ",".join("?" for _ in batch)
+            rows = conn.execute(
+                f"""
+                SELECT e.id, e.ts, i.subscribed_ts,
+                       COALESCE(i.unsubscribed_ts, i.last_confirmed_ts)
+                FROM evaluations e
+                JOIN helius_standard_wss_token_intervals i
+                  ON i.mint = e.mint
+                WHERE e.id IN ({placeholders})
+                  AND i.subscribed_ts < e.ts + 900
+                  AND COALESCE(i.unsubscribed_ts, i.last_confirmed_ts) > e.ts
+                ORDER BY e.id, i.subscribed_ts
+                """,
+                batch,
+            ).fetchall()
+            for signal_id, signal_ts, start_ts, end_ts in rows:
+                start = max(float(signal_ts), float(start_ts))
+                end = min(float(signal_ts) + 900.0, float(end_ts))
+                if end > start:
+                    intervals[int(signal_id)].append((start, end))
+    finally:
+        conn.close()
+
+    coverage = {}
+    for signal_id, (_mint, signal_ts) in signals.items():
+        merged = []
+        for start, end in intervals[signal_id]:
+            if merged and start <= merged[-1][1]:
+                merged[-1] = (merged[-1][0], max(merged[-1][1], end))
+            else:
+                merged.append((start, end))
+        covered_seconds = sum(end - start for start, end in merged)
+        first_start = merged[0][0] if merged else None
+        coverage[signal_id] = {
+            "covered_seconds": covered_seconds,
+            "coverage_ratio": covered_seconds / 900.0,
+            "first_subscription_delay_seconds": (
+                first_start - signal_ts if first_start is not None else None
+            ),
+            "intervals": len(merged),
+            "complete": bool(
+                len(merged) == 1
+                and merged[0][0] <= signal_ts
+                and merged[0][1] >= signal_ts + 900.0
+            ),
+        }
+    return coverage
+
+
 def get_account_checkpoint_dataset_rows():
     """Build a shadow-only dataset from complete fixed on-chain snapshots."""
     dataset = []
@@ -16564,6 +16651,101 @@ async def maybe_send_account_checkpoint_training_ready_alert():
     return True
 
 
+def start_helius_token_subscription_interval(mint, now=None):
+    mint = str(mint or "").strip()
+    if not mint:
+        raise ValueError("HELIUS_STANDARD_WSS_TOKEN_INTERVAL_INVALID_MINT")
+    current_ts = float(now if now is not None else time.time())
+    conn = db()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        conn.execute(
+            """
+            UPDATE helius_standard_wss_token_intervals
+            SET unsubscribed_ts = last_confirmed_ts,
+                close_reason = 'superseded'
+            WHERE mint = ? AND unsubscribed_ts IS NULL
+            """,
+            (mint,),
+        )
+        cursor = conn.execute(
+            """
+            INSERT INTO helius_standard_wss_token_intervals(
+                mint, subscribed_ts, last_confirmed_ts
+            ) VALUES(?,?,?)
+            """,
+            (mint, current_ts, current_ts),
+        )
+        conn.commit()
+        return int(cursor.lastrowid)
+    finally:
+        conn.close()
+
+
+def heartbeat_helius_token_subscription_intervals(mints, now=None):
+    normalized = sorted({str(mint or "").strip() for mint in mints} - {""})
+    if not normalized:
+        return 0
+    current_ts = float(now if now is not None else time.time())
+    placeholders = ",".join("?" for _ in normalized)
+    conn = db()
+    try:
+        cursor = conn.execute(
+            f"""
+            UPDATE helius_standard_wss_token_intervals
+            SET last_confirmed_ts = ?
+            WHERE unsubscribed_ts IS NULL
+              AND mint IN ({placeholders})
+            """,
+            (current_ts, *normalized),
+        )
+        conn.commit()
+        return int(cursor.rowcount)
+    finally:
+        conn.close()
+
+
+def close_helius_token_subscription_interval(mint, reason, now=None):
+    mint = str(mint or "").strip()
+    if not mint:
+        return 0
+    current_ts = float(now if now is not None else time.time())
+    conn = db()
+    try:
+        cursor = conn.execute(
+            """
+            UPDATE helius_standard_wss_token_intervals
+            SET last_confirmed_ts = MAX(last_confirmed_ts, ?),
+                unsubscribed_ts = MAX(subscribed_ts, ?),
+                close_reason = ?
+            WHERE mint = ? AND unsubscribed_ts IS NULL
+            """,
+            (current_ts, current_ts, str(reason or "closed")[:80], mint),
+        )
+        conn.commit()
+        return int(cursor.rowcount)
+    finally:
+        conn.close()
+
+
+def close_stale_helius_token_subscription_intervals():
+    """Close intervals left open by a stopped process at its last heartbeat."""
+    conn = db()
+    try:
+        cursor = conn.execute(
+            """
+            UPDATE helius_standard_wss_token_intervals
+            SET unsubscribed_ts = MAX(subscribed_ts, last_confirmed_ts),
+                close_reason = 'process_restart'
+            WHERE unsubscribed_ts IS NULL
+            """
+        )
+        conn.commit()
+        return int(cursor.rowcount)
+    finally:
+        conn.close()
+
+
 async def sync_helius_standard_wss_tokens(
     websocket,
     wallets,
@@ -16592,6 +16774,11 @@ async def sync_helius_standard_wss_tokens(
         if pending_kinds.get(request_id) == "token"
     }
     pending_removals = set(pending_unsubscribes.values())
+
+    if active:
+        await asyncio.to_thread(
+            heartbeat_helius_token_subscription_intervals, active
+        )
 
     for subscription_id, address in sorted(subscriptions.items()):
         if (subscription_kinds.get(subscription_id) != "token"
@@ -16646,6 +16833,9 @@ async def helius_standard_wss_worker():
     rate_lock = asyncio.Lock()
     rate_state = {"next_ts": 0.0}
     consecutive_failures = 0
+    await asyncio.to_thread(
+        close_stale_helius_token_subscription_intervals
+    )
 
     while True:
         with HELIUS_STANDARD_WSS_STATE_LOCK:
@@ -16778,8 +16968,17 @@ async def helius_standard_wss_worker():
                             )
                         removed_id = pending_unsubscribes.pop(response_id)
                         pending_unsubscribe_started.pop(response_id)
+                        removed_address = subscriptions.get(removed_id)
+                        removed_kind = subscription_kinds.get(removed_id)
                         subscriptions.pop(removed_id, None)
                         subscription_kinds.pop(removed_id, None)
+                        if removed_kind == "token" and removed_address:
+                            await asyncio.to_thread(
+                                close_helius_token_subscription_interval,
+                                removed_address,
+                                "unsubscribe_confirmed",
+                                received_ts,
+                            )
                         update_helius_standard_wss_state(
                             subscriptions=len(subscriptions),
                             tracked_token_subscriptions=sum(
@@ -16800,6 +16999,12 @@ async def helius_standard_wss_worker():
                         subscription_kinds[subscription_id] = kind
                         if kind == "wallet":
                             subscribed_wallets.add(address)
+                        elif kind == "token":
+                            await asyncio.to_thread(
+                                start_helius_token_subscription_interval,
+                                address,
+                                received_ts,
+                            )
                         update_helius_standard_wss_state(
                             subscriptions=len(subscriptions),
                             tracked_token_subscriptions=sum(
@@ -16910,8 +17115,14 @@ async def helius_standard_wss_worker():
                         rate_state,
                     )
         except asyncio.CancelledError:
+            await asyncio.to_thread(
+                close_stale_helius_token_subscription_intervals
+            )
             raise
         except Exception as exc:
+            await asyncio.to_thread(
+                close_stale_helius_token_subscription_intervals
+            )
             consecutive_failures += 1
             retry_seconds = helius_standard_wss_retry_seconds(
                 exc, consecutive_failures
@@ -17751,6 +17962,10 @@ def api_account_checkpoint_paths(
         get_account_checkpoint_event_paths(observations)
         if include_event_path else {}
     )
+    subscription_coverage = (
+        get_account_checkpoint_subscription_coverage(observations)
+        if include_event_path else {}
+    )
     rows = [
         {
             "signal_id": row["signal_id"],
@@ -17764,6 +17979,11 @@ def api_account_checkpoint_paths(
             "checkpoint_path": row["checkpoint_path"],
             **({"event_path": event_paths.get(row["signal_id"], [])}
                if include_event_path else {}),
+            **({
+                "subscription_coverage": subscription_coverage.get(
+                    row["signal_id"], {}
+                )
+            } if include_event_path else {}),
         }
         for row in observations
     ]

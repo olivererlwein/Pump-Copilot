@@ -257,6 +257,46 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
             "logs": [],
         }
 
+    def test_token_subscription_intervals_are_persisted_conservatively(self):
+        interval_id = app.start_helius_token_subscription_interval(
+            "mint-a", now=100
+        )
+        self.assertGreater(interval_id, 0)
+        self.assertEqual(
+            app.heartbeat_helius_token_subscription_intervals(
+                ["mint-a", "mint-missing"], now=110
+            ),
+            1,
+        )
+        self.assertEqual(
+            app.close_helius_token_subscription_interval(
+                "mint-a", "unsubscribe_confirmed", now=120
+            ),
+            1,
+        )
+
+        app.start_helius_token_subscription_interval("mint-stale", now=200)
+        app.heartbeat_helius_token_subscription_intervals(
+            ["mint-stale"], now=210
+        )
+        self.assertEqual(
+            app.close_stale_helius_token_subscription_intervals(), 1
+        )
+
+        conn = app.db()
+        try:
+            rows = conn.execute(
+                "SELECT mint, subscribed_ts, last_confirmed_ts, "
+                "unsubscribed_ts, close_reason "
+                "FROM helius_standard_wss_token_intervals ORDER BY id"
+            ).fetchall()
+        finally:
+            conn.close()
+        self.assertEqual(rows, [
+            ("mint-a", 100.0, 120.0, 120.0, "unsubscribe_confirmed"),
+            ("mint-stale", 200.0, 210.0, 210.0, "process_restart"),
+        ])
+
     def test_custom_transport_requires_matching_rpc_configuration(self):
         with (
             patch.object(app, "HELIUS_STANDARD_WSS_URL", "wss://example.test/ws"),
@@ -1204,6 +1244,20 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
                 await socket.incoming.put(json.dumps({
                     "jsonrpc": "2.0", "id": 2, "result": 92,
                 }))
+                for _ in range(100):
+                    conn = app.db()
+                    try:
+                        interval = conn.execute(
+                            "SELECT mint, unsubscribed_ts "
+                            "FROM helius_standard_wss_token_intervals "
+                            "WHERE mint = 'mint-a'"
+                        ).fetchone()
+                    finally:
+                        conn.close()
+                    if interval:
+                        break
+                    await asyncio.sleep(0.01)
+                self.assertEqual(interval, ("mint-a", None))
                 await socket.incoming.put(json.dumps(notification))
                 for _ in range(100):
                     conn = app.db()
@@ -1270,6 +1324,18 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(
                     app.HELIUS_STANDARD_WSS_STATE["subscriptions"], 1
                 )
+                conn = app.db()
+                try:
+                    interval = conn.execute(
+                        "SELECT mint, unsubscribed_ts, close_reason "
+                        "FROM helius_standard_wss_token_intervals "
+                        "WHERE mint = 'mint-a'"
+                    ).fetchone()
+                finally:
+                    conn.close()
+                self.assertEqual(interval[0], "mint-a")
+                self.assertIsNotNone(interval[1])
+                self.assertEqual(interval[2], "unsubscribe_confirmed")
                 report = app.api_helius_standard_wss_stats("token")
                 self.assertTrue(report["wallet_subscriptions_ready"])
                 self.assertTrue(report["tracked_token_subscriptions_ready"])

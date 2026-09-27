@@ -352,6 +352,22 @@ class AccountPriceCheckpointTests(unittest.TestCase):
                      "after", "live", "after:0"),
                 ],
             )
+            conn.executemany(
+                """
+                INSERT INTO helius_standard_wss_token_intervals(
+                    mint, subscribed_ts, last_confirmed_ts,
+                    unsubscribed_ts, close_reason
+                ) VALUES(?,?,?,?,?)
+                """,
+                [
+                    (mint, signal_ts + 10, signal_ts + 100,
+                     signal_ts + 100, "disconnect"),
+                    (mint, signal_ts + 90, signal_ts + 200,
+                     signal_ts + 200, "disconnect"),
+                    (mint, signal_ts + 250, signal_ts + 950,
+                     signal_ts + 950, "unsubscribe_confirmed"),
+                ],
+            )
             conn.commit()
         finally:
             conn.close()
@@ -379,6 +395,12 @@ class AccountPriceCheckpointTests(unittest.TestCase):
             [12.0, 45.0],
         )
         self.assertAlmostEqual(event_path[0]["price_sol"], 1.2e-7)
+        coverage = payload["rows"][0]["subscription_coverage"]
+        self.assertEqual(coverage["covered_seconds"], 840.0)
+        self.assertAlmostEqual(coverage["coverage_ratio"], 840.0 / 900.0)
+        self.assertEqual(coverage["first_subscription_delay_seconds"], 10.0)
+        self.assertEqual(coverage["intervals"], 2)
+        self.assertFalse(coverage["complete"])
 
     def test_event_path_is_absent_by_default(self):
         self.checkpoint_dataset_outcome(
@@ -390,6 +412,7 @@ class AccountPriceCheckpointTests(unittest.TestCase):
 
         self.assertFalse(payload["event_path_included"])
         self.assertNotIn("event_path", payload["rows"][0])
+        self.assertNotIn("subscription_coverage", payload["rows"][0])
 
     def test_training_readiness_minimums_match_diagnostic_schema(self):
         schema_path = (
