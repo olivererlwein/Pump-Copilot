@@ -44,6 +44,7 @@ class FrozenExitCandidateTests(unittest.TestCase):
                 {"elapsed_seconds": 20, "price_sol": 1.05}
             ],
             "subscription_coverage": {
+                "measurement_available": True,
                 "coverage_ratio": 1.0,
                 "complete": True,
             },
@@ -154,6 +155,7 @@ class FrozenExitCandidateTests(unittest.TestCase):
                 {"elapsed_seconds": 30, "price_sol": 0.75}
             ],
             "subscription_coverage": {
+                "measurement_available": True,
                 "coverage_ratio": 1.0,
                 "complete": True,
             },
@@ -191,6 +193,7 @@ class FrozenExitCandidateTests(unittest.TestCase):
                 {"elapsed_seconds": 30, "price_sol": 1.05}
             ],
             "subscription_coverage": {
+                "measurement_available": True,
                 "coverage_ratio": 0.9,
                 "complete": False,
             },

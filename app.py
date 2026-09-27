@@ -589,6 +589,9 @@ HELIUS_STANDARD_WSS_UNSTORED_RECENT = {}
 MARKET_EVENT_INBOX_ACTIVATION_STATE_KEY = (
     "market_event_inbox_processing_activation_ts"
 )
+HELIUS_TOKEN_COVERAGE_ACTIVATION_STATE_KEY = (
+    "helius_token_subscription_coverage_activation_ts"
+)
 
 # Primera etapa del consumidor del inbox: solo reconstruye y valida eventos.
 # No llama al router ni produce efectos de trading. Se habilita por separado
@@ -16398,6 +16401,9 @@ def get_account_checkpoint_subscription_coverage(observations):
     signal_ids = list(signals)
     conn = db()
     try:
+        activation_ts = get_helius_token_coverage_activation_ts(
+            connection=conn
+        )
         for offset in range(0, len(signal_ids), 400):
             batch = signal_ids[offset:offset + 400]
             placeholders = ",".join("?" for _ in batch)
@@ -16434,6 +16440,11 @@ def get_account_checkpoint_subscription_coverage(observations):
         covered_seconds = sum(end - start for start, end in merged)
         first_start = merged[0][0] if merged else None
         coverage[signal_id] = {
+            "measurement_available": bool(
+                activation_ts is not None
+                and signal_ts + 900.0 > activation_ts
+            ),
+            "measurement_started_ts": activation_ts,
             "covered_seconds": covered_seconds,
             "coverage_ratio": covered_seconds / 900.0,
             "first_subscription_delay_seconds": (
@@ -16682,6 +16693,55 @@ def start_helius_token_subscription_interval(mint, now=None):
         conn.close()
 
 
+def get_helius_token_coverage_activation_ts(connection=None):
+    """Return the persistent start of token subscription measurement."""
+    conn = connection or db()
+    try:
+        row = conn.execute(
+            "SELECT value FROM app_state WHERE key = ?",
+            (HELIUS_TOKEN_COVERAGE_ACTIVATION_STATE_KEY,),
+        ).fetchone()
+    finally:
+        if connection is None:
+            conn.close()
+    if not row:
+        return None
+    try:
+        activation_ts = float(row[0])
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            "INVALID_HELIUS_TOKEN_COVERAGE_ACTIVATION_TS"
+        ) from exc
+    if not math.isfinite(activation_ts) or activation_ts <= 0:
+        raise ValueError("INVALID_HELIUS_TOKEN_COVERAGE_ACTIVATION_TS")
+    return activation_ts
+
+
+def establish_helius_token_coverage_activation(now=None):
+    """Persist once when subscription coverage starts being observable."""
+    activation_ts = float(now if now is not None else time.time())
+    if not math.isfinite(activation_ts) or activation_ts <= 0:
+        raise ValueError("INVALID_HELIUS_TOKEN_COVERAGE_ACTIVATION_TS")
+    conn = db()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        conn.execute(
+            "INSERT OR IGNORE INTO app_state(key, value) VALUES(?, ?)",
+            (
+                HELIUS_TOKEN_COVERAGE_ACTIVATION_STATE_KEY,
+                repr(activation_ts),
+            ),
+        )
+        stored = get_helius_token_coverage_activation_ts(connection=conn)
+        conn.commit()
+        return stored
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
 def heartbeat_helius_token_subscription_intervals(mints, now=None):
     normalized = sorted({str(mint or "").strip() for mint in mints} - {""})
     if not normalized:
@@ -16833,6 +16893,7 @@ async def helius_standard_wss_worker():
     rate_lock = asyncio.Lock()
     rate_state = {"next_ts": 0.0}
     consecutive_failures = 0
+    await asyncio.to_thread(establish_helius_token_coverage_activation)
     await asyncio.to_thread(
         close_stale_helius_token_subscription_intervals
     )

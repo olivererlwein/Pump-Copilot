@@ -371,6 +371,7 @@ class AccountPriceCheckpointTests(unittest.TestCase):
             conn.commit()
         finally:
             conn.close()
+        app.establish_helius_token_coverage_activation(now=signal_ts)
 
         with patch.object(app, "APP_TOKEN", "test-token"), patch.object(
             app, "fetch_account_prices"
@@ -396,11 +397,34 @@ class AccountPriceCheckpointTests(unittest.TestCase):
         )
         self.assertAlmostEqual(event_path[0]["price_sol"], 1.2e-7)
         coverage = payload["rows"][0]["subscription_coverage"]
+        self.assertTrue(coverage["measurement_available"])
+        self.assertEqual(coverage["measurement_started_ts"], signal_ts)
         self.assertEqual(coverage["covered_seconds"], 840.0)
         self.assertAlmostEqual(coverage["coverage_ratio"], 840.0 / 900.0)
         self.assertEqual(coverage["first_subscription_delay_seconds"], 10.0)
         self.assertEqual(coverage["intervals"], 2)
         self.assertFalse(coverage["complete"])
+
+    def test_subscription_coverage_marks_pre_instrumentation_history(self):
+        signal_id = self.checkpoint_dataset_outcome(
+            6, [1.05, 1.10, 1.15, 1.20, 1.30]
+        )
+        signal_ts = self.signal_ts + 6 * 2_000
+        app.establish_helius_token_coverage_activation(
+            now=signal_ts + 1_000
+        )
+
+        coverage = app.get_account_checkpoint_subscription_coverage([{
+            "signal_id": signal_id,
+            "mint": "mint-6",
+            "signal_ts": signal_ts,
+        }])[signal_id]
+
+        self.assertFalse(coverage["measurement_available"])
+        self.assertEqual(coverage["covered_seconds"], 0)
+        self.assertEqual(
+            coverage["measurement_started_ts"], signal_ts + 1_000
+        )
 
     def test_event_path_is_absent_by_default(self):
         self.checkpoint_dataset_outcome(

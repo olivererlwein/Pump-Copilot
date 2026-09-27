@@ -258,6 +258,12 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
         }
 
     def test_token_subscription_intervals_are_persisted_conservatively(self):
+        self.assertEqual(
+            app.establish_helius_token_coverage_activation(now=50), 50.0
+        )
+        self.assertEqual(
+            app.establish_helius_token_coverage_activation(now=60), 50.0
+        )
         interval_id = app.start_helius_token_subscription_interval(
             "mint-a", now=100
         )

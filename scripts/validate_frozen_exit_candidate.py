@@ -262,8 +262,14 @@ def prospective_report(
     coverage_ratios = []
     for row in rows:
         subscription_coverage = row.get("subscription_coverage") or {}
-        coverage_complete = subscription_coverage.get("complete") is True
-        if subscription_coverage:
+        measurement_available = (
+            subscription_coverage.get("measurement_available") is True
+        )
+        coverage_complete = bool(
+            measurement_available
+            and subscription_coverage.get("complete") is True
+        )
+        if measurement_available:
             measured_coverage_rows.append(row)
             coverage_ratios.append(
                 float(subscription_coverage.get("coverage_ratio") or 0.0)
