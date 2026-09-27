@@ -614,6 +614,45 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
             (2, 1, 0, 1),
         )
 
+    def test_stats_report_token_traffic_by_mint_for_each_window(self):
+        now = 1_700_010_000
+        events = [
+            ({**self.event("mint-a"), "signature": "token-a-recent",
+              "subject_type": "token"}, 100, now - 1800),
+            ({**self.event("mint-a"), "signature": "token-a-old",
+              "subject_type": "token"}, 200, now - 7200),
+            ({**self.event("mint-b"), "signature": "token-b-recent",
+              "subject_type": "token", "failed": True}, 300, now - 100),
+        ]
+        for event, message_bytes, received_ts in events:
+            app.record_helius_standard_wss_notification(
+                event, True, message_bytes, received_ts=received_ts,
+            )
+
+        with (
+            patch.object(app, "APP_TOKEN", "token"),
+            patch.object(app.time, "time", return_value=now),
+            patch.object(app, "WATCHED", {"trader-a": "wallet-a"}),
+        ):
+            report = app.api_helius_standard_wss_stats("token")
+
+        one_hour = {
+            row["mint"]: row for row in report["last_1h"]["tokens"]
+        }
+        self.assertEqual(report["last_1h"]["token_notifications"], 2)
+        self.assertEqual(report["last_1h"]["tokens_observed"], 2)
+        self.assertEqual(report["last_1h"]["message_bytes"], 400)
+        self.assertEqual(one_hour["mint-a"]["message_bytes"], 100)
+        self.assertEqual(one_hour["mint-b"]["failed_notifications"], 1)
+
+        day = {
+            row["mint"]: row for row in report["last_24h"]["tokens"]
+        }
+        self.assertEqual(report["last_24h"]["token_notifications"], 3)
+        self.assertEqual(report["last_24h"]["tokens_observed"], 2)
+        self.assertEqual(day["mint-a"]["notifications"], 2)
+        self.assertEqual(day["mint-a"]["message_bytes"], 300)
+
     def test_stats_last_hour_excludes_older_queue_failures(self):
         now = 1_700_010_000
         old_event = self.event("wallet-a")
@@ -675,6 +714,10 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
             "notifications": 3,
             "pump_log_notifications": 3,
             "failed_notifications": 1,
+            "message_bytes": 600,
+            "token_notifications": 0,
+            "tokens_observed": 0,
+            "tokens": [],
             "transactions_selected": 2,
             "rpc_fetch_attempts": 2,
             "parsed_events": 2,

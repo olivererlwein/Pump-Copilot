@@ -18110,11 +18110,40 @@ def api_account_checkpoint_paths(
     }
 
 
+def get_helius_standard_wss_token_traffic(conn, cutoff):
+    rows = conn.execute(
+        """
+        SELECT wallet, COUNT(*), COALESCE(SUM(failed), 0),
+               COALESCE(SUM(message_bytes), 0),
+               MIN(received_ts), MAX(received_ts)
+        FROM helius_standard_wss_notifications
+        WHERE received_ts >= ? AND subject_type = 'token'
+        GROUP BY wallet
+        ORDER BY COALESCE(SUM(message_bytes), 0) DESC,
+                 COUNT(*) DESC, wallet
+        """,
+        (cutoff,),
+    ).fetchall()
+    return [
+        {
+            "mint": mint,
+            "notifications": int(count),
+            "failed_notifications": int(failed),
+            "message_bytes": int(message_bytes),
+            "first_received_ts": first_received_ts,
+            "last_received_ts": last_received_ts,
+        }
+        for mint, count, failed, message_bytes,
+            first_received_ts, last_received_ts in rows
+    ]
+
+
 def get_helius_standard_wss_window_health(conn, cutoff):
     notification = conn.execute(
         """
         SELECT COUNT(*), COALESCE(SUM(pump_logs), 0),
-               COALESCE(SUM(failed), 0)
+               COALESCE(SUM(failed), 0),
+               COALESCE(SUM(message_bytes), 0)
         FROM helius_standard_wss_notifications
         WHERE received_ts >= ?
         """,
@@ -18158,10 +18187,17 @@ def get_helius_standard_wss_window_health(conn, cutoff):
         """,
         (cutoff,),
     ).fetchall()
+    token_traffic = get_helius_standard_wss_token_traffic(conn, cutoff)
     return {
         "notifications": int(notification[0] or 0),
         "pump_log_notifications": int(notification[1] or 0),
         "failed_notifications": int(notification[2] or 0),
+        "message_bytes": int(notification[3] or 0),
+        "token_notifications": sum(
+            row["notifications"] for row in token_traffic
+        ),
+        "tokens_observed": len(token_traffic),
+        "tokens": token_traffic,
         "transactions_selected": int(transactions[0] or 0),
         "rpc_fetch_attempts": int(transactions[1] or 0),
         "parsed_events": int(transactions[2] or 0),
@@ -18292,14 +18328,7 @@ def api_helius_standard_wss_stats(
             """,
             (cutoff,),
         ).fetchall()
-        token_notifications = conn.execute(
-            """
-            SELECT COUNT(*), COUNT(DISTINCT wallet)
-            FROM helius_standard_wss_notifications
-            WHERE received_ts >= ? AND subject_type = 'token'
-            """,
-            (cutoff,),
-        ).fetchone()
+        token_traffic = get_helius_standard_wss_token_traffic(conn, cutoff)
         last_1h = get_helius_standard_wss_window_health(
             conn, now - 3600
         )
@@ -18424,8 +18453,11 @@ def api_helius_standard_wss_stats(
             "rpc_fetch_attempts": int(transactions[1] or 0),
             "parsed_events": int(transactions[2] or 0),
             "pending_transaction_fetches": int(transactions[3] or 0),
-            "token_notifications": int(token_notifications[0] or 0),
-            "tokens_observed": int(token_notifications[1] or 0),
+            "token_notifications": sum(
+                row["notifications"] for row in token_traffic
+            ),
+            "tokens_observed": len(token_traffic),
+            "tokens": token_traffic,
             "statuses": {
                 str(status): int(count) for status, count in statuses
             },
