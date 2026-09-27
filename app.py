@@ -18402,9 +18402,15 @@ def api_helius_standard_wss_stats(
                                      THEN 1 ELSE 0 END), 0),
                    COALESCE(SUM(CASE WHEN t.status = 'unparsed'
                                      THEN 1 ELSE 0 END), 0),
-                   COALESCE(SUM(CASE WHEN t.status IN (
-                       'fetch_failed', 'processing_failed'
-                   ) THEN 1 ELSE 0 END), 0)
+                    COALESCE(SUM(CASE WHEN t.status IN (
+                        'fetch_failed', 'processing_failed'
+                    ) THEN 1 ELSE 0 END), 0),
+                    COALESCE(SUM(CASE WHEN t.status = 'unparsed'
+                         AND t.unparsed_reason = 'wallet_not_signer'
+                         THEN 1 ELSE 0 END), 0),
+                    COALESCE(SUM(CASE WHEN t.status = 'unparsed'
+                         AND t.unparsed_reason = 'supported_payload_not_decoded'
+                         THEN 1 ELSE 0 END), 0)
             FROM helius_standard_wss_notifications n
             LEFT JOIN helius_standard_wss_transactions t
               ON t.signature = n.signature
@@ -18582,9 +18588,16 @@ def api_helius_standard_wss_stats(
                     "notifications_with_parsed_transaction": int(parsed_count),
                     "unparsed_transactions": int(unparsed_count),
                     "failed_transactions": int(failed_count),
+                    "notifications_with_wallet_not_signer_transaction": (
+                        int(not_signer_count)
+                    ),
+                    "notifications_with_undecoded_payload_transaction": (
+                        int(undecoded_count)
+                    ),
                 }
                 for wallet, count, pump_count, parsed_count,
-                    unparsed_count, failed_count in wallets
+                    unparsed_count, failed_count, not_signer_count,
+                    undecoded_count in wallets
             ],
         },
         "credit_estimate": {

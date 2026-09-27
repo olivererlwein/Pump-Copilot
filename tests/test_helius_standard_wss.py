@@ -561,7 +561,7 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
         )
         app.finish_helius_standard_wss_transaction(
             "signature-b", "unparsed", 1,
-            unparsed_reason="no_supported_trade_payload",
+            unparsed_reason="wallet_not_signer",
             now=1_700_000_004,
         )
         third = {**self.event("wallet-b"), "signature": "signature-c"}
@@ -612,6 +612,18 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
                 wallets["trader-b"]["failed_transactions"],
             ),
             (2, 1, 0, 1),
+        )
+        self.assertEqual(
+            wallets["trader-a"][
+                "notifications_with_wallet_not_signer_transaction"
+            ],
+            1,
+        )
+        self.assertEqual(
+            wallets["trader-b"][
+                "notifications_with_wallet_not_signer_transaction"
+            ],
+            0,
         )
 
     def test_stats_report_token_traffic_by_mint_for_each_window(self):
