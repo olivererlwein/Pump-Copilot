@@ -168,6 +168,9 @@ def build_prospective_rows(
             "price_at_signal": entry,
             "path": path,
             "event_path": path_record.get("event_path") or [],
+            "subscription_coverage": (
+                path_record.get("subscription_coverage") or {}
+            ),
             "ambiguous": is_ambiguous(entry, path),
         })
     return result, {
@@ -253,8 +256,31 @@ def prospective_report(
     event_point_counts = []
     first_event_delays = []
     event_sources = Counter()
+    measured_coverage_rows = []
+    complete_coverage_rows = []
+    complete_event_sequence_rows = []
+    coverage_ratios = []
     for row in rows:
+        subscription_coverage = row.get("subscription_coverage") or {}
+        coverage_complete = subscription_coverage.get("complete") is True
+        if subscription_coverage:
+            measured_coverage_rows.append(row)
+            coverage_ratios.append(
+                float(subscription_coverage.get("coverage_ratio") or 0.0)
+            )
+            if coverage_complete:
+                complete_coverage_rows.append(row)
         if not row.get("event_path"):
+            if coverage_complete:
+                final_checkpoint = max(
+                    row["path"],
+                    key=lambda point: float(point["checkpoint_seconds"]),
+                )
+                complete_event_sequence_rows.append({
+                    **row,
+                    "path": [final_checkpoint],
+                    "ambiguous": False,
+                })
             continue
         event_covered_rows.append(row)
         event_point_counts.append(len(row["event_path"]))
@@ -291,13 +317,16 @@ def prospective_report(
             [*event_points, final_checkpoint],
             key=lambda point: float(point["checkpoint_seconds"]),
         )
-        event_sequence_rows.append({
+        event_sequence_row = {
             **row,
             "path": event_sequence_path,
             # Ordered market events are not sparse checkpoints. Coverage is
             # reported separately instead of pretending it is complete.
             "ambiguous": False,
-        })
+        }
+        event_sequence_rows.append(event_sequence_row)
+        if coverage_complete:
+            complete_event_sequence_rows.append(event_sequence_row)
     event_path_sensitivity = (
         analyse(
             dense_rows,
@@ -330,6 +359,17 @@ def prospective_report(
             hold_seconds,
         )
         if event_sequence_rows else None
+    )
+    complete_coverage_sensitivity = (
+        analyse(
+            complete_event_sequence_rows,
+            threshold,
+            "tp100_time",
+            cost_per_side,
+            TRAILING_DROP_FROM_PEAK,
+            hold_seconds,
+        )
+        if complete_coverage_rows else None
     )
     ordered = sorted(records, key=lambda row: float(row["net"]), reverse=True)
     without_best = ordered[1:]
@@ -393,6 +433,19 @@ def prospective_report(
             "event_sequence_result": event_sequence_sensitivity,
             "coverage": {
                 "sources": dict(event_sources.most_common()),
+                "rows_measured": len(measured_coverage_rows),
+                "rows_complete": len(complete_coverage_rows),
+                "selected_rows_complete": (
+                    complete_coverage_sensitivity["positions"]
+                    if complete_coverage_sensitivity else 0
+                ),
+                "complete_event_sequence_result": (
+                    complete_coverage_sensitivity
+                ),
+                "median_subscription_coverage_ratio": (
+                    statistics.median(coverage_ratios)
+                    if coverage_ratios else None
+                ),
                 "median_events_per_row": (
                     statistics.median(event_point_counts)
                     if event_point_counts else None
@@ -405,7 +458,10 @@ def prospective_report(
                     float(np.percentile(first_event_delays, 90))
                     if first_event_delays else None
                 ),
-                "completeness_proven": False,
+                "completeness_proven": bool(
+                    rows
+                    and len(complete_coverage_rows) == len(rows)
+                ),
             },
         },
         "without_best_mean": without_best_mean,

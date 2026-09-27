@@ -4,6 +4,19 @@
   "graph": {},
   "nodes": [
     {
+      "id": "tests_test_training_pipeline_shadowartifacttests",
+      "label": "ShadowArtifactTests",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 0,
+      "community_name": "train_baseline_model.py",
+      "file_type": "code",
+      "norm_label": "shadowartifacttests",
+      "source_file": "tests/test_training_pipeline.py",
+      "source_location": "L369"
+    },
+    {
       "id": "tests_test_training_pipeline_thresholdselectiontests",
       "label": "ThresholdSelectionTests",
       "_callable": true,
@@ -192,7 +205,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": "heliusstandardwssprotocoltests",
       "source_file": "tests/test_helius_standard_wss.py",
@@ -257,24 +270,11 @@
       "_callable_class": true,
       "_origin": "ast",
       "community": 36,
-      "community_name": "pump_receipt",
+      "community_name": "RpcFallbackPersistenceTests",
       "file_type": "code",
       "norm_label": "rpcfallbackpersistencetests",
       "source_file": "tests/test_rpc_fallback.py",
       "source_location": "L463"
-    },
-    {
-      "id": "tests_test_rpc_fallback_trackedtokenparsertests",
-      "label": "TrackedTokenParserTests",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 36,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": "trackedtokenparsertests",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L228"
     },
     {
       "id": "tests_test_stream_routing_marketeventroutingtests",
@@ -758,6 +758,19 @@
       "source_location": "L136"
     },
     {
+      "id": "tests_test_rpc_fallback_trackedtokenparsertests",
+      "label": "TrackedTokenParserTests",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 68,
+      "community_name": "parse_tracked_token_pump_events",
+      "file_type": "code",
+      "norm_label": "trackedtokenparsertests",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L228"
+    },
+    {
       "id": "tests_test_account_price_checkpoints_accountpricecheckpointtests",
       "label": "AccountPriceCheckpointTests",
       "_callable": true,
@@ -829,7 +842,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "community": 74,
-      "community_name": "validate_dataset",
+      "community_name": "make_row",
       "file_type": "code",
       "norm_label": "temporalgroupsplittests",
       "source_file": "tests/test_training_pipeline.py",
@@ -842,7 +855,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "community": 74,
-      "community_name": "validate_dataset",
+      "community_name": "make_row",
       "file_type": "code",
       "norm_label": "trainingdatasetvalidationtests",
       "source_file": "tests/test_training_pipeline.py",
@@ -855,7 +868,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "community": 74,
-      "community_name": "validate_dataset",
+      "community_name": "make_row",
       "file_type": "code",
       "norm_label": "trainingdiagnosticstests",
       "source_file": "tests/test_training_pipeline.py",
@@ -868,7 +881,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "community": 75,
-      "community_name": "RpcFallbackBaselineTests",
+      "community_name": "pump_receipt",
       "file_type": "code",
       "norm_label": "rpcfallbackbaselinetests",
       "source_file": "tests/test_rpc_fallback.py",
@@ -920,7 +933,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "community": 81,
-      "community_name": "analyze_feature_ablation.py",
+      "community_name": "selection_diagnostics",
       "file_type": "code",
       "norm_label": "featureablationtests",
       "source_file": "tests/test_feature_ablation.py",
@@ -933,7 +946,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "community": 81,
-      "community_name": "analyze_feature_ablation.py",
+      "community_name": "selection_diagnostics",
       "file_type": "code",
       "norm_label": "selectiondiagnosticstests",
       "source_file": "tests/test_feature_ablation.py",
@@ -946,7 +959,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "community": 82,
-      "community_name": "simulate_payoff",
+      "community_name": "compare_model_economics.py",
       "file_type": "code",
       "norm_label": "payoffsimulationtests",
       "source_file": "tests/test_model_economics.py",
@@ -959,7 +972,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "community": 85,
-      "community_name": "ShadowLogisticModel",
+      "community_name": "ValueError",
       "file_type": "code",
       "norm_label": "shadowlogisticmodel",
       "source_file": "shadow_model.py",
@@ -972,24 +985,11 @@
       "_callable_class": true,
       "_origin": "ast",
       "community": 85,
-      "community_name": "ShadowLogisticModel",
+      "community_name": "ValueError",
       "file_type": "code",
       "norm_label": "shadowmodelerror",
       "source_file": "shadow_model.py",
       "source_location": "L6"
-    },
-    {
-      "id": "tests_test_training_pipeline_shadowartifacttests",
-      "label": "ShadowArtifactTests",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 85,
-      "community_name": "ShadowLogisticModel",
-      "file_type": "code",
-      "norm_label": "shadowartifacttests",
-      "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L369"
     },
     {
       "id": "helius_webhook_sync_heliuswebhooksyncerror",
@@ -1044,18 +1044,6 @@
       "source_location": "L28"
     },
     {
-      "id": "scripts_compare_model_economics_evaluate_strategy",
-      "label": "evaluate_strategy()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 0,
-      "community_name": "train_baseline_model.py",
-      "file_type": "code",
-      "norm_label": "evaluate_strategy()",
-      "source_file": "scripts/compare_model_economics.py",
-      "source_location": "L97"
-    },
-    {
       "id": "scripts_train_baseline_model_artifact_save_blocker",
       "label": "artifact_save_blocker()",
       "_callable": true,
@@ -1092,6 +1080,18 @@
       "source_location": "L479"
     },
     {
+      "id": "scripts_train_baseline_model_build_shadow_artifact",
+      "label": "build_shadow_artifact()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 0,
+      "community_name": "train_baseline_model.py",
+      "file_type": "code",
+      "norm_label": "build_shadow_artifact()",
+      "source_file": "scripts/train_baseline_model.py",
+      "source_location": "L685"
+    },
+    {
       "id": "scripts_train_baseline_model_classification_metrics",
       "label": "classification_metrics()",
       "_callable": true,
@@ -1114,18 +1114,6 @@
       "norm_label": "fit_pipeline()",
       "source_file": "scripts/train_baseline_model.py",
       "source_location": "L455"
-    },
-    {
-      "id": "scripts_train_baseline_model_get_deployment_blockers",
-      "label": "get_deployment_blockers()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 0,
-      "community_name": "train_baseline_model.py",
-      "file_type": "code",
-      "norm_label": "get_deployment_blockers()",
-      "source_file": "scripts/train_baseline_model.py",
-      "source_location": "L124"
     },
     {
       "id": "scripts_train_baseline_model_get_readiness_blockers",
@@ -1270,6 +1258,30 @@
       "norm_label": "fit_frozen_pipeline()",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
       "source_location": "L114"
+    },
+    {
+      "id": "tests_test_training_pipeline_shadowartifacttests_test_shadow_candidate_records_non_deployable_role",
+      "label": ".test_shadow_candidate_records_non_deployable_role()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 0,
+      "community_name": "train_baseline_model.py",
+      "file_type": "code",
+      "norm_label": ".test_shadow_candidate_records_non_deployable_role()",
+      "source_file": "tests/test_training_pipeline.py",
+      "source_location": "L429"
+    },
+    {
+      "id": "tests_test_training_pipeline_shadowartifacttests_test_stdlib_shadow_probability_matches_sklearn",
+      "label": ".test_stdlib_shadow_probability_matches_sklearn()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 0,
+      "community_name": "train_baseline_model.py",
+      "file_type": "code",
+      "norm_label": ".test_stdlib_shadow_probability_matches_sklearn()",
+      "source_file": "tests/test_training_pipeline.py",
+      "source_location": "L370"
     },
     {
       "id": "tests_test_training_pipeline_thresholdselectiontests_test_classification_metrics_honor_sample_weights",
@@ -1632,6 +1644,42 @@
       "source_location": "L15"
     },
     {
+      "id": "solana_receipts_parse_buy_receipt",
+      "label": "parse_buy_receipt()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "LiveReceiptPersistenceTests",
+      "file_type": "code",
+      "norm_label": "parse_buy_receipt()",
+      "source_file": "solana_receipts.py",
+      "source_location": "L14"
+    },
+    {
+      "id": "solana_receipts_parse_buy_receipt_7dde67",
+      "label": "_parse_buy_receipt()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "LiveReceiptPersistenceTests",
+      "file_type": "code",
+      "norm_label": "_parse_buy_receipt()",
+      "source_file": "solana_receipts.py",
+      "source_location": "L34"
+    },
+    {
+      "id": "solana_receipts_parse_receipt_balances",
+      "label": "_parse_receipt_balances()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "LiveReceiptPersistenceTests",
+      "file_type": "code",
+      "norm_label": "_parse_receipt_balances()",
+      "source_file": "solana_receipts.py",
+      "source_location": "L91"
+    },
+    {
       "id": "solana_receipts_parse_sell_receipt",
       "label": "parse_sell_receipt()",
       "_callable": true,
@@ -1642,6 +1690,30 @@
       "norm_label": "parse_sell_receipt()",
       "source_file": "solana_receipts.py",
       "source_location": "L26"
+    },
+    {
+      "id": "solana_receipts_parse_sell_receipt_23682d",
+      "label": "_parse_sell_receipt()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "LiveReceiptPersistenceTests",
+      "file_type": "code",
+      "norm_label": "_parse_sell_receipt()",
+      "source_file": "solana_receipts.py",
+      "source_location": "L63"
+    },
+    {
+      "id": "solana_receipts_unsigned_integer",
+      "label": "unsigned_integer()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "LiveReceiptPersistenceTests",
+      "file_type": "code",
+      "norm_label": "unsigned_integer()",
+      "source_file": "solana_receipts.py",
+      "source_location": "L8"
     },
     {
       "id": "tests_test_solana_receipts_buy_receipt",
@@ -3348,6 +3420,42 @@
       "source_location": "L1537"
     },
     {
+      "id": "app_account_checkpoint_training_alert_state_key",
+      "label": "account_checkpoint_training_alert_state_key()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 28,
+      "community_name": "db",
+      "file_type": "code",
+      "norm_label": "account_checkpoint_training_alert_state_key()",
+      "source_file": "app.py",
+      "source_location": "L16592"
+    },
+    {
+      "id": "app_account_price_checkpoint_once",
+      "label": "account_price_checkpoint_once()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 28,
+      "community_name": "db",
+      "file_type": "code",
+      "norm_label": "account_price_checkpoint_once()",
+      "source_file": "app.py",
+      "source_location": "L15964"
+    },
+    {
+      "id": "app_account_price_checkpoint_worker",
+      "label": "account_price_checkpoint_worker()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 28,
+      "community_name": "db",
+      "file_type": "code",
+      "norm_label": "account_price_checkpoint_worker()",
+      "source_file": "app.py",
+      "source_location": "L16068"
+    },
+    {
       "id": "app_api_helius_webhook_stats",
       "label": "api_helius_webhook_stats()",
       "_callable": true,
@@ -3360,18 +3468,6 @@
       "source_location": "L17451"
     },
     {
-      "id": "app_api_rpc_fallback_stats",
-      "label": "api_rpc_fallback_stats()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 28,
-      "community_name": "db",
-      "file_type": "code",
-      "norm_label": "api_rpc_fallback_stats()",
-      "source_file": "app.py",
-      "source_location": "L18446"
-    },
-    {
       "id": "app_apply_cached_signal_outcome_checkpoints",
       "label": "apply_cached_signal_outcome_checkpoints()",
       "_callable": true,
@@ -3382,30 +3478,6 @@
       "norm_label": "apply_cached_signal_outcome_checkpoints()",
       "source_file": "app.py",
       "source_location": "L2573"
-    },
-    {
-      "id": "app_assess_shadow_challenger",
-      "label": "assess_shadow_challenger()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 28,
-      "community_name": "db",
-      "file_type": "code",
-      "norm_label": "assess_shadow_challenger()",
-      "source_file": "app.py",
-      "source_location": "L8078"
-    },
-    {
-      "id": "app_calculate_copyability_score",
-      "label": "calculate_copyability_score()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 28,
-      "community_name": "db",
-      "file_type": "code",
-      "norm_label": "calculate_copyability_score()",
-      "source_file": "app.py",
-      "source_location": "L7501"
     },
     {
       "id": "app_cleanup_finished_outcome_token",
@@ -3444,18 +3516,6 @@
       "source_location": "L16731"
     },
     {
-      "id": "app_compare_shadow_models",
-      "label": "compare_shadow_models()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 28,
-      "community_name": "db",
-      "file_type": "code",
-      "norm_label": "compare_shadow_models()",
-      "source_file": "app.py",
-      "source_location": "L7955"
-    },
-    {
       "id": "app_complete_finished_signal_outcomes",
       "label": "complete_finished_signal_outcomes()",
       "_callable": true,
@@ -3466,6 +3526,18 @@
       "norm_label": "complete_finished_signal_outcomes()",
       "source_file": "app.py",
       "source_location": "L2708"
+    },
+    {
+      "id": "app_count_complete_account_checkpoint_paths",
+      "label": "count_complete_account_checkpoint_paths()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 28,
+      "community_name": "db",
+      "file_type": "code",
+      "norm_label": "count_complete_account_checkpoint_paths()",
+      "source_file": "app.py",
+      "source_location": "L16560"
     },
     {
       "id": "app_db",
@@ -3504,18 +3576,6 @@
       "source_location": "L2767"
     },
     {
-      "id": "app_get_ambiguous_pumpportal_execution_orders",
-      "label": "get_ambiguous_pumpportal_execution_orders()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 28,
-      "community_name": "db",
-      "file_type": "code",
-      "norm_label": "get_ambiguous_pumpportal_execution_orders()",
-      "source_file": "app.py",
-      "source_location": "L4803"
-    },
-    {
       "id": "app_get_consensus_trader_count",
       "label": "get_consensus_trader_count()",
       "_callable": true,
@@ -3552,6 +3612,18 @@
       "source_location": "L4405"
     },
     {
+      "id": "app_get_helius_webhook_delivery_alert_active",
+      "label": "get_helius_webhook_delivery_alert_active()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 28,
+      "community_name": "db",
+      "file_type": "code",
+      "norm_label": "get_helius_webhook_delivery_alert_active()",
+      "source_file": "app.py",
+      "source_location": "L13128"
+    },
+    {
       "id": "app_get_market_event_inbox_activation_ts",
       "label": "get_market_event_inbox_activation_ts()",
       "_callable": true,
@@ -3576,16 +3648,16 @@
       "source_location": "L13998"
     },
     {
-      "id": "app_get_rpc_fallback_stats",
-      "label": "get_rpc_fallback_stats()",
+      "id": "app_get_rpc_fallback_wallet_states",
+      "label": "get_rpc_fallback_wallet_states()",
       "_callable": true,
       "_origin": "ast",
       "community": 28,
       "community_name": "db",
       "file_type": "code",
-      "norm_label": "get_rpc_fallback_stats()",
+      "norm_label": "get_rpc_fallback_wallet_states()",
       "source_file": "app.py",
-      "source_location": "L13189"
+      "source_location": "L12664"
     },
     {
       "id": "app_get_shadow_predictions",
@@ -3598,18 +3670,6 @@
       "norm_label": "get_shadow_predictions()",
       "source_file": "app.py",
       "source_location": "L7845"
-    },
-    {
-      "id": "app_get_shadow_stats",
-      "label": "get_shadow_stats()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 28,
-      "community_name": "db",
-      "file_type": "code",
-      "norm_label": "get_shadow_stats()",
-      "source_file": "app.py",
-      "source_location": "L8126"
     },
     {
       "id": "app_get_signal_first_hit",
@@ -3634,18 +3694,6 @@
       "norm_label": "get_token_age_seconds()",
       "source_file": "app.py",
       "source_location": "L9477"
-    },
-    {
-      "id": "app_get_trader_copyability_stats",
-      "label": "get_trader_copyability_stats()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 28,
-      "community_name": "db",
-      "file_type": "code",
-      "norm_label": "get_trader_copyability_stats()",
-      "source_file": "app.py",
-      "source_location": "L6187"
     },
     {
       "id": "app_get_trader_first_hit_stats",
@@ -3684,28 +3732,16 @@
       "source_location": "L9143"
     },
     {
-      "id": "app_get_trader_reliable_returns",
-      "label": "get_trader_reliable_returns()",
+      "id": "app_has_recent_rpc_pump_activity",
+      "label": "has_recent_rpc_pump_activity()",
       "_callable": true,
       "_origin": "ast",
       "community": 28,
       "community_name": "db",
       "file_type": "code",
-      "norm_label": "get_trader_reliable_returns()",
+      "norm_label": "has_recent_rpc_pump_activity()",
       "source_file": "app.py",
-      "source_location": "L7357"
-    },
-    {
-      "id": "app_get_trader_reliable_samples",
-      "label": "get_trader_reliable_samples()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 28,
-      "community_name": "db",
-      "file_type": "code",
-      "norm_label": "get_trader_reliable_samples()",
-      "source_file": "app.py",
-      "source_location": "L7285"
+      "source_location": "L13112"
     },
     {
       "id": "app_heartbeat_helius_token_subscription_intervals",
@@ -3720,28 +3756,28 @@
       "source_location": "L16685"
     },
     {
-      "id": "app_market_event_inbox_consumer_worker",
-      "label": "market_event_inbox_consumer_worker()",
+      "id": "app_mark_rpc_fallback_events_alerted",
+      "label": "mark_rpc_fallback_events_alerted()",
       "_callable": true,
       "_origin": "ast",
       "community": 28,
       "community_name": "db",
       "file_type": "code",
-      "norm_label": "market_event_inbox_consumer_worker()",
+      "norm_label": "mark_rpc_fallback_events_alerted()",
       "source_file": "app.py",
-      "source_location": "L11564"
+      "source_location": "L12867"
     },
     {
-      "id": "app_maybe_send_ambiguous_execution_order_alerts",
-      "label": "maybe_send_ambiguous_execution_order_alerts()",
+      "id": "app_maybe_send_account_checkpoint_training_ready_alert",
+      "label": "maybe_send_account_checkpoint_training_ready_alert()",
       "_callable": true,
       "_origin": "ast",
       "community": 28,
       "community_name": "db",
       "file_type": "code",
-      "norm_label": "maybe_send_ambiguous_execution_order_alerts()",
+      "norm_label": "maybe_send_account_checkpoint_training_ready_alert()",
       "source_file": "app.py",
-      "source_location": "L4841"
+      "source_location": "L16604"
     },
     {
       "id": "app_maybe_send_shadow_review_alert",
@@ -3768,6 +3804,18 @@
       "source_location": "L15676"
     },
     {
+      "id": "app_poll_rpc_fallback_once",
+      "label": "poll_rpc_fallback_once()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 28,
+      "community_name": "db",
+      "file_type": "code",
+      "norm_label": "poll_rpc_fallback_once()",
+      "source_file": "app.py",
+      "source_location": "L12882"
+    },
+    {
       "id": "app_process_signal_outcomes_event",
       "label": "process_signal_outcomes_event()",
       "_callable": true,
@@ -3778,30 +3826,6 @@
       "norm_label": "process_signal_outcomes_event()",
       "source_file": "app.py",
       "source_location": "L2424"
-    },
-    {
-      "id": "app_pumpportal_execution_reconciliation_worker",
-      "label": "pumpportal_execution_reconciliation_worker()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 28,
-      "community_name": "db",
-      "file_type": "code",
-      "norm_label": "pumpportal_execution_reconciliation_worker()",
-      "source_file": "app.py",
-      "source_location": "L4886"
-    },
-    {
-      "id": "app_reconcile_execution_order",
-      "label": "reconcile_execution_order()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 28,
-      "community_name": "db",
-      "file_type": "code",
-      "norm_label": "reconcile_execution_order()",
-      "source_file": "app.py",
-      "source_location": "L4473"
     },
     {
       "id": "app_reconcile_finished_signal_outcomes",
@@ -3816,40 +3840,16 @@
       "source_location": "L2741"
     },
     {
-      "id": "app_reconcile_pending_pumpportal_execution_orders",
-      "label": "reconcile_pending_pumpportal_execution_orders()",
+      "id": "app_reconcile_rpc_fallback_events",
+      "label": "reconcile_rpc_fallback_events()",
       "_callable": true,
       "_origin": "ast",
       "community": 28,
       "community_name": "db",
       "file_type": "code",
-      "norm_label": "reconcile_pending_pumpportal_execution_orders()",
+      "norm_label": "reconcile_rpc_fallback_events()",
       "source_file": "app.py",
-      "source_location": "L4782"
-    },
-    {
-      "id": "app_reconcile_pumpportal_execution_order",
-      "label": "reconcile_pumpportal_execution_order()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 28,
-      "community_name": "db",
-      "file_type": "code",
-      "norm_label": "reconcile_pumpportal_execution_order()",
-      "source_file": "app.py",
-      "source_location": "L4710"
-    },
-    {
-      "id": "app_record_finalized_buy_position",
-      "label": "record_finalized_buy_position()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 28,
-      "community_name": "db",
-      "file_type": "code",
-      "norm_label": "record_finalized_buy_position()",
-      "source_file": "app.py",
-      "source_location": "L4551"
+      "source_location": "L12799"
     },
     {
       "id": "app_record_finalized_sell_position",
@@ -3862,6 +3862,30 @@
       "norm_label": "record_finalized_sell_position()",
       "source_file": "app.py",
       "source_location": "L4619"
+    },
+    {
+      "id": "app_rpc_fallback_shadow_worker",
+      "label": "rpc_fallback_shadow_worker()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 28,
+      "community_name": "db",
+      "file_type": "code",
+      "norm_label": "rpc_fallback_shadow_worker()",
+      "source_file": "app.py",
+      "source_location": "L13080"
+    },
+    {
+      "id": "app_set_helius_webhook_delivery_alert_active",
+      "label": "set_helius_webhook_delivery_alert_active()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 28,
+      "community_name": "db",
+      "file_type": "code",
+      "norm_label": "set_helius_webhook_delivery_alert_active()",
+      "source_file": "app.py",
+      "source_location": "L13142"
     },
     {
       "id": "app_set_persistent_kill_switch",
@@ -3900,18 +3924,6 @@
       "source_location": "L13787"
     },
     {
-      "id": "app_summarize_shadow_predictions",
-      "label": "summarize_shadow_predictions()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 28,
-      "community_name": "db",
-      "file_type": "code",
-      "norm_label": "summarize_shadow_predictions()",
-      "source_file": "app.py",
-      "source_location": "L7911"
-    },
-    {
       "id": "app_tracked_tokens_priority_snapshot",
       "label": "_tracked_tokens_priority_snapshot()",
       "_callable": true,
@@ -3934,6 +3946,30 @@
       "norm_label": "untrack_token_if_unused()",
       "source_file": "app.py",
       "source_location": "L10400"
+    },
+    {
+      "id": "app_update_helius_webhook_delivery_alert",
+      "label": "update_helius_webhook_delivery_alert()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 28,
+      "community_name": "db",
+      "file_type": "code",
+      "norm_label": "update_helius_webhook_delivery_alert()",
+      "source_file": "app.py",
+      "source_location": "L13155"
+    },
+    {
+      "id": "app_update_rpc_fallback_wallet_state",
+      "label": "update_rpc_fallback_wallet_state()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 28,
+      "community_name": "db",
+      "file_type": "code",
+      "norm_label": "update_rpc_fallback_wallet_state()",
+      "source_file": "app.py",
+      "source_location": "L12690"
     },
     {
       "id": "app_update_signal_outcome_10s",
@@ -4164,64 +4200,16 @@
       "source_location": "L6673"
     },
     {
-      "id": "app_account_checkpoint_target",
-      "label": "account_checkpoint_target()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 31,
-      "community_name": "ValueError",
-      "file_type": "code",
-      "norm_label": "account_checkpoint_target()",
-      "source_file": "app.py",
-      "source_location": "L16222"
-    },
-    {
       "id": "app_api_helius_standard_wss_stats",
       "label": "api_helius_standard_wss_stats()",
       "_callable": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": "api_helius_standard_wss_stats()",
       "source_file": "app.py",
       "source_location": "L18070"
-    },
-    {
-      "id": "app_build_pumpportal_exact_sell_payload",
-      "label": "build_pumpportal_exact_sell_payload()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 31,
-      "community_name": "ValueError",
-      "file_type": "code",
-      "norm_label": "build_pumpportal_exact_sell_payload()",
-      "source_file": "app.py",
-      "source_location": "L3154"
-    },
-    {
-      "id": "app_build_pumpportal_lightning_sell_payload",
-      "label": "build_pumpportal_lightning_sell_payload()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 31,
-      "community_name": "ValueError",
-      "file_type": "code",
-      "norm_label": "build_pumpportal_lightning_sell_payload()",
-      "source_file": "app.py",
-      "source_location": "L3099"
-    },
-    {
-      "id": "app_calculate_wallet_sell_percentage",
-      "label": "calculate_wallet_sell_percentage()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 31,
-      "community_name": "ValueError",
-      "file_type": "code",
-      "norm_label": "calculate_wallet_sell_percentage()",
-      "source_file": "app.py",
-      "source_location": "L3184"
     },
     {
       "id": "app_fetch_helius_standard_wss_transaction",
@@ -4229,7 +4217,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": "fetch_helius_standard_wss_transaction()",
       "source_file": "app.py",
@@ -4241,7 +4229,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": "finish_helius_standard_wss_transaction()",
       "source_file": "app.py",
@@ -4253,23 +4241,11 @@
       "_callable": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": "get_helius_standard_wss_window_health()",
       "source_file": "app.py",
       "source_location": "L17999"
-    },
-    {
-      "id": "app_helius_standard_wss_error_code",
-      "label": "helius_standard_wss_error_code()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 31,
-      "community_name": "ValueError",
-      "file_type": "code",
-      "norm_label": "helius_standard_wss_error_code()",
-      "source_file": "app.py",
-      "source_location": "L15491"
     },
     {
       "id": "app_helius_standard_wss_retry_seconds",
@@ -4277,7 +4253,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": "helius_standard_wss_retry_seconds()",
       "source_file": "app.py",
@@ -4289,7 +4265,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": "helius_standard_wss_wallet_flooded()",
       "source_file": "app.py",
@@ -4301,47 +4277,11 @@
       "_callable": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": "helius_standard_wss_worker()",
       "source_file": "app.py",
       "source_location": "L16813"
-    },
-    {
-      "id": "app_live_account_exit_monitor_error_code",
-      "label": "live_account_exit_monitor_error_code()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 31,
-      "community_name": "ValueError",
-      "file_type": "code",
-      "norm_label": "live_account_exit_monitor_error_code()",
-      "source_file": "app.py",
-      "source_location": "L16081"
-    },
-    {
-      "id": "app_live_account_exit_monitor_once",
-      "label": "live_account_exit_monitor_once()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 31,
-      "community_name": "ValueError",
-      "file_type": "code",
-      "norm_label": "live_account_exit_monitor_once()",
-      "source_file": "app.py",
-      "source_location": "L16093"
-    },
-    {
-      "id": "app_live_account_exit_monitor_worker",
-      "label": "live_account_exit_monitor_worker()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 31,
-      "community_name": "ValueError",
-      "file_type": "code",
-      "norm_label": "live_account_exit_monitor_worker()",
-      "source_file": "app.py",
-      "source_location": "L16206"
     },
     {
       "id": "app_note_unstored_helius_standard_wss_notification",
@@ -4349,23 +4289,11 @@
       "_callable": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": "note_unstored_helius_standard_wss_notification()",
       "source_file": "app.py",
       "source_location": "L15530"
-    },
-    {
-      "id": "app_prepare_pumpportal_lightning_sell",
-      "label": "prepare_pumpportal_lightning_sell()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 31,
-      "community_name": "ValueError",
-      "file_type": "code",
-      "norm_label": "prepare_pumpportal_lightning_sell()",
-      "source_file": "app.py",
-      "source_location": "L3207"
     },
     {
       "id": "app_record_helius_standard_wss_notification",
@@ -4373,7 +4301,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": "record_helius_standard_wss_notification()",
       "source_file": "app.py",
@@ -4385,7 +4313,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": "schedule_helius_standard_wss_fetch()",
       "source_file": "app.py",
@@ -4397,7 +4325,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": "standard_wss_rpc_url()",
       "source_file": "app.py",
@@ -4409,7 +4337,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": "start_helius_token_subscription_interval()",
       "source_file": "app.py",
@@ -4421,35 +4349,11 @@
       "_callable": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": "sync_helius_standard_wss_tokens()",
       "source_file": "app.py",
       "source_location": "L16749"
-    },
-    {
-      "id": "app_token_rpc_probe_once",
-      "label": "token_rpc_probe_once()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 31,
-      "community_name": "ValueError",
-      "file_type": "code",
-      "norm_label": "token_rpc_probe_once()",
-      "source_file": "app.py",
-      "source_location": "L15850"
-    },
-    {
-      "id": "app_token_rpc_probe_worker",
-      "label": "token_rpc_probe_worker()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 31,
-      "community_name": "ValueError",
-      "file_type": "code",
-      "norm_label": "token_rpc_probe_worker()",
-      "source_file": "app.py",
-      "source_location": "L15942"
     },
     {
       "id": "app_trader_for",
@@ -4457,7 +4361,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": "trader_for()",
       "source_file": "app.py",
@@ -4469,23 +4373,11 @@
       "_callable": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": "update_helius_standard_wss_state()",
       "source_file": "app.py",
       "source_location": "L15469"
-    },
-    {
-      "id": "app_update_live_account_exit_monitor_state",
-      "label": "update_live_account_exit_monitor_state()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 31,
-      "community_name": "ValueError",
-      "file_type": "code",
-      "norm_label": "update_live_account_exit_monitor_state()",
-      "source_file": "app.py",
-      "source_location": "L8231"
     },
     {
       "id": "helius_standard_wss_build_helius_standard_wss_url",
@@ -4493,7 +4385,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": "build_helius_standard_wss_url()",
       "source_file": "helius_standard_wss.py",
@@ -4505,7 +4397,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": "build_logs_subscribe_request()",
       "source_file": "helius_standard_wss.py",
@@ -4517,7 +4409,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": "build_logs_unsubscribe_request()",
       "source_file": "helius_standard_wss.py",
@@ -4529,7 +4421,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": "decode_wss_message()",
       "source_file": "helius_standard_wss.py",
@@ -4541,7 +4433,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": "invokes_program()",
       "source_file": "helius_standard_wss.py",
@@ -4553,7 +4445,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": "parse_logs_notification()",
       "source_file": "helius_standard_wss.py",
@@ -4565,7 +4457,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": "select_tracked_tokens()",
       "source_file": "helius_standard_wss.py",
@@ -4577,7 +4469,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": "select_watched_wallets()",
       "source_file": "helius_standard_wss.py",
@@ -4589,71 +4481,11 @@
       "_callable": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": "subscription_confirmation()",
       "source_file": "helius_standard_wss.py",
       "source_location": "L84"
-    },
-    {
-      "id": "solana_receipts_parse_buy_receipt",
-      "label": "parse_buy_receipt()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 31,
-      "community_name": "ValueError",
-      "file_type": "code",
-      "norm_label": "parse_buy_receipt()",
-      "source_file": "solana_receipts.py",
-      "source_location": "L14"
-    },
-    {
-      "id": "solana_receipts_parse_buy_receipt_7dde67",
-      "label": "_parse_buy_receipt()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 31,
-      "community_name": "ValueError",
-      "file_type": "code",
-      "norm_label": "_parse_buy_receipt()",
-      "source_file": "solana_receipts.py",
-      "source_location": "L34"
-    },
-    {
-      "id": "solana_receipts_parse_receipt_balances",
-      "label": "_parse_receipt_balances()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 31,
-      "community_name": "ValueError",
-      "file_type": "code",
-      "norm_label": "_parse_receipt_balances()",
-      "source_file": "solana_receipts.py",
-      "source_location": "L91"
-    },
-    {
-      "id": "solana_receipts_parse_sell_receipt_23682d",
-      "label": "_parse_sell_receipt()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 31,
-      "community_name": "ValueError",
-      "file_type": "code",
-      "norm_label": "_parse_sell_receipt()",
-      "source_file": "solana_receipts.py",
-      "source_location": "L63"
-    },
-    {
-      "id": "solana_receipts_unsigned_integer",
-      "label": "unsigned_integer()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 31,
-      "community_name": "ValueError",
-      "file_type": "code",
-      "norm_label": "unsigned_integer()",
-      "source_file": "solana_receipts.py",
-      "source_location": "L8"
     },
     {
       "id": "tests_test_helius_standard_wss_heliusstandardwssprotocoltests_test_builds_filtered_wallet_subscription",
@@ -4661,7 +4493,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": ".test_builds_filtered_wallet_subscription()",
       "source_file": "tests/test_helius_standard_wss.py",
@@ -4673,7 +4505,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": ".test_builds_unsubscribe_request()",
       "source_file": "tests/test_helius_standard_wss.py",
@@ -4685,7 +4517,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": ".test_confirmation_binds_subscription_to_wallet()",
       "source_file": "tests/test_helius_standard_wss.py",
@@ -4697,7 +4529,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": ".test_decode_accepts_text_and_rejects_non_object()",
       "source_file": "tests/test_helius_standard_wss.py",
@@ -4709,7 +4541,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": ".test_fetch_errors_distinguish_only_known_rpc_failures()",
       "source_file": "tests/test_helius_standard_wss.py",
@@ -4721,7 +4553,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": ".test_ignores_unknown_or_malformed_notifications()",
       "source_file": "tests/test_helius_standard_wss.py",
@@ -4733,7 +4565,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": ".test_parses_notification_with_subscription_identity()",
       "source_file": "tests/test_helius_standard_wss.py",
@@ -4745,7 +4577,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": ".test_program_filter_requires_invocation_log()",
       "source_file": "tests/test_helius_standard_wss.py",
@@ -4757,7 +4589,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": ".test_retry_backoff_grows_and_is_capped_for_other_errors()",
       "source_file": "tests/test_helius_standard_wss.py",
@@ -4769,7 +4601,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": ".test_retry_backoff_is_long_for_rate_limits()",
       "source_file": "tests/test_helius_standard_wss.py",
@@ -4781,7 +4613,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": ".test_selects_only_requested_traders()",
       "source_file": "tests/test_helius_standard_wss.py",
@@ -4793,7 +4625,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": ".test_token_selection_honors_priority_before_alphabetical_fallback()",
       "source_file": "tests/test_helius_standard_wss.py",
@@ -4805,7 +4637,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": ".test_token_selection_is_bounded_and_excludes_watched_wallets()",
       "source_file": "tests/test_helius_standard_wss.py",
@@ -4817,7 +4649,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": ".test_url_requires_key_unless_explicit()",
       "source_file": "tests/test_helius_standard_wss.py",
@@ -5436,36 +5268,12 @@
       "source_location": "L670"
     },
     {
-      "id": "solana_rpc_fallback_parse_tracked_token_pump_events",
-      "label": "parse_tracked_token_pump_events()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 36,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": "parse_tracked_token_pump_events()",
-      "source_file": "solana_rpc_fallback.py",
-      "source_location": "L545"
-    },
-    {
-      "id": "tests_test_rpc_fallback_pump_receipt",
-      "label": "pump_receipt()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 36,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": "pump_receipt()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L82"
-    },
-    {
       "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_parsed",
       "label": ".parsed()",
       "_callable": true,
       "_origin": "ast",
       "community": 36,
-      "community_name": "pump_receipt",
+      "community_name": "RpcFallbackPersistenceTests",
       "file_type": "code",
       "norm_label": ".parsed()",
       "source_file": "tests/test_rpc_fallback.py",
@@ -5477,7 +5285,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 36,
-      "community_name": "pump_receipt",
+      "community_name": "RpcFallbackPersistenceTests",
       "file_type": "code",
       "norm_label": ".setup()",
       "source_file": "tests/test_rpc_fallback.py",
@@ -5489,7 +5297,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 36,
-      "community_name": "pump_receipt",
+      "community_name": "RpcFallbackPersistenceTests",
       "file_type": "code",
       "norm_label": ".teardown()",
       "source_file": "tests/test_rpc_fallback.py",
@@ -5501,7 +5309,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 36,
-      "community_name": "pump_receipt",
+      "community_name": "RpcFallbackPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_apply_flag_decides_whether_the_fallback_feeds_the_inbox()",
       "source_file": "tests/test_rpc_fallback.py",
@@ -5513,7 +5321,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 36,
-      "community_name": "pump_receipt",
+      "community_name": "RpcFallbackPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_failed_initial_state_still_bootstraps_current_head()",
       "source_file": "tests/test_rpc_fallback.py",
@@ -5525,7 +5333,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 36,
-      "community_name": "pump_receipt",
+      "community_name": "RpcFallbackPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_first_poll_starts_now_without_partial_history()",
       "source_file": "tests/test_rpc_fallback.py",
@@ -5537,59 +5345,11 @@
       "_callable": true,
       "_origin": "ast",
       "community": 36,
-      "community_name": "pump_receipt",
+      "community_name": "RpcFallbackPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_identity_stats_match_event_index_and_live_transport()",
       "source_file": "tests/test_rpc_fallback.py",
       "source_location": "L711"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_legacy_not_null_balance_column_is_relaxed_keeping_rows",
-      "label": ".test_legacy_not_null_balance_column_is_relaxed_keeping_rows()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 36,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": ".test_legacy_not_null_balance_column_is_relaxed_keeping_rows()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L798"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_missing_event_can_later_reconcile_to_stream",
-      "label": ".test_missing_event_can_later_reconcile_to_stream()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 36,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": ".test_missing_event_can_later_reconcile_to_stream()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L479"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_missing_event_reports_what_the_wss_transport_saw",
-      "label": ".test_missing_event_reports_what_the_wss_transport_saw()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 36,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": ".test_missing_event_reports_what_the_wss_transport_saw()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L626"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_operation_applied_from_helius_is_not_missing",
-      "label": ".test_operation_applied_from_helius_is_not_missing()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 36,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": ".test_operation_applied_from_helius_is_not_missing()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L757"
     },
     {
       "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_poll_does_not_reserve_signature_used_by_live_stream",
@@ -5597,7 +5357,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 36,
-      "community_name": "pump_receipt",
+      "community_name": "RpcFallbackPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_poll_does_not_reserve_signature_used_by_live_stream()",
       "source_file": "tests/test_rpc_fallback.py",
@@ -5609,7 +5369,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 36,
-      "community_name": "pump_receipt",
+      "community_name": "RpcFallbackPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_saturated_backlog_rebases_to_current_head()",
       "source_file": "tests/test_rpc_fallback.py",
@@ -5621,7 +5381,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 36,
-      "community_name": "pump_receipt",
+      "community_name": "RpcFallbackPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_saturated_wallet_is_measured_but_never_applied()",
       "source_file": "tests/test_rpc_fallback.py",
@@ -5633,95 +5393,11 @@
       "_callable": true,
       "_origin": "ast",
       "community": 36,
-      "community_name": "pump_receipt",
+      "community_name": "RpcFallbackPersistenceTests",
       "file_type": "code",
       "norm_label": ".test_second_operation_of_a_transaction_is_not_hidden_by_the_first()",
       "source_file": "tests/test_rpc_fallback.py",
       "source_location": "L672"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_unknown_balance_is_recorded_as_null",
-      "label": ".test_unknown_balance_is_recorded_as_null()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 36,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": ".test_unknown_balance_is_recorded_as_null()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L771"
-    },
-    {
-      "id": "tests_test_rpc_fallback_token_balance",
-      "label": "token_balance()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 36,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": "token_balance()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L38"
-    },
-    {
-      "id": "tests_test_rpc_fallback_trackedtokenparsertests_test_ignores_an_untracked_mint",
-      "label": ".test_ignores_an_untracked_mint()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 36,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": ".test_ignores_an_untracked_mint()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L244"
-    },
-    {
-      "id": "tests_test_rpc_fallback_trackedtokenparsertests_test_missing_user_balance_keeps_price_event_with_unknown_balance",
-      "label": ".test_missing_user_balance_keeps_price_event_with_unknown_balance()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 36,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": ".test_missing_user_balance_keeps_price_event_with_unknown_balance()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L313"
-    },
-    {
-      "id": "tests_test_rpc_fallback_trackedtokenparsertests_test_multiple_operations_keep_global_ordinals",
-      "label": ".test_multiple_operations_keep_global_ordinals()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 36,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": ".test_multiple_operations_keep_global_ordinals()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L252"
-    },
-    {
-      "id": "tests_test_rpc_fallback_trackedtokenparsertests_test_ordinal_does_not_depend_on_an_earlier_event_decoding",
-      "label": ".test_ordinal_does_not_depend_on_an_earlier_event_decoding()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 36,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": ".test_ordinal_does_not_depend_on_an_earlier_event_decoding()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L265"
-    },
-    {
-      "id": "tests_test_rpc_fallback_trackedtokenparsertests_test_parses_tracked_mint_without_requiring_a_watched_wallet",
-      "label": ".test_parses_tracked_mint_without_requiring_a_watched_wallet()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 36,
-      "community_name": "pump_receipt",
-      "file_type": "code",
-      "norm_label": ".test_parses_tracked_mint_without_requiring_a_watched_wallet()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L229"
     },
     {
       "id": "tests_test_stream_routing_marketeventroutingtests_setup",
@@ -6384,52 +6060,16 @@
       "source_location": "L901"
     },
     {
-      "id": "app_api_live_positions",
-      "label": "api_live_positions()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 46,
-      "community_name": "open_paper_position",
-      "file_type": "code",
-      "norm_label": "api_live_positions()",
-      "source_file": "app.py",
-      "source_location": "L18591"
-    },
-    {
       "id": "app_apply_paper_event",
       "label": "apply_paper_event()",
       "_callable": true,
       "_origin": "ast",
       "community": 46,
-      "community_name": "open_paper_position",
+      "community_name": "apply_paper_event",
       "file_type": "code",
       "norm_label": "apply_paper_event()",
       "source_file": "app.py",
       "source_location": "L11653"
-    },
-    {
-      "id": "app_build_pumpportal_lightning_buy_payload",
-      "label": "build_pumpportal_lightning_buy_payload()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 46,
-      "community_name": "open_paper_position",
-      "file_type": "code",
-      "norm_label": "build_pumpportal_lightning_buy_payload()",
-      "source_file": "app.py",
-      "source_location": "L3031"
-    },
-    {
-      "id": "app_count_open_positions",
-      "label": "count_open_positions()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 46,
-      "community_name": "open_paper_position",
-      "file_type": "code",
-      "norm_label": "count_open_positions()",
-      "source_file": "app.py",
-      "source_location": "L1629"
     },
     {
       "id": "app_decide_paper_position_action",
@@ -6437,95 +6077,11 @@
       "_callable": true,
       "_origin": "ast",
       "community": 46,
-      "community_name": "open_paper_position",
+      "community_name": "apply_paper_event",
       "file_type": "code",
       "norm_label": "decide_paper_position_action()",
       "source_file": "app.py",
       "source_location": "L11585"
-    },
-    {
-      "id": "app_fetch_sol_usd_quote",
-      "label": "fetch_sol_usd_quote()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 46,
-      "community_name": "open_paper_position",
-      "file_type": "code",
-      "norm_label": "fetch_sol_usd_quote()",
-      "source_file": "app.py",
-      "source_location": "L3248"
-    },
-    {
-      "id": "app_get_daily_live_realized_pnl_sol",
-      "label": "get_daily_live_realized_pnl_sol()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 46,
-      "community_name": "open_paper_position",
-      "file_type": "code",
-      "norm_label": "get_daily_live_realized_pnl_sol()",
-      "source_file": "app.py",
-      "source_location": "L1707"
-    },
-    {
-      "id": "app_get_daily_realized_pnl",
-      "label": "get_daily_realized_pnl()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 46,
-      "community_name": "open_paper_position",
-      "file_type": "code",
-      "norm_label": "get_daily_realized_pnl()",
-      "source_file": "app.py",
-      "source_location": "L1659"
-    },
-    {
-      "id": "app_get_live_position_summary",
-      "label": "get_live_position_summary()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 46,
-      "community_name": "open_paper_position",
-      "file_type": "code",
-      "norm_label": "get_live_position_summary()",
-      "source_file": "app.py",
-      "source_location": "L1765"
-    },
-    {
-      "id": "app_open_paper_position",
-      "label": "open_paper_position()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 46,
-      "community_name": "open_paper_position",
-      "file_type": "code",
-      "norm_label": "open_paper_position()",
-      "source_file": "app.py",
-      "source_location": "L10241"
-    },
-    {
-      "id": "app_prepare_pumpportal_lightning_buy",
-      "label": "prepare_pumpportal_lightning_buy()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 46,
-      "community_name": "open_paper_position",
-      "file_type": "code",
-      "norm_label": "prepare_pumpportal_lightning_buy()",
-      "source_file": "app.py",
-      "source_location": "L3274"
-    },
-    {
-      "id": "app_risk_check",
-      "label": "risk_check()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 46,
-      "community_name": "open_paper_position",
-      "file_type": "code",
-      "norm_label": "risk_check()",
-      "source_file": "app.py",
-      "source_location": "L4902"
     },
     {
       "id": "app_save_position_event",
@@ -6533,7 +6089,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 46,
-      "community_name": "open_paper_position",
+      "community_name": "apply_paper_event",
       "file_type": "code",
       "norm_label": "save_position_event()",
       "source_file": "app.py",
@@ -6545,23 +6101,11 @@
       "_callable": true,
       "_origin": "ast",
       "community": 46,
-      "community_name": "open_paper_position",
+      "community_name": "apply_paper_event",
       "file_type": "code",
       "norm_label": "stored_block_event_ts()",
       "source_file": "app.py",
       "source_location": "L10970"
-    },
-    {
-      "id": "app_validate_slippage",
-      "label": "validate_slippage()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 46,
-      "community_name": "open_paper_position",
-      "file_type": "code",
-      "norm_label": "validate_slippage()",
-      "source_file": "app.py",
-      "source_location": "L1836"
     },
     {
       "id": "app_migrate_database",
@@ -9432,6 +8976,18 @@
       "source_location": "L1190"
     },
     {
+      "id": "tests_test_rpc_fallback_heliuswebhooktests_test_all_watched_wallets_in_one_transaction_are_preserved",
+      "label": ".test_all_watched_wallets_in_one_transaction_are_preserved()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 60,
+      "community_name": "HeliusWebhookTests",
+      "file_type": "code",
+      "norm_label": ".test_all_watched_wallets_in_one_transaction_are_preserved()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L1557"
+    },
+    {
       "id": "tests_test_rpc_fallback_heliuswebhooktests_test_preserves_multiple_events_from_one_transaction",
       "label": ".test_preserves_multiple_events_from_one_transaction()",
       "_callable": true,
@@ -9888,52 +9444,172 @@
       "source_location": "L139"
     },
     {
-      "id": "app_account_checkpoint_training_alert_state_key",
-      "label": "account_checkpoint_training_alert_state_key()",
+      "id": "app_api_watched_wallets",
+      "label": "api_watched_wallets()",
       "_callable": true,
       "_origin": "ast",
-      "community": 63,
-      "community_name": "app.py",
+      "community": 62,
+      "community_name": "send_discord_alert",
       "file_type": "code",
-      "norm_label": "account_checkpoint_training_alert_state_key()",
+      "norm_label": "api_watched_wallets()",
       "source_file": "app.py",
-      "source_location": "L16592"
+      "source_location": "L18416"
     },
     {
-      "id": "app_account_price_checkpoint_once",
-      "label": "account_price_checkpoint_once()",
+      "id": "app_check_watched_wallet_silence",
+      "label": "check_watched_wallet_silence()",
       "_callable": true,
       "_origin": "ast",
-      "community": 63,
-      "community_name": "app.py",
+      "community": 62,
+      "community_name": "send_discord_alert",
       "file_type": "code",
-      "norm_label": "account_price_checkpoint_once()",
+      "norm_label": "check_watched_wallet_silence()",
       "source_file": "app.py",
-      "source_location": "L15964"
+      "source_location": "L12600"
     },
     {
-      "id": "app_account_price_checkpoint_worker",
-      "label": "account_price_checkpoint_worker()",
+      "id": "app_get_watched_wallet_activity",
+      "label": "get_watched_wallet_activity()",
       "_callable": true,
       "_origin": "ast",
-      "community": 63,
-      "community_name": "app.py",
+      "community": 62,
+      "community_name": "send_discord_alert",
       "file_type": "code",
-      "norm_label": "account_price_checkpoint_worker()",
+      "norm_label": "get_watched_wallet_activity()",
       "source_file": "app.py",
-      "source_location": "L16068"
+      "source_location": "L12537"
     },
     {
-      "id": "app_api_account_checkpoint_training_dataset",
-      "label": "api_account_checkpoint_training_dataset()",
+      "id": "app_helius_webhook_sync_worker",
+      "label": "helius_webhook_sync_worker()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 62,
+      "community_name": "send_discord_alert",
+      "file_type": "code",
+      "norm_label": "helius_webhook_sync_worker()",
+      "source_file": "app.py",
+      "source_location": "L15460"
+    },
+    {
+      "id": "app_mark_stream_problem",
+      "label": "mark_stream_problem()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 62,
+      "community_name": "send_discord_alert",
+      "file_type": "code",
+      "norm_label": "mark_stream_problem()",
+      "source_file": "app.py",
+      "source_location": "L13324"
+    },
+    {
+      "id": "app_mark_stream_recovered",
+      "label": "mark_stream_recovered()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 62,
+      "community_name": "send_discord_alert",
+      "file_type": "code",
+      "norm_label": "mark_stream_recovered()",
+      "source_file": "app.py",
+      "source_location": "L13352"
+    },
+    {
+      "id": "app_market_event_inbox_consumer_worker",
+      "label": "market_event_inbox_consumer_worker()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 62,
+      "community_name": "send_discord_alert",
+      "file_type": "code",
+      "norm_label": "market_event_inbox_consumer_worker()",
+      "source_file": "app.py",
+      "source_location": "L11564"
+    },
+    {
+      "id": "app_post_discord_alert",
+      "label": "post_discord_alert()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 62,
+      "community_name": "send_discord_alert",
+      "file_type": "code",
+      "norm_label": "post_discord_alert()",
+      "source_file": "app.py",
+      "source_location": "L12281"
+    },
+    {
+      "id": "app_send_discord_alert",
+      "label": "send_discord_alert()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 62,
+      "community_name": "send_discord_alert",
+      "file_type": "code",
+      "norm_label": "send_discord_alert()",
+      "source_file": "app.py",
+      "source_location": "L12303"
+    },
+    {
+      "id": "app_update_helius_webhook_sync_alert",
+      "label": "update_helius_webhook_sync_alert()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 62,
+      "community_name": "send_discord_alert",
+      "file_type": "code",
+      "norm_label": "update_helius_webhook_sync_alert()",
+      "source_file": "app.py",
+      "source_location": "L15428"
+    },
+    {
+      "id": "app_watched_wallet_monitor",
+      "label": "watched_wallet_monitor()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 62,
+      "community_name": "send_discord_alert",
+      "file_type": "code",
+      "norm_label": "watched_wallet_monitor()",
+      "source_file": "app.py",
+      "source_location": "L12654"
+    },
+    {
+      "id": "app_api_live_account_exit_monitor_stats",
+      "label": "api_live_account_exit_monitor_stats()",
       "_callable": true,
       "_origin": "ast",
       "community": 63,
       "community_name": "app.py",
       "file_type": "code",
-      "norm_label": "api_account_checkpoint_training_dataset()",
+      "norm_label": "api_live_account_exit_monitor_stats()",
       "source_file": "app.py",
-      "source_location": "L17931"
+      "source_location": "L18583"
+    },
+    {
+      "id": "app_api_live_positions",
+      "label": "api_live_positions()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 63,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "api_live_positions()",
+      "source_file": "app.py",
+      "source_location": "L18591"
+    },
+    {
+      "id": "app_api_rpc_fallback_stats",
+      "label": "api_rpc_fallback_stats()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 63,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "api_rpc_fallback_stats()",
+      "source_file": "app.py",
+      "source_location": "L18446"
     },
     {
       "id": "app_api_training_checkpoint_freshness",
@@ -10020,6 +9696,18 @@
       "source_location": "L9701"
     },
     {
+      "id": "app_assess_shadow_challenger",
+      "label": "assess_shadow_challenger()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 63,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "assess_shadow_challenger()",
+      "source_file": "app.py",
+      "source_location": "L8078"
+    },
+    {
       "id": "app_build_model_features",
       "label": "build_model_features()",
       "_callable": true,
@@ -10032,16 +9720,52 @@
       "source_location": "L7633"
     },
     {
-      "id": "app_count_complete_account_checkpoint_paths",
-      "label": "count_complete_account_checkpoint_paths()",
+      "id": "app_build_pumpportal_lightning_buy_payload",
+      "label": "build_pumpportal_lightning_buy_payload()",
       "_callable": true,
       "_origin": "ast",
       "community": 63,
       "community_name": "app.py",
       "file_type": "code",
-      "norm_label": "count_complete_account_checkpoint_paths()",
+      "norm_label": "build_pumpportal_lightning_buy_payload()",
       "source_file": "app.py",
-      "source_location": "L16560"
+      "source_location": "L3031"
+    },
+    {
+      "id": "app_calculate_copyability_score",
+      "label": "calculate_copyability_score()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 63,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "calculate_copyability_score()",
+      "source_file": "app.py",
+      "source_location": "L7501"
+    },
+    {
+      "id": "app_compare_shadow_models",
+      "label": "compare_shadow_models()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 63,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "compare_shadow_models()",
+      "source_file": "app.py",
+      "source_location": "L7955"
+    },
+    {
+      "id": "app_count_open_positions",
+      "label": "count_open_positions()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 63,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "count_open_positions()",
+      "source_file": "app.py",
+      "source_location": "L1629"
     },
     {
       "id": "app_create_signal_outcome",
@@ -10092,6 +9816,42 @@
       "source_location": "L9894"
     },
     {
+      "id": "app_execute_pumpportal_lightning_buy",
+      "label": "execute_pumpportal_lightning_buy()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 63,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "execute_pumpportal_lightning_buy()",
+      "source_file": "app.py",
+      "source_location": "L3383"
+    },
+    {
+      "id": "app_execute_pumpportal_lightning_sell",
+      "label": "execute_pumpportal_lightning_sell()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 63,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "execute_pumpportal_lightning_sell()",
+      "source_file": "app.py",
+      "source_location": "L3532"
+    },
+    {
+      "id": "app_fetch_sol_usd_quote",
+      "label": "fetch_sol_usd_quote()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 63,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "fetch_sol_usd_quote()",
+      "source_file": "app.py",
+      "source_location": "L3248"
+    },
+    {
       "id": "app_fetch_solana_balance_sol",
       "label": "fetch_solana_balance_sol()",
       "_callable": true,
@@ -10104,52 +9864,40 @@
       "source_location": "L12392"
     },
     {
-      "id": "app_get_account_checkpoint_dataset_rows",
-      "label": "get_account_checkpoint_dataset_rows()",
+      "id": "app_get_daily_live_buy_exposure",
+      "label": "get_daily_live_buy_exposure()",
       "_callable": true,
       "_origin": "ast",
       "community": 63,
       "community_name": "app.py",
       "file_type": "code",
-      "norm_label": "get_account_checkpoint_dataset_rows()",
+      "norm_label": "get_daily_live_buy_exposure()",
       "source_file": "app.py",
-      "source_location": "L16452"
+      "source_location": "L1732"
     },
     {
-      "id": "app_get_account_checkpoint_observations",
-      "label": "get_account_checkpoint_observations()",
+      "id": "app_get_daily_live_realized_pnl_sol",
+      "label": "get_daily_live_realized_pnl_sol()",
       "_callable": true,
       "_origin": "ast",
       "community": 63,
       "community_name": "app.py",
       "file_type": "code",
-      "norm_label": "get_account_checkpoint_observations()",
+      "norm_label": "get_daily_live_realized_pnl_sol()",
       "source_file": "app.py",
-      "source_location": "L16247"
+      "source_location": "L1707"
     },
     {
-      "id": "app_get_account_checkpoint_training_stats",
-      "label": "get_account_checkpoint_training_stats()",
+      "id": "app_get_execution_order_status",
+      "label": "get_execution_order_status()",
       "_callable": true,
       "_origin": "ast",
       "community": 63,
       "community_name": "app.py",
       "file_type": "code",
-      "norm_label": "get_account_checkpoint_training_stats()",
+      "norm_label": "get_execution_order_status()",
       "source_file": "app.py",
-      "source_location": "L16486"
-    },
-    {
-      "id": "app_get_helius_webhook_delivery_alert_active",
-      "label": "get_helius_webhook_delivery_alert_active()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 63,
-      "community_name": "app.py",
-      "file_type": "code",
-      "norm_label": "get_helius_webhook_delivery_alert_active()",
-      "source_file": "app.py",
-      "source_location": "L13128"
+      "source_location": "L4078"
     },
     {
       "id": "app_get_latest_helius_pump_event_received_ts",
@@ -10176,6 +9924,30 @@
       "source_location": "L8236"
     },
     {
+      "id": "app_get_live_canary_blockers",
+      "label": "get_live_canary_blockers()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 63,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "get_live_canary_blockers()",
+      "source_file": "app.py",
+      "source_location": "L8344"
+    },
+    {
+      "id": "app_get_live_execution_readiness",
+      "label": "get_live_execution_readiness()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 63,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "get_live_execution_readiness()",
+      "source_file": "app.py",
+      "source_location": "L8441"
+    },
+    {
       "id": "app_get_live_exit_feed_readiness",
       "label": "get_live_exit_feed_readiness()",
       "_callable": true,
@@ -10186,6 +9958,54 @@
       "norm_label": "get_live_exit_feed_readiness()",
       "source_file": "app.py",
       "source_location": "L8275"
+    },
+    {
+      "id": "app_get_live_position_summary",
+      "label": "get_live_position_summary()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 63,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "get_live_position_summary()",
+      "source_file": "app.py",
+      "source_location": "L1765"
+    },
+    {
+      "id": "app_get_local_day_start_ts",
+      "label": "get_local_day_start_ts()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 63,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "get_local_day_start_ts()",
+      "source_file": "app.py",
+      "source_location": "L1724"
+    },
+    {
+      "id": "app_get_rpc_fallback_stats",
+      "label": "get_rpc_fallback_stats()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 63,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "get_rpc_fallback_stats()",
+      "source_file": "app.py",
+      "source_location": "L13189"
+    },
+    {
+      "id": "app_get_shadow_stats",
+      "label": "get_shadow_stats()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 63,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "get_shadow_stats()",
+      "source_file": "app.py",
+      "source_location": "L8126"
     },
     {
       "id": "app_get_signal_checkpoint_lags",
@@ -10212,6 +10032,18 @@
       "source_location": "L7236"
     },
     {
+      "id": "app_get_trader_copyability_stats",
+      "label": "get_trader_copyability_stats()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 63,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "get_trader_copyability_stats()",
+      "source_file": "app.py",
+      "source_location": "L6187"
+    },
+    {
       "id": "app_get_trader_hit_stats",
       "label": "get_trader_hit_stats()",
       "_callable": true,
@@ -10234,6 +10066,30 @@
       "norm_label": "get_trader_quality_assessment()",
       "source_file": "app.py",
       "source_location": "L6117"
+    },
+    {
+      "id": "app_get_trader_reliable_returns",
+      "label": "get_trader_reliable_returns()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 63,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "get_trader_reliable_returns()",
+      "source_file": "app.py",
+      "source_location": "L7357"
+    },
+    {
+      "id": "app_get_trader_reliable_samples",
+      "label": "get_trader_reliable_samples()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 63,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "get_trader_reliable_samples()",
+      "source_file": "app.py",
+      "source_location": "L7285"
     },
     {
       "id": "app_get_training_checkpoint_freshness",
@@ -10296,30 +10152,6 @@
       "source_location": "L8851"
     },
     {
-      "id": "app_has_recent_rpc_pump_activity",
-      "label": "has_recent_rpc_pump_activity()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 63,
-      "community_name": "app.py",
-      "file_type": "code",
-      "norm_label": "has_recent_rpc_pump_activity()",
-      "source_file": "app.py",
-      "source_location": "L13112"
-    },
-    {
-      "id": "app_helius_webhook_sync_worker",
-      "label": "helius_webhook_sync_worker()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 63,
-      "community_name": "app.py",
-      "file_type": "code",
-      "norm_label": "helius_webhook_sync_worker()",
-      "source_file": "app.py",
-      "source_location": "L15460"
-    },
-    {
       "id": "app_home",
       "label": "home()",
       "_callable": true,
@@ -10332,40 +10164,40 @@
       "source_location": "L20780"
     },
     {
-      "id": "app_mark_rpc_fallback_events_alerted",
-      "label": "mark_rpc_fallback_events_alerted()",
+      "id": "app_live_account_exit_monitor_error_code",
+      "label": "live_account_exit_monitor_error_code()",
       "_callable": true,
       "_origin": "ast",
       "community": 63,
       "community_name": "app.py",
       "file_type": "code",
-      "norm_label": "mark_rpc_fallback_events_alerted()",
+      "norm_label": "live_account_exit_monitor_error_code()",
       "source_file": "app.py",
-      "source_location": "L12867"
+      "source_location": "L16081"
     },
     {
-      "id": "app_mark_stream_problem",
-      "label": "mark_stream_problem()",
+      "id": "app_live_account_exit_monitor_once",
+      "label": "live_account_exit_monitor_once()",
       "_callable": true,
       "_origin": "ast",
       "community": 63,
       "community_name": "app.py",
       "file_type": "code",
-      "norm_label": "mark_stream_problem()",
+      "norm_label": "live_account_exit_monitor_once()",
       "source_file": "app.py",
-      "source_location": "L13324"
+      "source_location": "L16093"
     },
     {
-      "id": "app_mark_stream_recovered",
-      "label": "mark_stream_recovered()",
+      "id": "app_live_account_exit_monitor_worker",
+      "label": "live_account_exit_monitor_worker()",
       "_callable": true,
       "_origin": "ast",
       "community": 63,
       "community_name": "app.py",
       "file_type": "code",
-      "norm_label": "mark_stream_recovered()",
+      "norm_label": "live_account_exit_monitor_worker()",
       "source_file": "app.py",
-      "source_location": "L13352"
+      "source_location": "L16206"
     },
     {
       "id": "app_maybe_execute_live_copy",
@@ -10380,18 +10212,6 @@
       "source_location": "L9786"
     },
     {
-      "id": "app_maybe_send_account_checkpoint_training_ready_alert",
-      "label": "maybe_send_account_checkpoint_training_ready_alert()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 63,
-      "community_name": "app.py",
-      "file_type": "code",
-      "norm_label": "maybe_send_account_checkpoint_training_ready_alert()",
-      "source_file": "app.py",
-      "source_location": "L16604"
-    },
-    {
       "id": "app_observe_shadow_signal",
       "label": "observe_shadow_signal()",
       "_callable": true,
@@ -10404,16 +10224,16 @@
       "source_location": "L7823"
     },
     {
-      "id": "app_post_discord_alert",
-      "label": "post_discord_alert()",
+      "id": "app_prepare_pumpportal_lightning_buy",
+      "label": "prepare_pumpportal_lightning_buy()",
       "_callable": true,
       "_origin": "ast",
       "community": 63,
       "community_name": "app.py",
       "file_type": "code",
-      "norm_label": "post_discord_alert()",
+      "norm_label": "prepare_pumpportal_lightning_buy()",
       "source_file": "app.py",
-      "source_location": "L12281"
+      "source_location": "L3274"
     },
     {
       "id": "app_pumpportal_balance_monitor",
@@ -10426,18 +10246,6 @@
       "norm_label": "pumpportal_balance_monitor()",
       "source_file": "app.py",
       "source_location": "L12518"
-    },
-    {
-      "id": "app_reconcile_rpc_fallback_events",
-      "label": "reconcile_rpc_fallback_events()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 63,
-      "community_name": "app.py",
-      "file_type": "code",
-      "norm_label": "reconcile_rpc_fallback_events()",
-      "source_file": "app.py",
-      "source_location": "L12799"
     },
     {
       "id": "app_record_pumpportal_wallet_balance",
@@ -10464,16 +10272,28 @@
       "source_location": "L7758"
     },
     {
-      "id": "app_rpc_fallback_shadow_worker",
-      "label": "rpc_fallback_shadow_worker()",
+      "id": "app_require_live_trading",
+      "label": "require_live_trading()",
       "_callable": true,
       "_origin": "ast",
       "community": 63,
       "community_name": "app.py",
       "file_type": "code",
-      "norm_label": "rpc_fallback_shadow_worker()",
+      "norm_label": "require_live_trading()",
       "source_file": "app.py",
-      "source_location": "L13080"
+      "source_location": "L13968"
+    },
+    {
+      "id": "app_risk_check",
+      "label": "risk_check()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 63,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "risk_check()",
+      "source_file": "app.py",
+      "source_location": "L4902"
     },
     {
       "id": "app_score_consensus",
@@ -10548,28 +10368,40 @@
       "source_location": "L6051"
     },
     {
-      "id": "app_send_discord_alert",
-      "label": "send_discord_alert()",
+      "id": "app_set_execution_order_external_signature",
+      "label": "set_execution_order_external_signature()",
       "_callable": true,
       "_origin": "ast",
       "community": 63,
       "community_name": "app.py",
       "file_type": "code",
-      "norm_label": "send_discord_alert()",
+      "norm_label": "set_execution_order_external_signature()",
       "source_file": "app.py",
-      "source_location": "L12303"
+      "source_location": "L3964"
     },
     {
-      "id": "app_set_helius_webhook_delivery_alert_active",
-      "label": "set_helius_webhook_delivery_alert_active()",
+      "id": "app_submit_pumpportal_lightning_trade",
+      "label": "submit_pumpportal_lightning_trade()",
       "_callable": true,
       "_origin": "ast",
       "community": 63,
       "community_name": "app.py",
       "file_type": "code",
-      "norm_label": "set_helius_webhook_delivery_alert_active()",
+      "norm_label": "submit_pumpportal_lightning_trade()",
       "source_file": "app.py",
-      "source_location": "L13142"
+      "source_location": "L3299"
+    },
+    {
+      "id": "app_summarize_shadow_predictions",
+      "label": "summarize_shadow_predictions()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 63,
+      "community_name": "app.py",
+      "file_type": "code",
+      "norm_label": "summarize_shadow_predictions()",
+      "source_file": "app.py",
+      "source_location": "L7911"
     },
     {
       "id": "app_trader_stats",
@@ -10596,28 +10428,16 @@
       "source_location": "L8567"
     },
     {
-      "id": "app_update_helius_webhook_delivery_alert",
-      "label": "update_helius_webhook_delivery_alert()",
+      "id": "app_update_live_account_exit_monitor_state",
+      "label": "update_live_account_exit_monitor_state()",
       "_callable": true,
       "_origin": "ast",
       "community": 63,
       "community_name": "app.py",
       "file_type": "code",
-      "norm_label": "update_helius_webhook_delivery_alert()",
+      "norm_label": "update_live_account_exit_monitor_state()",
       "source_file": "app.py",
-      "source_location": "L13155"
-    },
-    {
-      "id": "app_update_helius_webhook_sync_alert",
-      "label": "update_helius_webhook_sync_alert()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 63,
-      "community_name": "app.py",
-      "file_type": "code",
-      "norm_label": "update_helius_webhook_sync_alert()",
-      "source_file": "app.py",
-      "source_location": "L15428"
+      "source_location": "L8231"
     },
     {
       "id": "app_validate_liquidity",
@@ -10632,40 +10452,16 @@
       "source_location": "L1869"
     },
     {
-      "id": "scripts_relabel_stop_alignment_checkpoint_target",
-      "label": "checkpoint_target()",
+      "id": "app_validate_slippage",
+      "label": "validate_slippage()",
       "_callable": true,
       "_origin": "ast",
-      "community": 64,
-      "community_name": "relabel_stop_alignment.py",
+      "community": 63,
+      "community_name": "app.py",
       "file_type": "code",
-      "norm_label": "checkpoint_target()",
-      "source_file": "scripts/relabel_stop_alignment.py",
-      "source_location": "L37"
-    },
-    {
-      "id": "scripts_relabel_stop_alignment_evaluate",
-      "label": "evaluate()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 64,
-      "community_name": "relabel_stop_alignment.py",
-      "file_type": "code",
-      "norm_label": "evaluate()",
-      "source_file": "scripts/relabel_stop_alignment.py",
-      "source_location": "L57"
-    },
-    {
-      "id": "scripts_relabel_stop_alignment_main",
-      "label": "main()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 64,
-      "community_name": "relabel_stop_alignment.py",
-      "file_type": "code",
-      "norm_label": "main()",
-      "source_file": "scripts/relabel_stop_alignment.py",
-      "source_location": "L81"
+      "norm_label": "validate_slippage()",
+      "source_file": "app.py",
+      "source_location": "L1836"
     },
     {
       "id": "scripts_staged_payoff_backtest_bootstrap_ci",
@@ -10673,7 +10469,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 64,
-      "community_name": "relabel_stop_alignment.py",
+      "community_name": "staged_payoff_backtest.py",
       "file_type": "code",
       "norm_label": "bootstrap_ci()",
       "source_file": "scripts/staged_payoff_backtest.py",
@@ -10685,7 +10481,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 64,
-      "community_name": "relabel_stop_alignment.py",
+      "community_name": "staged_payoff_backtest.py",
       "file_type": "code",
       "norm_label": "describe()",
       "source_file": "scripts/staged_payoff_backtest.py",
@@ -10697,7 +10493,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 64,
-      "community_name": "relabel_stop_alignment.py",
+      "community_name": "staged_payoff_backtest.py",
       "file_type": "code",
       "norm_label": "main()",
       "source_file": "scripts/staged_payoff_backtest.py",
@@ -10709,7 +10505,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 64,
-      "community_name": "relabel_stop_alignment.py",
+      "community_name": "staged_payoff_backtest.py",
       "file_type": "code",
       "norm_label": "position_pnl()",
       "source_file": "scripts/staged_payoff_backtest.py",
@@ -10721,7 +10517,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 64,
-      "community_name": "relabel_stop_alignment.py",
+      "community_name": "staged_payoff_backtest.py",
       "file_type": "code",
       "norm_label": "run()",
       "source_file": "scripts/staged_payoff_backtest.py",
@@ -10733,7 +10529,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 64,
-      "community_name": "relabel_stop_alignment.py",
+      "community_name": "staged_payoff_backtest.py",
       "file_type": "code",
       "norm_label": "simulate_position()",
       "source_file": "scripts/staged_payoff_backtest.py",
@@ -10810,18 +10606,6 @@
       "norm_label": "finish_market_event_inbox_processing()",
       "source_file": "app.py",
       "source_location": "L11400"
-    },
-    {
-      "id": "app_get_rpc_fallback_wallet_states",
-      "label": "get_rpc_fallback_wallet_states()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 65,
-      "community_name": "route_market_event",
-      "file_type": "code",
-      "norm_label": "get_rpc_fallback_wallet_states()",
-      "source_file": "app.py",
-      "source_location": "L12664"
     },
     {
       "id": "app_helius_webhook",
@@ -10944,18 +10728,6 @@
       "source_location": "L10948"
     },
     {
-      "id": "app_poll_rpc_fallback_once",
-      "label": "poll_rpc_fallback_once()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 65,
-      "community_name": "route_market_event",
-      "file_type": "code",
-      "norm_label": "poll_rpc_fallback_once()",
-      "source_file": "app.py",
-      "source_location": "L12882"
-    },
-    {
       "id": "app_record_helius_webhook_transactions",
       "label": "record_helius_webhook_transactions()",
       "_callable": true,
@@ -11026,18 +10798,6 @@
       "norm_label": "stream()",
       "source_file": "app.py",
       "source_location": "L13458"
-    },
-    {
-      "id": "app_update_rpc_fallback_wallet_state",
-      "label": "update_rpc_fallback_wallet_state()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 65,
-      "community_name": "route_market_event",
-      "file_type": "code",
-      "norm_label": "update_rpc_fallback_wallet_state()",
-      "source_file": "app.py",
-      "source_location": "L12690"
     },
     {
       "id": "app_validated_block_event_ts",
@@ -11376,6 +11136,90 @@
       "source_location": "L194"
     },
     {
+      "id": "solana_rpc_fallback_parse_tracked_token_pump_events",
+      "label": "parse_tracked_token_pump_events()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 68,
+      "community_name": "parse_tracked_token_pump_events",
+      "file_type": "code",
+      "norm_label": "parse_tracked_token_pump_events()",
+      "source_file": "solana_rpc_fallback.py",
+      "source_location": "L545"
+    },
+    {
+      "id": "tests_test_rpc_fallback_token_balance",
+      "label": "token_balance()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 68,
+      "community_name": "parse_tracked_token_pump_events",
+      "file_type": "code",
+      "norm_label": "token_balance()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L38"
+    },
+    {
+      "id": "tests_test_rpc_fallback_trackedtokenparsertests_test_ignores_an_untracked_mint",
+      "label": ".test_ignores_an_untracked_mint()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 68,
+      "community_name": "parse_tracked_token_pump_events",
+      "file_type": "code",
+      "norm_label": ".test_ignores_an_untracked_mint()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L244"
+    },
+    {
+      "id": "tests_test_rpc_fallback_trackedtokenparsertests_test_missing_user_balance_keeps_price_event_with_unknown_balance",
+      "label": ".test_missing_user_balance_keeps_price_event_with_unknown_balance()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 68,
+      "community_name": "parse_tracked_token_pump_events",
+      "file_type": "code",
+      "norm_label": ".test_missing_user_balance_keeps_price_event_with_unknown_balance()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L313"
+    },
+    {
+      "id": "tests_test_rpc_fallback_trackedtokenparsertests_test_multiple_operations_keep_global_ordinals",
+      "label": ".test_multiple_operations_keep_global_ordinals()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 68,
+      "community_name": "parse_tracked_token_pump_events",
+      "file_type": "code",
+      "norm_label": ".test_multiple_operations_keep_global_ordinals()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L252"
+    },
+    {
+      "id": "tests_test_rpc_fallback_trackedtokenparsertests_test_ordinal_does_not_depend_on_an_earlier_event_decoding",
+      "label": ".test_ordinal_does_not_depend_on_an_earlier_event_decoding()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 68,
+      "community_name": "parse_tracked_token_pump_events",
+      "file_type": "code",
+      "norm_label": ".test_ordinal_does_not_depend_on_an_earlier_event_decoding()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L265"
+    },
+    {
+      "id": "tests_test_rpc_fallback_trackedtokenparsertests_test_parses_tracked_mint_without_requiring_a_watched_wallet",
+      "label": ".test_parses_tracked_mint_without_requiring_a_watched_wallet()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 68,
+      "community_name": "parse_tracked_token_pump_events",
+      "file_type": "code",
+      "norm_label": ".test_parses_tracked_mint_without_requiring_a_watched_wallet()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L229"
+    },
+    {
       "id": "tests_test_account_price_checkpoints_accountpricecheckpointtests_checkpoint_dataset_outcome",
       "label": ".checkpoint_dataset_outcome()",
       "_callable": true,
@@ -11568,18 +11412,6 @@
       "source_location": "L82"
     },
     {
-      "id": "app_api_account_checkpoint_training_stats",
-      "label": "api_account_checkpoint_training_stats()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 7,
-      "community_name": "auth",
-      "file_type": "code",
-      "norm_label": "api_account_checkpoint_training_stats()",
-      "source_file": "app.py",
-      "source_location": "L17923"
-    },
-    {
       "id": "app_api_account_price_checkpoint_stats",
       "label": "api_account_price_checkpoint_stats()",
       "_callable": true,
@@ -11602,18 +11434,6 @@
       "norm_label": "api_helius_webhook_sample()",
       "source_file": "app.py",
       "source_location": "L18379"
-    },
-    {
-      "id": "app_api_live_account_exit_monitor_stats",
-      "label": "api_live_account_exit_monitor_stats()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 7,
-      "community_name": "auth",
-      "file_type": "code",
-      "norm_label": "api_live_account_exit_monitor_stats()",
-      "source_file": "app.py",
-      "source_location": "L18583"
     },
     {
       "id": "app_api_live_execution_readiness",
@@ -12228,6 +12048,30 @@
       "source_location": "L14337"
     },
     {
+      "id": "app_get_daily_realized_pnl",
+      "label": "get_daily_realized_pnl()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 7,
+      "community_name": "auth",
+      "file_type": "code",
+      "norm_label": "get_daily_realized_pnl()",
+      "source_file": "app.py",
+      "source_location": "L1659"
+    },
+    {
+      "id": "app_open_paper_position",
+      "label": "open_paper_position()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 7,
+      "community_name": "auth",
+      "file_type": "code",
+      "norm_label": "open_paper_position()",
+      "source_file": "app.py",
+      "source_location": "L10241"
+    },
+    {
       "id": "app_paper",
       "label": "paper()",
       "_callable": true,
@@ -12456,18 +12300,6 @@
       "source_location": "L165"
     },
     {
-      "id": "solana_rpc_fallback_fetch_signatures_for_address",
-      "label": "fetch_signatures_for_address()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 71,
-      "community_name": "solana_rpc_fallback.py",
-      "file_type": "code",
-      "norm_label": "fetch_signatures_for_address()",
-      "source_file": "solana_rpc_fallback.py",
-      "source_location": "L123"
-    },
-    {
       "id": "solana_rpc_fallback_optional_post_token_amount",
       "label": "_optional_post_token_amount()",
       "_callable": true,
@@ -12564,28 +12396,40 @@
       "source_location": "L212"
     },
     {
-      "id": "solana_rpc_fallback_wait_for_rpc_slot",
-      "label": "_wait_for_rpc_slot()",
+      "id": "app_helius_standard_wss_error_code",
+      "label": "helius_standard_wss_error_code()",
       "_callable": true,
       "_origin": "ast",
-      "community": 71,
-      "community_name": "solana_rpc_fallback.py",
+      "community": 73,
+      "community_name": "test_rpc_fallback.py",
       "file_type": "code",
-      "norm_label": "_wait_for_rpc_slot()",
-      "source_file": "solana_rpc_fallback.py",
-      "source_location": "L51"
+      "norm_label": "helius_standard_wss_error_code()",
+      "source_file": "app.py",
+      "source_location": "L15491"
     },
     {
-      "id": "tests_test_rpc_fallback_heliuswebhooktests_test_all_watched_wallets_in_one_transaction_are_preserved",
-      "label": ".test_all_watched_wallets_in_one_transaction_are_preserved()",
+      "id": "app_token_rpc_probe_once",
+      "label": "token_rpc_probe_once()",
       "_callable": true,
       "_origin": "ast",
-      "community": 71,
-      "community_name": "solana_rpc_fallback.py",
+      "community": 73,
+      "community_name": "test_rpc_fallback.py",
       "file_type": "code",
-      "norm_label": ".test_all_watched_wallets_in_one_transaction_are_preserved()",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L1557"
+      "norm_label": "token_rpc_probe_once()",
+      "source_file": "app.py",
+      "source_location": "L15850"
+    },
+    {
+      "id": "app_token_rpc_probe_worker",
+      "label": "token_rpc_probe_worker()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 73,
+      "community_name": "test_rpc_fallback.py",
+      "file_type": "code",
+      "norm_label": "token_rpc_probe_worker()",
+      "source_file": "app.py",
+      "source_location": "L15942"
     },
     {
       "id": "solana_rpc_fallback_fetch_confirmed_transaction",
@@ -12600,6 +12444,18 @@
       "source_location": "L140"
     },
     {
+      "id": "solana_rpc_fallback_fetch_signatures_for_address",
+      "label": "fetch_signatures_for_address()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 73,
+      "community_name": "test_rpc_fallback.py",
+      "file_type": "code",
+      "norm_label": "fetch_signatures_for_address()",
+      "source_file": "solana_rpc_fallback.py",
+      "source_location": "L123"
+    },
+    {
       "id": "solana_rpc_fallback_rpc_request",
       "label": "_rpc_request()",
       "_callable": true,
@@ -12610,6 +12466,18 @@
       "norm_label": "_rpc_request()",
       "source_file": "solana_rpc_fallback.py",
       "source_location": "L64"
+    },
+    {
+      "id": "solana_rpc_fallback_wait_for_rpc_slot",
+      "label": "_wait_for_rpc_slot()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 73,
+      "community_name": "test_rpc_fallback.py",
+      "file_type": "code",
+      "norm_label": "_wait_for_rpc_slot()",
+      "source_file": "solana_rpc_fallback.py",
+      "source_location": "L51"
     },
     {
       "id": "tests_test_rpc_fallback_outboundrequesttests_test_request_name_still_refers_to_urllib",
@@ -12696,16 +12564,16 @@
       "source_location": "L442"
     },
     {
-      "id": "scripts_train_baseline_model_validate_dataset",
-      "label": "validate_dataset()",
+      "id": "scripts_train_baseline_model_get_deployment_blockers",
+      "label": "get_deployment_blockers()",
       "_callable": true,
       "_origin": "ast",
       "community": 74,
-      "community_name": "validate_dataset",
+      "community_name": "make_row",
       "file_type": "code",
-      "norm_label": "validate_dataset()",
+      "norm_label": "get_deployment_blockers()",
       "source_file": "scripts/train_baseline_model.py",
-      "source_location": "L187"
+      "source_location": "L124"
     },
     {
       "id": "tests_test_training_pipeline_make_row",
@@ -12713,7 +12581,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 74,
-      "community_name": "validate_dataset",
+      "community_name": "make_row",
       "file_type": "code",
       "norm_label": "make_row()",
       "source_file": "tests/test_training_pipeline.py",
@@ -12725,7 +12593,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 74,
-      "community_name": "validate_dataset",
+      "community_name": "make_row",
       "file_type": "code",
       "norm_label": "make_schema()",
       "source_file": "tests/test_training_pipeline.py",
@@ -12737,7 +12605,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 74,
-      "community_name": "validate_dataset",
+      "community_name": "make_row",
       "file_type": "code",
       "norm_label": ".test_purges_early_rows_from_groups_in_test_window()",
       "source_file": "tests/test_training_pipeline.py",
@@ -12749,7 +12617,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 74,
-      "community_name": "validate_dataset",
+      "community_name": "make_row",
       "file_type": "code",
       "norm_label": ".test_walk_forward_folds_are_temporal_and_group_disjoint()",
       "source_file": "tests/test_training_pipeline.py",
@@ -12761,7 +12629,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 74,
-      "community_name": "validate_dataset",
+      "community_name": "make_row",
       "file_type": "code",
       "norm_label": ".test_account_checkpoint_schema_excludes_legacy_score_proxies()",
       "source_file": "tests/test_training_pipeline.py",
@@ -12773,7 +12641,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 74,
-      "community_name": "validate_dataset",
+      "community_name": "make_row",
       "file_type": "code",
       "norm_label": ".test_allows_declared_nullable_feature()",
       "source_file": "tests/test_training_pipeline.py",
@@ -12785,7 +12653,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 74,
-      "community_name": "validate_dataset",
+      "community_name": "make_row",
       "file_type": "code",
       "norm_label": ".test_diagnostic_schema_requires_no_save()",
       "source_file": "tests/test_training_pipeline.py",
@@ -12797,7 +12665,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 74,
-      "community_name": "validate_dataset",
+      "community_name": "make_row",
       "file_type": "code",
       "norm_label": ".test_rejects_dataset_from_a_different_label_source()",
       "source_file": "tests/test_training_pipeline.py",
@@ -12809,7 +12677,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 74,
-      "community_name": "validate_dataset",
+      "community_name": "make_row",
       "file_type": "code",
       "norm_label": ".test_rejects_unexpected_null_feature()",
       "source_file": "tests/test_training_pipeline.py",
@@ -12821,7 +12689,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 74,
-      "community_name": "validate_dataset",
+      "community_name": "make_row",
       "file_type": "code",
       "norm_label": ".test_blocks_deployment_when_one_group_dominates_holdout()",
       "source_file": "tests/test_training_pipeline.py",
@@ -12833,7 +12701,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 74,
-      "community_name": "validate_dataset",
+      "community_name": "make_row",
       "file_type": "code",
       "norm_label": ".test_blocks_deployment_with_too_few_holdout_positives()",
       "source_file": "tests/test_training_pipeline.py",
@@ -12845,7 +12713,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 74,
-      "community_name": "validate_dataset",
+      "community_name": "make_row",
       "file_type": "code",
       "norm_label": ".test_blocks_deployment_with_too_few_independent_groups_per_class()",
       "source_file": "tests/test_training_pipeline.py",
@@ -12857,7 +12725,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 74,
-      "community_name": "validate_dataset",
+      "community_name": "make_row",
       "file_type": "code",
       "norm_label": ".test_group_balanced_weights_give_each_mint_equal_total_weight()",
       "source_file": "tests/test_training_pipeline.py",
@@ -12869,7 +12737,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 74,
-      "community_name": "validate_dataset",
+      "community_name": "make_row",
       "file_type": "code",
       "norm_label": ".test_inverse_trader_cannot_save_model_or_shadow_artifact()",
       "source_file": "tests/test_training_pipeline.py",
@@ -12881,7 +12749,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 74,
-      "community_name": "validate_dataset",
+      "community_name": "make_row",
       "file_type": "code",
       "norm_label": ".test_partition_summary_counts_targets_and_groups()",
       "source_file": "tests/test_training_pipeline.py",
@@ -12893,7 +12761,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 74,
-      "community_name": "validate_dataset",
+      "community_name": "make_row",
       "file_type": "code",
       "norm_label": ".test_reports_temporal_target_and_trader_drift()",
       "source_file": "tests/test_training_pipeline.py",
@@ -12905,11 +12773,23 @@
       "_callable": true,
       "_origin": "ast",
       "community": 74,
-      "community_name": "validate_dataset",
+      "community_name": "make_row",
       "file_type": "code",
       "norm_label": ".test_trader_balanced_weights_give_each_trader_equal_total_weight()",
       "source_file": "tests/test_training_pipeline.py",
       "source_location": "L251"
+    },
+    {
+      "id": "tests_test_rpc_fallback_pump_receipt",
+      "label": "pump_receipt()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 75,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": "pump_receipt()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L82"
     },
     {
       "id": "tests_test_rpc_fallback_rpcfallbackbaselinetests_event_status",
@@ -12917,7 +12797,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 75,
-      "community_name": "RpcFallbackBaselineTests",
+      "community_name": "pump_receipt",
       "file_type": "code",
       "norm_label": ".event_status()",
       "source_file": "tests/test_rpc_fallback.py",
@@ -12929,7 +12809,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 75,
-      "community_name": "RpcFallbackBaselineTests",
+      "community_name": "pump_receipt",
       "file_type": "code",
       "norm_label": ".insert_trade()",
       "source_file": "tests/test_rpc_fallback.py",
@@ -12941,7 +12821,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 75,
-      "community_name": "RpcFallbackBaselineTests",
+      "community_name": "pump_receipt",
       "file_type": "code",
       "norm_label": ".parsed()",
       "source_file": "tests/test_rpc_fallback.py",
@@ -12953,7 +12833,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 75,
-      "community_name": "RpcFallbackBaselineTests",
+      "community_name": "pump_receipt",
       "file_type": "code",
       "norm_label": ".set_baseline()",
       "source_file": "tests/test_rpc_fallback.py",
@@ -12965,7 +12845,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 75,
-      "community_name": "RpcFallbackBaselineTests",
+      "community_name": "pump_receipt",
       "file_type": "code",
       "norm_label": ".setup()",
       "source_file": "tests/test_rpc_fallback.py",
@@ -12977,7 +12857,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 75,
-      "community_name": "RpcFallbackBaselineTests",
+      "community_name": "pump_receipt",
       "file_type": "code",
       "norm_label": ".teardown()",
       "source_file": "tests/test_rpc_fallback.py",
@@ -12989,7 +12869,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 75,
-      "community_name": "RpcFallbackBaselineTests",
+      "community_name": "pump_receipt",
       "file_type": "code",
       "norm_label": ".test_approximate_matches_counts_events_not_pairs()",
       "source_file": "tests/test_rpc_fallback.py",
@@ -13001,7 +12881,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 75,
-      "community_name": "RpcFallbackBaselineTests",
+      "community_name": "pump_receipt",
       "file_type": "code",
       "norm_label": ".test_discarded_event_never_becomes_matched()",
       "source_file": "tests/test_rpc_fallback.py",
@@ -13013,7 +12893,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 75,
-      "community_name": "RpcFallbackBaselineTests",
+      "community_name": "pump_receipt",
       "file_type": "code",
       "norm_label": ".test_event_after_baseline_still_counts_as_missing()",
       "source_file": "tests/test_rpc_fallback.py",
@@ -13025,11 +12905,71 @@
       "_callable": true,
       "_origin": "ast",
       "community": 75,
-      "community_name": "RpcFallbackBaselineTests",
+      "community_name": "pump_receipt",
       "file_type": "code",
       "norm_label": ".test_event_older_than_baseline_is_discarded_not_missing()",
       "source_file": "tests/test_rpc_fallback.py",
       "source_location": "L1106"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_legacy_not_null_balance_column_is_relaxed_keeping_rows",
+      "label": ".test_legacy_not_null_balance_column_is_relaxed_keeping_rows()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 75,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".test_legacy_not_null_balance_column_is_relaxed_keeping_rows()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L798"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_missing_event_can_later_reconcile_to_stream",
+      "label": ".test_missing_event_can_later_reconcile_to_stream()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 75,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".test_missing_event_can_later_reconcile_to_stream()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L479"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_missing_event_reports_what_the_wss_transport_saw",
+      "label": ".test_missing_event_reports_what_the_wss_transport_saw()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 75,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".test_missing_event_reports_what_the_wss_transport_saw()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L626"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_operation_applied_from_helius_is_not_missing",
+      "label": ".test_operation_applied_from_helius_is_not_missing()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 75,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".test_operation_applied_from_helius_is_not_missing()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L757"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rpcfallbackpersistencetests_test_unknown_balance_is_recorded_as_null",
+      "label": ".test_unknown_balance_is_recorded_as_null()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 75,
+      "community_name": "pump_receipt",
+      "file_type": "code",
+      "norm_label": ".test_unknown_balance_is_recorded_as_null()",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L771"
     },
     {
       "id": "tests_test_rpc_fallback_heliuswebhookdeliveryalerttests_insert_rpc_event",
@@ -13197,7 +13137,7 @@
       "file_type": "code",
       "norm_label": "concentration()",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L202"
+      "source_location": "L205"
     },
     {
       "id": "scripts_validate_frozen_exit_candidate_fetch_json",
@@ -13221,7 +13161,7 @@
       "file_type": "code",
       "norm_label": "main()",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L426"
+      "source_location": "L482"
     },
     {
       "id": "scripts_validate_frozen_exit_candidate_parse_cutoff",
@@ -13245,7 +13185,7 @@
       "file_type": "code",
       "norm_label": "prospective_report()",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L223"
+      "source_location": "L226"
     },
     {
       "id": "scripts_validate_frozen_exit_candidate_selected_records",
@@ -13257,7 +13197,7 @@
       "file_type": "code",
       "norm_label": "selected_records()",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L179"
+      "source_location": "L182"
     },
     {
       "id": "scripts_validate_frozen_exit_candidate_validate_frozen_population",
@@ -13317,7 +13257,7 @@
       "file_type": "code",
       "norm_label": ".test_event_path_sensitivity_does_not_change_primary_result()",
       "source_file": "tests/test_frozen_exit_candidate.py",
-      "source_location": "L139"
+      "source_location": "L144"
     },
     {
       "id": "tests_test_frozen_exit_candidate_frozenexitcandidatetests_test_frozen_dataset_hash_mismatch_is_rejected",
@@ -13329,7 +13269,7 @@
       "file_type": "code",
       "norm_label": ".test_frozen_dataset_hash_mismatch_is_rejected()",
       "source_file": "tests/test_frozen_exit_candidate.py",
-      "source_location": "L63"
+      "source_location": "L68"
     },
     {
       "id": "tests_test_frozen_exit_candidate_frozenexitcandidatetests_test_frozen_population_must_not_cross_cutoff",
@@ -13341,7 +13281,7 @@
       "file_type": "code",
       "norm_label": ".test_frozen_population_must_not_cross_cutoff()",
       "source_file": "tests/test_frozen_exit_candidate.py",
-      "source_location": "L57"
+      "source_location": "L62"
     },
     {
       "id": "tests_test_frozen_exit_candidate_frozenexitcandidatetests_test_negative_candidate_is_not_ready_for_review",
@@ -13353,7 +13293,7 @@
       "file_type": "code",
       "norm_label": ".test_negative_candidate_is_not_ready_for_review()",
       "source_file": "tests/test_frozen_exit_candidate.py",
-      "source_location": "L88"
+      "source_location": "L93"
     },
     {
       "id": "tests_test_frozen_exit_candidate_frozenexitcandidatetests_test_only_post_freeze_rows_with_paths_are_scored",
@@ -13368,6 +13308,18 @@
       "source_location": "L27"
     },
     {
+      "id": "tests_test_frozen_exit_candidate_frozenexitcandidatetests_test_partial_subscription_coverage_is_not_claimed_complete",
+      "label": ".test_partial_subscription_coverage_is_not_claimed_complete()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 77,
+      "community_name": "validate_frozen_exit_candidate.py",
+      "file_type": "code",
+      "norm_label": ".test_partial_subscription_coverage_is_not_claimed_complete()",
+      "source_file": "tests/test_frozen_exit_candidate.py",
+      "source_location": "L181"
+    },
+    {
       "id": "tests_test_frozen_exit_candidate_frozenexitcandidatetests_test_prospective_rows_must_not_overlap_frozen_ids",
       "label": ".test_prospective_rows_must_not_overlap_frozen_ids()",
       "_callable": true,
@@ -13377,7 +13329,7 @@
       "file_type": "code",
       "norm_label": ".test_prospective_rows_must_not_overlap_frozen_ids()",
       "source_file": "tests/test_frozen_exit_candidate.py",
-      "source_location": "L71"
+      "source_location": "L76"
     },
     {
       "id": "tests_test_frozen_exit_candidate_frozenexitcandidatetests_test_reports_tp100_and_time_exit_shares",
@@ -13389,31 +13341,7 @@
       "file_type": "code",
       "norm_label": ".test_reports_tp100_and_time_exit_shares()",
       "source_file": "tests/test_frozen_exit_candidate.py",
-      "source_location": "L106"
-    },
-    {
-      "id": "app_api_watched_wallets",
-      "label": "api_watched_wallets()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 78,
-      "community_name": "validate_market_event_inbox_once",
-      "file_type": "code",
-      "norm_label": "api_watched_wallets()",
-      "source_file": "app.py",
-      "source_location": "L18416"
-    },
-    {
-      "id": "app_check_watched_wallet_silence",
-      "label": "check_watched_wallet_silence()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 78,
-      "community_name": "validate_market_event_inbox_once",
-      "file_type": "code",
-      "norm_label": "check_watched_wallet_silence()",
-      "source_file": "app.py",
-      "source_location": "L12600"
+      "source_location": "L111"
     },
     {
       "id": "app_claim_market_event_inbox_validation_batch",
@@ -13440,18 +13368,6 @@
       "source_location": "L11232"
     },
     {
-      "id": "app_get_watched_wallet_activity",
-      "label": "get_watched_wallet_activity()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 78,
-      "community_name": "validate_market_event_inbox_once",
-      "file_type": "code",
-      "norm_label": "get_watched_wallet_activity()",
-      "source_file": "app.py",
-      "source_location": "L12537"
-    },
-    {
       "id": "app_market_event_inbox_validation_worker",
       "label": "market_event_inbox_validation_worker()",
       "_callable": true,
@@ -13474,18 +13390,6 @@
       "norm_label": "validate_market_event_inbox_once()",
       "source_file": "app.py",
       "source_location": "L11277"
-    },
-    {
-      "id": "app_watched_wallet_monitor",
-      "label": "watched_wallet_monitor()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 78,
-      "community_name": "validate_market_event_inbox_once",
-      "file_type": "code",
-      "norm_label": "watched_wallet_monitor()",
-      "source_file": "app.py",
-      "source_location": "L12654"
     },
     {
       "id": "app_can_retry_execution",
@@ -13752,6 +13656,42 @@
       "source_location": "L17945"
     },
     {
+      "id": "app_api_account_checkpoint_training_dataset",
+      "label": "api_account_checkpoint_training_dataset()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 80,
+      "community_name": "api_account_checkpoint_paths",
+      "file_type": "code",
+      "norm_label": "api_account_checkpoint_training_dataset()",
+      "source_file": "app.py",
+      "source_location": "L17931"
+    },
+    {
+      "id": "app_api_account_checkpoint_training_stats",
+      "label": "api_account_checkpoint_training_stats()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 80,
+      "community_name": "api_account_checkpoint_paths",
+      "file_type": "code",
+      "norm_label": "api_account_checkpoint_training_stats()",
+      "source_file": "app.py",
+      "source_location": "L17923"
+    },
+    {
+      "id": "app_get_account_checkpoint_dataset_rows",
+      "label": "get_account_checkpoint_dataset_rows()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 80,
+      "community_name": "api_account_checkpoint_paths",
+      "file_type": "code",
+      "norm_label": "get_account_checkpoint_dataset_rows()",
+      "source_file": "app.py",
+      "source_location": "L16452"
+    },
+    {
       "id": "app_get_account_checkpoint_event_paths",
       "label": "get_account_checkpoint_event_paths()",
       "_callable": true,
@@ -13762,6 +13702,18 @@
       "norm_label": "get_account_checkpoint_event_paths()",
       "source_file": "app.py",
       "source_location": "L16335"
+    },
+    {
+      "id": "app_get_account_checkpoint_observations",
+      "label": "get_account_checkpoint_observations()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 80,
+      "community_name": "api_account_checkpoint_paths",
+      "file_type": "code",
+      "norm_label": "get_account_checkpoint_observations()",
+      "source_file": "app.py",
+      "source_location": "L16247"
     },
     {
       "id": "app_get_account_checkpoint_subscription_coverage",
@@ -13776,16 +13728,16 @@
       "source_location": "L16386"
     },
     {
-      "id": "scripts_analyze_feature_ablation_main",
-      "label": "main()",
+      "id": "app_get_account_checkpoint_training_stats",
+      "label": "get_account_checkpoint_training_stats()",
       "_callable": true,
       "_origin": "ast",
-      "community": 81,
-      "community_name": "analyze_feature_ablation.py",
+      "community": 80,
+      "community_name": "api_account_checkpoint_paths",
       "file_type": "code",
-      "norm_label": "main()",
-      "source_file": "scripts/analyze_feature_ablation.py",
-      "source_location": "L133"
+      "norm_label": "get_account_checkpoint_training_stats()",
+      "source_file": "app.py",
+      "source_location": "L16486"
     },
     {
       "id": "scripts_analyze_feature_ablation_schema_without_features",
@@ -13793,7 +13745,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 81,
-      "community_name": "analyze_feature_ablation.py",
+      "community_name": "selection_diagnostics",
       "file_type": "code",
       "norm_label": "schema_without_features()",
       "source_file": "scripts/analyze_feature_ablation.py",
@@ -13805,7 +13757,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 81,
-      "community_name": "analyze_feature_ablation.py",
+      "community_name": "selection_diagnostics",
       "file_type": "code",
       "norm_label": "selection_diagnostics()",
       "source_file": "scripts/analyze_feature_ablation.py",
@@ -13817,7 +13769,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 81,
-      "community_name": "analyze_feature_ablation.py",
+      "community_name": "selection_diagnostics",
       "file_type": "code",
       "norm_label": ".setup()",
       "source_file": "tests/test_feature_ablation.py",
@@ -13829,7 +13781,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 81,
-      "community_name": "analyze_feature_ablation.py",
+      "community_name": "selection_diagnostics",
       "file_type": "code",
       "norm_label": ".test_reduced_candidate_retains_only_size_score_from_legacy_scores()",
       "source_file": "tests/test_feature_ablation.py",
@@ -13841,7 +13793,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 81,
-      "community_name": "analyze_feature_ablation.py",
+      "community_name": "selection_diagnostics",
       "file_type": "code",
       "norm_label": ".test_rejects_an_ablation_that_removes_every_feature()",
       "source_file": "tests/test_feature_ablation.py",
@@ -13853,7 +13805,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 81,
-      "community_name": "analyze_feature_ablation.py",
+      "community_name": "selection_diagnostics",
       "file_type": "code",
       "norm_label": ".test_removes_features_without_mutating_original_schema()",
       "source_file": "tests/test_feature_ablation.py",
@@ -13865,7 +13817,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 81,
-      "community_name": "analyze_feature_ablation.py",
+      "community_name": "selection_diagnostics",
       "file_type": "code",
       "norm_label": ".test_empty_selection_has_no_misleading_zero_share()",
       "source_file": "tests/test_feature_ablation.py",
@@ -13877,7 +13829,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 81,
-      "community_name": "analyze_feature_ablation.py",
+      "community_name": "selection_diagnostics",
       "file_type": "code",
       "norm_label": ".test_rejects_misaligned_predictions()",
       "source_file": "tests/test_feature_ablation.py",
@@ -13889,11 +13841,35 @@
       "_callable": true,
       "_origin": "ast",
       "community": 81,
-      "community_name": "analyze_feature_ablation.py",
+      "community_name": "selection_diagnostics",
       "file_type": "code",
       "norm_label": ".test_reports_holdout_and_selected_concentration_separately()",
       "source_file": "tests/test_feature_ablation.py",
       "source_location": "L56"
+    },
+    {
+      "id": "scripts_analyze_feature_ablation_main",
+      "label": "main()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 82,
+      "community_name": "compare_model_economics.py",
+      "file_type": "code",
+      "norm_label": "main()",
+      "source_file": "scripts/analyze_feature_ablation.py",
+      "source_location": "L133"
+    },
+    {
+      "id": "scripts_compare_model_economics_evaluate_strategy",
+      "label": "evaluate_strategy()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 82,
+      "community_name": "compare_model_economics.py",
+      "file_type": "code",
+      "norm_label": "evaluate_strategy()",
+      "source_file": "scripts/compare_model_economics.py",
+      "source_location": "L97"
     },
     {
       "id": "scripts_compare_model_economics_main",
@@ -13901,7 +13877,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 82,
-      "community_name": "simulate_payoff",
+      "community_name": "compare_model_economics.py",
       "file_type": "code",
       "norm_label": "main()",
       "source_file": "scripts/compare_model_economics.py",
@@ -13913,7 +13889,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 82,
-      "community_name": "simulate_payoff",
+      "community_name": "compare_model_economics.py",
       "file_type": "code",
       "norm_label": "simulate_payoff()",
       "source_file": "scripts/compare_model_economics.py",
@@ -13925,7 +13901,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 82,
-      "community_name": "simulate_payoff",
+      "community_name": "compare_model_economics.py",
       "file_type": "code",
       "norm_label": "breakeven_precision()",
       "source_file": "scripts/reconcile_threshold_economics.py",
@@ -13937,11 +13913,47 @@
       "_callable": true,
       "_origin": "ast",
       "community": 82,
-      "community_name": "simulate_payoff",
+      "community_name": "compare_model_economics.py",
       "file_type": "code",
       "norm_label": "main()",
       "source_file": "scripts/reconcile_threshold_economics.py",
       "source_location": "L39"
+    },
+    {
+      "id": "scripts_relabel_stop_alignment_checkpoint_target",
+      "label": "checkpoint_target()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 82,
+      "community_name": "compare_model_economics.py",
+      "file_type": "code",
+      "norm_label": "checkpoint_target()",
+      "source_file": "scripts/relabel_stop_alignment.py",
+      "source_location": "L37"
+    },
+    {
+      "id": "scripts_relabel_stop_alignment_evaluate",
+      "label": "evaluate()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 82,
+      "community_name": "compare_model_economics.py",
+      "file_type": "code",
+      "norm_label": "evaluate()",
+      "source_file": "scripts/relabel_stop_alignment.py",
+      "source_location": "L57"
+    },
+    {
+      "id": "scripts_relabel_stop_alignment_main",
+      "label": "main()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 82,
+      "community_name": "compare_model_economics.py",
+      "file_type": "code",
+      "norm_label": "main()",
+      "source_file": "scripts/relabel_stop_alignment.py",
+      "source_location": "L81"
     },
     {
       "id": "scripts_train_baseline_model_load_json",
@@ -13949,11 +13961,23 @@
       "_callable": true,
       "_origin": "ast",
       "community": 82,
-      "community_name": "simulate_payoff",
+      "community_name": "compare_model_economics.py",
       "file_type": "code",
       "norm_label": "load_json()",
       "source_file": "scripts/train_baseline_model.py",
       "source_location": "L30"
+    },
+    {
+      "id": "scripts_train_baseline_model_validate_dataset",
+      "label": "validate_dataset()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 82,
+      "community_name": "compare_model_economics.py",
+      "file_type": "code",
+      "norm_label": "validate_dataset()",
+      "source_file": "scripts/train_baseline_model.py",
+      "source_location": "L187"
     },
     {
       "id": "tests_test_model_economics_payoffsimulationtests_test_reports_conservative_fixed_payoff_after_costs",
@@ -13961,7 +13985,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 82,
-      "community_name": "simulate_payoff",
+      "community_name": "compare_model_economics.py",
       "file_type": "code",
       "norm_label": ".test_reports_conservative_fixed_payoff_after_costs()",
       "source_file": "tests/test_model_economics.py",
@@ -13973,35 +13997,11 @@
       "_callable": true,
       "_origin": "ast",
       "community": 82,
-      "community_name": "simulate_payoff",
+      "community_name": "compare_model_economics.py",
       "file_type": "code",
       "norm_label": ".test_skips_signals_while_a_position_is_assumed_open()",
       "source_file": "tests/test_model_economics.py",
       "source_location": "L33"
-    },
-    {
-      "id": "app_execute_pumpportal_lightning_buy",
-      "label": "execute_pumpportal_lightning_buy()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 83,
-      "community_name": "execute_pumpportal_lightning_buy",
-      "file_type": "code",
-      "norm_label": "execute_pumpportal_lightning_buy()",
-      "source_file": "app.py",
-      "source_location": "L3383"
-    },
-    {
-      "id": "app_execute_pumpportal_lightning_sell",
-      "label": "execute_pumpportal_lightning_sell()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 83,
-      "community_name": "execute_pumpportal_lightning_buy",
-      "file_type": "code",
-      "norm_label": "execute_pumpportal_lightning_sell()",
-      "source_file": "app.py",
-      "source_location": "L3532"
     },
     {
       "id": "app_fetch_finalized_solana_transaction",
@@ -14009,7 +14009,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 83,
-      "community_name": "execute_pumpportal_lightning_buy",
+      "community_name": "reconcile_pumpportal_execution_order",
       "file_type": "code",
       "norm_label": "fetch_finalized_solana_transaction()",
       "source_file": "app.py",
@@ -14021,71 +14021,35 @@
       "_callable": true,
       "_origin": "ast",
       "community": 83,
-      "community_name": "execute_pumpportal_lightning_buy",
+      "community_name": "reconcile_pumpportal_execution_order",
       "file_type": "code",
       "norm_label": "fetch_solana_signature_status()",
       "source_file": "app.py",
       "source_location": "L12429"
     },
     {
-      "id": "app_get_daily_live_buy_exposure",
-      "label": "get_daily_live_buy_exposure()",
+      "id": "app_get_ambiguous_pumpportal_execution_orders",
+      "label": "get_ambiguous_pumpportal_execution_orders()",
       "_callable": true,
       "_origin": "ast",
       "community": 83,
-      "community_name": "execute_pumpportal_lightning_buy",
+      "community_name": "reconcile_pumpportal_execution_order",
       "file_type": "code",
-      "norm_label": "get_daily_live_buy_exposure()",
+      "norm_label": "get_ambiguous_pumpportal_execution_orders()",
       "source_file": "app.py",
-      "source_location": "L1732"
+      "source_location": "L4803"
     },
     {
-      "id": "app_get_execution_order_status",
-      "label": "get_execution_order_status()",
+      "id": "app_maybe_send_ambiguous_execution_order_alerts",
+      "label": "maybe_send_ambiguous_execution_order_alerts()",
       "_callable": true,
       "_origin": "ast",
       "community": 83,
-      "community_name": "execute_pumpportal_lightning_buy",
+      "community_name": "reconcile_pumpportal_execution_order",
       "file_type": "code",
-      "norm_label": "get_execution_order_status()",
+      "norm_label": "maybe_send_ambiguous_execution_order_alerts()",
       "source_file": "app.py",
-      "source_location": "L4078"
-    },
-    {
-      "id": "app_get_live_canary_blockers",
-      "label": "get_live_canary_blockers()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 83,
-      "community_name": "execute_pumpportal_lightning_buy",
-      "file_type": "code",
-      "norm_label": "get_live_canary_blockers()",
-      "source_file": "app.py",
-      "source_location": "L8344"
-    },
-    {
-      "id": "app_get_live_execution_readiness",
-      "label": "get_live_execution_readiness()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 83,
-      "community_name": "execute_pumpportal_lightning_buy",
-      "file_type": "code",
-      "norm_label": "get_live_execution_readiness()",
-      "source_file": "app.py",
-      "source_location": "L8441"
-    },
-    {
-      "id": "app_get_local_day_start_ts",
-      "label": "get_local_day_start_ts()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 83,
-      "community_name": "execute_pumpportal_lightning_buy",
-      "file_type": "code",
-      "norm_label": "get_local_day_start_ts()",
-      "source_file": "app.py",
-      "source_location": "L1724"
+      "source_location": "L4841"
     },
     {
       "id": "app_normalize_solana_signature",
@@ -14093,47 +14057,71 @@
       "_callable": true,
       "_origin": "ast",
       "community": 83,
-      "community_name": "execute_pumpportal_lightning_buy",
+      "community_name": "reconcile_pumpportal_execution_order",
       "file_type": "code",
       "norm_label": "normalize_solana_signature()",
       "source_file": "app.py",
       "source_location": "L3234"
     },
     {
-      "id": "app_require_live_trading",
-      "label": "require_live_trading()",
+      "id": "app_pumpportal_execution_reconciliation_worker",
+      "label": "pumpportal_execution_reconciliation_worker()",
       "_callable": true,
       "_origin": "ast",
       "community": 83,
-      "community_name": "execute_pumpportal_lightning_buy",
+      "community_name": "reconcile_pumpportal_execution_order",
       "file_type": "code",
-      "norm_label": "require_live_trading()",
+      "norm_label": "pumpportal_execution_reconciliation_worker()",
       "source_file": "app.py",
-      "source_location": "L13968"
+      "source_location": "L4886"
     },
     {
-      "id": "app_set_execution_order_external_signature",
-      "label": "set_execution_order_external_signature()",
+      "id": "app_reconcile_execution_order",
+      "label": "reconcile_execution_order()",
       "_callable": true,
       "_origin": "ast",
       "community": 83,
-      "community_name": "execute_pumpportal_lightning_buy",
+      "community_name": "reconcile_pumpportal_execution_order",
       "file_type": "code",
-      "norm_label": "set_execution_order_external_signature()",
+      "norm_label": "reconcile_execution_order()",
       "source_file": "app.py",
-      "source_location": "L3964"
+      "source_location": "L4473"
     },
     {
-      "id": "app_submit_pumpportal_lightning_trade",
-      "label": "submit_pumpportal_lightning_trade()",
+      "id": "app_reconcile_pending_pumpportal_execution_orders",
+      "label": "reconcile_pending_pumpportal_execution_orders()",
       "_callable": true,
       "_origin": "ast",
       "community": 83,
-      "community_name": "execute_pumpportal_lightning_buy",
+      "community_name": "reconcile_pumpportal_execution_order",
       "file_type": "code",
-      "norm_label": "submit_pumpportal_lightning_trade()",
+      "norm_label": "reconcile_pending_pumpportal_execution_orders()",
       "source_file": "app.py",
-      "source_location": "L3299"
+      "source_location": "L4782"
+    },
+    {
+      "id": "app_reconcile_pumpportal_execution_order",
+      "label": "reconcile_pumpportal_execution_order()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 83,
+      "community_name": "reconcile_pumpportal_execution_order",
+      "file_type": "code",
+      "norm_label": "reconcile_pumpportal_execution_order()",
+      "source_file": "app.py",
+      "source_location": "L4710"
+    },
+    {
+      "id": "app_record_finalized_buy_position",
+      "label": "record_finalized_buy_position()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 83,
+      "community_name": "reconcile_pumpportal_execution_order",
+      "file_type": "code",
+      "norm_label": "record_finalized_buy_position()",
+      "source_file": "app.py",
+      "source_location": "L4551"
     },
     {
       "id": "scripts_prune_dead_css_main",
@@ -14196,28 +14184,76 @@
       "source_location": "L34"
     },
     {
+      "id": "app_account_checkpoint_target",
+      "label": "account_checkpoint_target()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 85,
+      "community_name": "ValueError",
+      "file_type": "code",
+      "norm_label": "account_checkpoint_target()",
+      "source_file": "app.py",
+      "source_location": "L16222"
+    },
+    {
+      "id": "app_build_pumpportal_exact_sell_payload",
+      "label": "build_pumpportal_exact_sell_payload()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 85,
+      "community_name": "ValueError",
+      "file_type": "code",
+      "norm_label": "build_pumpportal_exact_sell_payload()",
+      "source_file": "app.py",
+      "source_location": "L3154"
+    },
+    {
+      "id": "app_build_pumpportal_lightning_sell_payload",
+      "label": "build_pumpportal_lightning_sell_payload()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 85,
+      "community_name": "ValueError",
+      "file_type": "code",
+      "norm_label": "build_pumpportal_lightning_sell_payload()",
+      "source_file": "app.py",
+      "source_location": "L3099"
+    },
+    {
+      "id": "app_calculate_wallet_sell_percentage",
+      "label": "calculate_wallet_sell_percentage()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 85,
+      "community_name": "ValueError",
+      "file_type": "code",
+      "norm_label": "calculate_wallet_sell_percentage()",
+      "source_file": "app.py",
+      "source_location": "L3184"
+    },
+    {
       "id": "app_load_shadow_model",
       "label": "load_shadow_model()",
       "_callable": true,
       "_origin": "ast",
       "community": 85,
-      "community_name": "ShadowLogisticModel",
+      "community_name": "ValueError",
       "file_type": "code",
       "norm_label": "load_shadow_model()",
       "source_file": "app.py",
       "source_location": "L7563"
     },
     {
-      "id": "scripts_train_baseline_model_build_shadow_artifact",
-      "label": "build_shadow_artifact()",
+      "id": "app_prepare_pumpportal_lightning_sell",
+      "label": "prepare_pumpportal_lightning_sell()",
       "_callable": true,
       "_origin": "ast",
       "community": 85,
-      "community_name": "ShadowLogisticModel",
+      "community_name": "ValueError",
       "file_type": "code",
-      "norm_label": "build_shadow_artifact()",
-      "source_file": "scripts/train_baseline_model.py",
-      "source_location": "L685"
+      "norm_label": "prepare_pumpportal_lightning_sell()",
+      "source_file": "app.py",
+      "source_location": "L3207"
     },
     {
       "id": "shadow_model_shadowlogisticmodel_from_path",
@@ -14225,7 +14261,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 85,
-      "community_name": "ShadowLogisticModel",
+      "community_name": "ValueError",
       "file_type": "code",
       "norm_label": ".from_path()",
       "source_file": "shadow_model.py",
@@ -14237,7 +14273,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 85,
-      "community_name": "ShadowLogisticModel",
+      "community_name": "ValueError",
       "file_type": "code",
       "norm_label": ".__init__()",
       "source_file": "shadow_model.py",
@@ -14249,7 +14285,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 85,
-      "community_name": "ShadowLogisticModel",
+      "community_name": "ValueError",
       "file_type": "code",
       "norm_label": ".predict()",
       "source_file": "shadow_model.py",
@@ -14261,7 +14297,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 85,
-      "community_name": "ShadowLogisticModel",
+      "community_name": "ValueError",
       "file_type": "code",
       "norm_label": ".predict_probability()",
       "source_file": "shadow_model.py",
@@ -14273,35 +14309,11 @@
       "_callable": true,
       "_origin": "ast",
       "community": 85,
-      "community_name": "ShadowLogisticModel",
+      "community_name": "ValueError",
       "file_type": "code",
       "norm_label": ".transform()",
       "source_file": "shadow_model.py",
       "source_location": "L51"
-    },
-    {
-      "id": "tests_test_training_pipeline_shadowartifacttests_test_shadow_candidate_records_non_deployable_role",
-      "label": ".test_shadow_candidate_records_non_deployable_role()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 85,
-      "community_name": "ShadowLogisticModel",
-      "file_type": "code",
-      "norm_label": ".test_shadow_candidate_records_non_deployable_role()",
-      "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L429"
-    },
-    {
-      "id": "tests_test_training_pipeline_shadowartifacttests_test_stdlib_shadow_probability_matches_sklearn",
-      "label": ".test_stdlib_shadow_probability_matches_sklearn()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 85,
-      "community_name": "ShadowLogisticModel",
-      "file_type": "code",
-      "norm_label": ".test_stdlib_shadow_probability_matches_sklearn()",
-      "source_file": "tests/test_training_pipeline.py",
-      "source_location": "L370"
     },
     {
       "id": "onchain_account_prices_account_addresses",
@@ -14818,17 +14830,6 @@
       "norm_label": ".test_stats_keep_model_versions_separate()",
       "source_file": "tests/test_shadow_mode.py",
       "source_location": "L274"
-    },
-    {
-      "id": "scripts_compare_model_economics",
-      "label": "compare_model_economics.py",
-      "_origin": "ast",
-      "community": 0,
-      "community_name": "train_baseline_model.py",
-      "file_type": "code",
-      "norm_label": "compare_model_economics.py",
-      "source_file": "scripts/compare_model_economics.py",
-      "source_location": "L1"
     },
     {
       "id": "scripts_train_baseline_model",
@@ -15419,6 +15420,17 @@
       "source_location": "L1"
     },
     {
+      "id": "solana_receipts",
+      "label": "solana_receipts.py",
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "LiveReceiptPersistenceTests",
+      "file_type": "code",
+      "norm_label": "solana_receipts.py",
+      "source_file": "solana_receipts.py",
+      "source_location": "L1"
+    },
+    {
       "id": "tests_test_solana_receipts",
       "label": "test_solana_receipts.py",
       "_origin": "ast",
@@ -15428,6 +15440,28 @@
       "norm_label": "test_solana_receipts.py",
       "source_file": "tests/test_solana_receipts.py",
       "source_location": "L1"
+    },
+    {
+      "id": "solana_receipts_rationale_1",
+      "label": "Conservative accounting of finalized buys from Solana jsonParsed receipts.",
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "LiveReceiptPersistenceTests",
+      "file_type": "rationale",
+      "norm_label": "conservative accounting of finalized buys from solana jsonparsed receipts.",
+      "source_file": "solana_receipts.py",
+      "source_location": "L1"
+    },
+    {
+      "id": "solana_receipts_rationale_15",
+      "label": "Return exact balance deltas, not an inferred swap price or fee breakdown. Net\u2026",
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "LiveReceiptPersistenceTests",
+      "file_type": "rationale",
+      "norm_label": "return exact balance deltas, not an inferred swap price or fee breakdown. net...",
+      "source_file": "solana_receipts.py",
+      "source_location": "L15"
     },
     {
       "id": "solana_receipts_rationale_27",
@@ -15728,17 +15762,6 @@
       "source_location": "L11110"
     },
     {
-      "id": "app_rationale_11565",
-      "label": "Consume continuamente el inbox despu\u00e9s de una activaci\u00f3n persistente.",
-      "_origin": "ast",
-      "community": 28,
-      "community_name": "db",
-      "file_type": "rationale",
-      "norm_label": "consume continuamente el inbox despues de una activacion persistente.",
-      "source_file": "app.py",
-      "source_location": "L11565"
-    },
-    {
       "id": "app_rationale_16732",
       "label": "Close intervals left open by a stopped process at its last heartbeat.",
       "_origin": "ast",
@@ -15761,17 +15784,6 @@
       "source_location": "L17454"
     },
     {
-      "id": "app_rationale_18449",
-      "label": "Auditor\u00eda RPC de trades Pump ausentes del stream de PumpPortal.",
-      "_origin": "ast",
-      "community": 28,
-      "community_name": "db",
-      "file_type": "rationale",
-      "norm_label": "auditoria rpc de trades pump ausentes del stream de pumpportal.",
-      "source_file": "app.py",
-      "source_location": "L18449"
-    },
-    {
       "id": "app_rationale_2580",
       "label": "Apply only a cached price observed inside the checkpoint's own window.",
       "_origin": "ast",
@@ -15781,28 +15793,6 @@
       "norm_label": "apply only a cached price observed inside the checkpoint's own window.",
       "source_file": "app.py",
       "source_location": "L2580"
-    },
-    {
-      "id": "app_rationale_4804",
-      "label": "Return live orders that cannot be reconciled without manual review.",
-      "_origin": "ast",
-      "community": 28,
-      "community_name": "db",
-      "file_type": "rationale",
-      "norm_label": "return live orders that cannot be reconciled without manual review.",
-      "source_file": "app.py",
-      "source_location": "L4804"
-    },
-    {
-      "id": "app_rationale_4842",
-      "label": "Alert once per live order that PumpPortal left without a signature.",
-      "_origin": "ast",
-      "community": 28,
-      "community_name": "db",
-      "file_type": "rationale",
-      "norm_label": "alert once per live order that pumpportal left without a signature.",
-      "source_file": "app.py",
-      "source_location": "L4842"
     },
     {
       "id": "claude_notes_1_c\u00f3mo_se_genera_una_se\u00f1al",
@@ -16376,21 +16366,10 @@
       "label": "helius_standard_wss.py",
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": "helius_standard_wss.py",
       "source_file": "helius_standard_wss.py",
-      "source_location": "L1"
-    },
-    {
-      "id": "solana_receipts",
-      "label": "solana_receipts.py",
-      "_origin": "ast",
-      "community": 31,
-      "community_name": "ValueError",
-      "file_type": "code",
-      "norm_label": "solana_receipts.py",
-      "source_file": "solana_receipts.py",
       "source_location": "L1"
     },
     {
@@ -16398,29 +16377,18 @@
       "label": "test_helius_standard_wss.py",
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "code",
       "norm_label": "test_helius_standard_wss.py",
       "source_file": "tests/test_helius_standard_wss.py",
       "source_location": "L1"
     },
     {
-      "id": "valueerror",
-      "label": "ValueError",
-      "_origin": "ast",
-      "community": 31,
-      "community_name": "ValueError",
-      "file_type": "code",
-      "norm_label": "valueerror",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
       "id": "app_rationale_15533",
       "label": "Cuenta una notificaci\u00f3n sin Pump. Devuelve el ritmo del \u00faltimo minuto.",
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "rationale",
       "norm_label": "cuenta una notificacion sin pump. devuelve el ritmo del ultimo minuto.",
       "source_file": "app.py",
@@ -16431,44 +16399,11 @@
       "label": "True la primera vez que la wallet cruza el umbral; luego queda muda.",
       "_origin": "ast",
       "community": 31,
-      "community_name": "ValueError",
+      "community_name": "helius_standard_wss_worker",
       "file_type": "rationale",
       "norm_label": "true la primera vez que la wallet cruza el umbral; luego queda muda.",
       "source_file": "app.py",
       "source_location": "L15556"
-    },
-    {
-      "id": "app_rationale_16223",
-      "label": "Label a fixed-checkpoint path without implying continuous coverage.",
-      "_origin": "ast",
-      "community": 31,
-      "community_name": "ValueError",
-      "file_type": "rationale",
-      "norm_label": "label a fixed-checkpoint path without implying continuous coverage.",
-      "source_file": "app.py",
-      "source_location": "L16223"
-    },
-    {
-      "id": "solana_receipts_rationale_1",
-      "label": "Conservative accounting of finalized buys from Solana jsonParsed receipts.",
-      "_origin": "ast",
-      "community": 31,
-      "community_name": "ValueError",
-      "file_type": "rationale",
-      "norm_label": "conservative accounting of finalized buys from solana jsonparsed receipts.",
-      "source_file": "solana_receipts.py",
-      "source_location": "L1"
-    },
-    {
-      "id": "solana_receipts_rationale_15",
-      "label": "Return exact balance deltas, not an inferred swap price or fee breakdown. Net\u2026",
-      "_origin": "ast",
-      "community": 31,
-      "community_name": "ValueError",
-      "file_type": "rationale",
-      "norm_label": "return exact balance deltas, not an inferred swap price or fee breakdown. net...",
-      "source_file": "solana_receipts.py",
-      "source_location": "L15"
     },
     {
       "id": "claude_notes",
@@ -16716,22 +16651,11 @@
       "source_location": "L299"
     },
     {
-      "id": "solana_rpc_fallback_rationale_546",
-      "label": "Return official Pump events for the requested token mints. Unlike the watched-\u2026",
-      "_origin": "ast",
-      "community": 36,
-      "community_name": "pump_receipt",
-      "file_type": "rationale",
-      "norm_label": "return official pump events for the requested token mints. unlike the watched-...",
-      "source_file": "solana_rpc_fallback.py",
-      "source_location": "L546"
-    },
-    {
       "id": "tests_test_rpc_fallback_rationale_514",
       "label": "Sin el flag solo cuenta; con el flag escribe al inbox como `rpc`.",
       "_origin": "ast",
       "community": 36,
-      "community_name": "pump_receipt",
+      "community_name": "RpcFallbackPersistenceTests",
       "file_type": "rationale",
       "norm_label": "sin el flag solo cuenta; con el flag escribe al inbox como `rpc`.",
       "source_file": "tests/test_rpc_fallback.py",
@@ -16742,29 +16666,18 @@
       "label": "Cobertura parcial es peor que exclusi\u00f3n: parece diversidad. De una wallet cuya\u2026",
       "_origin": "ast",
       "community": 36,
-      "community_name": "pump_receipt",
+      "community_name": "RpcFallbackPersistenceTests",
       "file_type": "rationale",
       "norm_label": "cobertura parcial es peor que exclusion: parece diversidad. de una wallet cuya...",
       "source_file": "tests/test_rpc_fallback.py",
       "source_location": "L572"
     },
     {
-      "id": "tests_test_rpc_fallback_rationale_627",
-      "label": "Separa \"el transporte nunca lo trajo\" de \"lo trajo y fall\u00f3\".",
-      "_origin": "ast",
-      "community": 36,
-      "community_name": "pump_receipt",
-      "file_type": "rationale",
-      "norm_label": "separa \"el transporte nunca lo trajo\" de \"lo trajo y fallo\".",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L627"
-    },
-    {
       "id": "tests_test_rpc_fallback_rationale_673",
       "label": "Con firma sola, la operaci\u00f3n 1 quedaba \"matched\" por la operaci\u00f3n 0. PumpPortal\u2026",
       "_origin": "ast",
       "community": 36,
-      "community_name": "pump_receipt",
+      "community_name": "RpcFallbackPersistenceTests",
       "file_type": "rationale",
       "norm_label": "con firma sola, la operacion 1 quedaba \"matched\" por la operacion 0. pumpportal...",
       "source_file": "tests/test_rpc_fallback.py",
@@ -16775,33 +16688,11 @@
       "label": "Un trade del \u00edndice cero no prueba que PumpPortal entreg\u00f3 el uno.",
       "_origin": "ast",
       "community": 36,
-      "community_name": "pump_receipt",
+      "community_name": "RpcFallbackPersistenceTests",
       "file_type": "rationale",
       "norm_label": "un trade del indice cero no prueba que pumpportal entrego el uno.",
       "source_file": "tests/test_rpc_fallback.py",
       "source_location": "L712"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rationale_758",
-      "label": "Lo que el consumidor del inbox aplic\u00f3 no lo perdi\u00f3 el agente.",
-      "_origin": "ast",
-      "community": 36,
-      "community_name": "pump_receipt",
-      "file_type": "rationale",
-      "norm_label": "lo que el consumidor del inbox aplico no lo perdio el agente.",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L758"
-    },
-    {
-      "id": "tests_test_rpc_fallback_rationale_772",
-      "label": "El parser entrega ``None`` cuando no puede reconstruir el saldo. En producci\u00f3n\u2026",
-      "_origin": "ast",
-      "community": 36,
-      "community_name": "pump_receipt",
-      "file_type": "rationale",
-      "norm_label": "el parser entrega ``none`` cuando no puede reconstruir el saldo. en produccion...",
-      "source_file": "tests/test_rpc_fallback.py",
-      "source_location": "L772"
     },
     {
       "id": "claude_notes_conectar_el_webhook_al_pipeline_brief_para_codex_2026_09_11",
@@ -17618,7 +17509,7 @@
       "label": "Lee un timestamp que guardamos nosotros; inservible cuenta como ausente.\u2026",
       "_origin": "ast",
       "community": 46,
-      "community_name": "open_paper_position",
+      "community_name": "apply_paper_event",
       "file_type": "rationale",
       "norm_label": "lee un timestamp que guardamos nosotros; inservible cuenta como ausente....",
       "source_file": "app.py",
@@ -17629,7 +17520,7 @@
       "label": "Decide qu\u00e9 hacer con una posici\u00f3n paper. No toca la base de datos. Separado de\u2026",
       "_origin": "ast",
       "community": 46,
-      "community_name": "open_paper_position",
+      "community_name": "apply_paper_event",
       "file_type": "rationale",
       "norm_label": "decide que hacer con una posicion paper. no toca la base de datos. separado de...",
       "source_file": "app.py",
@@ -17640,7 +17531,7 @@
       "label": "Aplica el evento en una sola transacci\u00f3n y describe qu\u00e9 pas\u00f3. Deliberadamente\u2026",
       "_origin": "ast",
       "community": 46,
-      "community_name": "open_paper_position",
+      "community_name": "apply_paper_event",
       "file_type": "rationale",
       "norm_label": "aplica el evento en una sola transaccion y describe que paso. deliberadamente...",
       "source_file": "app.py",
@@ -17651,7 +17542,7 @@
       "label": "Registra un evento de posici\u00f3n. Con ``connection`` escribe dentro de la\u2026",
       "_origin": "ast",
       "community": 46,
-      "community_name": "open_paper_position",
+      "community_name": "apply_paper_event",
       "file_type": "rationale",
       "norm_label": "registra un evento de posicion. con ``connection`` escribe dentro de la...",
       "source_file": "app.py",
@@ -19232,6 +19123,61 @@
       "source_location": "L1"
     },
     {
+      "id": "app_rationale_11565",
+      "label": "Consume continuamente el inbox despu\u00e9s de una activaci\u00f3n persistente.",
+      "_origin": "ast",
+      "community": 62,
+      "community_name": "send_discord_alert",
+      "file_type": "rationale",
+      "norm_label": "consume continuamente el inbox despues de una activacion persistente.",
+      "source_file": "app.py",
+      "source_location": "L11565"
+    },
+    {
+      "id": "app_rationale_12538",
+      "label": "Estado de entrega de cada wallet vigilada. Una wallet puede dejar de entregar\u2026",
+      "_origin": "ast",
+      "community": 62,
+      "community_name": "send_discord_alert",
+      "file_type": "rationale",
+      "norm_label": "estado de entrega de cada wallet vigilada. una wallet puede dejar de entregar...",
+      "source_file": "app.py",
+      "source_location": "L12538"
+    },
+    {
+      "id": "app_rationale_12601",
+      "label": "Avisa cuando una wallet vigilada deja de entregar con el stream sano. Solo se\u2026",
+      "_origin": "ast",
+      "community": 62,
+      "community_name": "send_discord_alert",
+      "file_type": "rationale",
+      "norm_label": "avisa cuando una wallet vigilada deja de entregar con el stream sano. solo se...",
+      "source_file": "app.py",
+      "source_location": "L12601"
+    },
+    {
+      "id": "app_rationale_15429",
+      "label": "Notify once while dynamic webhook synchronization is unhealthy.",
+      "_origin": "ast",
+      "community": 62,
+      "community_name": "send_discord_alert",
+      "file_type": "rationale",
+      "norm_label": "notify once while dynamic webhook synchronization is unhealthy.",
+      "source_file": "app.py",
+      "source_location": "L15429"
+    },
+    {
+      "id": "app_rationale_18419",
+      "label": "Entrega de datos por wallet vigilada: detecta silencios individuales.",
+      "_origin": "ast",
+      "community": 62,
+      "community_name": "send_discord_alert",
+      "file_type": "rationale",
+      "norm_label": "entrega de datos por wallet vigilada: detecta silencios individuales.",
+      "source_file": "app.py",
+      "source_location": "L18419"
+    },
+    {
       "id": "app",
       "label": "app.py",
       "_origin": "ast",
@@ -19243,99 +19189,33 @@
       "source_location": "L1"
     },
     {
-      "id": "app_rationale_15429",
-      "label": "Notify once while dynamic webhook synchronization is unhealthy.",
+      "id": "app_rationale_18449",
+      "label": "Auditor\u00eda RPC de trades Pump ausentes del stream de PumpPortal.",
       "_origin": "ast",
       "community": 63,
       "community_name": "app.py",
       "file_type": "rationale",
-      "norm_label": "notify once while dynamic webhook synchronization is unhealthy.",
+      "norm_label": "auditoria rpc de trades pump ausentes del stream de pumpportal.",
       "source_file": "app.py",
-      "source_location": "L15429"
-    },
-    {
-      "id": "app_rationale_16248",
-      "label": "Load complete fixed-checkpoint outcomes without building model features.",
-      "_origin": "ast",
-      "community": 63,
-      "community_name": "app.py",
-      "file_type": "rationale",
-      "norm_label": "load complete fixed-checkpoint outcomes without building model features.",
-      "source_file": "app.py",
-      "source_location": "L16248"
-    },
-    {
-      "id": "app_rationale_16453",
-      "label": "Build a shadow-only dataset from complete fixed on-chain snapshots.",
-      "_origin": "ast",
-      "community": 63,
-      "community_name": "app.py",
-      "file_type": "rationale",
-      "norm_label": "build a shadow-only dataset from complete fixed on-chain snapshots.",
-      "source_file": "app.py",
-      "source_location": "L16453"
-    },
-    {
-      "id": "scripts_relabel_stop_alignment",
-      "label": "relabel_stop_alignment.py",
-      "_origin": "ast",
-      "community": 64,
-      "community_name": "relabel_stop_alignment.py",
-      "file_type": "code",
-      "norm_label": "relabel_stop_alignment.py",
-      "source_file": "scripts/relabel_stop_alignment.py",
-      "source_location": "L1"
+      "source_location": "L18449"
     },
     {
       "id": "scripts_staged_payoff_backtest",
       "label": "staged_payoff_backtest.py",
       "_origin": "ast",
       "community": 64,
-      "community_name": "relabel_stop_alignment.py",
+      "community_name": "staged_payoff_backtest.py",
       "file_type": "code",
       "norm_label": "staged_payoff_backtest.py",
       "source_file": "scripts/staged_payoff_backtest.py",
       "source_location": "L1"
     },
     {
-      "id": "scripts_relabel_stop_alignment_rationale_1",
-      "label": "Alinea la etiqueta con el stop que la pol\u00edtica realmente usa. El modelo entrena\u2026",
-      "_origin": "ast",
-      "community": 64,
-      "community_name": "relabel_stop_alignment.py",
-      "file_type": "rationale",
-      "norm_label": "alinea la etiqueta con el stop que la politica realmente usa. el modelo entrena...",
-      "source_file": "scripts/relabel_stop_alignment.py",
-      "source_location": "L1"
-    },
-    {
-      "id": "scripts_relabel_stop_alignment_rationale_38",
-      "label": "Espeja `app.account_checkpoint_target()` con el stop parametrizado.",
-      "_origin": "ast",
-      "community": 64,
-      "community_name": "relabel_stop_alignment.py",
-      "file_type": "rationale",
-      "norm_label": "espeja `app.account_checkpoint_target()` con el stop parametrizado.",
-      "source_file": "scripts/relabel_stop_alignment.py",
-      "source_location": "L38"
-    },
-    {
-      "id": "scripts_relabel_stop_alignment_rationale_58",
-      "label": "Entrena con el split y el modelo de siempre, cambiando solo la etiqueta.",
-      "_origin": "ast",
-      "community": 64,
-      "community_name": "relabel_stop_alignment.py",
-      "file_type": "rationale",
-      "norm_label": "entrena con el split y el modelo de siempre, cambiando solo la etiqueta.",
-      "source_file": "scripts/relabel_stop_alignment.py",
-      "source_location": "L58"
-    },
-    {
       "id": "scripts_staged_payoff_backtest_rationale_1",
       "label": "PnL de las se\u00f1ales bajo la pol\u00edtica de salidas real de Pump Copilot. El proxy\u2026",
       "_origin": "ast",
       "community": 64,
-      "community_name": "relabel_stop_alignment.py",
+      "community_name": "staged_payoff_backtest.py",
       "file_type": "rationale",
       "norm_label": "pnl de las senales bajo la politica de salidas real de pump copilot. el proxy...",
       "source_file": "scripts/staged_payoff_backtest.py",
@@ -19346,7 +19226,7 @@
       "label": "Aplica la pol\u00edtica real a una trayectoria. Devuelve fracciones vendidas. Espeja\u2026",
       "_origin": "ast",
       "community": 64,
-      "community_name": "relabel_stop_alignment.py",
+      "community_name": "staged_payoff_backtest.py",
       "file_type": "rationale",
       "norm_label": "aplica la politica real a una trayectoria. devuelve fracciones vendidas. espeja...",
       "source_file": "scripts/staged_payoff_backtest.py",
@@ -19357,7 +19237,7 @@
       "label": "PnL por unidad invertida. El resto sin pol\u00edtica se informa aparte.",
       "_origin": "ast",
       "community": 64,
-      "community_name": "relabel_stop_alignment.py",
+      "community_name": "staged_payoff_backtest.py",
       "file_type": "rationale",
       "norm_label": "pnl por unidad invertida. el resto sin politica se informa aparte.",
       "source_file": "scripts/staged_payoff_backtest.py",
@@ -19606,6 +19486,17 @@
       "source_location": "L996"
     },
     {
+      "id": "solana_rpc_fallback_rationale_546",
+      "label": "Return official Pump events for the requested token mints. Unlike the watched-\u2026",
+      "_origin": "ast",
+      "community": 68,
+      "community_name": "parse_tracked_token_pump_events",
+      "file_type": "rationale",
+      "norm_label": "return official pump events for the requested token mints. unlike the watched-...",
+      "source_file": "solana_rpc_fallback.py",
+      "source_location": "L546"
+    },
+    {
       "id": "tests_test_account_price_checkpoints",
       "label": "test_account_price_checkpoints.py",
       "_origin": "ast",
@@ -19815,11 +19706,44 @@
       "label": "La l\u00ednea de base decide qu\u00e9 observaciones cuentan como evidencia. Un fallo de\u2026",
       "_origin": "ast",
       "community": 75,
-      "community_name": "RpcFallbackBaselineTests",
+      "community_name": "pump_receipt",
       "file_type": "rationale",
       "norm_label": "la linea de base decide que observaciones cuentan como evidencia. un fallo de...",
       "source_file": "tests/test_rpc_fallback.py",
       "source_location": "L1049"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rationale_627",
+      "label": "Separa \"el transporte nunca lo trajo\" de \"lo trajo y fall\u00f3\".",
+      "_origin": "ast",
+      "community": 75,
+      "community_name": "pump_receipt",
+      "file_type": "rationale",
+      "norm_label": "separa \"el transporte nunca lo trajo\" de \"lo trajo y fallo\".",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L627"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rationale_758",
+      "label": "Lo que el consumidor del inbox aplic\u00f3 no lo perdi\u00f3 el agente.",
+      "_origin": "ast",
+      "community": 75,
+      "community_name": "pump_receipt",
+      "file_type": "rationale",
+      "norm_label": "lo que el consumidor del inbox aplico no lo perdio el agente.",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L758"
+    },
+    {
+      "id": "tests_test_rpc_fallback_rationale_772",
+      "label": "El parser entrega ``None`` cuando no puede reconstruir el saldo. En producci\u00f3n\u2026",
+      "_origin": "ast",
+      "community": 75,
+      "community_name": "pump_receipt",
+      "file_type": "rationale",
+      "norm_label": "el parser entrega ``none`` cuando no puede reconstruir el saldo. en produccion...",
+      "source_file": "tests/test_rpc_fallback.py",
+      "source_location": "L772"
     },
     {
       "id": "scripts_remainder_exit_backtest",
@@ -19954,39 +19878,6 @@
       "source_location": "L11320"
     },
     {
-      "id": "app_rationale_12538",
-      "label": "Estado de entrega de cada wallet vigilada. Una wallet puede dejar de entregar\u2026",
-      "_origin": "ast",
-      "community": 78,
-      "community_name": "validate_market_event_inbox_once",
-      "file_type": "rationale",
-      "norm_label": "estado de entrega de cada wallet vigilada. una wallet puede dejar de entregar...",
-      "source_file": "app.py",
-      "source_location": "L12538"
-    },
-    {
-      "id": "app_rationale_12601",
-      "label": "Avisa cuando una wallet vigilada deja de entregar con el stream sano. Solo se\u2026",
-      "_origin": "ast",
-      "community": 78,
-      "community_name": "validate_market_event_inbox_once",
-      "file_type": "rationale",
-      "norm_label": "avisa cuando una wallet vigilada deja de entregar con el stream sano. solo se...",
-      "source_file": "app.py",
-      "source_location": "L12601"
-    },
-    {
-      "id": "app_rationale_18419",
-      "label": "Entrega de datos por wallet vigilada: detecta silencios individuales.",
-      "_origin": "ast",
-      "community": 78,
-      "community_name": "validate_market_event_inbox_once",
-      "file_type": "rationale",
-      "norm_label": "entrega de datos por wallet vigilada: detecta silencios individuales.",
-      "source_file": "app.py",
-      "source_location": "L18419"
-    },
-    {
       "id": "codex_skills_graphify_references_query",
       "label": "query.md",
       "_origin": "ast",
@@ -20059,6 +19950,17 @@
       "source_location": "L61"
     },
     {
+      "id": "app_rationale_16248",
+      "label": "Load complete fixed-checkpoint outcomes without building model features.",
+      "_origin": "ast",
+      "community": 80,
+      "community_name": "api_account_checkpoint_paths",
+      "file_type": "rationale",
+      "norm_label": "load complete fixed-checkpoint outcomes without building model features.",
+      "source_file": "app.py",
+      "source_location": "L16248"
+    },
+    {
       "id": "app_rationale_16336",
       "label": "Return stored market events inside each observation's 15m horizon.",
       "_origin": "ast",
@@ -20081,6 +19983,17 @@
       "source_location": "L16387"
     },
     {
+      "id": "app_rationale_16453",
+      "label": "Build a shadow-only dataset from complete fixed on-chain snapshots.",
+      "_origin": "ast",
+      "community": 80,
+      "community_name": "api_account_checkpoint_paths",
+      "file_type": "rationale",
+      "norm_label": "build a shadow-only dataset from complete fixed on-chain snapshots.",
+      "source_file": "app.py",
+      "source_location": "L16453"
+    },
+    {
       "id": "app_rationale_17950",
       "label": "Trayectoria de precios por se\u00f1al, para estimar PnL fuera del servicio. La\u2026",
       "_origin": "ast",
@@ -20092,25 +20005,36 @@
       "source_location": "L17950"
     },
     {
+      "id": "tests_test_feature_ablation",
+      "label": "test_feature_ablation.py",
+      "_origin": "ast",
+      "community": 81,
+      "community_name": "selection_diagnostics",
+      "file_type": "code",
+      "norm_label": "test_feature_ablation.py",
+      "source_file": "tests/test_feature_ablation.py",
+      "source_location": "L1"
+    },
+    {
       "id": "scripts_analyze_feature_ablation",
       "label": "analyze_feature_ablation.py",
       "_origin": "ast",
-      "community": 81,
-      "community_name": "analyze_feature_ablation.py",
+      "community": 82,
+      "community_name": "compare_model_economics.py",
       "file_type": "code",
       "norm_label": "analyze_feature_ablation.py",
       "source_file": "scripts/analyze_feature_ablation.py",
       "source_location": "L1"
     },
     {
-      "id": "tests_test_feature_ablation",
-      "label": "test_feature_ablation.py",
+      "id": "scripts_compare_model_economics",
+      "label": "compare_model_economics.py",
       "_origin": "ast",
-      "community": 81,
-      "community_name": "analyze_feature_ablation.py",
+      "community": 82,
+      "community_name": "compare_model_economics.py",
       "file_type": "code",
-      "norm_label": "test_feature_ablation.py",
-      "source_file": "tests/test_feature_ablation.py",
+      "norm_label": "compare_model_economics.py",
+      "source_file": "scripts/compare_model_economics.py",
       "source_location": "L1"
     },
     {
@@ -20118,10 +20042,21 @@
       "label": "reconcile_threshold_economics.py",
       "_origin": "ast",
       "community": 82,
-      "community_name": "simulate_payoff",
+      "community_name": "compare_model_economics.py",
       "file_type": "code",
       "norm_label": "reconcile_threshold_economics.py",
       "source_file": "scripts/reconcile_threshold_economics.py",
+      "source_location": "L1"
+    },
+    {
+      "id": "scripts_relabel_stop_alignment",
+      "label": "relabel_stop_alignment.py",
+      "_origin": "ast",
+      "community": 82,
+      "community_name": "compare_model_economics.py",
+      "file_type": "code",
+      "norm_label": "relabel_stop_alignment.py",
+      "source_file": "scripts/relabel_stop_alignment.py",
       "source_location": "L1"
     },
     {
@@ -20129,7 +20064,7 @@
       "label": "test_model_economics.py",
       "_origin": "ast",
       "community": 82,
-      "community_name": "simulate_payoff",
+      "community_name": "compare_model_economics.py",
       "file_type": "code",
       "norm_label": "test_model_economics.py",
       "source_file": "tests/test_model_economics.py",
@@ -20140,7 +20075,7 @@
       "label": "Reconcilia la precisi\u00f3n del clasificador con la del backtest econ\u00f3mico. El\u2026",
       "_origin": "ast",
       "community": 82,
-      "community_name": "simulate_payoff",
+      "community_name": "compare_model_economics.py",
       "file_type": "rationale",
       "norm_label": "reconcilia la precision del clasificador con la del backtest economico. el...",
       "source_file": "scripts/reconcile_threshold_economics.py",
@@ -20151,11 +20086,66 @@
       "label": "Precisi\u00f3n m\u00ednima para no perder: w*0.25 - (1-w)*0.10 - coste = 0.",
       "_origin": "ast",
       "community": 82,
-      "community_name": "simulate_payoff",
+      "community_name": "compare_model_economics.py",
       "file_type": "rationale",
       "norm_label": "precision minima para no perder: w*0.25 - (1-w)*0.10 - coste = 0.",
       "source_file": "scripts/reconcile_threshold_economics.py",
       "source_location": "L35"
+    },
+    {
+      "id": "scripts_relabel_stop_alignment_rationale_1",
+      "label": "Alinea la etiqueta con el stop que la pol\u00edtica realmente usa. El modelo entrena\u2026",
+      "_origin": "ast",
+      "community": 82,
+      "community_name": "compare_model_economics.py",
+      "file_type": "rationale",
+      "norm_label": "alinea la etiqueta con el stop que la politica realmente usa. el modelo entrena...",
+      "source_file": "scripts/relabel_stop_alignment.py",
+      "source_location": "L1"
+    },
+    {
+      "id": "scripts_relabel_stop_alignment_rationale_38",
+      "label": "Espeja `app.account_checkpoint_target()` con el stop parametrizado.",
+      "_origin": "ast",
+      "community": 82,
+      "community_name": "compare_model_economics.py",
+      "file_type": "rationale",
+      "norm_label": "espeja `app.account_checkpoint_target()` con el stop parametrizado.",
+      "source_file": "scripts/relabel_stop_alignment.py",
+      "source_location": "L38"
+    },
+    {
+      "id": "scripts_relabel_stop_alignment_rationale_58",
+      "label": "Entrena con el split y el modelo de siempre, cambiando solo la etiqueta.",
+      "_origin": "ast",
+      "community": 82,
+      "community_name": "compare_model_economics.py",
+      "file_type": "rationale",
+      "norm_label": "entrena con el split y el modelo de siempre, cambiando solo la etiqueta.",
+      "source_file": "scripts/relabel_stop_alignment.py",
+      "source_location": "L58"
+    },
+    {
+      "id": "app_rationale_4804",
+      "label": "Return live orders that cannot be reconciled without manual review.",
+      "_origin": "ast",
+      "community": 83,
+      "community_name": "reconcile_pumpportal_execution_order",
+      "file_type": "rationale",
+      "norm_label": "return live orders that cannot be reconciled without manual review.",
+      "source_file": "app.py",
+      "source_location": "L4804"
+    },
+    {
+      "id": "app_rationale_4842",
+      "label": "Alert once per live order that PumpPortal left without a signature.",
+      "_origin": "ast",
+      "community": 83,
+      "community_name": "reconcile_pumpportal_execution_order",
+      "file_type": "rationale",
+      "norm_label": "alert once per live order that pumpportal left without a signature.",
+      "source_file": "app.py",
+      "source_location": "L4842"
     },
     {
       "id": "scripts_prune_dead_css",
@@ -20228,11 +20218,33 @@
       "label": "shadow_model.py",
       "_origin": "ast",
       "community": 85,
-      "community_name": "ShadowLogisticModel",
+      "community_name": "ValueError",
       "file_type": "code",
       "norm_label": "shadow_model.py",
       "source_file": "shadow_model.py",
       "source_location": "L1"
+    },
+    {
+      "id": "valueerror",
+      "label": "ValueError",
+      "_origin": "ast",
+      "community": 85,
+      "community_name": "ValueError",
+      "file_type": "code",
+      "norm_label": "valueerror",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "app_rationale_16223",
+      "label": "Label a fixed-checkpoint path without implying continuous coverage.",
+      "_origin": "ast",
+      "community": 85,
+      "community_name": "ValueError",
+      "file_type": "rationale",
+      "norm_label": "label a fixed-checkpoint path without implying continuous coverage.",
+      "source_file": "app.py",
+      "source_location": "L16223"
     },
     {
       "id": "claude_notes_causas_descartadas",
@@ -30718,7 +30730,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L171",
+      "source_location": "L174",
       "weight": 1.0
     },
     {
@@ -30766,7 +30778,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L447",
+      "source_location": "L503",
       "weight": 1.0
     },
     {
@@ -30778,7 +30790,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L448",
+      "source_location": "L504",
       "weight": 1.0
     },
     {
@@ -30790,7 +30802,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L452",
+      "source_location": "L508",
       "weight": 1.0
     },
     {
@@ -30802,7 +30814,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L453",
+      "source_location": "L509",
       "weight": 1.0
     },
     {
@@ -30814,7 +30826,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L454",
+      "source_location": "L510",
       "weight": 1.0
     },
     {
@@ -30826,7 +30838,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L455",
+      "source_location": "L511",
       "weight": 1.0
     },
     {
@@ -30838,7 +30850,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L457",
+      "source_location": "L513",
       "weight": 1.0
     },
     {
@@ -30850,7 +30862,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L469",
+      "source_location": "L525",
       "weight": 1.0
     },
     {
@@ -30862,7 +30874,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L499",
+      "source_location": "L555",
       "weight": 1.0
     },
     {
@@ -30874,7 +30886,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L229",
+      "source_location": "L232",
       "weight": 1.0
     },
     {
@@ -30886,7 +30898,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L240",
+      "source_location": "L243",
       "weight": 1.0
     },
     {
@@ -30898,7 +30910,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L282",
+      "source_location": "L308",
       "weight": 1.0
     },
     {
@@ -30910,7 +30922,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L367",
+      "source_location": "L407",
       "weight": 1.0
     },
     {
@@ -30922,7 +30934,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L186",
+      "source_location": "L189",
       "weight": 1.0
     },
     {
@@ -30934,7 +30946,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L194",
+      "source_location": "L197",
       "weight": 1.0
     },
     {
@@ -31474,7 +31486,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_frozen_exit_candidate.py",
-      "source_location": "L154",
+      "source_location": "L163",
       "weight": 1.0
     },
     {
@@ -31486,7 +31498,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_frozen_exit_candidate.py",
-      "source_location": "L69",
+      "source_location": "L74",
       "weight": 1.0
     },
     {
@@ -31498,7 +31510,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_frozen_exit_candidate.py",
-      "source_location": "L61",
+      "source_location": "L66",
       "weight": 1.0
     },
     {
@@ -31510,7 +31522,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_frozen_exit_candidate.py",
-      "source_location": "L100",
+      "source_location": "L105",
       "weight": 1.0
     },
     {
@@ -31522,7 +31534,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_frozen_exit_candidate.py",
-      "source_location": "L48",
+      "source_location": "L52",
       "weight": 1.0
     },
     {
@@ -31534,7 +31546,19 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_frozen_exit_candidate.py",
-      "source_location": "L49",
+      "source_location": "L53",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_frozen_exit_candidate_frozenexitcandidatetests_test_partial_subscription_coverage_is_not_claimed_complete",
+      "target": "scripts_validate_frozen_exit_candidate_prospective_report",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "tests/test_frozen_exit_candidate.py",
+      "source_location": "L200",
       "weight": 1.0
     },
     {
@@ -31546,7 +31570,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_frozen_exit_candidate.py",
-      "source_location": "L84",
+      "source_location": "L89",
       "weight": 1.0
     },
     {
@@ -31558,7 +31582,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_frozen_exit_candidate.py",
-      "source_location": "L85",
+      "source_location": "L90",
       "weight": 1.0
     },
     {
@@ -31570,7 +31594,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tests/test_frozen_exit_candidate.py",
-      "source_location": "L130",
+      "source_location": "L135",
       "weight": 1.0
     },
     {
@@ -49090,7 +49114,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L179",
+      "source_location": "L182",
       "weight": 1.0
     },
     {
@@ -49101,7 +49125,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L202",
+      "source_location": "L205",
       "weight": 1.0
     },
     {
@@ -49112,7 +49136,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L223",
+      "source_location": "L226",
       "weight": 1.0
     },
     {
@@ -49123,7 +49147,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L426",
+      "source_location": "L482",
       "weight": 1.0
     },
     {
@@ -51059,7 +51083,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_frozen_exit_candidate.py",
-      "source_location": "L106",
+      "source_location": "L111",
       "weight": 1.0
     },
     {
@@ -51070,7 +51094,18 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_frozen_exit_candidate.py",
-      "source_location": "L139",
+      "source_location": "L144",
+      "weight": 1.0
+    },
+    {
+      "source": "tests_test_frozen_exit_candidate_frozenexitcandidatetests",
+      "target": "tests_test_frozen_exit_candidate_frozenexitcandidatetests_test_partial_subscription_coverage_is_not_claimed_complete",
+      "relation": "method",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tests/test_frozen_exit_candidate.py",
+      "source_location": "L181",
       "weight": 1.0
     },
     {
@@ -51103,7 +51138,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_frozen_exit_candidate.py",
-      "source_location": "L57",
+      "source_location": "L62",
       "weight": 1.0
     },
     {
@@ -51114,7 +51149,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_frozen_exit_candidate.py",
-      "source_location": "L63",
+      "source_location": "L68",
       "weight": 1.0
     },
     {
@@ -51125,7 +51160,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_frozen_exit_candidate.py",
-      "source_location": "L71",
+      "source_location": "L76",
       "weight": 1.0
     },
     {
@@ -51136,7 +51171,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_frozen_exit_candidate.py",
-      "source_location": "L88",
+      "source_location": "L93",
       "weight": 1.0
     },
     {
@@ -60925,5 +60960,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "963b14664ae6120b7138b97835cf01df99d7bb61"
+  "built_at_commit": "adafcb77eed133aa08c7801bdd1690e10f1ad87b"
 }

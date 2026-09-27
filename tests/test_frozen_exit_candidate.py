@@ -43,6 +43,10 @@ class FrozenExitCandidateTests(unittest.TestCase):
             "event_path": [
                 {"elapsed_seconds": 20, "price_sol": 1.05}
             ],
+            "subscription_coverage": {
+                "coverage_ratio": 1.0,
+                "complete": True,
+            },
         }]
 
         result, coverage = build_prospective_rows(
@@ -53,6 +57,7 @@ class FrozenExitCandidateTests(unittest.TestCase):
         self.assertEqual(coverage["future_dataset_rows"], 2)
         self.assertEqual(coverage["missing_paths"], 1)
         self.assertEqual(len(result[0]["event_path"]), 1)
+        self.assertTrue(result[0]["subscription_coverage"]["complete"])
 
     def test_frozen_population_must_not_cross_cutoff(self):
         rows = [{"signal_id": 1, "signal_ts": 101}]
@@ -148,6 +153,10 @@ class FrozenExitCandidateTests(unittest.TestCase):
             "event_path": [
                 {"elapsed_seconds": 30, "price_sol": 0.75}
             ],
+            "subscription_coverage": {
+                "coverage_ratio": 1.0,
+                "complete": True,
+            },
             "ambiguous": True,
         }
 
@@ -159,8 +168,45 @@ class FrozenExitCandidateTests(unittest.TestCase):
         self.assertGreater(sensitivity["fixed_path_result"]["net"], 0)
         self.assertLess(sensitivity["dense_path_result"]["net"], 0)
         self.assertLess(sensitivity["event_sequence_result"]["net"], 0)
-        self.assertFalse(sensitivity["coverage"]["completeness_proven"])
+        coverage = sensitivity["coverage"]
+        self.assertTrue(coverage["completeness_proven"])
+        self.assertEqual(coverage["rows_measured"], 1)
+        self.assertEqual(coverage["rows_complete"], 1)
+        self.assertEqual(coverage["selected_rows_complete"], 1)
+        self.assertLess(
+            coverage["complete_event_sequence_result"]["net"], 0
+        )
         self.assertFalse(report["ready_for_review"])
+
+    def test_partial_subscription_coverage_is_not_claimed_complete(self):
+        row = {
+            "signal_id": 1,
+            "signal_ts": 101,
+            "trader": "test",
+            "mint": "mint",
+            "probability": 0.8,
+            "price_at_signal": 1.0,
+            "path": [{"checkpoint_seconds": 900, "price_sol": 1.1}],
+            "event_path": [
+                {"elapsed_seconds": 30, "price_sol": 1.05}
+            ],
+            "subscription_coverage": {
+                "coverage_ratio": 0.9,
+                "complete": False,
+            },
+            "ambiguous": False,
+        }
+
+        coverage = prospective_report([row])["event_path_sensitivity"][
+            "coverage"
+        ]
+
+        self.assertFalse(coverage["completeness_proven"])
+        self.assertEqual(coverage["rows_measured"], 1)
+        self.assertEqual(coverage["rows_complete"], 0)
+        self.assertEqual(coverage["selected_rows_complete"], 0)
+        self.assertIsNone(coverage["complete_event_sequence_result"])
+        self.assertEqual(coverage["median_subscription_coverage_ratio"], 0.9)
 
 
 if __name__ == "__main__":
