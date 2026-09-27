@@ -156,7 +156,10 @@ class FrozenExitCandidateTests(unittest.TestCase):
         self.assertGreater(report["overall"]["net"], 0)
         sensitivity = report["event_path_sensitivity"]
         self.assertEqual(sensitivity["rows_with_event_path"], 1)
-        self.assertLess(sensitivity["result"]["net"], 0)
+        self.assertGreater(sensitivity["fixed_path_result"]["net"], 0)
+        self.assertLess(sensitivity["dense_path_result"]["net"], 0)
+        self.assertLess(sensitivity["event_sequence_result"]["net"], 0)
+        self.assertFalse(sensitivity["coverage"]["completeness_proven"])
         self.assertFalse(report["ready_for_review"])
 
 

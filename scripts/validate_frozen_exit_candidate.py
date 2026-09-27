@@ -13,6 +13,7 @@ import hashlib
 import json
 import math
 import os
+import statistics
 from collections import Counter
 from datetime import datetime
 from urllib.request import Request, urlopen
@@ -246,10 +247,24 @@ def prospective_report(
         TRAILING_DROP_FROM_PEAK,
         hold_seconds,
     )
+    event_covered_rows = []
     dense_rows = []
+    event_sequence_rows = []
+    event_point_counts = []
+    first_event_delays = []
+    event_sources = Counter()
     for row in rows:
         if not row.get("event_path"):
             continue
+        event_covered_rows.append(row)
+        event_point_counts.append(len(row["event_path"]))
+        first_event_delays.append(
+            min(float(point["elapsed_seconds"]) for point in row["event_path"])
+        )
+        event_sources.update(
+            str(point.get("source") or "unknown")
+            for point in row["event_path"]
+        )
         event_points = [
             {
                 "checkpoint_seconds": float(point["elapsed_seconds"]),
@@ -268,6 +283,21 @@ def prospective_report(
                 float(row["price_at_signal"]), merged_path
             ),
         })
+        final_checkpoint = max(
+            row["path"],
+            key=lambda point: float(point["checkpoint_seconds"]),
+        )
+        event_sequence_path = sorted(
+            [*event_points, final_checkpoint],
+            key=lambda point: float(point["checkpoint_seconds"]),
+        )
+        event_sequence_rows.append({
+            **row,
+            "path": event_sequence_path,
+            # Ordered market events are not sparse checkpoints. Coverage is
+            # reported separately instead of pretending it is complete.
+            "ambiguous": False,
+        })
     event_path_sensitivity = (
         analyse(
             dense_rows,
@@ -278,6 +308,28 @@ def prospective_report(
             hold_seconds,
         )
         if dense_rows else None
+    )
+    fixed_path_covered_sensitivity = (
+        analyse(
+            event_covered_rows,
+            threshold,
+            "tp100_time",
+            cost_per_side,
+            TRAILING_DROP_FROM_PEAK,
+            hold_seconds,
+        )
+        if event_covered_rows else None
+    )
+    event_sequence_sensitivity = (
+        analyse(
+            event_sequence_rows,
+            threshold,
+            "tp100_time",
+            cost_per_side,
+            TRAILING_DROP_FROM_PEAK,
+            hold_seconds,
+        )
+        if event_sequence_rows else None
     )
     ordered = sorted(records, key=lambda row: float(row["net"]), reverse=True)
     without_best = ordered[1:]
@@ -336,7 +388,25 @@ def prospective_report(
                 event_path_sensitivity["positions"]
                 if event_path_sensitivity else 0
             ),
-            "result": event_path_sensitivity,
+            "fixed_path_result": fixed_path_covered_sensitivity,
+            "dense_path_result": event_path_sensitivity,
+            "event_sequence_result": event_sequence_sensitivity,
+            "coverage": {
+                "sources": dict(event_sources.most_common()),
+                "median_events_per_row": (
+                    statistics.median(event_point_counts)
+                    if event_point_counts else None
+                ),
+                "median_first_event_seconds": (
+                    statistics.median(first_event_delays)
+                    if first_event_delays else None
+                ),
+                "p90_first_event_seconds": (
+                    float(np.percentile(first_event_delays, 90))
+                    if first_event_delays else None
+                ),
+                "completeness_proven": False,
+            },
         },
         "without_best_mean": without_best_mean,
         "reached_tp100": reached_tp100,

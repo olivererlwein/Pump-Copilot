@@ -1269,7 +1269,7 @@
       "file_type": "code",
       "norm_label": "fit_frozen_pipeline()",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L113"
+      "source_location": "L114"
     },
     {
       "id": "tests_test_training_pipeline_thresholdselectiontests_test_classification_metrics_honor_sample_weights",
@@ -13281,7 +13281,7 @@
       "file_type": "code",
       "norm_label": "build_prospective_rows()",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L126"
+      "source_location": "L127"
     },
     {
       "id": "scripts_validate_frozen_exit_candidate_concentration",
@@ -13293,7 +13293,7 @@
       "file_type": "code",
       "norm_label": "concentration()",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L201"
+      "source_location": "L202"
     },
     {
       "id": "scripts_validate_frozen_exit_candidate_fetch_json",
@@ -13305,7 +13305,7 @@
       "file_type": "code",
       "norm_label": "fetch_json()",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L65"
+      "source_location": "L66"
     },
     {
       "id": "scripts_validate_frozen_exit_candidate_main",
@@ -13317,7 +13317,7 @@
       "file_type": "code",
       "norm_label": "main()",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L356"
+      "source_location": "L426"
     },
     {
       "id": "scripts_validate_frozen_exit_candidate_parse_cutoff",
@@ -13329,7 +13329,7 @@
       "file_type": "code",
       "norm_label": "parse_cutoff()",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L75"
+      "source_location": "L76"
     },
     {
       "id": "scripts_validate_frozen_exit_candidate_prospective_report",
@@ -13341,7 +13341,7 @@
       "file_type": "code",
       "norm_label": "prospective_report()",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L222"
+      "source_location": "L223"
     },
     {
       "id": "scripts_validate_frozen_exit_candidate_selected_records",
@@ -13353,7 +13353,7 @@
       "file_type": "code",
       "norm_label": "selected_records()",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L178"
+      "source_location": "L179"
     },
     {
       "id": "scripts_validate_frozen_exit_candidate_validate_frozen_population",
@@ -13365,7 +13365,7 @@
       "file_type": "code",
       "norm_label": "validate_frozen_population()",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L95"
+      "source_location": "L96"
     },
     {
       "id": "scripts_validate_frozen_exit_candidate_verify_file_sha256",
@@ -13377,7 +13377,7 @@
       "file_type": "code",
       "norm_label": "verify_file_sha256()",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L82"
+      "source_location": "L83"
     },
     {
       "id": "tests_test_frozen_exit_candidate_fakepipeline_predict_proba",
@@ -30540,7 +30540,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L153",
+      "source_location": "L154",
       "weight": 1.0
     },
     {
@@ -30552,7 +30552,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L170",
+      "source_location": "L171",
       "weight": 1.0
     },
     {
@@ -30564,7 +30564,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L114",
+      "source_location": "L115",
       "weight": 1.0
     },
     {
@@ -30576,7 +30576,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L116",
+      "source_location": "L117",
       "weight": 1.0
     },
     {
@@ -30588,7 +30588,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L117",
+      "source_location": "L118",
       "weight": 1.0
     },
     {
@@ -30600,7 +30600,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L377",
+      "source_location": "L447",
       "weight": 1.0
     },
     {
@@ -30612,7 +30612,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L378",
+      "source_location": "L448",
       "weight": 1.0
     },
     {
@@ -30624,7 +30624,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L382",
+      "source_location": "L452",
       "weight": 1.0
     },
     {
@@ -30636,7 +30636,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L383",
+      "source_location": "L453",
       "weight": 1.0
     },
     {
@@ -30648,7 +30648,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L384",
+      "source_location": "L454",
       "weight": 1.0
     },
     {
@@ -30660,7 +30660,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L385",
+      "source_location": "L455",
       "weight": 1.0
     },
     {
@@ -30672,7 +30672,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L387",
+      "source_location": "L457",
       "weight": 1.0
     },
     {
@@ -30684,7 +30684,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L399",
+      "source_location": "L469",
       "weight": 1.0
     },
     {
@@ -30696,7 +30696,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L429",
+      "source_location": "L499",
       "weight": 1.0
     },
     {
@@ -30708,7 +30708,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L228",
+      "source_location": "L229",
       "weight": 1.0
     },
     {
@@ -30720,7 +30720,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L239",
+      "source_location": "L240",
       "weight": 1.0
     },
     {
@@ -30732,7 +30732,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L267",
+      "source_location": "L282",
       "weight": 1.0
     },
     {
@@ -30744,7 +30744,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L315",
+      "source_location": "L367",
       "weight": 1.0
     },
     {
@@ -30756,7 +30756,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L185",
+      "source_location": "L186",
       "weight": 1.0
     },
     {
@@ -30768,7 +30768,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L193",
+      "source_location": "L194",
       "weight": 1.0
     },
     {
@@ -40008,7 +40008,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L24",
+      "source_location": "L25",
       "weight": 1.0
     },
     {
@@ -40020,7 +40020,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L24",
+      "source_location": "L25",
       "weight": 1.0
     },
     {
@@ -40032,7 +40032,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L24",
+      "source_location": "L25",
       "weight": 1.0
     },
     {
@@ -40044,7 +40044,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L30",
+      "source_location": "L31",
       "weight": 1.0
     },
     {
@@ -40056,7 +40056,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L31",
+      "source_location": "L32",
       "weight": 1.0
     },
     {
@@ -40068,7 +40068,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L31",
+      "source_location": "L32",
       "weight": 1.0
     },
     {
@@ -40080,7 +40080,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L31",
+      "source_location": "L32",
       "weight": 1.0
     },
     {
@@ -40092,7 +40092,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L31",
+      "source_location": "L32",
       "weight": 1.0
     },
     {
@@ -40104,7 +40104,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L31",
+      "source_location": "L32",
       "weight": 1.0
     },
     {
@@ -41100,7 +41100,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L24",
+      "source_location": "L25",
       "weight": 1.0
     },
     {
@@ -41112,7 +41112,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L45",
+      "source_location": "L46",
       "weight": 1.0
     },
     {
@@ -41124,7 +41124,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L46",
+      "source_location": "L47",
       "weight": 1.0
     },
     {
@@ -48847,7 +48847,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L113",
+      "source_location": "L114",
       "weight": 1.0
     },
     {
@@ -48858,7 +48858,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L126",
+      "source_location": "L127",
       "weight": 1.0
     },
     {
@@ -48869,7 +48869,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L178",
+      "source_location": "L179",
       "weight": 1.0
     },
     {
@@ -48880,7 +48880,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L201",
+      "source_location": "L202",
       "weight": 1.0
     },
     {
@@ -48891,7 +48891,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L222",
+      "source_location": "L223",
       "weight": 1.0
     },
     {
@@ -48902,7 +48902,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L356",
+      "source_location": "L426",
       "weight": 1.0
     },
     {
@@ -48913,7 +48913,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L65",
+      "source_location": "L66",
       "weight": 1.0
     },
     {
@@ -48924,7 +48924,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L75",
+      "source_location": "L76",
       "weight": 1.0
     },
     {
@@ -48935,7 +48935,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L82",
+      "source_location": "L83",
       "weight": 1.0
     },
     {
@@ -48946,7 +48946,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L95",
+      "source_location": "L96",
       "weight": 1.0
     },
     {
@@ -60238,7 +60238,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L146",
+      "source_location": "L147",
       "weight": 1.0
     },
     {
@@ -60250,7 +60250,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L78",
+      "source_location": "L79",
       "weight": 1.0
     },
     {
@@ -60262,7 +60262,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L102",
+      "source_location": "L103",
       "weight": 1.0
     },
     {
@@ -60274,7 +60274,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "scripts/validate_frozen_exit_candidate.py",
-      "source_location": "L89",
+      "source_location": "L90",
       "weight": 1.0
     },
     {
@@ -60611,5 +60611,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "be9284b82236c2eac2e185802f2fc0791b65958d"
+  "built_at_commit": "6a20111396af4853b6a7821e8869d8e640fb9c97"
 }
