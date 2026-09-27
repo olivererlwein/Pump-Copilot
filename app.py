@@ -592,6 +592,10 @@ MARKET_EVENT_INBOX_ACTIVATION_STATE_KEY = (
 HELIUS_TOKEN_COVERAGE_ACTIVATION_STATE_KEY = (
     "helius_token_subscription_coverage_activation_ts"
 )
+# The live system cannot subscribe to a mint before its wallet signal reveals
+# it. Coverage is operationally complete when tracking starts within the first
+# checkpoint window and remains continuous through the 15-minute horizon.
+HELIUS_TOKEN_COVERAGE_MAX_START_DELAY_SECONDS = 10.0
 
 # Primera etapa del consumidor del inbox: solo reconstruye y valida eventos.
 # No llama al router ni produce efectos de trading. Se habilita por separado
@@ -16450,10 +16454,16 @@ def get_account_checkpoint_subscription_coverage(observations):
             "first_subscription_delay_seconds": (
                 first_start - signal_ts if first_start is not None else None
             ),
+            "maximum_start_delay_seconds": (
+                HELIUS_TOKEN_COVERAGE_MAX_START_DELAY_SECONDS
+            ),
             "intervals": len(merged),
             "complete": bool(
                 len(merged) == 1
-                and merged[0][0] <= signal_ts
+                and merged[0][0] <= (
+                    signal_ts
+                    + HELIUS_TOKEN_COVERAGE_MAX_START_DELAY_SECONDS
+                )
                 and merged[0][1] >= signal_ts + 900.0
             ),
         }

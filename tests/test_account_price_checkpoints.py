@@ -426,6 +426,75 @@ class AccountPriceCheckpointTests(unittest.TestCase):
             coverage["measurement_started_ts"], signal_ts + 1_000
         )
 
+    def test_subscription_coverage_accepts_bounded_startup_delay(self):
+        signal_id = self.checkpoint_dataset_outcome(
+            7, [1.05, 1.10, 1.15, 1.20, 1.30]
+        )
+        signal_ts = self.signal_ts + 7 * 2_000
+        app.establish_helius_token_coverage_activation(now=signal_ts)
+        conn = app.db()
+        try:
+            conn.execute(
+                """
+                INSERT INTO helius_standard_wss_token_intervals(
+                    mint, subscribed_ts, last_confirmed_ts,
+                    unsubscribed_ts, close_reason
+                ) VALUES(?,?,?,?,?)
+                """,
+                (
+                    "mint-7", signal_ts + 5, signal_ts + 900,
+                    signal_ts + 900, "unsubscribe_confirmed",
+                ),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        coverage = app.get_account_checkpoint_subscription_coverage([{
+            "signal_id": signal_id,
+            "mint": "mint-7",
+            "signal_ts": signal_ts,
+        }])[signal_id]
+
+        self.assertTrue(coverage["measurement_available"])
+        self.assertTrue(coverage["complete"])
+        self.assertEqual(coverage["first_subscription_delay_seconds"], 5.0)
+        self.assertEqual(coverage["maximum_start_delay_seconds"], 10.0)
+        self.assertAlmostEqual(coverage["coverage_ratio"], 895.0 / 900.0)
+
+    def test_subscription_coverage_rejects_excessive_startup_delay(self):
+        signal_id = self.checkpoint_dataset_outcome(
+            8, [1.05, 1.10, 1.15, 1.20, 1.30]
+        )
+        signal_ts = self.signal_ts + 8 * 2_000
+        app.establish_helius_token_coverage_activation(now=signal_ts)
+        conn = app.db()
+        try:
+            conn.execute(
+                """
+                INSERT INTO helius_standard_wss_token_intervals(
+                    mint, subscribed_ts, last_confirmed_ts,
+                    unsubscribed_ts, close_reason
+                ) VALUES(?,?,?,?,?)
+                """,
+                (
+                    "mint-8", signal_ts + 11, signal_ts + 900,
+                    signal_ts + 900, "unsubscribe_confirmed",
+                ),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        coverage = app.get_account_checkpoint_subscription_coverage([{
+            "signal_id": signal_id,
+            "mint": "mint-8",
+            "signal_ts": signal_ts,
+        }])[signal_id]
+
+        self.assertFalse(coverage["complete"])
+        self.assertEqual(coverage["first_subscription_delay_seconds"], 11.0)
+
     def test_event_path_is_absent_by_default(self):
         self.checkpoint_dataset_outcome(
             5, [1.05, 1.10, 1.15, 1.20, 1.30]
