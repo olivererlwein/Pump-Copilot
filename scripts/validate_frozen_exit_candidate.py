@@ -61,6 +61,7 @@ DEFAULT_FROZEN_SHA256 = (
 DEFAULT_THRESHOLD = 0.45
 DEFAULT_COST_PER_SIDE = 0.01
 DEFAULT_HOLD_SECONDS = 900.0
+MIN_COMPLETE_COVERAGE_SELECTIONS = 100
 
 
 def fetch_json(base_url: str, path: str, app_token: str) -> dict:
@@ -409,6 +410,17 @@ def prospective_report(
         blockers.append("MEAN_CI95_DOES_NOT_EXCLUDE_ZERO")
     if without_best_mean is None or without_best_mean <= 0:
         blockers.append("LEAVE_BEST_OUT_NOT_POSITIVE")
+    complete_selected = (
+        int(complete_coverage_sensitivity["positions"])
+        if complete_coverage_sensitivity else 0
+    )
+    if complete_selected < MIN_COMPLETE_COVERAGE_SELECTIONS:
+        blockers.append(
+            "COMPLETE_COVERAGE_SELECTIONS "
+            f"{complete_selected}/{MIN_COMPLETE_COVERAGE_SELECTIONS}"
+        )
+    elif complete_coverage_sensitivity["ci95"][0] <= 0:
+        blockers.append("COMPLETE_COVERAGE_MEAN_CI95_DOES_NOT_EXCLUDE_ZERO")
 
     trader_concentration = concentration(records, "trader")
     reached_tp100 = sum(record["stage"] == 3 for record in records)
@@ -442,8 +454,10 @@ def prospective_report(
                 "rows_measured": len(measured_coverage_rows),
                 "rows_complete": len(complete_coverage_rows),
                 "selected_rows_complete": (
-                    complete_coverage_sensitivity["positions"]
-                    if complete_coverage_sensitivity else 0
+                    complete_selected
+                ),
+                "minimum_selected_for_review": (
+                    MIN_COMPLETE_COVERAGE_SELECTIONS
                 ),
                 "complete_event_sequence_result": (
                     complete_coverage_sensitivity

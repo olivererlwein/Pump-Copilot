@@ -474,15 +474,15 @@
     "semantic_hash": ""
   },
   "scripts/validate_frozen_exit_candidate.py": {
-    "mtime": 1790490771.6274426,
-    "seen": 1790490881.5657098,
-    "ast_hash": "2df9e165a917c7284848385bdb3df1a0",
+    "mtime": 1790490993.7949033,
+    "seen": 1790491039.4081914,
+    "ast_hash": "850dd823ff3482ac7af0028db6cdf1ba",
     "semantic_hash": ""
   },
   "tests/test_frozen_exit_candidate.py": {
-    "mtime": 1790490771.6304338,
-    "seen": 1790490881.5657175,
-    "ast_hash": "24849d5372673392d405809fce43aa2e",
+    "mtime": 1790490993.7984092,
+    "seen": 1790491039.4081993,
+    "ast_hash": "0355d42a96e47dd0856958b13b570b06",
     "semantic_hash": ""
   }
 }

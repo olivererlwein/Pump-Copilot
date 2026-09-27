@@ -108,6 +108,9 @@ class FrozenExitCandidateTests(unittest.TestCase):
         self.assertFalse(report["ready_for_review"])
         self.assertIn("MEAN_CI95_DOES_NOT_EXCLUDE_ZERO", report["blockers"])
         self.assertIn("LEAVE_BEST_OUT_NOT_POSITIVE", report["blockers"])
+        self.assertIn(
+            "COMPLETE_COVERAGE_SELECTIONS 0/100", report["blockers"]
+        )
 
     def test_reports_tp100_and_time_exit_shares(self):
         rows = [
@@ -175,8 +178,12 @@ class FrozenExitCandidateTests(unittest.TestCase):
         self.assertEqual(coverage["rows_measured"], 1)
         self.assertEqual(coverage["rows_complete"], 1)
         self.assertEqual(coverage["selected_rows_complete"], 1)
+        self.assertEqual(coverage["minimum_selected_for_review"], 100)
         self.assertLess(
             coverage["complete_event_sequence_result"]["net"], 0
+        )
+        self.assertIn(
+            "COMPLETE_COVERAGE_SELECTIONS 1/100", report["blockers"]
         )
         self.assertFalse(report["ready_for_review"])
 
