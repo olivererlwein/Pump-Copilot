@@ -466,5 +466,23 @@
     "seen": 1790190043.5325143,
     "ast_hash": "ebc2d37f8cac1b4f46c6406ac09256de",
     "semantic_hash": ""
+  },
+  "scripts/iphone_frontend_preview.py": {
+    "mtime": 1790201117.5511491,
+    "seen": 1790201237.6325321,
+    "ast_hash": "c9a0183d84f0ebe64565e76440888aca",
+    "semantic_hash": ""
+  },
+  "scripts/validate_frozen_exit_candidate.py": {
+    "mtime": 1790488299.672802,
+    "seen": 1790488383.4689574,
+    "ast_hash": "a150d4f0d91f67c3f691e1fcd4abb609",
+    "semantic_hash": ""
+  },
+  "tests/test_frozen_exit_candidate.py": {
+    "mtime": 1790488299.6738043,
+    "seen": 1790488383.4689765,
+    "ast_hash": "f66e661307ee7ece9c1e85277f7b10a3",
+    "semantic_hash": ""
   }
 }

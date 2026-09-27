@@ -1,0 +1,393 @@
+"""Validate the frozen tp100_time candidate on post-freeze observations.
+
+The training population, feature schema, threshold, policy, costs and cutoff
+are fixed before fetching the prospective outcomes. This script is offline:
+it reads production through authenticated GET endpoints and never saves or
+promotes a model.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import math
+import os
+from collections import Counter
+from datetime import datetime
+from urllib.request import Request, urlopen
+
+import numpy as np
+from dotenv import load_dotenv
+
+if __package__:
+    from scripts.remainder_exit_backtest import (
+        TRAILING_DROP_FROM_PEAK,
+        analyse,
+        pnl_of,
+        simulate,
+    )
+    from scripts.staged_payoff_backtest import is_ambiguous
+    from scripts.train_baseline_model import (
+        build_matrix,
+        build_pipeline,
+        fit_pipeline,
+        load_json,
+        validate_dataset,
+    )
+else:
+    from remainder_exit_backtest import (
+        TRAILING_DROP_FROM_PEAK,
+        analyse,
+        pnl_of,
+        simulate,
+    )
+    from staged_payoff_backtest import is_ambiguous
+    from train_baseline_model import (
+        build_matrix,
+        build_pipeline,
+        fit_pipeline,
+        load_json,
+        validate_dataset,
+    )
+
+
+DEFAULT_BASE_URL = "https://web-production-4ea0d.up.railway.app"
+DEFAULT_CUTOFF = "2026-09-22T20:58:47+00:00"
+DEFAULT_FROZEN_SHA256 = (
+    "6c9377bdc4ed664cd9be85018df112d8af4bf56ae4612dd75b3940cf2842d59d"
+)
+DEFAULT_THRESHOLD = 0.45
+DEFAULT_COST_PER_SIDE = 0.01
+DEFAULT_HOLD_SECONDS = 900.0
+
+
+def fetch_json(base_url: str, path: str, app_token: str) -> dict:
+    request = Request(
+        f"{base_url.rstrip('/')}{path}",
+        headers={"x-app-token": app_token},
+        method="GET",
+    )
+    with urlopen(request, timeout=90) as response:
+        return json.load(response)
+
+
+def parse_cutoff(value: str) -> float:
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        raise ValueError("Cutoff must include a timezone")
+    return parsed.timestamp()
+
+
+def verify_file_sha256(path: str, expected: str) -> str:
+    digest = hashlib.sha256()
+    with open(path, "rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    actual = digest.hexdigest()
+    if actual != expected.strip().lower():
+        raise ValueError(
+            f"Frozen dataset SHA-256 mismatch: expected {expected}, got {actual}"
+        )
+    return actual
+
+
+def validate_frozen_population(
+    frozen_rows: list[dict], cutoff_ts: float
+) -> set[int]:
+    signal_ids: set[int] = set()
+    for row in frozen_rows:
+        signal_id = int(row["signal_id"])
+        if signal_id in signal_ids:
+            raise ValueError(f"Duplicate frozen signal_id: {signal_id}")
+        signal_ids.add(signal_id)
+
+        signal_ts = float(row.get("signal_ts") or 0)
+        if signal_ts > cutoff_ts:
+            raise ValueError(
+                f"Frozen signal {signal_id} is newer than the cutoff"
+            )
+    return signal_ids
+
+
+def fit_frozen_pipeline(frozen_rows: list[dict], schema: dict):
+    matrix, _ = build_matrix(frozen_rows, schema)
+    targets = np.asarray([row[schema["target"]] for row in frozen_rows])
+    return fit_pipeline(
+        build_pipeline(schema),
+        matrix,
+        targets,
+        frozen_rows,
+        schema,
+        "none",
+    )
+
+
+def build_prospective_rows(
+    dataset_rows: list[dict],
+    path_rows: list[dict],
+    pipeline,
+    schema: dict,
+    cutoff_ts: float,
+    frozen_signal_ids: set[int],
+) -> tuple[list[dict], dict]:
+    future = []
+    overlaps = []
+    for row in dataset_rows:
+        if float(row.get("signal_ts") or 0) <= cutoff_ts:
+            continue
+        signal_id = int(row["signal_id"])
+        if signal_id in frozen_signal_ids:
+            overlaps.append(signal_id)
+            continue
+        future.append(row)
+    if overlaps:
+        preview = ", ".join(str(value) for value in overlaps[:5])
+        raise ValueError(
+            f"Prospective dataset overlaps frozen signal IDs: {preview}"
+        )
+    paths = {int(row["signal_id"]): row for row in path_rows}
+    if not future:
+        return [], {"future_dataset_rows": 0, "missing_paths": 0}
+
+    matrix, _ = build_matrix(future, schema)
+    probabilities = pipeline.predict_proba(matrix)[:, 1]
+    result = []
+    missing_paths = 0
+    for row, probability in zip(future, probabilities):
+        path_record = paths.get(int(row["signal_id"]))
+        if not path_record or not path_record.get("checkpoint_path"):
+            missing_paths += 1
+            continue
+        entry = float(path_record["price_at_signal"])
+        path = path_record["checkpoint_path"]
+        result.append({
+            **row,
+            "probability": float(probability),
+            "price_at_signal": entry,
+            "path": path,
+            "ambiguous": is_ambiguous(entry, path),
+        })
+    return result, {
+        "future_dataset_rows": len(future),
+        "missing_paths": missing_paths,
+    }
+
+
+def selected_records(
+    rows: list[dict], threshold: float, cost_per_side: float
+) -> list[dict]:
+    records = []
+    for row in rows:
+        if float(row["probability"]) < threshold:
+            continue
+        result = simulate(
+            float(row["price_at_signal"]),
+            row["path"],
+            "tp100_time",
+            TRAILING_DROP_FROM_PEAK,
+        )
+        records.append({
+            **row,
+            **pnl_of(result, cost_per_side),
+            "remaining": result["remaining"],
+            "stage": result["stage"],
+            "stop_hit": result["stop_hit"],
+        })
+    return records
+
+
+def concentration(records: list[dict], key: str, limit: int = 10) -> dict:
+    counts = Counter(str(row.get(key) or "unknown") for row in records)
+    pnl = {}
+    for row in records:
+        value = str(row.get(key) or "unknown")
+        pnl[value] = pnl.get(value, 0.0) + float(row["net"])
+    total = len(records)
+    net_desc = sorted(pnl.items(), key=lambda item: item[1], reverse=True)
+    return {
+        "groups": len(counts),
+        "largest_count_share": (
+            max(counts.values()) / total if total else None
+        ),
+        "positive_groups": sum(value > 0 for value in pnl.values()),
+        "negative_groups": sum(value < 0 for value in pnl.values()),
+        "top_counts": dict(counts.most_common(limit)),
+        "top_net": dict(net_desc[:limit]),
+        "bottom_net": dict(reversed(net_desc[-limit:])),
+    }
+
+
+def prospective_report(
+    rows: list[dict],
+    threshold: float = DEFAULT_THRESHOLD,
+    cost_per_side: float = DEFAULT_COST_PER_SIDE,
+    hold_seconds: float = DEFAULT_HOLD_SECONDS,
+) -> dict:
+    overall = analyse(
+        rows,
+        threshold,
+        "tp100_time",
+        cost_per_side,
+        TRAILING_DROP_FROM_PEAK,
+        hold_seconds,
+    )
+    if overall is None:
+        return {"ready_for_review": False, "blockers": ["NO_SELECTIONS"]}
+
+    records = selected_records(rows, threshold, cost_per_side)
+    unambiguous_rows = [row for row in rows if not row["ambiguous"]]
+    unambiguous_sensitivity = analyse(
+        unambiguous_rows,
+        threshold,
+        "tp100_time",
+        cost_per_side,
+        TRAILING_DROP_FROM_PEAK,
+        hold_seconds,
+    )
+    ordered = sorted(records, key=lambda row: float(row["net"]), reverse=True)
+    without_best = ordered[1:]
+    without_best_mean = (
+        sum(float(row["net"]) for row in without_best) / len(without_best)
+        if without_best else None
+    )
+
+    traders = sorted({str(row.get("trader") or "unknown") for row in rows})
+    leave_one_trader_out = {}
+    for trader in traders:
+        subset = [row for row in rows if str(row.get("trader") or "unknown") != trader]
+        result = analyse(
+            subset,
+            threshold,
+            "tp100_time",
+            cost_per_side,
+            TRAILING_DROP_FROM_PEAK,
+            hold_seconds,
+        )
+        if result is not None:
+            leave_one_trader_out[trader] = {
+                "positions": result["positions"],
+                "net": result["net"],
+                "mean": result["mean"],
+            }
+
+    ci_low, ci_high = overall["ci95"]
+    blockers = []
+    if ci_low <= 0:
+        blockers.append("MEAN_CI95_DOES_NOT_EXCLUDE_ZERO")
+    if without_best_mean is None or without_best_mean <= 0:
+        blockers.append("LEAVE_BEST_OUT_NOT_POSITIVE")
+
+    trader_concentration = concentration(records, "trader")
+    reached_tp100 = sum(record["stage"] == 3 for record in records)
+    closed_by_time = sum(
+        record["remaining"] <= 1e-9
+        and record["stage"] < 3
+        and not record["stop_hit"]
+        for record in records
+    )
+    return {
+        "ready_for_review": not blockers,
+        "blockers": blockers,
+        "policy": "tp100_time",
+        "threshold": threshold,
+        "cost_per_side": cost_per_side,
+        "one_position_seconds": hold_seconds,
+        "overall": overall,
+        "ambiguous_share": overall["ambiguous"] / overall["positions"],
+        "unambiguous_sensitivity": unambiguous_sensitivity,
+        "without_best_mean": without_best_mean,
+        "reached_tp100": reached_tp100,
+        "reached_tp100_share": reached_tp100 / len(records),
+        "closed_by_time": closed_by_time,
+        "closed_by_time_share": closed_by_time / len(records),
+        "trader_concentration": trader_concentration,
+        "mint_concentration": concentration(records, "mint"),
+        "leave_one_trader_out": leave_one_trader_out,
+        "positive_traders": trader_concentration["positive_groups"],
+        "selected_traders": trader_concentration["groups"],
+        "ci95_excludes_zero_above": ci_low > 0,
+        "ci95": [ci_low, ci_high],
+    }
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    parser.add_argument("--base-url", default=DEFAULT_BASE_URL)
+    parser.add_argument(
+        "--frozen-dataset", default="exports/account_checkpoint_live.json"
+    )
+    parser.add_argument("--frozen-sha256", default=DEFAULT_FROZEN_SHA256)
+    parser.add_argument(
+        "--schema", default="training/schema_account_checkpoints_v1.json"
+    )
+    parser.add_argument("--cutoff", default=DEFAULT_CUTOFF)
+    parser.add_argument("--threshold", type=float, default=DEFAULT_THRESHOLD)
+    parser.add_argument("--cost-per-side", type=float, default=DEFAULT_COST_PER_SIDE)
+    parser.add_argument("--one-position-seconds", type=float, default=DEFAULT_HOLD_SECONDS)
+    args = parser.parse_args()
+
+    load_dotenv()
+    app_token = os.getenv("APP_TOKEN", "")
+    if not app_token:
+        raise SystemExit("APP_TOKEN is missing from .env")
+
+    schema = load_json(args.schema)
+    frozen_sha256 = verify_file_sha256(
+        args.frozen_dataset, args.frozen_sha256
+    )
+    frozen_payload = load_json(args.frozen_dataset)
+    frozen_rows = validate_dataset(frozen_payload, schema)
+    cutoff_ts = parse_cutoff(args.cutoff)
+    frozen_signal_ids = validate_frozen_population(frozen_rows, cutoff_ts)
+    pipeline = fit_frozen_pipeline(frozen_rows, schema)
+
+    dataset_payload = fetch_json(
+        args.base_url, "/api/account-checkpoint-training-dataset", app_token
+    )
+    path_payload = fetch_json(
+        args.base_url, "/api/account-checkpoint-paths", app_token
+    )
+    current_rows = validate_dataset(dataset_payload, schema)
+    rows, coverage = build_prospective_rows(
+        current_rows,
+        path_payload.get("rows") or [],
+        pipeline,
+        schema,
+        cutoff_ts,
+        frozen_signal_ids,
+    )
+    report = {
+        "protocol": {
+            "specification_commit": (
+                "dc198e0814f14ef43ccb95a5a51e76a42e91d54b"
+            ),
+            "frozen_rows": len(frozen_rows),
+            "frozen_dataset_sha256": frozen_sha256,
+            "dataset_fingerprint_recorded_with_validator": True,
+            "cutoff": args.cutoff,
+            "threshold": args.threshold,
+            "policy": "tp100_time",
+            "cost_per_side": args.cost_per_side,
+            "one_position_seconds": args.one_position_seconds,
+            "writes_production": False,
+            "promotes_model": False,
+        },
+        "coverage": {
+            **coverage,
+            "usable_rows": len(rows),
+            "unique_mints": len({row.get("mint") for row in rows}),
+            "traders": dict(Counter(row.get("trader") for row in rows)),
+        },
+        "result": prospective_report(
+            rows,
+            threshold=args.threshold,
+            cost_per_side=args.cost_per_side,
+            hold_seconds=args.one_position_seconds,
+        ),
+    }
+    print(json.dumps(report, indent=2, ensure_ascii=True))
+
+
+if __name__ == "__main__":
+    main()
