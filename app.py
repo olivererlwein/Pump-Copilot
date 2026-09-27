@@ -16311,6 +16311,57 @@ def get_account_checkpoint_observations():
     return observations
 
 
+def get_account_checkpoint_event_paths(observations):
+    """Return stored market events inside each observation's 15m horizon."""
+    signal_ids = [int(row["signal_id"]) for row in observations]
+    if not signal_ids:
+        return {}
+
+    event_paths = {signal_id: [] for signal_id in signal_ids}
+    conn = db()
+    try:
+        for offset in range(0, len(signal_ids), 400):
+            batch = signal_ids[offset:offset + 400]
+            placeholders = ",".join("?" for _ in batch)
+            rows = conn.execute(
+                f"""
+                SELECT e.id, e.ts, h.ts, h.market_cap_sol,
+                       h.trader, h.side, h.signature, h.source
+                FROM evaluations e
+                JOIN token_history h ON h.mint = e.mint
+                WHERE e.id IN ({placeholders})
+                  AND h.ts > e.ts
+                  AND h.ts <= e.ts + 900
+                ORDER BY e.id, h.ts, h.id
+                """,
+                batch,
+            ).fetchall()
+            for row in rows:
+                market_cap = float(row[3] or 0)
+                event_ts = float(row[2] or 0)
+                signal_ts = float(row[1] or 0)
+                if (
+                    not math.isfinite(market_cap)
+                    or market_cap <= 0
+                    or not math.isfinite(event_ts)
+                    or event_ts <= signal_ts
+                ):
+                    continue
+                event_paths[int(row[0])].append({
+                    "elapsed_seconds": event_ts - signal_ts,
+                    "event_ts": event_ts,
+                    "price_sol": market_cap / PUMP_TOKEN_SUPPLY,
+                    "market_cap_sol": market_cap,
+                    "trader": str(row[4] or ""),
+                    "side": str(row[5] or ""),
+                    "signature": str(row[6] or ""),
+                    "source": str(row[7] or ""),
+                })
+    finally:
+        conn.close()
+    return event_paths
+
+
 def get_account_checkpoint_dataset_rows():
     """Build a shadow-only dataset from complete fixed on-chain snapshots."""
     dataset = []
@@ -17681,7 +17732,9 @@ def api_account_checkpoint_training_dataset(
 
 @app.get("/api/account-checkpoint-paths")
 def api_account_checkpoint_paths(
-    x_app_token: str = Header(default="")
+    x_app_token: str = Header(default=""),
+    after_signal_ts: float = 0.0,
+    include_event_path: bool = False,
 ):
     """Trayectoria de precios por señal, para estimar PnL fuera del servicio.
 
@@ -17690,6 +17743,14 @@ def api_account_checkpoint_paths(
     en -20%. Solo lectura: no entrena, no etiqueta y no decide nada.
     """
     auth(x_app_token)
+    observations = [
+        row for row in get_account_checkpoint_observations()
+        if float(row["signal_ts"]) > float(after_signal_ts)
+    ]
+    event_paths = (
+        get_account_checkpoint_event_paths(observations)
+        if include_event_path else {}
+    )
     rows = [
         {
             "signal_id": row["signal_id"],
@@ -17701,12 +17762,15 @@ def api_account_checkpoint_paths(
             "tp_checkpoint_seconds": row["tp_checkpoint_seconds"],
             "sl_checkpoint_seconds": row["sl_checkpoint_seconds"],
             "checkpoint_path": row["checkpoint_path"],
+            **({"event_path": event_paths.get(row["signal_id"], [])}
+               if include_event_path else {}),
         }
-        for row in get_account_checkpoint_observations()
+        for row in observations
     ]
     return {
         "label_source": "account_checkpoints_v1",
         "affects_decisions": False,
+        "event_path_included": include_event_path,
         "count": len(rows),
         "rows": rows,
     }

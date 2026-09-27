@@ -166,6 +166,7 @@ def build_prospective_rows(
             "probability": float(probability),
             "price_at_signal": entry,
             "path": path,
+            "event_path": path_record.get("event_path") or [],
             "ambiguous": is_ambiguous(entry, path),
         })
     return result, {
@@ -245,6 +246,39 @@ def prospective_report(
         TRAILING_DROP_FROM_PEAK,
         hold_seconds,
     )
+    dense_rows = []
+    for row in rows:
+        if not row.get("event_path"):
+            continue
+        event_points = [
+            {
+                "checkpoint_seconds": float(point["elapsed_seconds"]),
+                "price_sol": float(point["price_sol"]),
+            }
+            for point in row["event_path"]
+        ]
+        merged_path = sorted(
+            [*row["path"], *event_points],
+            key=lambda point: float(point["checkpoint_seconds"]),
+        )
+        dense_rows.append({
+            **row,
+            "path": merged_path,
+            "ambiguous": is_ambiguous(
+                float(row["price_at_signal"]), merged_path
+            ),
+        })
+    event_path_sensitivity = (
+        analyse(
+            dense_rows,
+            threshold,
+            "tp100_time",
+            cost_per_side,
+            TRAILING_DROP_FROM_PEAK,
+            hold_seconds,
+        )
+        if dense_rows else None
+    )
     ordered = sorted(records, key=lambda row: float(row["net"]), reverse=True)
     without_best = ordered[1:]
     without_best_mean = (
@@ -296,6 +330,14 @@ def prospective_report(
         "overall": overall,
         "ambiguous_share": overall["ambiguous"] / overall["positions"],
         "unambiguous_sensitivity": unambiguous_sensitivity,
+        "event_path_sensitivity": {
+            "rows_with_event_path": len(dense_rows),
+            "selected_rows_with_event_path": (
+                event_path_sensitivity["positions"]
+                if event_path_sensitivity else 0
+            ),
+            "result": event_path_sensitivity,
+        },
         "without_best_mean": without_best_mean,
         "reached_tp100": reached_tp100,
         "reached_tp100_share": reached_tp100 / len(records),
@@ -346,7 +388,12 @@ def main() -> None:
         args.base_url, "/api/account-checkpoint-training-dataset", app_token
     )
     path_payload = fetch_json(
-        args.base_url, "/api/account-checkpoint-paths", app_token
+        args.base_url,
+        (
+            "/api/account-checkpoint-paths"
+            f"?after_signal_ts={cutoff_ts}&include_event_path=true"
+        ),
+        app_token,
     )
     current_rows = validate_dataset(dataset_payload, schema)
     rows, coverage = build_prospective_rows(

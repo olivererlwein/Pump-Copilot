@@ -326,6 +326,71 @@ class AccountPriceCheckpointTests(unittest.TestCase):
 
         self.assertEqual(app.get_account_checkpoint_dataset_rows(), [])
 
+    def test_optional_event_path_uses_stored_history_without_rpc(self):
+        signal_id = self.checkpoint_dataset_outcome(
+            4, [1.05, 1.10, 1.15, 1.20, 1.30]
+        )
+        signal_ts = self.signal_ts + 4 * 2_000
+        mint = "mint-4"
+        conn = app.db()
+        try:
+            conn.executemany(
+                """
+                INSERT INTO token_history(
+                    ts, mint, market_cap_sol, trader, side,
+                    signature, source, event_id
+                ) VALUES(?,?,?,?,?,?,?,?)
+                """,
+                [
+                    (signal_ts - 1, mint, 110, "before", "buy",
+                     "before", "live", "before:0"),
+                    (signal_ts + 12, mint, 120, "alice", "buy",
+                     "inside-1", "token-live", "inside-1:0"),
+                    (signal_ts + 45, mint, 130, "bob", "sell",
+                     "inside-2", "token-live", "inside-2:0"),
+                    (signal_ts + 901, mint, 140, "after", "sell",
+                     "after", "live", "after:0"),
+                ],
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        with patch.object(app, "APP_TOKEN", "test-token"), patch.object(
+            app, "fetch_account_prices"
+        ) as fetch:
+            payload = app.api_account_checkpoint_paths(
+                "test-token",
+                after_signal_ts=signal_ts - 1,
+                include_event_path=True,
+            )
+
+        fetch.assert_not_called()
+        self.assertTrue(payload["event_path_included"])
+        self.assertEqual(payload["count"], 1)
+        self.assertEqual(payload["rows"][0]["signal_id"], signal_id)
+        event_path = payload["rows"][0]["event_path"]
+        self.assertEqual(
+            [point["signature"] for point in event_path],
+            ["inside-1", "inside-2"],
+        )
+        self.assertEqual(
+            [point["elapsed_seconds"] for point in event_path],
+            [12.0, 45.0],
+        )
+        self.assertAlmostEqual(event_path[0]["price_sol"], 1.2e-7)
+
+    def test_event_path_is_absent_by_default(self):
+        self.checkpoint_dataset_outcome(
+            5, [1.05, 1.10, 1.15, 1.20, 1.30]
+        )
+
+        with patch.object(app, "APP_TOKEN", "test-token"):
+            payload = app.api_account_checkpoint_paths("test-token")
+
+        self.assertFalse(payload["event_path_included"])
+        self.assertNotIn("event_path", payload["rows"][0])
+
     def test_training_readiness_minimums_match_diagnostic_schema(self):
         schema_path = (
             Path(__file__).resolve().parents[1]

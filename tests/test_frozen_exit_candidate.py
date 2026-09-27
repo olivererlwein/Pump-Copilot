@@ -40,6 +40,9 @@ class FrozenExitCandidateTests(unittest.TestCase):
             "checkpoint_path": [
                 {"checkpoint_seconds": 900, "price_sol": 1.1}
             ],
+            "event_path": [
+                {"elapsed_seconds": 20, "price_sol": 1.05}
+            ],
         }]
 
         result, coverage = build_prospective_rows(
@@ -49,6 +52,7 @@ class FrozenExitCandidateTests(unittest.TestCase):
         self.assertEqual([row["signal_id"] for row in result], [2])
         self.assertEqual(coverage["future_dataset_rows"], 2)
         self.assertEqual(coverage["missing_paths"], 1)
+        self.assertEqual(len(result[0]["event_path"]), 1)
 
     def test_frozen_population_must_not_cross_cutoff(self):
         rows = [{"signal_id": 1, "signal_ts": 101}]
@@ -131,6 +135,29 @@ class FrozenExitCandidateTests(unittest.TestCase):
         self.assertEqual(report["closed_by_time_share"], 0.5)
         self.assertEqual(report["ambiguous_share"], 0.0)
         self.assertEqual(report["unambiguous_sensitivity"]["positions"], 2)
+
+    def test_event_path_sensitivity_does_not_change_primary_result(self):
+        row = {
+            "signal_id": 1,
+            "signal_ts": 101,
+            "trader": "test",
+            "mint": "mint",
+            "probability": 0.8,
+            "price_at_signal": 1.0,
+            "path": [{"checkpoint_seconds": 900, "price_sol": 2.0}],
+            "event_path": [
+                {"elapsed_seconds": 30, "price_sol": 0.75}
+            ],
+            "ambiguous": True,
+        }
+
+        report = prospective_report([row])
+
+        self.assertGreater(report["overall"]["net"], 0)
+        sensitivity = report["event_path_sensitivity"]
+        self.assertEqual(sensitivity["rows_with_event_path"], 1)
+        self.assertLess(sensitivity["result"]["net"], 0)
+        self.assertFalse(report["ready_for_review"])
 
 
 if __name__ == "__main__":
