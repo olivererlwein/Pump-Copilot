@@ -580,6 +580,9 @@ HELIUS_STANDARD_WSS_STATE = {
     "muted_wallets": {},
 }
 HELIUS_STANDARD_WSS_CAPACITY_ALERT_ACTIVE = False
+# El silenciado de wallets vive solo en memoria: antes de este instante no se
+# sabe si una wallet estaba silenciada.
+PROCESS_STARTED_TS = time.time()
 # Notificaciones sin logs de Pump: se cuentan acá y no se guardan. Cada una
 # era un INSERT en SQLite; a 44 por segundo son 3,8 millones de filas por día
 # en un volumen de 5 GB. Solo importan como volumen por wallet y como señal
@@ -18432,6 +18435,172 @@ def api_account_checkpoint_subscription_details(
             {"status": status, "reason": reason, "count": count}
             for status, reason, count in losses
         ],
+    }
+
+
+WALLET_COVERAGE_MAX_RANGE_SECONDS = 7 * 86400
+
+
+def get_wallet_coverage_buckets(conn, wallet, since, until, bucket_seconds):
+    """Cobertura de una wallet por franjas fijas alineadas a UTC.
+
+    Separa lo que la wallet hizo (transacciones que firmó) del tráfico en el
+    que solo aparece mencionada (`wallet_not_signer`). Las transacciones que
+    nunca se pidieron (`queue_full`) o fallaron no se pueden atribuir: quedan
+    como `unattributable`, ni propias ni ajenas.
+    """
+    size = int(bucket_seconds)
+
+    def bucket(column):
+        return f"CAST({column} / {size} AS INTEGER) * {size}"
+
+    rows = {}
+
+    def slot(start):
+        return rows.setdefault(int(start), {
+            "start_ts": int(start),
+            "pump_notifications": 0,
+            "all_wallets_pump_notifications": 0,
+            "own_parsed_transactions": 0,
+            "mention_transactions": 0,
+            "other_unparsed_transactions": 0,
+            "unattributable": {},
+            "trades_by_transport": {},
+            "fallback_events": {},
+            "fallback_rebase_in_bucket": False,
+        })
+
+    for start, own, total in conn.execute(
+        f"""
+        SELECT {bucket('received_ts')},
+               COALESCE(SUM(wallet = ?), 0), COUNT(*)
+        FROM helius_standard_wss_notifications
+        WHERE received_ts >= ? AND received_ts < ?
+          AND subject_type = 'wallet'
+        GROUP BY 1
+        """,
+        (wallet, since, until),
+    ):
+        row = slot(start)
+        row["pump_notifications"] = int(own)
+        row["all_wallets_pump_notifications"] = int(total)
+
+    for start, status, reason, count in conn.execute(
+        f"""
+        SELECT {bucket('n.received_ts')}, t.status,
+               t.unparsed_reason, COUNT(*)
+        FROM helius_standard_wss_notifications n
+        LEFT JOIN helius_standard_wss_transactions t
+          ON t.signature = n.signature
+        WHERE n.received_ts >= ? AND n.received_ts < ?
+          AND n.wallet = ? AND n.subject_type = 'wallet'
+        GROUP BY 1, 2, 3
+        """,
+        (since, until, wallet),
+    ):
+        row = slot(start)
+        if status == "observed":
+            row["own_parsed_transactions"] += int(count)
+        elif status == "unparsed" and reason == "wallet_not_signer":
+            row["mention_transactions"] += int(count)
+        elif status == "unparsed":
+            row["other_unparsed_transactions"] += int(count)
+        else:
+            key = str(status or "not_selected")
+            row["unattributable"][key] = (
+                row["unattributable"].get(key, 0) + int(count)
+            )
+
+    for start, transport, count in conn.execute(
+        f"""
+        SELECT {bucket('ts')}, COALESCE(transport, 'live'),
+               COUNT(*)
+        FROM trades
+        WHERE ts >= ? AND ts < ? AND wallet = ? AND source = 'live'
+        GROUP BY 1, 2
+        """,
+        (since, until, wallet),
+    ):
+        slot(start)["trades_by_transport"][str(transport)] = int(count)
+
+    for start, status, count in conn.execute(
+        f"""
+        SELECT {bucket('block_time')}, status, COUNT(*)
+        FROM rpc_fallback_events
+        WHERE block_time >= ? AND block_time < ? AND wallet = ?
+        GROUP BY 1, 2
+        """,
+        (since, until, wallet),
+    ):
+        slot(start)["fallback_events"][str(status)] = int(count)
+
+    rebase = conn.execute(
+        "SELECT last_rebase_ts FROM rpc_fallback_wallet_state WHERE wallet = ?",
+        (wallet,),
+    ).fetchone()
+    rebase_ts = rebase[0] if rebase else None
+    if rebase_ts is not None and since <= rebase_ts < until:
+        start = int(rebase_ts // size) * size
+        slot(start)["fallback_rebase_in_bucket"] = True
+
+    with HELIUS_STANDARD_WSS_STATE_LOCK:
+        muted = dict(HELIUS_STANDARD_WSS_STATE["muted_wallets"].get(wallet) or {})
+    first = int(since // size) * size
+    result = []
+    for start in range(first, int(until), size):
+        row = slot(start)
+        end = start + size
+        if muted and end > muted["muted_ts"]:
+            row["muted"] = True
+        elif start >= PROCESS_STARTED_TS:
+            row["muted"] = False
+        else:
+            # Anterior al arranque del proceso: el silenciado no se persiste.
+            row["muted"] = None
+        result.append(row)
+    return result
+
+
+@app.get("/api/wallet-coverage-buckets")
+def api_wallet_coverage_buckets(
+    trader: str,
+    since: float,
+    until: float,
+    bucket_seconds: int = 3600,
+    x_app_token: str = Header(default=""),
+):
+    """Read-only: one wallet's delivery and attribution per fixed time bucket."""
+    auth(x_app_token)
+    wallet = WATCHED.get(trader)
+    if not wallet:
+        raise HTTPException(status_code=404, detail="TRADER_NOT_WATCHED")
+    if not 300 <= bucket_seconds <= 86400:
+        raise HTTPException(status_code=400, detail="BUCKET_SECONDS_OUT_OF_RANGE")
+    if not 0 < until - since <= WALLET_COVERAGE_MAX_RANGE_SECONDS:
+        raise HTTPException(status_code=400, detail="RANGE_OUT_OF_BOUNDS")
+    conn = db()
+    try:
+        buckets = get_wallet_coverage_buckets(
+            conn, wallet, since, until, bucket_seconds
+        )
+    finally:
+        conn.close()
+    with HELIUS_STANDARD_WSS_STATE_LOCK:
+        unstored = dict(HELIUS_STANDARD_WSS_UNSTORED.get(wallet) or {})
+        muted = dict(HELIUS_STANDARD_WSS_STATE["muted_wallets"].get(wallet) or {})
+    return {
+        "trader": trader,
+        "wallet": wallet,
+        "since": since,
+        "until": until,
+        "bucket_seconds": bucket_seconds,
+        "affects_decisions": False,
+        "process_started_ts": PROCESS_STARTED_TS,
+        "muted": muted or None,
+        # Las notificaciones sin logs de Pump no se guardan: solo hay un
+        # total por proceso, sin reparto por franja.
+        "non_pump_notifications_since_process_start": unstored or None,
+        "buckets": buckets,
     }
 
 

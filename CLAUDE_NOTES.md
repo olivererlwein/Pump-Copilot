@@ -2892,3 +2892,41 @@ slingoor incluido, sin wallets silenciadas, compuertas de trading real en
 false). **La ventana va de 2026-09-28 02:29:26 a 2026-09-29 02:29:26 UTC.**
 Regla: ni reinicio ni deploy durante la ventana, **aunque slingoor vuelva a
 quedar silenciado**; si ocurre, se registra la hora y se analiza como dato.
+
+## Cobertura de slingoor por franjas de actividad — preparado 2026-09-28 (sin deploy)
+
+Preparado durante la ventana congelada como commit local. **No se despliega
+hasta el primer deploy deliberado después de 2026-09-29 02:29:26 UTC.**
+
+- `GET /api/wallet-coverage-buckets?trader=&since=&until=&bucket_seconds=`
+  (solo lectura, `affects_decisions: false`, rango ≤ 7 días, franjas de 300
+  a 86400 s alineadas a UTC). Por franja: notificaciones Pump de la wallet y
+  de todas las wallets (esta última como indicio de que el WSS estaba vivo),
+  transacciones **propias** (`observed`: la wallet firmó), **menciones**
+  (`wallet_not_signer`), otras no parseadas, **no atribuibles**
+  (`queue_full`, `fetch_failed`, `pending_fetch`…: nunca se leyeron, así que
+  no se sabe si eran propias o ajenas), trades reales por transporte, eventos
+  del fallback por estado (`missing` = pérdida conocida) y si cayó el último
+  rebase.
+- `scripts/wallet_activity_coverage.py` cruza eso con las selecciones del
+  validador congelado (umbral 0,45) sin modificar el validador.
+
+**Regla de actividad, fijada antes de ver resultados** (docstring del
+script): actividad = notificaciones Pump que mencionan la wallet, contadas
+antes de la cola de fetch. Franjas sin notificaciones de ninguna wallet →
+`wss_silent`; silenciada → `muted`; cero notificaciones → `idle`; el resto en
+terciles (low/mid/high) por (notificaciones, hora). No se usa la cantidad de
+operaciones propias observadas porque sería circular: peor cobertura → menos
+operaciones vistas → la franja agitada parecería tranquila. Las menciones
+entran en la carga (compiten por capacidad) pero nunca se cuentan como
+operaciones de slingoor.
+
+Límites conocidos: las notificaciones sin Pump y el silenciado viven solo en
+memoria (sin historia por franja; el silenciado es `null` antes del arranque
+del proceso); solo se guarda el último rebase del fallback; las
+suscripciones de wallet no tienen intervalos, así que los gaps de suscripción
+se miden en los tokens de las selecciones. El resultado económico por tercil
+es **descriptivo y no admisible**, igual que el análisis intermedio.
+
+Tiempo: 0,23 s (24 h) y 0,37 s (7 días) con 1 M de notificaciones, 1 M de
+transacciones, 500 k trades y 200 k eventos de fallback. Tests: **504, OK**.
