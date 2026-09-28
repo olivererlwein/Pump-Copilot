@@ -2884,3 +2884,11 @@ Al cerrar la ventana:
    `queue_full`, gaps y proporción de operaciones observadas. Hoy no hay
    endpoint que lo dé por franja horaria; hace falta una consulta de solo
    lectura nueva, que se despliega con el siguiente cambio deliberado.
+
+**Ventana reabierta tras un reinicio único (decisión del usuario).** Reinicio
+de Railway sin deploy a las ~02:28 UTC para quitar el silencio a slingoor.
+Suscripciones confirmadas a las **02:29:26 UTC** (11 wallets activas,
+slingoor incluido, sin wallets silenciadas, compuertas de trading real en
+false). **La ventana va de 2026-09-28 02:29:26 a 2026-09-29 02:29:26 UTC.**
+Regla: ni reinicio ni deploy durante la ventana, **aunque slingoor vuelva a
+quedar silenciado**; si ocurre, se registra la hora y se analiza como dato.
