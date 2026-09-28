@@ -15637,6 +15637,22 @@ def record_helius_standard_wss_notification(
                     (signature, event["wallet"]),
                 ).fetchone()
                 if previous_wallet is None:
+                    conn.execute(
+                        """
+                        UPDATE helius_standard_wss_transactions
+                        SET status = 'pending_fetch', fetched_ts = NULL,
+                            last_error = NULL
+                        WHERE signature = ? AND status = 'queue_full'
+                          AND first_received_ts >= ?
+                          AND EXISTS (
+                              SELECT 1
+                              FROM helius_standard_wss_notifications n
+                              WHERE n.signature = ?
+                                AND n.subject_type = 'token'
+                          )
+                        """,
+                        (signature, received_ts - 900, signature),
+                    )
                     pending = conn.execute(
                         "SELECT 1 FROM helius_standard_wss_transactions "
                         "WHERE signature = ? AND status = 'pending_fetch' "
@@ -15833,13 +15849,29 @@ async def schedule_helius_standard_wss_fetch(
     signature = event["signature"]
     if signature in pending_signatures:
         return
-    if len(pending_signatures) >= HELIUS_STANDARD_WSS_MAX_PENDING:
+    low_priority_limit = (
+        HELIUS_STANDARD_WSS_MAX_PENDING
+        - max(1, HELIUS_STANDARD_WSS_MAX_PENDING // 5)
+    )
+    low_priority_token = (
+        event.get("subject_type") == "token"
+        and len(pending_signatures) >= low_priority_limit
+        and not await asyncio.to_thread(
+            helius_standard_wss_token_has_open_position,
+            event.get("wallet"),
+        )
+    )
+    if (low_priority_token
+            or len(pending_signatures) >= HELIUS_STANDARD_WSS_MAX_PENDING):
         await asyncio.to_thread(
             finish_helius_standard_wss_transaction,
             signature,
             "queue_full",
             0,
-            error="HELIUS_STANDARD_WSS_QUEUE_FULL",
+            error=(
+                "HELIUS_STANDARD_WSS_PRIORITY_RESERVE"
+                if low_priority_token else "HELIUS_STANDARD_WSS_QUEUE_FULL"
+            ),
         )
         return
     pending_signatures.add(signature)
@@ -15858,6 +15890,32 @@ async def schedule_helius_standard_wss_fetch(
     )
     fetch_tasks.add(task)
     task.add_done_callback(fetch_tasks.discard)
+
+
+def helius_standard_wss_token_has_open_position(mint):
+    if not mint:
+        return False
+    try:
+        conn = sqlite3.connect(DB, timeout=1.0)
+    except sqlite3.Error:
+        return True
+    try:
+        conn.execute("PRAGMA query_only = ON")
+        return conn.execute(
+            """
+            SELECT 1 FROM live_positions
+            WHERE mint = ? AND status = 'open'
+            UNION ALL
+            SELECT 1 FROM paper_positions
+            WHERE mint = ? AND status = 'open'
+            LIMIT 1
+            """,
+            (mint, mint),
+        ).fetchone() is not None
+    except sqlite3.Error:
+        return True
+    finally:
+        conn.close()
 
 
 def token_rpc_probe_once(now=None, mints=None):

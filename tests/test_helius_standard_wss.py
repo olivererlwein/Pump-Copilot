@@ -1,5 +1,6 @@
 import asyncio
 import json
+import sqlite3
 import tempfile
 import time
 import unittest
@@ -256,6 +257,170 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
             "failed": False,
             "logs": [],
         }
+
+    async def test_priority_reserve_keeps_wallet_and_open_position_capacity(self):
+        token = {**self.event("mint-a"), "subject_type": "token"}
+        self.assertTrue(app.record_helius_standard_wss_notification(
+            token, True, 100, received_ts=1000,
+        ))
+        pending = {f"pending-{index}" for index in range(8)}
+        tasks = set()
+        semaphore = asyncio.Semaphore(1)
+        lock = asyncio.Lock()
+        rate = {"next_ts": 0.0}
+        with patch.object(app, "HELIUS_STANDARD_WSS_MAX_PENDING", 10):
+            await app.schedule_helius_standard_wss_fetch(
+                token, 1000, pending, tasks, semaphore, lock, rate,
+            )
+        self.assertEqual(len(tasks), 0)
+        self.assertEqual(len(pending), 8)
+        conn = app.db()
+        try:
+            status, error = conn.execute(
+                "SELECT status, last_error FROM "
+                "helius_standard_wss_transactions WHERE signature = ?",
+                (token["signature"],),
+            ).fetchone()
+        finally:
+            conn.close()
+        self.assertEqual(status, "queue_full")
+        self.assertEqual(error, "HELIUS_STANDARD_WSS_PRIORITY_RESERVE")
+
+        wallet = {**self.event("wallet-a"), "signature": "wallet-sig"}
+        protected = {**token, "signature": "protected-sig"}
+        for event in (wallet, protected):
+            self.assertTrue(app.record_helius_standard_wss_notification(
+                event, True, 100, received_ts=1001,
+            ))
+        with (
+            patch.object(app, "HELIUS_STANDARD_WSS_MAX_PENDING", 10),
+            patch.object(
+                app, "helius_standard_wss_token_has_open_position",
+                return_value=True,
+            ),
+            patch.object(
+                app, "fetch_helius_standard_wss_transaction",
+                new_callable=AsyncMock,
+            ) as fetch,
+        ):
+            await app.schedule_helius_standard_wss_fetch(
+                wallet, 1001, pending, tasks, semaphore, lock, rate,
+            )
+            await app.schedule_helius_standard_wss_fetch(
+                protected, 1001, pending, tasks, semaphore, lock, rate,
+            )
+            await asyncio.gather(*tasks)
+        self.assertEqual(fetch.await_count, 2)
+        self.assertEqual(len(pending), 10)
+
+        another_wallet = {
+            **wallet, "signature": "wallet-after-global-limit",
+        }
+        self.assertTrue(app.record_helius_standard_wss_notification(
+            another_wallet, True, 100, received_ts=1002,
+        ))
+        with patch.object(app, "HELIUS_STANDARD_WSS_MAX_PENDING", 10):
+            await app.schedule_helius_standard_wss_fetch(
+                another_wallet, 1002, pending, tasks,
+                semaphore, lock, rate,
+            )
+        conn = app.db()
+        try:
+            status = conn.execute(
+                "SELECT status FROM helius_standard_wss_transactions "
+                "WHERE signature = ?",
+                (another_wallet["signature"],),
+            ).fetchone()[0]
+        finally:
+            conn.close()
+        self.assertEqual(status, "queue_full")
+        self.assertEqual(len(pending), 10)
+
+    async def test_low_priority_token_is_admitted_below_reserve(self):
+        token = {**self.event("mint-a"), "subject_type": "token"}
+        self.assertTrue(app.record_helius_standard_wss_notification(
+            token, True, 100, received_ts=1000,
+        ))
+        pending = {f"pending-{index}" for index in range(7)}
+        tasks = set()
+        with (
+            patch.object(app, "HELIUS_STANDARD_WSS_MAX_PENDING", 10),
+            patch.object(
+                app, "fetch_helius_standard_wss_transaction",
+                new_callable=AsyncMock,
+            ) as fetch,
+        ):
+            await app.schedule_helius_standard_wss_fetch(
+                token, 1000, pending, tasks, asyncio.Semaphore(1),
+                asyncio.Lock(), {"next_ts": 0.0},
+            )
+            await asyncio.gather(*tasks)
+        self.assertEqual(fetch.await_count, 1)
+
+    def test_open_paper_position_protects_token_admission(self):
+        self.assertFalse(app.helius_standard_wss_token_has_open_position(
+            "mint-a"
+        ))
+        conn = app.db()
+        try:
+            conn.execute(
+                "INSERT INTO paper_positions(mint, status) "
+                "VALUES('mint-a', 'open')"
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        self.assertTrue(app.helius_standard_wss_token_has_open_position(
+            "mint-a"
+        ))
+
+    def test_position_lookup_error_keeps_token_admissible(self):
+        with patch.object(
+            app.sqlite3, "connect", side_effect=sqlite3.OperationalError,
+        ):
+            self.assertTrue(
+                app.helius_standard_wss_token_has_open_position("mint-a")
+            )
+
+    def test_wallet_notice_recovers_token_queue_rejection_once(self):
+        token = {**self.event("mint-a"), "subject_type": "token"}
+        self.assertTrue(app.record_helius_standard_wss_notification(
+            token, True, 100, received_ts=1000,
+        ))
+        app.finish_helius_standard_wss_transaction(
+            token["signature"], "queue_full", 0, now=1001,
+            error="HELIUS_STANDARD_WSS_PRIORITY_RESERVE",
+        )
+        wallet = {**token, "wallet": "wallet-a", "subject_type": "wallet"}
+        self.assertTrue(app.record_helius_standard_wss_notification(
+            wallet, True, 100, received_ts=1002,
+        ))
+        self.assertFalse(app.record_helius_standard_wss_notification(
+            wallet, True, 100, received_ts=1003,
+        ))
+        conn = app.db()
+        try:
+            row = conn.execute(
+                "SELECT status, fetched_ts, last_error FROM "
+                "helius_standard_wss_transactions WHERE signature = ?",
+                (token["signature"],),
+            ).fetchone()
+        finally:
+            conn.close()
+        self.assertEqual(row, ("pending_fetch", None, None))
+
+    def test_stale_wallet_notice_does_not_recover_token_rejection(self):
+        token = {**self.event("mint-a"), "subject_type": "token"}
+        app.record_helius_standard_wss_notification(
+            token, True, 100, received_ts=1000,
+        )
+        app.finish_helius_standard_wss_transaction(
+            token["signature"], "queue_full", 0, now=1001,
+        )
+        wallet = {**token, "wallet": "wallet-a", "subject_type": "wallet"}
+        self.assertFalse(app.record_helius_standard_wss_notification(
+            wallet, True, 100, received_ts=1901,
+        ))
 
     def test_token_subscription_intervals_are_persisted_conservatively(self):
         self.assertEqual(
