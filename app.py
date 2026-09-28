@@ -16475,6 +16475,16 @@ def get_account_checkpoint_subscription_coverage(observations):
         activation_ts = get_helius_token_coverage_activation_ts(
             connection=conn
         )
+        first_token_subscription_ts = conn.execute(
+            "SELECT MIN(subscribed_ts) "
+            "FROM helius_standard_wss_token_intervals"
+        ).fetchone()[0]
+        # The WSS worker may have run before token tracking was enabled.
+        observable_from_ts = (
+            max(float(activation_ts), float(first_token_subscription_ts))
+            if activation_ts is not None
+            and first_token_subscription_ts is not None else None
+        )
         for offset in range(0, len(signal_ids), 400):
             batch = signal_ids[offset:offset + 400]
             placeholders = ",".join("?" for _ in batch)
@@ -16497,9 +16507,9 @@ def get_account_checkpoint_subscription_coverage(observations):
                 end = min(float(signal_ts) + 900.0, float(end_ts))
                 if end > start:
                     intervals[int(signal_id)].append((start, end))
-        if activation_ts is not None:
+        if observable_from_ts is not None:
             for signal_id, (mint, signal_ts) in signals.items():
-                if signal_ts + 900.0 <= activation_ts:
+                if signal_ts + 900.0 <= observable_from_ts:
                     continue
                 # Dropped fetches have no block_time; reception time is the
                 # only available bound for known delivery losses.
@@ -16539,10 +16549,11 @@ def get_account_checkpoint_subscription_coverage(observations):
         )
         coverage[signal_id] = {
             "measurement_available": bool(
-                activation_ts is not None
-                and signal_ts + 900.0 > activation_ts
+                observable_from_ts is not None
+                and signal_ts + 900.0 > observable_from_ts
             ),
             "measurement_started_ts": activation_ts,
+            "token_tracking_observable_from_ts": observable_from_ts,
             "covered_seconds": covered_seconds,
             "coverage_ratio": covered_seconds / 900.0,
             "first_subscription_delay_seconds": (

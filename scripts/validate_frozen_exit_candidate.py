@@ -314,7 +314,8 @@ def prospective_report(
             if measurement_available:
                 selected_coverage["measured"] += 1
                 activation_ts = subscription_coverage.get(
-                    "measurement_started_ts"
+                    "token_tracking_observable_from_ts",
+                    subscription_coverage.get("measurement_started_ts"),
                 )
                 if activation_ts is not None:
                     if float(row["signal_ts"]) < float(activation_ts):

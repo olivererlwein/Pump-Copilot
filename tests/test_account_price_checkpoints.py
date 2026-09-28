@@ -424,6 +424,9 @@ class AccountPriceCheckpointTests(unittest.TestCase):
         coverage = payload["rows"][0]["subscription_coverage"]
         self.assertTrue(coverage["measurement_available"])
         self.assertEqual(coverage["measurement_started_ts"], signal_ts)
+        self.assertEqual(
+            coverage["token_tracking_observable_from_ts"], signal_ts + 10
+        )
         self.assertEqual(coverage["covered_seconds"], 840.0)
         self.assertAlmostEqual(coverage["coverage_ratio"], 840.0 / 900.0)
         self.assertEqual(coverage["first_subscription_delay_seconds"], 10.0)
@@ -450,6 +453,61 @@ class AccountPriceCheckpointTests(unittest.TestCase):
         self.assertEqual(
             coverage["measurement_started_ts"], signal_ts + 1_000
         )
+
+    def test_worker_start_alone_does_not_claim_token_coverage(self):
+        signal_id = self.checkpoint_dataset_outcome(
+            13, [1.05, 1.10, 1.15, 1.20, 1.30]
+        )
+        signal_ts = self.signal_ts + 13 * 2_000
+        app.establish_helius_token_coverage_activation(now=signal_ts - 100)
+        row = {"signal_id": signal_id, "mint": "mint-13",
+               "signal_ts": signal_ts}
+
+        before = app.get_account_checkpoint_subscription_coverage([row])[
+            signal_id
+        ]
+        self.assertFalse(before["measurement_available"])
+        self.assertIsNone(before["token_tracking_observable_from_ts"])
+
+        conn = app.db()
+        try:
+            conn.execute(
+                """INSERT INTO helius_standard_wss_token_intervals(
+                    mint, subscribed_ts, last_confirmed_ts, unsubscribed_ts
+                ) VALUES(?,?,?,?)""",
+                ("another-mint", signal_ts + 1_000, signal_ts + 1_100,
+                 signal_ts + 1_100),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        after = app.get_account_checkpoint_subscription_coverage([row])[
+            signal_id
+        ]
+        self.assertFalse(after["measurement_available"])
+        self.assertEqual(
+            after["token_tracking_observable_from_ts"], signal_ts + 1_000
+        )
+
+        conn = app.db()
+        try:
+            conn.execute(
+                """INSERT INTO helius_standard_wss_token_intervals(
+                    mint, subscribed_ts, last_confirmed_ts, unsubscribed_ts
+                ) VALUES(?,?,?,?)""",
+                ("another-mint", signal_ts + 500, signal_ts + 600,
+                 signal_ts + 600),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        overlapping = app.get_account_checkpoint_subscription_coverage([row])[
+            signal_id
+        ]
+        self.assertTrue(overlapping["measurement_available"])
+        self.assertFalse(overlapping["complete"])
 
     def test_optional_subscription_trace_shows_source_and_nearby_timing(self):
         signal_id = self.checkpoint_dataset_outcome(
