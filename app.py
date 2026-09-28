@@ -18367,6 +18367,74 @@ def api_account_checkpoint_paths(
     }
 
 
+@app.get("/api/account-checkpoint-subscription-details/{signal_id}")
+def api_account_checkpoint_subscription_details(
+    signal_id: int,
+    x_app_token: str = Header(default=""),
+):
+    """Inspect one signal's token intervals and failed WSS fetches."""
+    auth(x_app_token)
+    conn = db()
+    try:
+        signal = conn.execute(
+            "SELECT ts, mint, trader, transport FROM evaluations WHERE id = ?",
+            (signal_id,),
+        ).fetchone()
+        if signal is None:
+            raise HTTPException(status_code=404, detail="SIGNAL_NOT_FOUND")
+        signal_ts, mint, trader, transport = signal
+        intervals = conn.execute(
+            """
+            SELECT subscribed_ts, last_confirmed_ts, unsubscribed_ts,
+                   close_reason
+            FROM helius_standard_wss_token_intervals
+            WHERE mint = ? AND subscribed_ts < ?
+              AND COALESCE(unsubscribed_ts, last_confirmed_ts) > ?
+            ORDER BY subscribed_ts
+            """,
+            (mint, signal_ts + 900, signal_ts),
+        ).fetchall()
+        losses = conn.execute(
+            """
+            SELECT t.status, t.last_error, COUNT(*)
+            FROM helius_standard_wss_notifications n
+            JOIN helius_standard_wss_transactions t
+              ON t.signature = n.signature
+            WHERE n.wallet = ? AND n.subject_type = 'token'
+              AND n.received_ts >= ? AND n.received_ts <= ?
+              AND t.status IN (
+                  'queue_full', 'fetch_failed', 'processing_failed'
+              )
+            GROUP BY t.status, t.last_error
+            ORDER BY COUNT(*) DESC, t.status, t.last_error
+            """,
+            (mint, signal_ts, signal_ts + 900),
+        ).fetchall()
+    finally:
+        conn.close()
+    return {
+        "signal_id": signal_id,
+        "signal_ts": signal_ts,
+        "mint": mint,
+        "trader": trader,
+        "transport": transport,
+        "affects_decisions": False,
+        "intervals": [
+            {
+                "subscribed_ts": start,
+                "last_confirmed_ts": confirmed,
+                "unsubscribed_ts": end,
+                "close_reason": reason,
+            }
+            for start, confirmed, end, reason in intervals
+        ],
+        "delivery_losses": [
+            {"status": status, "reason": reason, "count": count}
+            for status, reason, count in losses
+        ],
+    }
+
+
 def get_helius_standard_wss_token_traffic(conn, cutoff):
     rows = conn.execute(
         """

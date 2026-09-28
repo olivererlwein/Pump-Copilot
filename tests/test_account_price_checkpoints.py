@@ -568,6 +568,73 @@ class AccountPriceCheckpointTests(unittest.TestCase):
             payload["rows"][0]["subscription_coverage"]["intervals"], 0
         )
 
+    def test_subscription_details_separate_interval_closures_and_loss_reasons(self):
+        signal_id = self.checkpoint_dataset_outcome(
+            14, [1.05, 1.10, 1.15, 1.20, 1.30]
+        )
+        signal_ts = self.signal_ts + 14 * 2_000
+        conn = app.db()
+        try:
+            conn.executemany(
+                """INSERT INTO helius_standard_wss_token_intervals(
+                    mint, subscribed_ts, last_confirmed_ts,
+                    unsubscribed_ts, close_reason
+                ) VALUES(?,?,?,?,?)""",
+                [
+                    ("mint-14", signal_ts + 5, signal_ts + 100,
+                     signal_ts + 100, "disconnect"),
+                    ("mint-14", signal_ts + 120, signal_ts + 900,
+                     signal_ts + 900, "unsubscribe_confirmed"),
+                    ("other", signal_ts + 5, signal_ts + 900,
+                     signal_ts + 900, "unrelated"),
+                ],
+            )
+            for signature, received_ts, status, reason in (
+                ("lost-1", signal_ts + 20, "queue_full",
+                 "HELIUS_STANDARD_WSS_PRIORITY_RESERVE"),
+                ("lost-2", signal_ts + 30, "queue_full",
+                 "HELIUS_STANDARD_WSS_PRIORITY_RESERVE"),
+                ("lost-3", signal_ts + 40, "queue_full",
+                 "HELIUS_STANDARD_WSS_QUEUE_FULL"),
+                ("late", signal_ts + 901, "queue_full",
+                 "HELIUS_STANDARD_WSS_QUEUE_FULL"),
+            ):
+                conn.execute(
+                    """INSERT INTO helius_standard_wss_notifications(
+                        signature, wallet, received_ts, failed, pump_logs,
+                        message_bytes, subject_type
+                    ) VALUES(?,?,?,0,1,100,'token')""",
+                    (signature, "mint-14", received_ts),
+                )
+                conn.execute(
+                    """INSERT INTO helius_standard_wss_transactions(
+                        signature, first_received_ts, status, last_error
+                    ) VALUES(?,?,?,?)""",
+                    (signature, received_ts, status, reason),
+                )
+            conn.commit()
+        finally:
+            conn.close()
+
+        with patch.object(app, "APP_TOKEN", "test-token"):
+            result = app.api_account_checkpoint_subscription_details(
+                signal_id, "test-token"
+            )
+
+        self.assertFalse(result["affects_decisions"])
+        self.assertEqual(
+            [item["close_reason"] for item in result["intervals"]],
+            ["disconnect", "unsubscribe_confirmed"],
+        )
+        self.assertEqual(
+            {item["reason"]: item["count"]
+             for item in result["delivery_losses"]},
+            {
+                "HELIUS_STANDARD_WSS_PRIORITY_RESERVE": 2,
+                "HELIUS_STANDARD_WSS_QUEUE_FULL": 1,
+            },
+        )
+
     def test_subscription_coverage_accepts_bounded_startup_delay(self):
         signal_id = self.checkpoint_dataset_outcome(
             7, [1.05, 1.10, 1.15, 1.20, 1.30]
