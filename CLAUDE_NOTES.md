@@ -2841,3 +2841,46 @@ generalización.
 Test: la wallet desborda, rebasa, y en el poll tranquilo siguiente —cuando ya
 no está saturada— sus eventos quedan retenidos; pasada la ventana vuelve a
 aplicar. Verificación: **466 tests, OK**.
+
+## Análisis intermedio antes de cumplir cobertura — 2026-09-28 ~02:00 UTC
+
+**Se miró el resultado económico de `tp100_time` sobre datos posteriores al
+congelamiento antes de alcanzar el criterio de cobertura** (0/100 selecciones
+con cobertura completa). Queda registrado para que nadie lo confunda con una
+evaluación del protocolo.
+
+Lo que se vio (validador congelado, `dc198e0`, umbral 0,45, 375 posiciones):
+media +0,076, IC95 [+0,013, +0,142]; solo no ambiguas (208) −0,193, IC
+[−0,22, −0,16]; secuencia real de eventos (305) +0,082, IC [−0,028, +0,207],
+top5 = 136 % del neto; sin slingoor +0,022.
+
+**Estatus: descriptivo, no admisible.** Estos números no cambian ninguna
+decisión: ni umbral, ni política, ni criterios de aprobación, ni prioridad de
+trabajo. La evaluación válida es la que se haga cuando se cumpla la cobertura,
+con los criterios preregistrados en `dc198e0` sin modificar.
+
+### Ventana sin deploys — 2026-09-28 ~02:00 a 2026-09-29 ~02:00 UTC
+
+Producción `677b315`. Objetivo: separar los cortes de cobertura causados por
+reinicios (21 deploys entre 09-27 05:32 y 09-28 01:38 UTC, 3 después del
+límite de 00:21) de los causados por capacidad real. Referencia al abrir:
+979 filas futuras, 375 selecciones, 9 medidas, 0 completas, 2 con pérdida
+conocida, 7 con gap de suscripción, 1 sin intervalo.
+
+**Confusor conocido: slingoor está silenciado en el WSS desde 01:38:59 UTC**
+(607 notificaciones sin Pump en 7 s, 605 fallidas, 40 s después del deploy).
+El silencio es permanente hasta reiniciar (`helius_standard_wss_wallet_flooded`)
+y el fallback también lo tiene saturado (`SIGNATURE_BACKLOG_REBASED`). Sin
+reinicio, la ventana mide un universo sin slingoor, que aporta el 43 % de las
+posiciones seleccionadas.
+
+Al cerrar la ventana:
+1. Validador congelado: selecciones medidas/completas y causa de cada
+   incompleta (`/api/account-checkpoint-subscription-details/{signal_id}`).
+2. **Volumen de eventos, completas vs incompletas**: si las incompletas tienen
+   sistemáticamente más tráfico, la pérdida de cobertura es informativa, no
+   aleatoria, y las completas no representan a las seleccionadas.
+3. slingoor por separado: cobertura en periodos de alta vs baja actividad,
+   `queue_full`, gaps y proporción de operaciones observadas. Hoy no hay
+   endpoint que lo dé por franja horaria; hace falta una consulta de solo
+   lectura nueva, que se despliega con el siguiente cambio deliberado.
