@@ -261,6 +261,8 @@ def prospective_report(
     complete_coverage_rows = []
     complete_event_sequence_rows = []
     coverage_ratios = []
+    selected_coverage = Counter()
+    selected_coverage_ratios = []
     for row in rows:
         subscription_coverage = row.get("subscription_coverage") or {}
         measurement_available = (
@@ -270,6 +272,22 @@ def prospective_report(
             measurement_available
             and subscription_coverage.get("complete") is True
         )
+        if float(row["probability"]) >= threshold:
+            if measurement_available:
+                selected_coverage["measured"] += 1
+                selected_coverage_ratios.append(
+                    float(subscription_coverage.get("coverage_ratio") or 0.0)
+                )
+                if not coverage_complete:
+                    selected_coverage["incomplete"] += 1
+                    if not subscription_coverage.get("intervals"):
+                        selected_coverage["no_subscription_interval"] += 1
+                    elif not subscription_coverage.get("subscription_continuous"):
+                        selected_coverage["subscription_gap"] += 1
+                    if subscription_coverage.get("known_delivery_failures"):
+                        selected_coverage["known_delivery_loss"] += 1
+            else:
+                selected_coverage["unmeasured"] += 1
         if measurement_available:
             measured_coverage_rows.append(row)
             coverage_ratios.append(
@@ -455,6 +473,22 @@ def prospective_report(
                 "rows_complete": len(complete_coverage_rows),
                 "selected_rows_complete": (
                     complete_selected
+                ),
+                "selected_rows_measured": selected_coverage["measured"],
+                "selected_rows_incomplete": selected_coverage["incomplete"],
+                "selected_rows_unmeasured": selected_coverage["unmeasured"],
+                "selected_rows_known_delivery_loss": (
+                    selected_coverage["known_delivery_loss"]
+                ),
+                "selected_rows_no_subscription_interval": (
+                    selected_coverage["no_subscription_interval"]
+                ),
+                "selected_rows_subscription_gap": (
+                    selected_coverage["subscription_gap"]
+                ),
+                "selected_median_coverage_ratio": (
+                    statistics.median(selected_coverage_ratios)
+                    if selected_coverage_ratios else None
                 ),
                 "minimum_selected_for_review": (
                     MIN_COMPLETE_COVERAGE_SELECTIONS

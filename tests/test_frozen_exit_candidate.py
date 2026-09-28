@@ -46,6 +46,8 @@ class FrozenExitCandidateTests(unittest.TestCase):
             "subscription_coverage": {
                 "measurement_available": True,
                 "coverage_ratio": 1.0,
+                "intervals": 1,
+                "subscription_continuous": True,
                 "complete": True,
             },
         }]
@@ -178,6 +180,11 @@ class FrozenExitCandidateTests(unittest.TestCase):
         self.assertEqual(coverage["rows_measured"], 1)
         self.assertEqual(coverage["rows_complete"], 1)
         self.assertEqual(coverage["selected_rows_complete"], 1)
+        self.assertEqual(coverage["selected_rows_measured"], 1)
+        self.assertEqual(coverage["selected_rows_incomplete"], 0)
+        self.assertEqual(coverage["selected_rows_unmeasured"], 0)
+        self.assertEqual(coverage["selected_rows_no_subscription_interval"], 0)
+        self.assertEqual(coverage["selected_median_coverage_ratio"], 1.0)
         self.assertEqual(coverage["minimum_selected_for_review"], 100)
         self.assertLess(
             coverage["complete_event_sequence_result"]["net"], 0
@@ -202,6 +209,8 @@ class FrozenExitCandidateTests(unittest.TestCase):
             "subscription_coverage": {
                 "measurement_available": True,
                 "coverage_ratio": 0.9,
+                "intervals": 1,
+                "subscription_continuous": False,
                 "complete": False,
             },
             "ambiguous": False,
@@ -215,6 +224,13 @@ class FrozenExitCandidateTests(unittest.TestCase):
         self.assertEqual(coverage["rows_measured"], 1)
         self.assertEqual(coverage["rows_complete"], 0)
         self.assertEqual(coverage["selected_rows_complete"], 0)
+        self.assertEqual(coverage["selected_rows_measured"], 1)
+        self.assertEqual(coverage["selected_rows_incomplete"], 1)
+        self.assertEqual(coverage["selected_rows_unmeasured"], 0)
+        self.assertEqual(coverage["selected_rows_known_delivery_loss"], 0)
+        self.assertEqual(coverage["selected_rows_no_subscription_interval"], 0)
+        self.assertEqual(coverage["selected_rows_subscription_gap"], 1)
+        self.assertEqual(coverage["selected_median_coverage_ratio"], 0.9)
         self.assertIsNone(coverage["complete_event_sequence_result"])
         self.assertEqual(coverage["median_subscription_coverage_ratio"], 0.9)
 
