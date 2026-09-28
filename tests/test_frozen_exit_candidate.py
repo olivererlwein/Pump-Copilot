@@ -8,6 +8,7 @@ from scripts.validate_frozen_exit_candidate import (
     build_prospective_rows,
     parse_cutoff,
     prospective_report,
+    selected_subscription_gap_diagnostics,
     validate_frozen_population,
     verify_file_sha256,
 )
@@ -233,6 +234,77 @@ class FrozenExitCandidateTests(unittest.TestCase):
         self.assertEqual(coverage["selected_median_coverage_ratio"], 0.9)
         self.assertIsNone(coverage["complete_event_sequence_result"])
         self.assertEqual(coverage["median_subscription_coverage_ratio"], 0.9)
+
+    def test_separates_activation_overlap_from_new_missing_subscriptions(self):
+        def selected_row(signal_id, signal_ts, interval_count):
+            return {
+                "signal_id": signal_id,
+                "signal_ts": signal_ts,
+                "trader": "test",
+                "mint": f"mint-{signal_id}",
+                "probability": 0.8,
+                "price_at_signal": 1.0,
+                "path": [{"checkpoint_seconds": 900, "price_sol": 1.1}],
+                "event_path": [{"elapsed_seconds": 30, "price_sol": 1.05}],
+                "subscription_coverage": {
+                    "measurement_available": True,
+                    "measurement_started_ts": 1000,
+                    "coverage_ratio": 0.1 if interval_count else 0.0,
+                    "intervals": interval_count,
+                    "subscription_continuous": False,
+                    "complete": False,
+                },
+                "ambiguous": False,
+            }
+
+        rows = [
+            selected_row(1, 990, 0),
+            selected_row(2, 1000, 0),
+            selected_row(3, 1010, 1),
+        ]
+        coverage = prospective_report(rows)["event_path_sensitivity"][
+            "coverage"
+        ]
+
+        self.assertEqual(coverage["selected_rows_measured"], 3)
+        self.assertEqual(coverage["selected_rows_overlapping_activation"], 1)
+        self.assertEqual(coverage["selected_rows_post_activation"], 2)
+        self.assertEqual(coverage["selected_rows_post_activation_complete"], 0)
+        self.assertEqual(coverage["selected_rows_no_subscription_interval"], 2)
+        self.assertEqual(coverage["selected_rows_post_activation_no_interval"], 1)
+
+    def test_subscription_gap_diagnostics_preserves_missing_timing(self):
+        row = {
+            "signal_id": 5,
+            "signal_ts": 1000,
+            "trader": "test",
+            "mint": "mint",
+            "probability": 0.8,
+            "subscription_coverage": {
+                "measurement_available": True,
+                "intervals": 0,
+            },
+            "ingest_trace": {
+                "transport": "helius",
+                "source": "live",
+                "wss_received_ts": 1004,
+                "next_subscription_start_ts": 2000,
+            },
+        }
+        diagnostics = selected_subscription_gap_diagnostics([row], 0.45)
+
+        self.assertEqual(len(diagnostics), 1)
+        self.assertEqual(diagnostics[0]["wss_received_delay_seconds"], 4.0)
+        self.assertEqual(
+            diagnostics[0]["next_subscription_start_seconds"], 1000.0
+        )
+        self.assertIsNone(diagnostics[0]["inbox_received_delay_seconds"])
+        self.assertEqual(
+            selected_subscription_gap_diagnostics(
+                [{**row, "probability": 0.2}], 0.45
+            ),
+            [],
+        )
 
 
 if __name__ == "__main__":

@@ -172,12 +172,50 @@ def build_prospective_rows(
             "subscription_coverage": (
                 path_record.get("subscription_coverage") or {}
             ),
+            "ingest_trace": path_record.get("ingest_trace") or {},
             "ambiguous": is_ambiguous(entry, path),
         })
     return result, {
         "future_dataset_rows": len(future),
         "missing_paths": missing_paths,
     }
+
+
+def selected_subscription_gap_diagnostics(rows, threshold):
+    diagnostics = []
+    for row in rows:
+        coverage = row.get("subscription_coverage") or {}
+        if (float(row["probability"]) < threshold
+                or not coverage.get("measurement_available")
+                or coverage.get("intervals")):
+            continue
+        trace = row.get("ingest_trace") or {}
+        signal_ts = float(row["signal_ts"])
+
+        def delay(key):
+            value = trace.get(key)
+            return float(value) - signal_ts if value is not None else None
+
+        diagnostics.append({
+            "signal_id": row["signal_id"],
+            "signal_ts": signal_ts,
+            "trader": row["trader"],
+            "mint": row["mint"],
+            "transport": trace.get("transport"),
+            "source": trace.get("source"),
+            "inbox_received_delay_seconds": delay("inbox_received_ts"),
+            "wss_received_delay_seconds": delay("wss_received_ts"),
+            "previous_subscription_end_seconds": delay(
+                "previous_subscription_end_ts"
+            ),
+            "next_subscription_start_seconds": delay(
+                "next_subscription_start_ts"
+            ),
+            "first_token_notification_seconds": delay(
+                "first_token_notification_ts"
+            ),
+        })
+    return diagnostics
 
 
 def selected_records(
@@ -275,6 +313,18 @@ def prospective_report(
         if float(row["probability"]) >= threshold:
             if measurement_available:
                 selected_coverage["measured"] += 1
+                activation_ts = subscription_coverage.get(
+                    "measurement_started_ts"
+                )
+                if activation_ts is not None:
+                    if float(row["signal_ts"]) < float(activation_ts):
+                        selected_coverage["overlaps_activation"] += 1
+                    else:
+                        selected_coverage["post_activation"] += 1
+                        if coverage_complete:
+                            selected_coverage["post_activation_complete"] += 1
+                        elif not subscription_coverage.get("intervals"):
+                            selected_coverage["post_activation_no_interval"] += 1
                 selected_coverage_ratios.append(
                     float(subscription_coverage.get("coverage_ratio") or 0.0)
                 )
@@ -477,6 +527,18 @@ def prospective_report(
                 "selected_rows_measured": selected_coverage["measured"],
                 "selected_rows_incomplete": selected_coverage["incomplete"],
                 "selected_rows_unmeasured": selected_coverage["unmeasured"],
+                "selected_rows_overlapping_activation": (
+                    selected_coverage["overlaps_activation"]
+                ),
+                "selected_rows_post_activation": (
+                    selected_coverage["post_activation"]
+                ),
+                "selected_rows_post_activation_complete": (
+                    selected_coverage["post_activation_complete"]
+                ),
+                "selected_rows_post_activation_no_interval": (
+                    selected_coverage["post_activation_no_interval"]
+                ),
                 "selected_rows_known_delivery_loss": (
                     selected_coverage["known_delivery_loss"]
                 ),
@@ -547,6 +609,7 @@ def main() -> None:
     parser.add_argument("--threshold", type=float, default=DEFAULT_THRESHOLD)
     parser.add_argument("--cost-per-side", type=float, default=DEFAULT_COST_PER_SIDE)
     parser.add_argument("--one-position-seconds", type=float, default=DEFAULT_HOLD_SECONDS)
+    parser.add_argument("--subscription-trace", action="store_true")
     args = parser.parse_args()
 
     load_dotenv()
@@ -572,9 +635,12 @@ def main() -> None:
         (
             "/api/account-checkpoint-paths"
             f"?after_signal_ts={cutoff_ts}&include_event_path=true"
+            + ("&include_subscription_trace=true" if args.subscription_trace else "")
         ),
         app_token,
     )
+    if args.subscription_trace and path_payload.get("subscription_trace_included") is not True:
+        raise SystemExit("Server does not support subscription traces yet")
     current_rows = validate_dataset(dataset_payload, schema)
     rows, coverage = build_prospective_rows(
         current_rows,
@@ -613,6 +679,10 @@ def main() -> None:
             hold_seconds=args.one_position_seconds,
         ),
     }
+    if args.subscription_trace:
+        report["selected_missing_subscription_trace"] = (
+            selected_subscription_gap_diagnostics(rows, args.threshold)
+        )
     print(json.dumps(report, indent=2, ensure_ascii=True))
 
 

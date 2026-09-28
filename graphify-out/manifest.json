@@ -6,9 +6,9 @@
     "semantic_hash": "5ebef3dd159986e465ab65e4014107ec"
   },
   "app.py": {
-    "mtime": 1790553955.1476762,
-    "seen": 1790554084.12373,
-    "ast_hash": "1abb5889d4ec031de35a3b0522ec1452",
+    "mtime": 1790558088.1067977,
+    "seen": 1790558261.5025122,
+    "ast_hash": "800b338ce0d74b7de473c5e8c023f7ac",
     "semantic_hash": ""
   },
   "models/baseline_v2_shadow.json": {
@@ -378,9 +378,9 @@
     "semantic_hash": ""
   },
   "tests/test_account_price_checkpoints.py": {
-    "mtime": 1790552683.1157355,
-    "seen": 1790552836.1360135,
-    "ast_hash": "3c6ee6573b3e274b1e19032944bbebf9",
+    "mtime": 1790558108.9758418,
+    "seen": 1790558261.5025487,
+    "ast_hash": "86e0c5ee0b8894787efbbdc2c407108b",
     "semantic_hash": ""
   },
   "tests/test_training_data_quality.py": {
@@ -474,15 +474,15 @@
     "semantic_hash": ""
   },
   "scripts/validate_frozen_exit_candidate.py": {
-    "mtime": 1790554659.46816,
-    "seen": 1790554701.900346,
-    "ast_hash": "60a39f231119a671cb78288308400d30",
+    "mtime": 1790558167.2783413,
+    "seen": 1790558261.5025427,
+    "ast_hash": "ff465622c35cd7812fcca3b27f756e68",
     "semantic_hash": ""
   },
   "tests/test_frozen_exit_candidate.py": {
-    "mtime": 1790554580.2423375,
-    "seen": 1790554643.0642967,
-    "ast_hash": "ac4355b89a24d9a90281f67be15ef4aa",
+    "mtime": 1790558154.4899368,
+    "seen": 1790558261.5025506,
+    "ast_hash": "648183569e28ed86530810c096331912",
     "semantic_hash": ""
   }
 }

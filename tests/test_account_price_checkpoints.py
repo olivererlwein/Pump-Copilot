@@ -451,6 +451,65 @@ class AccountPriceCheckpointTests(unittest.TestCase):
             coverage["measurement_started_ts"], signal_ts + 1_000
         )
 
+    def test_optional_subscription_trace_shows_source_and_nearby_timing(self):
+        signal_id = self.checkpoint_dataset_outcome(
+            12, [1.05, 1.10, 1.15, 1.20, 1.30]
+        )
+        signal_ts = self.signal_ts + 12 * 2_000
+        conn = app.db()
+        try:
+            conn.execute(
+                "UPDATE evaluations SET transport = ? WHERE id = ?",
+                ("helius", signal_id),
+            )
+            conn.execute(
+                """INSERT INTO market_event_inbox(
+                    signature, event_index, source, received_ts, event_json
+                ) VALUES(?,?,?,?,?)""",
+                ("signature-12", 0, "helius", signal_ts + 20, "{}"),
+            )
+            conn.execute(
+                """INSERT INTO helius_standard_wss_transactions(
+                    signature, first_received_ts, status
+                ) VALUES(?,?,?)""",
+                ("signature-12", signal_ts + 15, "applied"),
+            )
+            conn.executemany(
+                """INSERT INTO helius_standard_wss_token_intervals(
+                    mint, subscribed_ts, last_confirmed_ts, unsubscribed_ts
+                ) VALUES(?,?,?,?)""",
+                [
+                    ("mint-12", signal_ts - 100, signal_ts - 20,
+                     signal_ts - 20),
+                    ("mint-12", signal_ts + 1_000, signal_ts + 1_100,
+                     signal_ts + 1_100),
+                ],
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        with patch.object(app, "APP_TOKEN", "test-token"):
+            payload = app.api_account_checkpoint_paths(
+                "test-token",
+                after_signal_ts=signal_ts - 1,
+                include_event_path=True,
+                include_subscription_trace=True,
+            )
+
+        trace = payload["rows"][0]["ingest_trace"]
+        self.assertTrue(payload["subscription_trace_included"])
+        self.assertEqual(trace["source"], "helius")
+        self.assertEqual(trace["transport"], "helius")
+        self.assertEqual(trace["inbox_received_ts"], signal_ts + 20)
+        self.assertEqual(trace["wss_received_ts"], signal_ts + 15)
+        self.assertEqual(trace["previous_subscription_end_ts"], signal_ts - 20)
+        self.assertEqual(trace["next_subscription_start_ts"], signal_ts + 1_000)
+        self.assertIsNone(trace["first_token_notification_ts"])
+        self.assertEqual(
+            payload["rows"][0]["subscription_coverage"]["intervals"], 0
+        )
+
     def test_subscription_coverage_accepts_bounded_startup_delay(self):
         signal_id = self.checkpoint_dataset_outcome(
             7, [1.05, 1.10, 1.15, 1.20, 1.30]
@@ -611,8 +670,10 @@ class AccountPriceCheckpointTests(unittest.TestCase):
             payload = app.api_account_checkpoint_paths("test-token")
 
         self.assertFalse(payload["event_path_included"])
+        self.assertFalse(payload["subscription_trace_included"])
         self.assertNotIn("event_path", payload["rows"][0])
         self.assertNotIn("subscription_coverage", payload["rows"][0])
+        self.assertNotIn("ingest_trace", payload["rows"][0])
 
     def test_training_readiness_minimums_match_diagnostic_schema(self):
         schema_path = (

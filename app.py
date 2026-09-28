@@ -16562,6 +16562,63 @@ def get_account_checkpoint_subscription_coverage(observations):
     return coverage
 
 
+def get_account_checkpoint_ingest_trace(observations):
+    """Read transport and nearby WSS timing for checkpoint diagnostics."""
+    signal_ids = [int(row["signal_id"]) for row in observations]
+    traces = {}
+    if not signal_ids:
+        return traces
+    conn = db()
+    try:
+        for offset in range(0, len(signal_ids), 400):
+            batch = signal_ids[offset:offset + 400]
+            placeholders = ",".join("?" for _ in batch)
+            rows = conn.execute(
+                f"""
+                SELECT e.id, e.source, e.transport,
+                       (SELECT MIN(i.received_ts)
+                        FROM market_event_inbox i
+                        WHERE i.signature = e.trade_signature
+                          AND i.event_index = e.event_index),
+                       (SELECT t.first_received_ts
+                        FROM helius_standard_wss_transactions t
+                        WHERE t.signature = e.trade_signature),
+                       (SELECT MAX(COALESCE(s.unsubscribed_ts,
+                                            s.last_confirmed_ts))
+                        FROM helius_standard_wss_token_intervals s
+                        WHERE s.mint = e.mint
+                          AND COALESCE(s.unsubscribed_ts,
+                                       s.last_confirmed_ts) <= e.ts),
+                       (SELECT MIN(s.subscribed_ts)
+                        FROM helius_standard_wss_token_intervals s
+                        WHERE s.mint = e.mint
+                          AND s.subscribed_ts >= e.ts),
+                       (SELECT MIN(n.received_ts)
+                        FROM helius_standard_wss_notifications n
+                        WHERE n.wallet = e.mint
+                          AND n.subject_type = 'token'
+                          AND n.received_ts BETWEEN e.ts AND e.ts + 900)
+                FROM evaluations e
+                WHERE e.id IN ({placeholders})
+                """,
+                batch,
+            ).fetchall()
+            for (signal_id, source, transport, inbox_ts, wss_ts,
+                 previous_end_ts, next_start_ts, first_token_ts) in rows:
+                traces[int(signal_id)] = {
+                    "source": source,
+                    "transport": transport,
+                    "inbox_received_ts": inbox_ts,
+                    "wss_received_ts": wss_ts,
+                    "previous_subscription_end_ts": previous_end_ts,
+                    "next_subscription_start_ts": next_start_ts,
+                    "first_token_notification_ts": first_token_ts,
+                }
+    finally:
+        conn.close()
+    return traces
+
+
 def get_account_checkpoint_dataset_rows():
     """Build a shadow-only dataset from complete fixed on-chain snapshots."""
     dataset = []
@@ -18240,6 +18297,7 @@ def api_account_checkpoint_paths(
     x_app_token: str = Header(default=""),
     after_signal_ts: float = 0.0,
     include_event_path: bool = False,
+    include_subscription_trace: bool = False,
 ):
     """Trayectoria de precios por señal, para estimar PnL fuera del servicio.
 
@@ -18260,6 +18318,10 @@ def api_account_checkpoint_paths(
         get_account_checkpoint_subscription_coverage(observations)
         if include_event_path else {}
     )
+    ingest_trace = (
+        get_account_checkpoint_ingest_trace(observations)
+        if include_subscription_trace else {}
+    )
     rows = [
         {
             "signal_id": row["signal_id"],
@@ -18278,6 +18340,9 @@ def api_account_checkpoint_paths(
                     row["signal_id"], {}
                 )
             } if include_event_path else {}),
+            **({
+                "ingest_trace": ingest_trace.get(row["signal_id"], {})
+            } if include_subscription_trace else {}),
         }
         for row in observations
     ]
@@ -18285,6 +18350,7 @@ def api_account_checkpoint_paths(
         "label_source": "account_checkpoints_v1",
         "affects_decisions": False,
         "event_path_included": include_event_path,
+        "subscription_trace_included": include_subscription_trace,
         "count": len(rows),
         "rows": rows,
     }
