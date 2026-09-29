@@ -757,20 +757,28 @@ SHADOW_CHALLENGER_LAST_ERROR = ""
 # BASE DE DATOS
 # =========================================================
 
-def db():
+_DB_SCHEMA_LOCK = threading.Lock()
+_DB_SCHEMA_IDENTITIES = {}
 
-    conn = sqlite3.connect(
-        DB,
-        timeout=30.0,
-    )
 
-    conn.execute(
-        "PRAGMA busy_timeout = 30000"
-    )
+def _connect_db():
+    conn = sqlite3.connect(DB, timeout=30.0)
+    conn.execute("PRAGMA busy_timeout = 30000")
+    conn.execute("PRAGMA synchronous = NORMAL")
+    return conn
 
-    conn.execute(
-        "PRAGMA synchronous = NORMAL"
-    )
+
+def _db_file_identity():
+    try:
+        stat = os.stat(DB)
+    except FileNotFoundError:
+        return None
+    return (stat.st_dev, stat.st_ino)
+
+
+def _initialize_db():
+
+    conn = _connect_db()
 
     conn.execute(
         """
@@ -1607,6 +1615,22 @@ CREATE TABLE IF NOT EXISTS signal_outcomes(
     conn.commit()
 
     return conn
+
+
+def db():
+    path = os.fspath(DB)
+    if path == ":memory:":
+        return _initialize_db()
+    identity = _db_file_identity()
+    if identity is not None and _DB_SCHEMA_IDENTITIES.get(path) == identity:
+        return _connect_db()
+    with _DB_SCHEMA_LOCK:
+        identity = _db_file_identity()
+        if identity is not None and _DB_SCHEMA_IDENTITIES.get(path) == identity:
+            return _connect_db()
+        conn = _initialize_db()
+        _DB_SCHEMA_IDENTITIES[path] = _db_file_identity()
+        return conn
 
 
 
@@ -5551,7 +5575,9 @@ def migrate_rpc_fallback_balance_nullable(conn):
 
 def migrate_database():
 
-    conn = db()
+    # Explicit migrations must inspect and repair even a database already opened
+    # by this process; ordinary db() calls skip the bootstrap after first use.
+    conn = _initialize_db()
 
     conn.execute(
         "PRAGMA journal_mode = WAL"
@@ -18879,6 +18905,10 @@ def get_helius_standard_wss_token_traffic(conn, cutoff):
                COALESCE(SUM(n.message_bytes), 0),
                MIN(n.received_ts), MAX(n.received_ts),
                COALESCE(SUM(t.status = 'queue_full'), 0),
+               COALESCE(SUM(t.status = 'queue_full' AND
+                   t.last_error = 'HELIUS_STANDARD_WSS_PRIORITY_RESERVE'), 0),
+               COALESCE(SUM(t.status = 'queue_full' AND
+                   t.last_error = 'HELIUS_STANDARD_WSS_QUEUE_FULL'), 0),
                COALESCE(SUM(t.status = 'fetch_failed'), 0),
                COALESCE(SUM(t.status = 'processing_failed'), 0)
         FROM helius_standard_wss_notifications n
@@ -18900,13 +18930,29 @@ def get_helius_standard_wss_token_traffic(conn, cutoff):
             "first_received_ts": first_received_ts,
             "last_received_ts": last_received_ts,
             "queue_full_transactions": int(queue_full),
+            "priority_reserve_transactions": int(priority_reserve),
+            "global_queue_full_transactions": int(global_queue_full),
             "fetch_failed_transactions": int(fetch_failed),
             "processing_failed_transactions": int(processing_failed),
         }
         for mint, count, failed, message_bytes,
             first_received_ts, last_received_ts, queue_full,
-            fetch_failed, processing_failed in rows
+            priority_reserve, global_queue_full, fetch_failed,
+            processing_failed in rows
     ]
+
+
+def get_helius_standard_wss_queue_rejection_reasons(conn, cutoff):
+    rows = conn.execute(
+        """
+        SELECT COALESCE(last_error, 'unknown'), COUNT(*)
+        FROM helius_standard_wss_transactions
+        WHERE first_received_ts >= ? AND status = 'queue_full'
+        GROUP BY COALESCE(last_error, 'unknown')
+        """,
+        (cutoff,),
+    ).fetchall()
+    return {str(reason): int(count) for reason, count in rows}
 
 
 def get_helius_standard_wss_window_health(conn, cutoff):
@@ -18980,6 +19026,9 @@ def get_helius_standard_wss_window_health(conn, cutoff):
             {"status": status, "code": code, "count": int(count)}
             for status, code, count in fetch_errors
         ],
+        "queue_rejection_reasons": (
+            get_helius_standard_wss_queue_rejection_reasons(conn, cutoff)
+        ),
         "unparsed_reasons": {
             str(reason): int(count)
             for reason, count in unparsed_reasons
@@ -19106,6 +19155,9 @@ def api_helius_standard_wss_stats(
             (cutoff,),
         ).fetchall()
         token_traffic = get_helius_standard_wss_token_traffic(conn, cutoff)
+        queue_rejection_reasons = (
+            get_helius_standard_wss_queue_rejection_reasons(conn, cutoff)
+        )
         last_1h = get_helius_standard_wss_window_health(
             conn, now - 3600
         )
@@ -19246,6 +19298,7 @@ def api_helius_standard_wss_stats(
                 {"status": status, "code": code, "count": int(count)}
                 for status, code, count in fetch_errors
             ],
+            "queue_rejection_reasons": queue_rejection_reasons,
             "unparsed_reasons": {
                 str(reason): int(count)
                 for reason, count in unparsed_reasons

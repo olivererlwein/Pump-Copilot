@@ -806,7 +806,8 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
                 event, True, message_bytes, received_ts=received_ts,
             )
         app.finish_helius_standard_wss_transaction(
-            "token-a-recent", "queue_full", 0, now=now - 1799,
+            "token-a-recent", "queue_full", 0,
+            error="HELIUS_STANDARD_WSS_PRIORITY_RESERVE", now=now - 1799,
         )
         app.finish_helius_standard_wss_transaction(
             "token-a-old", "fetch_failed", 1, now=now - 7199,
@@ -827,6 +828,11 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(report["last_1h"]["message_bytes"], 400)
         self.assertEqual(one_hour["mint-a"]["message_bytes"], 100)
         self.assertEqual(one_hour["mint-a"]["queue_full_transactions"], 1)
+        self.assertEqual(one_hour["mint-a"]["priority_reserve_transactions"], 1)
+        self.assertEqual(one_hour["mint-a"]["global_queue_full_transactions"], 0)
+        self.assertEqual(report["last_1h"]["queue_rejection_reasons"], {
+            "HELIUS_STANDARD_WSS_PRIORITY_RESERVE": 1,
+        })
         self.assertEqual(one_hour["mint-a"]["fetch_failed_transactions"], 0)
         self.assertEqual(one_hour["mint-b"]["failed_notifications"], 1)
         self.assertEqual(one_hour["mint-b"]["queue_full_transactions"], 0)
@@ -840,6 +846,9 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(day["mint-a"]["message_bytes"], 300)
         self.assertEqual(day["mint-a"]["queue_full_transactions"], 1)
         self.assertEqual(day["mint-a"]["fetch_failed_transactions"], 1)
+        self.assertEqual(report["last_24h"]["queue_rejection_reasons"], {
+            "HELIUS_STANDARD_WSS_PRIORITY_RESERVE": 1,
+        })
 
     def test_stats_last_hour_excludes_older_queue_failures(self):
         now = 1_700_010_000
@@ -848,7 +857,8 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
             old_event, True, 200, received_ts=now - 7200
         )
         app.finish_helius_standard_wss_transaction(
-            "signature-a", "queue_full", 0, now=now - 7199
+            "signature-a", "queue_full", 0,
+            error="HELIUS_STANDARD_WSS_QUEUE_FULL", now=now - 7199
         )
 
         recent_event = {
@@ -898,6 +908,9 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
             report["last_24h"]["statuses"],
             {"applied": 1, "queue_full": 1, "unparsed": 1},
         )
+        self.assertEqual(report["last_24h"]["queue_rejection_reasons"], {
+            "HELIUS_STANDARD_WSS_QUEUE_FULL": 1,
+        })
         self.assertEqual(report["last_1h"], {
             "notifications": 3,
             "pump_log_notifications": 3,
@@ -912,6 +925,7 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
             "pending_transaction_fetches": 0,
             "statuses": {"applied": 1, "unparsed": 1},
             "fetch_errors": [],
+            "queue_rejection_reasons": {},
             "unparsed_reasons": {"supported_payload_not_decoded": 1},
         })
 
