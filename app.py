@@ -20839,6 +20839,7 @@ def demo_controlled_retry(
 ):
 
     auth(x_app_token)
+    require_debug_mode()
 
     original_order_id = create_execution_order(
         mint="DEMO-CONTROLLED-RETRY",
