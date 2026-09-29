@@ -1275,6 +1275,77 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
             persist_observation=False,
         )
 
+    async def test_recovery_drains_more_than_one_batch_without_duplicates(self):
+        observed_at = time.time() - 5
+        conn = app.db()
+        try:
+            for index in range(61):
+                signature = f"pending-{index:02d}"
+                subject_type = "wallet" if index == 60 else "token"
+                wallet = "wallet-a" if index == 60 else "mint-a"
+                conn.execute(
+                    "INSERT INTO helius_standard_wss_notifications("
+                    "signature, wallet, received_ts, failed, pump_logs, "
+                    "message_bytes, subject_type) VALUES(?,?,?,0,1,100,?)",
+                    (signature, wallet, observed_at, subject_type),
+                )
+                conn.execute(
+                    "INSERT INTO helius_standard_wss_transactions("
+                    "signature, first_received_ts, status) "
+                    "VALUES(?,?,'pending_fetch')",
+                    (signature, observed_at),
+                )
+            conn.execute(
+                "INSERT INTO helius_standard_wss_notifications("
+                "signature, wallet, received_ts, failed, pump_logs, "
+                "message_bytes, subject_type) VALUES(?,?,?,0,1,100,'token')",
+                ("pending-60", "mint-a", observed_at),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        pending = set()
+        tasks = set()
+        with (
+            patch.object(app, "HELIUS_STANDARD_WSS_MAX_PENDING", 100),
+            patch.object(
+                app, "fetch_helius_standard_wss_transaction",
+                new_callable=AsyncMock,
+            ) as fetch,
+        ):
+            args = (pending, tasks, asyncio.Semaphore(1),
+                    asyncio.Lock(), {"next_ts": 0.0})
+            self.assertEqual(
+                await app.recover_helius_standard_wss_pending(*args), 50
+            )
+            self.assertEqual(
+                await app.recover_helius_standard_wss_pending(*args), 11
+            )
+            await asyncio.gather(*tasks)
+        self.assertEqual(fetch.await_count, 61)
+        self.assertEqual(len(pending), 61)
+        events = [call.args[0] for call in fetch.await_args_list]
+        self.assertEqual(len({event["signature"] for event in events}), 61)
+        self.assertIn(
+            {"signature": "pending-60", "wallet": "wallet-a",
+             "subject_type": "wallet"}, events,
+        )
+        self.assertIn(
+            {"signature": "pending-00", "wallet": "mint-a",
+             "subject_type": "token"}, events,
+        )
+
+    async def test_recovery_preserves_capacity_for_new_notifications(self):
+        pending = {f"current-{index}" for index in range(8)}
+        with patch.object(app, "HELIUS_STANDARD_WSS_MAX_PENDING", 10):
+            recovered = await app.recover_helius_standard_wss_pending(
+                pending, set(), asyncio.Semaphore(1), asyncio.Lock(),
+                {"next_ts": 0.0},
+            )
+        self.assertEqual(recovered, 0)
+        self.assertEqual(len(pending), 8)
+
     async def test_subscription_rejection_does_not_fetch_pending_transaction(self):
         app.record_helius_standard_wss_notification(
             self.event(), True, 200, received_ts=time.time()

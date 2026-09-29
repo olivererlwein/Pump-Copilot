@@ -15838,14 +15838,31 @@ def finish_helius_standard_wss_transaction(
 
 
 def pending_helius_standard_wss_transactions(
-    now=None, limit=50, include_tokens=True,
+    now=None, limit=50, include_tokens=True, exclude_signatures=(),
+    include_event=False,
 ):
     cutoff = float(now if now is not None else time.time()) - 900
+    excluded = tuple(sorted(set(exclude_signatures)))
+    exclusion = (
+        "AND t.signature NOT IN (" + ",".join("?" for _ in excluded) + ")"
+        if excluded else ""
+    )
+    event_columns = ""
+    if include_event:
+        event_columns = """,
+            (SELECT n.wallet FROM helius_standard_wss_notifications n
+             WHERE n.signature = t.signature
+             ORDER BY (n.subject_type = 'wallet') DESC, n.received_ts
+             LIMIT 1),
+            (SELECT n.subject_type FROM helius_standard_wss_notifications n
+             WHERE n.signature = t.signature
+             ORDER BY (n.subject_type = 'wallet') DESC, n.received_ts
+             LIMIT 1)"""
     conn = db()
     try:
         return conn.execute(
-            """
-            SELECT t.signature, t.first_received_ts
+            f"""
+            SELECT t.signature, t.first_received_ts{event_columns}
             FROM helius_standard_wss_transactions t
             WHERE t.status IN ('pending_fetch', 'observed')
               AND t.fetched_ts IS NULL
@@ -15855,13 +15872,47 @@ def pending_helius_standard_wss_transactions(
                   WHERE n.signature = t.signature
                     AND n.subject_type = 'wallet'
               ))
+              {exclusion}
             ORDER BY t.first_received_ts, t.signature
             LIMIT ?
             """,
-            (cutoff, int(bool(include_tokens)), max(1, min(int(limit), 50))),
+            (cutoff, int(bool(include_tokens)), *excluded,
+             max(1, min(int(limit), 50))),
         ).fetchall()
     finally:
         conn.close()
+
+
+async def recover_helius_standard_wss_pending(
+    pending_signatures, fetch_tasks, semaphore, rate_lock, rate_state,
+    include_tokens=True,
+):
+    reserve_start = (
+        HELIUS_STANDARD_WSS_MAX_PENDING
+        - max(1, HELIUS_STANDARD_WSS_MAX_PENDING // 5)
+    )
+    available = reserve_start - len(pending_signatures)
+    if available <= 0:
+        return 0
+    interrupted = await asyncio.to_thread(
+        pending_helius_standard_wss_transactions,
+        limit=min(50, available),
+        include_tokens=include_tokens,
+        exclude_signatures=pending_signatures,
+        include_event=True,
+    )
+    for signature, first_received_ts, wallet, subject_type in interrupted:
+        await schedule_helius_standard_wss_fetch(
+            {"signature": signature, "wallet": wallet,
+             "subject_type": subject_type},
+            first_received_ts,
+            pending_signatures,
+            fetch_tasks,
+            semaphore,
+            rate_lock,
+            rate_state,
+        )
+    return len(interrupted)
 
 
 async def fetch_helius_standard_wss_transaction(
@@ -16604,6 +16655,7 @@ def get_account_checkpoint_subscription_coverage(observations):
 
     intervals = {signal_id: [] for signal_id in signals}
     delivery_failures = {signal_id: 0 for signal_id in signals}
+    unresolved_fetches = {signal_id: 0 for signal_id in signals}
     signal_ids = list(signals)
     conn = db()
     try:
@@ -16648,20 +16700,24 @@ def get_account_checkpoint_subscription_coverage(observations):
                     continue
                 # Dropped fetches have no block_time; reception time is the
                 # only available bound for known delivery losses.
-                delivery_failures[signal_id] = conn.execute(
+                failures, unresolved = conn.execute(
                     """
-                    SELECT COUNT(*)
+                    SELECT
+                        COALESCE(SUM(t.status IN (
+                            'queue_full', 'fetch_failed', 'processing_failed'
+                        )), 0),
+                        COALESCE(SUM(t.status IN ('pending_fetch', 'observed')
+                            AND t.fetched_ts IS NULL), 0)
                     FROM helius_standard_wss_notifications n
                     JOIN helius_standard_wss_transactions t
                       ON t.signature = n.signature
                     WHERE n.wallet = ? AND n.subject_type = 'token'
                       AND n.received_ts >= ? AND n.received_ts <= ?
-                      AND t.status IN (
-                          'queue_full', 'fetch_failed', 'processing_failed'
-                      )
                     """,
                     (mint, signal_ts, signal_ts + 900.0),
-                ).fetchone()[0]
+                ).fetchone()
+                delivery_failures[signal_id] = int(failures)
+                unresolved_fetches[signal_id] = int(unresolved)
     finally:
         conn.close()
 
@@ -16700,9 +16756,11 @@ def get_account_checkpoint_subscription_coverage(observations):
             "intervals": len(merged),
             "subscription_continuous": subscription_continuous,
             "known_delivery_failures": int(delivery_failures[signal_id]),
+            "unresolved_delivery_fetches": int(unresolved_fetches[signal_id]),
             "complete": bool(
                 subscription_continuous
                 and not delivery_failures[signal_id]
+                and not unresolved_fetches[signal_id]
             ),
         }
     return coverage
@@ -16816,6 +16874,10 @@ def get_exit_subscription_coverage_progress(observations=None):
         bool(item.get("known_delivery_failures"))
         for item in coverage.values()
     )
+    unresolved_rows = sum(
+        bool(item.get("unresolved_delivery_fetches"))
+        for item in coverage.values()
+    )
     next_milestone = next(
         (
             milestone
@@ -16829,6 +16891,7 @@ def get_exit_subscription_coverage_progress(observations=None):
         "measured_observation_rows": measured_rows,
         "complete_observation_rows": complete_rows,
         "known_delivery_loss_observation_rows": known_loss_rows,
+        "unresolved_delivery_observation_rows": unresolved_rows,
         "milestones": list(EXIT_SUBSCRIPTION_COVERAGE_MILESTONES),
         "next_milestone": next_milestone,
         "requires_frozen_validator": True,
@@ -17377,6 +17440,7 @@ async def helius_standard_wss_worker():
                 subscription_kinds = {}
                 subscribed_wallets = set()
                 recovered_pending = False
+                last_recovery_poll = time.monotonic()
                 for request_id, wallet in enumerate(wallets, start=1):
                     pending_requests[request_id] = wallet
                     pending_kinds[request_id] = "wallet"
@@ -17393,6 +17457,14 @@ async def helius_standard_wss_worker():
                 )
 
                 while True:
+                    if (recovered_pending
+                            and time.monotonic() - last_recovery_poll >= 10):
+                        await recover_helius_standard_wss_pending(
+                            pending_signatures, fetch_tasks, semaphore,
+                            rate_lock, rate_state,
+                            include_tokens=HELIUS_STANDARD_WSS_TRACK_TOKENS_ENABLED,
+                        )
+                        last_recovery_poll = time.monotonic()
                     if any(
                         time.monotonic() - started > 60
                         for started in (
@@ -17553,22 +17625,12 @@ async def helius_standard_wss_worker():
                         if (not recovered_pending
                                 and len(subscribed_wallets) == len(wallets)):
                             recovered_pending = True
-                            interrupted = await asyncio.to_thread(
-                                pending_helius_standard_wss_transactions,
-                                include_tokens=(
-                                    HELIUS_STANDARD_WSS_TRACK_TOKENS_ENABLED
-                                ),
+                            await recover_helius_standard_wss_pending(
+                                pending_signatures, fetch_tasks, semaphore,
+                                rate_lock, rate_state,
+                                include_tokens=HELIUS_STANDARD_WSS_TRACK_TOKENS_ENABLED,
                             )
-                            for signature, first_received_ts in interrupted:
-                                await schedule_helius_standard_wss_fetch(
-                                    {"signature": signature},
-                                    first_received_ts,
-                                    pending_signatures,
-                                    fetch_tasks,
-                                    semaphore,
-                                    rate_lock,
-                                    rate_state,
-                                )
+                            last_recovery_poll = time.monotonic()
                         continue
 
                     event = parse_logs_notification(payload, subscriptions)

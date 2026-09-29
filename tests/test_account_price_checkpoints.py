@@ -753,6 +753,69 @@ class AccountPriceCheckpointTests(unittest.TestCase):
         self.assertEqual(recovered["known_delivery_failures"], 0)
         self.assertTrue(recovered["complete"])
 
+    def test_subscription_coverage_waits_for_pending_token_fetch(self):
+        signal_id = self.checkpoint_dataset_outcome(
+            10, [1.05, 1.10, 1.15, 1.20, 1.30]
+        )
+        signal_ts = self.signal_ts + 10 * 2_000
+        app.establish_helius_token_coverage_activation(now=signal_ts)
+        conn = app.db()
+        try:
+            conn.execute(
+                "INSERT INTO helius_standard_wss_token_intervals("
+                "mint, subscribed_ts, last_confirmed_ts, unsubscribed_ts, "
+                "close_reason) VALUES(?,?,?,?,?)",
+                ("mint-10", signal_ts, signal_ts + 900,
+                 signal_ts + 900, "unsubscribe_confirmed"),
+            )
+            for signature, wallet, subject_type in (
+                ("pending-token", "mint-10", "token"),
+                ("pending-wallet", "mint-10", "wallet"),
+                ("pending-other", "mint-other", "token"),
+            ):
+                conn.execute(
+                    "INSERT INTO helius_standard_wss_notifications("
+                    "signature, wallet, received_ts, failed, pump_logs, "
+                    "message_bytes, subject_type) VALUES(?,?,?,0,1,100,?)",
+                    (signature, wallet, signal_ts + 100, subject_type),
+                )
+                conn.execute(
+                    "INSERT INTO helius_standard_wss_transactions("
+                    "signature, first_received_ts, status) "
+                    "VALUES(?,?,'pending_fetch')",
+                    (signature, signal_ts + 100),
+                )
+            conn.commit()
+        finally:
+            conn.close()
+
+        row = {"signal_id": signal_id, "mint": "mint-10",
+               "signal_ts": signal_ts}
+        pending = app.get_account_checkpoint_subscription_coverage([row])[
+            signal_id
+        ]
+        self.assertTrue(pending["subscription_continuous"])
+        self.assertEqual(pending["known_delivery_failures"], 0)
+        self.assertEqual(pending["unresolved_delivery_fetches"], 1)
+        self.assertFalse(pending["complete"])
+        progress = app.get_exit_subscription_coverage_progress([row])
+        self.assertEqual(progress["unresolved_delivery_observation_rows"], 1)
+        self.assertEqual(progress["known_delivery_loss_observation_rows"], 0)
+
+        app.finish_helius_standard_wss_transaction(
+            "pending-token", "applied", 1, now=signal_ts + 200
+        )
+        completed = app.get_account_checkpoint_subscription_coverage([row])[
+            signal_id
+        ]
+        self.assertEqual(completed["unresolved_delivery_fetches"], 0)
+        self.assertTrue(completed["complete"])
+        self.assertEqual(
+            app.get_exit_subscription_coverage_progress([row])[
+                "unresolved_delivery_observation_rows"
+            ], 0,
+        )
+
     def test_subscription_coverage_rejects_excessive_startup_delay(self):
         signal_id = self.checkpoint_dataset_outcome(
             8, [1.05, 1.10, 1.15, 1.20, 1.30]
