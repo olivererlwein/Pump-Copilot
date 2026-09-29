@@ -1436,6 +1436,31 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(recovered, 0)
         self.assertEqual(len(pending), 8)
 
+    async def test_recovery_uses_wallet_reserve_when_token_capacity_is_full(self):
+        observed_at = time.time() - 5
+        wallet = self.event()
+        app.record_helius_standard_wss_notification(
+            wallet, True, 200, received_ts=observed_at,
+        )
+        pending = {f"token-{index}" for index in range(8)}
+        tasks = set()
+        with (
+            patch.object(app, "HELIUS_STANDARD_WSS_MAX_PENDING", 10),
+            patch.object(
+                app, "fetch_helius_standard_wss_transaction",
+                new_callable=AsyncMock,
+            ) as fetch,
+        ):
+            recovered = await app.recover_helius_standard_wss_pending(
+                pending, tasks, asyncio.Semaphore(1), asyncio.Lock(),
+                {"next_ts": 0.0},
+            )
+            await asyncio.gather(*tasks)
+        self.assertEqual(recovered, 1)
+        self.assertIn(wallet["signature"], pending)
+        fetch.assert_awaited_once()
+        self.assertEqual(fetch.await_args.args[0]["subject_type"], "wallet")
+
     async def test_subscription_rejection_does_not_fetch_pending_transaction(self):
         app.record_helius_standard_wss_notification(
             self.event(), True, 200, received_ts=time.time()

@@ -15872,28 +15872,38 @@ async def recover_helius_standard_wss_pending(
         HELIUS_STANDARD_WSS_MAX_PENDING
         - max(1, HELIUS_STANDARD_WSS_MAX_PENDING // 5)
     )
-    available = reserve_start - len(pending_signatures)
-    if available <= 0:
-        return 0
-    interrupted = await asyncio.to_thread(
-        pending_helius_standard_wss_transactions,
-        limit=min(50, available),
-        include_tokens=include_tokens,
-        exclude_signatures=pending_signatures,
-        include_event=True,
-    )
-    for signature, first_received_ts, wallet, subject_type in interrupted:
-        await schedule_helius_standard_wss_fetch(
-            {"signature": signature, "wallet": wallet,
-             "subject_type": subject_type},
-            first_received_ts,
-            pending_signatures,
-            fetch_tasks,
-            semaphore,
-            rate_lock,
-            rate_state,
+    recovered = 0
+    for allow_tokens, capacity in (
+        (False, HELIUS_STANDARD_WSS_MAX_PENDING),
+        (True, reserve_start),
+    ):
+        if allow_tokens and not include_tokens:
+            break
+        available = capacity - len(pending_signatures)
+        if available <= 0:
+            continue
+        interrupted = await asyncio.to_thread(
+            pending_helius_standard_wss_transactions,
+            limit=min(50 - recovered, available),
+            include_tokens=allow_tokens,
+            exclude_signatures=pending_signatures,
+            include_event=True,
         )
-    return len(interrupted)
+        for signature, first_received_ts, wallet, subject_type in interrupted:
+            await schedule_helius_standard_wss_fetch(
+                {"signature": signature, "wallet": wallet,
+                 "subject_type": subject_type},
+                first_received_ts,
+                pending_signatures,
+                fetch_tasks,
+                semaphore,
+                rate_lock,
+                rate_state,
+            )
+        recovered += len(interrupted)
+        if recovered >= 50:
+            break
+    return recovered
 
 
 async def fetch_helius_standard_wss_transaction(
