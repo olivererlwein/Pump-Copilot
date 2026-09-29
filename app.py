@@ -2875,51 +2875,8 @@ def cleanup_finished_outcome_token(mint):
 
     complete_finished_signal_outcomes(mint)
     expire_old_signal_outcomes(mint)
-
-    conn = db()
-
-    active_cutoff = time.time() - 1200
-
-    unfinished = conn.execute(
-    """
-    SELECT COUNT(*)
-    FROM signal_outcomes
-    WHERE mint = ?
-    AND signal_ts >= ?
-    AND status = 'active'
-    AND (
-        price_10s IS NULL
-        OR price_30s IS NULL
-        OR price_1m IS NULL
-        OR price_5m IS NULL
-        OR price_15m IS NULL
-    )
-    """,
-    (
-        mint,
-        active_cutoff,
-    )
-).fetchone()[0]
-
-    open_paper = conn.execute(
-        """
-        SELECT COUNT(*)
-        FROM paper_positions
-        WHERE mint = ?
-        AND status = 'open'
-        """,
-        (mint,)
-    ).fetchone()[0]
-
-    conn.close()
-
-    if unfinished == 0 and open_paper == 0:
-        TRACKED_TOKENS.discard(mint)
-        TOKENS_TO_UNSUBSCRIBE.add(mint)
-
-        print(
-            f"[TRACKER] Token finalizado: {mint}"
-        )   
+    if untrack_token_if_unused(mint):
+        print(f"[TRACKER] Token finalizado: {mint}")
 
 def simulate_execution(
     mint,

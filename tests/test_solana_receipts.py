@@ -769,6 +769,18 @@ class LiveReceiptPersistenceTests(unittest.TestCase):
         )
         self.assertIn(MINT, app.TRACKED_TOKENS)
 
+    def test_outcome_cleanup_keeps_token_with_open_live_position(self):
+        self.record()
+        app.cleanup_finished_outcome_token(MINT)
+        self.assertIn(MINT, app.TRACKED_TOKENS)
+        self.assertNotIn(MINT, app.TOKENS_TO_UNSUBSCRIBE)
+
+    def test_outcome_cleanup_untracks_token_without_any_open_position(self):
+        app.TRACKED_TOKENS.add(MINT)
+        app.cleanup_finished_outcome_token(MINT)
+        self.assertNotIn(MINT, app.TRACKED_TOKENS)
+        self.assertIn(MINT, app.TOKENS_TO_UNSUBSCRIBE)
+
     def test_live_exit_rejects_pre_entry_and_out_of_order_events(self):
         conn = app.db()
         conn.execute(
