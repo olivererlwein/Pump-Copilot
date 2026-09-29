@@ -15746,7 +15746,7 @@ def record_helius_standard_wss_notification(
                 (signature, received_ts),
             )
             should_fetch = bool(cursor.rowcount)
-            if (not should_fetch and notification.rowcount
+            if (not should_fetch
                     and event.get("subject_type", "wallet") == "wallet"):
                 previous_wallet = conn.execute(
                     "SELECT 1 FROM helius_standard_wss_notifications "
@@ -15755,29 +15755,27 @@ def record_helius_standard_wss_notification(
                     (signature, event["wallet"]),
                 ).fetchone()
                 if previous_wallet is None:
-                    conn.execute(
+                    # A repeated notice can rescue this wallet's recent
+                    # queue rejection after capacity becomes available.
+                    cursor = conn.execute(
                         """
                         UPDATE helius_standard_wss_transactions
                         SET status = 'pending_fetch', fetched_ts = NULL,
                             last_error = NULL
                         WHERE signature = ? AND status = 'queue_full'
                           AND first_received_ts >= ?
-                          AND EXISTS (
-                              SELECT 1
-                              FROM helius_standard_wss_notifications n
-                              WHERE n.signature = ?
-                                AND n.subject_type = 'token'
-                          )
                         """,
-                        (signature, received_ts - 900, signature),
-                    )
-                    pending = conn.execute(
-                        "SELECT 1 FROM helius_standard_wss_transactions "
-                        "WHERE signature = ? AND status = 'pending_fetch' "
-                        "AND fetched_ts IS NULL AND first_received_ts >= ?",
                         (signature, received_ts - 900),
-                    ).fetchone()
-                    should_fetch = pending is not None
+                    )
+                    should_fetch = bool(cursor.rowcount)
+                    if not should_fetch and notification.rowcount:
+                        pending = conn.execute(
+                            "SELECT 1 FROM helius_standard_wss_transactions "
+                            "WHERE signature = ? AND status = 'pending_fetch' "
+                            "AND fetched_ts IS NULL AND first_received_ts >= ?",
+                            (signature, received_ts - 900),
+                        ).fetchone()
+                        should_fetch = pending is not None
         conn.commit()
         return should_fetch
     finally:

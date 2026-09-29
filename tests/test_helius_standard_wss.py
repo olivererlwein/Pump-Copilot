@@ -422,6 +422,44 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
             wallet, True, 100, received_ts=1901,
         ))
 
+    def test_repeated_wallet_notice_recovers_recent_queue_rejection(self):
+        wallet = self.event()
+        self.assertTrue(app.record_helius_standard_wss_notification(
+            wallet, True, 100, received_ts=1000,
+        ))
+        app.finish_helius_standard_wss_transaction(
+            wallet["signature"], "queue_full", 0, now=1001,
+            error="HELIUS_STANDARD_WSS_QUEUE_FULL",
+        )
+        self.assertTrue(app.record_helius_standard_wss_notification(
+            wallet, True, 100, received_ts=1002,
+        ))
+        self.assertFalse(app.record_helius_standard_wss_notification(
+            wallet, True, 100, received_ts=1003,
+        ))
+        conn = app.db()
+        try:
+            row = conn.execute(
+                "SELECT status, fetched_ts, last_error FROM "
+                "helius_standard_wss_transactions WHERE signature = ?",
+                (wallet["signature"],),
+            ).fetchone()
+        finally:
+            conn.close()
+        self.assertEqual(row, ("pending_fetch", None, None))
+
+    def test_old_repeated_wallet_notice_does_not_recover_queue_rejection(self):
+        wallet = self.event()
+        app.record_helius_standard_wss_notification(
+            wallet, True, 100, received_ts=1000,
+        )
+        app.finish_helius_standard_wss_transaction(
+            wallet["signature"], "queue_full", 0, now=1001,
+        )
+        self.assertFalse(app.record_helius_standard_wss_notification(
+            wallet, True, 100, received_ts=1901,
+        ))
+
     def test_token_subscription_intervals_are_persisted_conservatively(self):
         self.assertEqual(
             app.establish_helius_token_coverage_activation(now=50), 50.0
