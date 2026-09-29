@@ -18762,7 +18762,7 @@ def get_wallet_coverage_buckets(conn, wallet, since, until, bucket_seconds):
         (since, until, wallet),
     ):
         row = slot(start)
-        if status == "observed":
+        if status in ("observed", "applied"):
             row["own_parsed_transactions"] += int(count)
         elif status == "unparsed" and reason == "wallet_not_signer":
             row["mention_transactions"] += int(count)
@@ -18955,6 +18955,47 @@ def get_helius_standard_wss_queue_rejection_reasons(conn, cutoff):
     return {str(reason): int(count) for reason, count in rows}
 
 
+def get_helius_standard_wss_queue_pressure(conn, cutoff):
+    minutes = conn.execute(
+        """
+        SELECT CAST(first_received_ts / 60 AS INTEGER) * 60,
+               COUNT(*), COALESCE(SUM(status = 'queue_full'), 0)
+        FROM helius_standard_wss_transactions
+        WHERE first_received_ts >= ?
+        GROUP BY 1
+        """,
+        (cutoff,),
+    ).fetchall()
+    completions = conn.execute(
+        """
+        SELECT COUNT(*), AVG(fetched_ts - first_received_ts),
+               MAX(fetched_ts - first_received_ts)
+        FROM helius_standard_wss_transactions
+        WHERE first_received_ts >= ? AND fetched_ts IS NOT NULL
+          AND status IN ('applied', 'observed', 'unparsed',
+                         'fetch_failed', 'processing_failed')
+        """,
+        (cutoff,),
+    ).fetchone()
+    peak = max(minutes, key=lambda row: (row[2], row[1]), default=None)
+    if peak and not peak[2]:
+        peak = None
+    return {
+        "peak_rejections_minute_ts": int(peak[0]) if peak else None,
+        "peak_rejections_in_minute": int(peak[2]) if peak else 0,
+        "selected_in_peak_minute": int(peak[1]) if peak else 0,
+        "completed_transactions": int(completions[0]),
+        "mean_completion_seconds": (
+            round(float(completions[1]), 3)
+            if completions[1] is not None else None
+        ),
+        "max_completion_seconds": (
+            round(float(completions[2]), 3)
+            if completions[2] is not None else None
+        ),
+    }
+
+
 def get_helius_standard_wss_window_health(conn, cutoff):
     notification = conn.execute(
         """
@@ -19029,6 +19070,7 @@ def get_helius_standard_wss_window_health(conn, cutoff):
         "queue_rejection_reasons": (
             get_helius_standard_wss_queue_rejection_reasons(conn, cutoff)
         ),
+        "queue_pressure": get_helius_standard_wss_queue_pressure(conn, cutoff),
         "unparsed_reasons": {
             str(reason): int(count)
             for reason, count in unparsed_reasons

@@ -926,8 +926,46 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
             "statuses": {"applied": 1, "unparsed": 1},
             "fetch_errors": [],
             "queue_rejection_reasons": {},
+            "queue_pressure": {
+                "peak_rejections_minute_ts": None,
+                "peak_rejections_in_minute": 0,
+                "selected_in_peak_minute": 0,
+                "completed_transactions": 2,
+                "mean_completion_seconds": 1.0,
+                "max_completion_seconds": 1.0,
+            },
             "unparsed_reasons": {"supported_payload_not_decoded": 1},
         })
+
+    def test_queue_pressure_excludes_rejections_from_completion_lag(self):
+        conn = app.db()
+        try:
+            conn.executemany(
+                "INSERT INTO helius_standard_wss_transactions("
+                "signature, first_received_ts, fetched_ts, status) "
+                "VALUES(?, ?, ?, ?)",
+                [
+                    ("a", 120, 123, "applied"),
+                    ("b", 125, 125, "queue_full"),
+                    ("c", 128, 128, "queue_full"),
+                    ("d", 180, 186, "observed"),
+                ],
+            )
+            conn.commit()
+            pressure = app.get_helius_standard_wss_queue_pressure(conn, 100)
+            recent = app.get_helius_standard_wss_queue_pressure(conn, 180)
+        finally:
+            conn.close()
+        self.assertEqual(pressure, {
+            "peak_rejections_minute_ts": 120,
+            "peak_rejections_in_minute": 2,
+            "selected_in_peak_minute": 3,
+            "completed_transactions": 2,
+            "mean_completion_seconds": 4.5,
+            "max_completion_seconds": 6.0,
+        })
+        self.assertEqual(recent["peak_rejections_in_minute"], 0)
+        self.assertEqual(recent["completed_transactions"], 1)
 
     async def test_shadow_fetch_never_persists_to_decision_inbox(self):
         event = self.event()

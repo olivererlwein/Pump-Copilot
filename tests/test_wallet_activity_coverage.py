@@ -51,6 +51,7 @@ class WalletCoverageBucketsTests(unittest.TestCase):
 
     def test_separates_own_trades_mentions_and_unattributable_losses(self):
         self.notify("wallet-s", "own", 7300, "observed")
+        self.notify("wallet-s", "applied", 7350, "applied")
         self.notify("wallet-s", "mention", 7400, "unparsed", "wallet_not_signer")
         self.notify("wallet-s", "lost", 7500, "queue_full")
         self.notify("wallet-o", "elsewhere", 7600, "observed")
@@ -60,9 +61,9 @@ class WalletCoverageBucketsTests(unittest.TestCase):
 
         self.assertEqual([row["start_ts"] for row in buckets], [7200, 10800])
         first = buckets[0]
-        self.assertEqual(first["pump_notifications"], 3)
-        self.assertEqual(first["all_wallets_pump_notifications"], 4)
-        self.assertEqual(first["own_parsed_transactions"], 1)
+        self.assertEqual(first["pump_notifications"], 4)
+        self.assertEqual(first["all_wallets_pump_notifications"], 5)
+        self.assertEqual(first["own_parsed_transactions"], 2)
         self.assertEqual(first["mention_transactions"], 1)
         self.assertEqual(first["unattributable"], {"queue_full": 1})
         self.assertEqual(buckets[1]["own_parsed_transactions"], 1)
