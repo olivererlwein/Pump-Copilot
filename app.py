@@ -624,6 +624,10 @@ MARKET_EVENT_INBOX_VALIDATION_POLL_SECONDS = max(
     int(os.getenv("MARKET_EVENT_INBOX_VALIDATION_POLL_SECONDS", "5")),
 )
 
+MARKET_EVENT_INBOX_VALIDATION_WAKE = threading.Event()
+MARKET_EVENT_INBOX_CONSUMER_WAKE = threading.Event()
+HELIUS_STANDARD_WSS_TOKEN_WAKE = threading.Event()
+
 MARKET_EVENT_INBOX_VALIDATION_LEASE_SECONDS = max(
     30,
     int(os.getenv("MARKET_EVENT_INBOX_VALIDATION_LEASE_SECONDS", "120")),
@@ -10167,6 +10171,10 @@ def evaluate_buy(
             ),
         )
 
+        if mint and not mint.startswith("DEMO"):
+            TRACKED_TOKENS.add(mint)
+            HELIUS_STANDARD_WSS_TOKEN_WAKE.set()
+
         model_prediction = None
         if market_cap > 0 and sol_amount > 0 and price_at_signal > 0:
             model_prediction = observe_shadow_signal(
@@ -10186,9 +10194,6 @@ def evaluate_buy(
                 sol_amount=sol_amount,
                 price_at_signal=price_at_signal,
             )
-
-        if mint and not mint.startswith("DEMO"):
-            TRACKED_TOKENS.add(mint)
 
     except sqlite3.IntegrityError:
         conn.close()
@@ -11336,18 +11341,28 @@ def validate_market_event_inbox_once(limit=None, now=None):
         else:
             result["lost_claims"] += 1
 
+    if result["validated"]:
+        MARKET_EVENT_INBOX_CONSUMER_WAKE.set()
+
     return result
 
 
 async def market_event_inbox_validation_worker():
     """Valida continuamente el inbox; nunca enruta eventos."""
     while True:
+        MARKET_EVENT_INBOX_VALIDATION_WAKE.clear()
         try:
-            await asyncio.to_thread(validate_market_event_inbox_once)
+            result = await asyncio.to_thread(validate_market_event_inbox_once)
         except Exception as exc:
             print("[HELIUS INBOX VALIDATION]", repr(exc))
+        else:
+            if result["claimed"] >= MARKET_EVENT_INBOX_VALIDATION_BATCH_SIZE:
+                continue
 
-        await asyncio.sleep(MARKET_EVENT_INBOX_VALIDATION_POLL_SECONDS)
+        await asyncio.to_thread(
+            MARKET_EVENT_INBOX_VALIDATION_WAKE.wait,
+            MARKET_EVENT_INBOX_VALIDATION_POLL_SECONDS,
+        )
 
 
 def claim_market_event_inbox_processing_batch(limit=None, now=None):
@@ -11587,6 +11602,7 @@ def consume_market_event_inbox_once(limit=None, now=None):
 async def market_event_inbox_consumer_worker():
     """Consume continuamente el inbox después de una activación persistente."""
     while True:
+        MARKET_EVENT_INBOX_CONSUMER_WAKE.clear()
         try:
             result = await asyncio.to_thread(consume_market_event_inbox_once)
             if result["released"]:
@@ -11601,8 +11617,14 @@ async def market_event_inbox_consumer_worker():
                 )
         except Exception as exc:
             print("[HELIUS INBOX CONSUMER]", repr(exc))
+        else:
+            if result["claimed"] >= MARKET_EVENT_INBOX_CONSUMER_BATCH_SIZE:
+                continue
 
-        await asyncio.sleep(MARKET_EVENT_INBOX_CONSUMER_POLL_SECONDS)
+        await asyncio.to_thread(
+            MARKET_EVENT_INBOX_CONSUMER_WAKE.wait,
+            MARKET_EVENT_INBOX_CONSUMER_POLL_SECONDS,
+        )
 
 
 def decide_paper_position_action(
@@ -17453,8 +17475,11 @@ async def helius_standard_wss_worker():
                 next_request_id = len(wallets) + 1
                 last_token_poll = 0.0
                 last_mute_poll = 0.0
-                receive_poll_seconds = min(
+                mute_poll_seconds = min(
                     5, HELIUS_STANDARD_WSS_TOKEN_POLL_SECONDS
+                )
+                receive_poll_seconds = min(
+                    1, HELIUS_STANDARD_WSS_TOKEN_POLL_SECONDS
                 )
 
                 while True:
@@ -17476,7 +17501,7 @@ async def helius_standard_wss_worker():
                         raise RuntimeError(
                             "HELIUS_STANDARD_WSS_SUBSCRIPTION_TIMEOUT"
                         )
-                    if time.monotonic() - last_mute_poll >= receive_poll_seconds:
+                    if time.monotonic() - last_mute_poll >= mute_poll_seconds:
                         await asyncio.to_thread(
                             expire_helius_standard_wss_wallet_mutes
                         )
@@ -17514,8 +17539,10 @@ async def helius_standard_wss_worker():
                             next_request_id += 1
                         last_mute_poll = time.monotonic()
                     if (HELIUS_STANDARD_WSS_TRACK_TOKENS_ENABLED
-                            and time.monotonic() - last_token_poll
-                            >= HELIUS_STANDARD_WSS_TOKEN_POLL_SECONDS):
+                            and (HELIUS_STANDARD_WSS_TOKEN_WAKE.is_set()
+                                 or time.monotonic() - last_token_poll
+                                 >= HELIUS_STANDARD_WSS_TOKEN_POLL_SECONDS)):
+                        HELIUS_STANDARD_WSS_TOKEN_WAKE.clear()
                         next_request_id = await sync_helius_standard_wss_tokens(
                             websocket,
                             selected_wallets,
@@ -17776,6 +17803,7 @@ def record_helius_webhook_transactions(
     seen = 0
     parsed_events = 0
     duplicates = 0
+    inserted_inbox_events = 0
 
     conn = db()
 
@@ -17900,7 +17928,7 @@ def record_helius_webhook_transactions(
             if persist_inbox:
                 for parsed_event, event_wallet, event_trader in matched_events:
                     normalized_event = parsed_event["event"]
-                    conn.execute(
+                    cursor = conn.execute(
                         """
                         INSERT OR IGNORE INTO market_event_inbox(
                             signature, event_index, event_index_scheme,
@@ -17934,6 +17962,7 @@ def record_helius_webhook_transactions(
                             ),
                         ),
                     )
+                    inserted_inbox_events += cursor.rowcount
 
             raw_sample = None
 
@@ -18005,6 +18034,9 @@ def record_helius_webhook_transactions(
         conn.commit()
     finally:
         conn.close()
+
+    if inserted_inbox_events:
+        MARKET_EVENT_INBOX_VALIDATION_WAKE.set()
 
     return {
         "seen": seen,

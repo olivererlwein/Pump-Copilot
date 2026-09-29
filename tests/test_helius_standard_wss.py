@@ -2,6 +2,7 @@ import asyncio
 import json
 import sqlite3
 import tempfile
+import threading
 import time
 import unittest
 from pathlib import Path
@@ -1704,6 +1705,47 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
             ),
             ["mint-b", "mint-a"],
         )
+
+    async def test_worker_subscribes_new_token_before_fallback_poll(self):
+        socket = FakeWebSocket()
+        tracked = set()
+        wake = threading.Event()
+        with (
+            patch.object(app, "HELIUS_STANDARD_WSS_URL", "wss://example.test"),
+            patch.object(app, "HELIUS_STANDARD_WSS_RPC_URL", "https://example.test/rpc"),
+            patch.object(app, "HELIUS_STANDARD_WSS_TRACK_TOKENS_ENABLED", True),
+            patch.object(app, "HELIUS_STANDARD_WSS_TOKEN_POLL_SECONDS", 60),
+            patch.object(app, "HELIUS_STANDARD_WSS_TOKEN_WAKE", wake),
+            patch.object(app, "TRACKED_TOKENS", tracked),
+            patch.object(app, "WATCHED", {"trader-a": "wallet-a"}),
+            patch.object(app.websockets, "connect", return_value=socket),
+            patch.object(
+                app, "update_helius_standard_wss_capacity_alert",
+                new_callable=AsyncMock,
+            ) as capacity_alert,
+        ):
+            worker = asyncio.create_task(app.helius_standard_wss_worker())
+            try:
+                for _ in range(200):
+                    if capacity_alert.await_count:
+                        break
+                    await asyncio.sleep(0.005)
+                self.assertEqual(capacity_alert.await_count, 1)
+                self.assertEqual(len(socket.sent), 1)
+                tracked.add("mint-new")
+                wake.set()
+                for _ in range(300):
+                    if len(socket.sent) >= 2:
+                        break
+                    await asyncio.sleep(0.005)
+                self.assertEqual(
+                    socket.sent[1]["params"][0],
+                    {"mentions": ["mint-new"]},
+                )
+            finally:
+                worker.cancel()
+                with self.assertRaises(asyncio.CancelledError):
+                    await worker
 
     async def test_worker_records_tracked_token_separately_from_wallet(self):
         socket = FakeWebSocket()

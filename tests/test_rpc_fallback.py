@@ -1201,11 +1201,26 @@ class HeliusWebhookTests(unittest.TestCase):
         return receipt
 
     def test_records_pump_event_from_native_encoded_payload(self):
-        with patch.object(app, "WATCHED", {"trader-a": WALLET}):
+        with (
+            patch.object(app, "WATCHED", {"trader-a": WALLET}),
+            patch.object(app, "MARKET_EVENT_INBOX_VALIDATION_WAKE") as wake,
+        ):
             result = app.record_helius_webhook_transactions(
                 [self.native_receipt()],
                 received_ts=1_700_000_002,
             )
+
+        wake.set.assert_called_once_with()
+
+        with (
+            patch.object(app, "WATCHED", {"trader-a": WALLET}),
+            patch.object(app, "MARKET_EVENT_INBOX_VALIDATION_WAKE") as duplicate_wake,
+        ):
+            app.record_helius_webhook_transactions(
+                [self.native_receipt()],
+                received_ts=1_700_000_003,
+            )
+        duplicate_wake.set.assert_not_called()
 
         self.assertEqual(result["seen"], 1)
         self.assertEqual(result["parsed_events"], 1)

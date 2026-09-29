@@ -1,12 +1,80 @@
+import asyncio
 import json
 import sqlite3
 import tempfile
 import threading
 import unittest
+from contextlib import suppress
 from pathlib import Path
 from unittest.mock import patch
 
 import app
+
+
+class MarketEventInboxWakeTests(unittest.IsolatedAsyncioTestCase):
+    async def test_validation_worker_wakes_before_fallback_poll(self):
+        wake = threading.Event()
+        second_call = asyncio.Event()
+        loop = asyncio.get_running_loop()
+        calls = []
+
+        def validate():
+            calls.append(True)
+            if len(calls) == 2:
+                loop.call_soon_threadsafe(second_call.set)
+            return {"claimed": 0}
+
+        with (
+            patch.object(app, "MARKET_EVENT_INBOX_VALIDATION_WAKE", wake),
+            patch.object(app, "MARKET_EVENT_INBOX_VALIDATION_POLL_SECONDS", 60),
+            patch.object(app, "validate_market_event_inbox_once", validate),
+        ):
+            worker = asyncio.create_task(app.market_event_inbox_validation_worker())
+            try:
+                for _ in range(100):
+                    if calls:
+                        break
+                    await asyncio.sleep(0.005)
+                self.assertEqual(len(calls), 1)
+                wake.set()
+                await asyncio.wait_for(second_call.wait(), timeout=1)
+            finally:
+                worker.cancel()
+                wake.set()
+                with suppress(asyncio.CancelledError):
+                    await worker
+
+    async def test_consumer_worker_wakes_before_fallback_poll(self):
+        wake = threading.Event()
+        second_call = asyncio.Event()
+        loop = asyncio.get_running_loop()
+        calls = []
+
+        def consume():
+            calls.append(True)
+            if len(calls) == 2:
+                loop.call_soon_threadsafe(second_call.set)
+            return {"claimed": 0, "released": 0, "failed": 0}
+
+        with (
+            patch.object(app, "MARKET_EVENT_INBOX_CONSUMER_WAKE", wake),
+            patch.object(app, "MARKET_EVENT_INBOX_CONSUMER_POLL_SECONDS", 60),
+            patch.object(app, "consume_market_event_inbox_once", consume),
+        ):
+            worker = asyncio.create_task(app.market_event_inbox_consumer_worker())
+            try:
+                for _ in range(100):
+                    if calls:
+                        break
+                    await asyncio.sleep(0.005)
+                self.assertEqual(len(calls), 1)
+                wake.set()
+                await asyncio.wait_for(second_call.wait(), timeout=1)
+            finally:
+                worker.cancel()
+                wake.set()
+                with suppress(asyncio.CancelledError):
+                    await worker
 
 
 class MarketEventDeduplicationTests(unittest.TestCase):
@@ -164,10 +232,14 @@ class MarketEventInboxValidationTests(unittest.TestCase):
     def test_valid_event_is_marked_without_calling_the_router(self):
         self.insert_event()
 
-        with patch.object(app, "route_market_event") as route:
+        with (
+            patch.object(app, "route_market_event") as route,
+            patch.object(app, "MARKET_EVENT_INBOX_CONSUMER_WAKE") as wake,
+        ):
             result = app.validate_market_event_inbox_once(now=200.0)
 
         route.assert_not_called()
+        wake.set.assert_called_once_with()
         self.assertEqual(result, {
             "claimed": 1,
             "validated": 1,
@@ -189,9 +261,11 @@ class MarketEventInboxValidationTests(unittest.TestCase):
             "txType": "buy",
         })
 
-        result = app.validate_market_event_inbox_once(now=200.0)
+        with patch.object(app, "MARKET_EVENT_INBOX_CONSUMER_WAKE") as wake:
+            result = app.validate_market_event_inbox_once(now=200.0)
 
         self.assertEqual(result["rejected"], 1)
+        wake.set.assert_not_called()
         status, attempts, token, claimed_ts, processed_ts, error = self.row()
         self.assertEqual((status, attempts), ("rejected", 1))
         self.assertIsNone(token)
@@ -704,7 +778,12 @@ class MarketEventChronologyTests(unittest.TestCase):
             patch.object(app, "score_consensus", return_value=0) as consensus,
             patch.object(app, "score_market_context", return_value=0) as market,
             patch.object(app, "maybe_execute_live_copy") as live_copy,
+            patch.object(app, "HELIUS_STANDARD_WSS_TOKEN_WAKE") as token_wake,
+            patch.object(app, "observe_shadow_signal") as shadow,
         ):
+            shadow.side_effect = lambda **_kwargs: self.assertTrue(
+                token_wake.set.called
+            )
             result = app.evaluate_buy(
                 "trader-1",
                 event,
@@ -714,6 +793,7 @@ class MarketEventChronologyTests(unittest.TestCase):
             )
 
         live_copy.assert_not_called()
+        token_wake.set.assert_called_once_with()
         self.assertEqual(
             result["live_execution"]["reason"],
             "TRANSPORT_LIVE_BUYS_DISABLED",
