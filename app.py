@@ -15134,8 +15134,9 @@ def _tracked_tokens_snapshot():
     raise RuntimeError("TRACKED_TOKENS_CHANGED_DURING_SNAPSHOT")
 
 
-def _tracked_tokens_priority_snapshot(now=None):
+def _tracked_tokens_priority_snapshot(now=None, active_tokens=()):
     cutoff = float(now if now is not None else time.time()) - 1200
+    active = set(active_tokens)
     conn = db()
     try:
         rows = conn.execute(
@@ -15163,11 +15164,18 @@ def _tracked_tokens_priority_snapshot(now=None):
         ).fetchall()
     finally:
         conn.close()
-    prioritized = []
-    for mint, _priority, _recency in rows:
-        if mint not in prioritized:
-            prioritized.append(mint)
-    return prioritized
+    best = {}
+    for mint, priority, recency in rows:
+        best.setdefault(mint, (priority, recency))
+    return sorted(
+        best,
+        key=lambda mint: (
+            best[mint][0],
+            mint not in active,
+            -(best[mint][1] or 0),
+            mint,
+        ),
+    )
 
 
 def get_helius_webhook_sync_status():
@@ -17267,13 +17275,6 @@ async def sync_helius_standard_wss_tokens(
     pending_unsubscribe_started,
     next_request_id,
 ):
-    desired, omitted = select_tracked_tokens(
-        _tracked_tokens_snapshot(),
-        wallets,
-        HELIUS_STANDARD_WSS_MAX_TRACKED_TOKENS,
-        priority_tokens=_tracked_tokens_priority_snapshot(),
-    )
-    desired = set(desired)
     active = {
         address for subscription_id, address in subscriptions.items()
         if subscription_kinds.get(subscription_id) == "token"
@@ -17282,6 +17283,15 @@ async def sync_helius_standard_wss_tokens(
         address for request_id, address in pending_requests.items()
         if pending_kinds.get(request_id) == "token"
     }
+    desired, omitted = select_tracked_tokens(
+        _tracked_tokens_snapshot(),
+        wallets,
+        HELIUS_STANDARD_WSS_MAX_TRACKED_TOKENS,
+        priority_tokens=_tracked_tokens_priority_snapshot(
+            active_tokens=active | pending_additions,
+        ),
+    )
+    desired = set(desired)
     pending_removals = set(pending_unsubscribes.values())
 
     if active:

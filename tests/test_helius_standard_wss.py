@@ -1641,6 +1641,70 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
             socket.sent[0]["params"][0], {"mentions": ["mint-b"]}
         )
 
+    async def test_token_capacity_keeps_existing_outcome_subscription(self):
+        app.create_signal_outcome(
+            signal_id=None, mint="mint-a", trader="tester",
+            signal_ts=1_700_000_000, price_at_signal=1,
+        )
+        app.create_signal_outcome(
+            signal_id=None, mint="mint-b", trader="tester",
+            signal_ts=1_700_000_100, price_at_signal=1,
+        )
+        socket = FakeWebSocket()
+        with (
+            patch.object(app, "TRACKED_TOKENS", {"mint-a", "mint-b"}),
+            patch.object(app, "HELIUS_STANDARD_WSS_MAX_TRACKED_TOKENS", 1),
+            patch.object(app.time, "time", return_value=1_700_000_110),
+        ):
+            next_id = await app.sync_helius_standard_wss_tokens(
+                socket, [], {91: "mint-a"}, {91: "token"},
+                {}, {}, {}, {}, {}, 1,
+            )
+        self.assertEqual(next_id, 1)
+        self.assertEqual(socket.sent, [])
+
+    def test_open_paper_position_still_outranks_existing_outcome(self):
+        app.create_signal_outcome(
+            signal_id=None, mint="mint-a", trader="tester",
+            signal_ts=1_700_000_000, price_at_signal=1,
+        )
+        conn = app.db()
+        try:
+            conn.execute(
+                "INSERT INTO paper_positions(mint, status, opened_ts) "
+                "VALUES('mint-b', 'open', 1700000000)"
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        self.assertEqual(
+            app._tracked_tokens_priority_snapshot(
+                now=1_700_000_110, active_tokens={"mint-a"},
+            ),
+            ["mint-b", "mint-a"],
+        )
+
+    def test_open_paper_position_without_timestamp_remains_priority(self):
+        app.create_signal_outcome(
+            signal_id=None, mint="mint-a", trader="tester",
+            signal_ts=1_700_000_000, price_at_signal=1,
+        )
+        conn = app.db()
+        try:
+            conn.execute(
+                "INSERT INTO paper_positions(mint, status) "
+                "VALUES('mint-b', 'open')"
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        self.assertEqual(
+            app._tracked_tokens_priority_snapshot(
+                now=1_700_000_110, active_tokens={"mint-a"},
+            ),
+            ["mint-b", "mint-a"],
+        )
+
     async def test_worker_records_tracked_token_separately_from_wallet(self):
         socket = FakeWebSocket()
         notification = {
