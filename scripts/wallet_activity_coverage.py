@@ -79,12 +79,16 @@ def summarize(
     bucket_seconds: int,
     threshold: float = frozen.DEFAULT_THRESHOLD,
     cost_per_side: float = frozen.DEFAULT_COST_PER_SIDE,
+    since: float | None = None,
+    until: float | None = None,
 ) -> dict:
     tiers = assign_tiers(buckets)
     selected = [
         row for row in rows
         if row.get("trader") == trader
         and float(row["probability"]) >= threshold
+        and (since is None or float(row["signal_ts"]) >= since)
+        and (until is None or float(row["signal_ts"]) < until)
     ]
     outcomes = {
         row["signal_id"]: row["net"]
@@ -237,7 +241,8 @@ def main() -> None:
         frozen_ids,
     )
     report = summarize(
-        coverage["buckets"], rows, args.trader, args.bucket_seconds
+        coverage["buckets"], rows, args.trader, args.bucket_seconds,
+        since=since, until=until,
     )
     report["muted"] = coverage.get("muted")
     report["non_pump_notifications_since_process_start"] = coverage.get(

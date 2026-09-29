@@ -1743,6 +1743,18 @@ class HeliusStandardWssFloodTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             app.restore_helius_standard_wss_wallet_mutes(now=2_000), 0
         )
+        conn = app.db()
+        try:
+            self.assertIsNone(conn.execute(
+                "SELECT unmuted_ts FROM helius_standard_wss_wallet_mutes "
+                "WHERE wallet = 'wallet-a'"
+            ).fetchone()[0])
+        finally:
+            conn.close()
+        self.assertEqual(
+            app.close_helius_standard_wss_wallet_mute("wallet-a", now=2_050),
+            1,
+        )
         with (
             patch.object(app, "WATCHED", {"trader-a": "wallet-a"}),
             patch.object(app.time, "time", return_value=2_100.0),
@@ -1760,7 +1772,7 @@ class HeliusStandardWssFloodTests(unittest.IsolatedAsyncioTestCase):
         finally:
             conn.close()
         self.assertEqual(intervals, [
-            (1_000.0, 1_900.0, 1_900.0),
+            (1_000.0, 1_900.0, 2_050.0),
             (2_100.0, 3_000.0, None),
         ])
 
@@ -1896,6 +1908,15 @@ class HeliusStandardWssFloodTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(
                     socket.sent[4]["params"][0], {"mentions": ["wallet-a"]}
                 )
+                conn = app.db()
+                try:
+                    self.assertIsNone(conn.execute(
+                        "SELECT unmuted_ts FROM "
+                        "helius_standard_wss_wallet_mutes "
+                        "WHERE wallet = 'wallet-a'"
+                    ).fetchone()[0])
+                finally:
+                    conn.close()
                 await socket.incoming.put(json.dumps(
                     {"jsonrpc": "2.0", "id": socket.sent[4]["id"],
                      "result": 94}
@@ -1906,6 +1927,15 @@ class HeliusStandardWssFloodTests(unittest.IsolatedAsyncioTestCase):
                     await asyncio.sleep(0.01)
                 self.assertEqual(app.HELIUS_STANDARD_WSS_STATE["subscriptions"], 2)
                 self.assertEqual(app.HELIUS_STANDARD_WSS_STATE["reconnects"], 1)
+                conn = app.db()
+                try:
+                    self.assertIsNotNone(conn.execute(
+                        "SELECT unmuted_ts FROM "
+                        "helius_standard_wss_wallet_mutes "
+                        "WHERE wallet = 'wallet-a'"
+                    ).fetchone()[0])
+                finally:
+                    conn.close()
             finally:
                 worker.cancel()
                 with self.assertRaises(asyncio.CancelledError):

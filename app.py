@@ -15610,13 +15610,6 @@ def helius_standard_wss_wallet_flooded(wallet, rate_per_minute):
         conn = db()
         try:
             conn.execute(
-                "UPDATE helius_standard_wss_wallet_mutes "
-                "SET unmuted_ts = muted_until_ts "
-                "WHERE wallet = ? AND unmuted_ts IS NULL "
-                "AND muted_until_ts <= ?",
-                (wallet, now),
-            )
-            conn.execute(
                 """
                 INSERT INTO helius_standard_wss_wallet_mutes(
                     wallet, trader, muted_ts, muted_until_ts, rate_per_minute
@@ -15647,12 +15640,6 @@ def restore_helius_standard_wss_wallet_mutes(now=None):
         conn.execute(
             "INSERT OR IGNORE INTO app_state(key, value) VALUES(?, ?)",
             (HELIUS_WSS_MUTE_HISTORY_START_STATE_KEY, repr(current_ts)),
-        )
-        conn.execute(
-            "UPDATE helius_standard_wss_wallet_mutes "
-            "SET unmuted_ts = muted_until_ts "
-            "WHERE unmuted_ts IS NULL AND muted_until_ts <= ?",
-            (current_ts,),
         )
         active = conn.execute(
             """
@@ -15694,7 +15681,7 @@ def get_helius_wss_mute_history_start_ts():
 
 
 def expire_helius_standard_wss_wallet_mutes(now=None):
-    """End elapsed mutes and return wallets eligible for resubscription."""
+    """Retry elapsed mutes; coverage ends only on subscription confirmation."""
     current_ts = float(now if now is not None else time.time())
     with HELIUS_STANDARD_WSS_STATE_LOCK:
         muted = HELIUS_STANDARD_WSS_STATE["muted_wallets"]
@@ -15704,24 +15691,30 @@ def expire_helius_standard_wss_wallet_mutes(now=None):
         )
         if not expired:
             return []
-        conn = db()
-        try:
-            conn.execute(
-                "UPDATE helius_standard_wss_wallet_mutes "
-                "SET unmuted_ts = muted_until_ts "
-                "WHERE unmuted_ts IS NULL AND muted_until_ts <= ?",
-                (current_ts,),
-            )
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            raise
-        finally:
-            conn.close()
         for wallet in expired:
             muted.pop(wallet, None)
             HELIUS_STANDARD_WSS_UNSTORED_RECENT.pop(wallet, None)
     return expired
+
+
+def close_helius_standard_wss_wallet_mute(wallet, now=None):
+    """Close a coverage gap when the wallet subscription is confirmed."""
+    current_ts = float(now if now is not None else time.time())
+    conn = db()
+    try:
+        cursor = conn.execute(
+            "UPDATE helius_standard_wss_wallet_mutes "
+            "SET unmuted_ts = MAX(muted_ts, ?) "
+            "WHERE wallet = ? AND unmuted_ts IS NULL",
+            (current_ts, wallet),
+        )
+        conn.commit()
+        return cursor.rowcount
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 
 def record_helius_standard_wss_notification(
@@ -17538,6 +17531,11 @@ async def helius_standard_wss_worker():
                         subscriptions[subscription_id] = address
                         subscription_kinds[subscription_id] = kind
                         if kind == "wallet":
+                            await asyncio.to_thread(
+                                close_helius_standard_wss_wallet_mute,
+                                address,
+                                received_ts,
+                            )
                             subscribed_wallets.add(address)
                         elif kind == "token":
                             await asyncio.to_thread(
@@ -18729,13 +18727,17 @@ def get_wallet_coverage_buckets(conn, wallet, since, until, bucket_seconds):
     )
     mute_intervals = conn.execute(
         """
-        SELECT muted_ts, COALESCE(unmuted_ts, muted_until_ts)
+        SELECT muted_ts, unmuted_ts
         FROM helius_standard_wss_wallet_mutes
         WHERE wallet = ? AND muted_ts < ?
-          AND COALESCE(unmuted_ts, muted_until_ts) > ?
+          AND (unmuted_ts IS NULL OR unmuted_ts > ?)
         """,
         (wallet, until, since),
     ).fetchall()
+    mute_intervals = [
+        (start, end if end is not None else until)
+        for start, end in mute_intervals
+    ]
     with HELIUS_STANDARD_WSS_STATE_LOCK:
         current_mute = dict(
             HELIUS_STANDARD_WSS_STATE["muted_wallets"].get(wallet) or {}
@@ -18745,7 +18747,7 @@ def get_wallet_coverage_buckets(conn, wallet, since, until, bucket_seconds):
     ):
         mute_intervals.append((
             current_mute["muted_ts"],
-            current_mute.get("muted_until_ts", float("inf")),
+            until,
         ))
     first = int(since // size) * size
     result = []

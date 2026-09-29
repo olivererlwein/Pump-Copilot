@@ -133,6 +133,28 @@ class WalletCoverageBucketsTests(unittest.TestCase):
         self.assertEqual([row["muted"] for row in buckets],
                          [False, True, False])
 
+    def test_expired_cooldown_remains_muted_until_subscription_confirmation(self):
+        conn = app.db()
+        try:
+            conn.execute(
+                "INSERT INTO app_state(key, value) VALUES(?, ?)",
+                (app.HELIUS_WSS_MUTE_HISTORY_START_STATE_KEY, "7200"),
+            )
+            conn.execute(
+                "INSERT INTO helius_standard_wss_wallet_mutes("
+                "wallet, trader, muted_ts, muted_until_ts, rate_per_minute) "
+                "VALUES('wallet-s', 'sling', 11000, 11500, 601)"
+            )
+            conn.commit()
+            with patch.object(app, "PROCESS_STARTED_TS", 20000.0):
+                buckets = app.get_wallet_coverage_buckets(
+                    conn, "wallet-s", 7200.0, 18000.0, 3600
+                )
+        finally:
+            conn.close()
+        self.assertEqual([row["muted"] for row in buckets],
+                         [False, True, True])
+
     def test_rejects_unbounded_ranges(self):
         with (
             patch.object(app, "APP_TOKEN", "token"),
@@ -198,6 +220,31 @@ class ActivityTierTests(unittest.TestCase):
         mark_known_mute(buckets, 3500, 3700, 3600)
         self.assertEqual(
             [row["muted"] for row in buckets], [True, True, None]
+        )
+
+    def test_partial_edge_buckets_exclude_signals_outside_requested_window(self):
+        buckets = [bucket(7200, 10), bucket(10800, 20)]
+        rows = [
+            {"signal_id": index, "trader": "sling", "probability": 0.9,
+             "signal_ts": ts}
+            for index, ts in enumerate((7200, 7300, 12499, 12500), start=1)
+        ]
+        with patch(
+            "scripts.validate_frozen_exit_candidate.selected_records",
+            side_effect=lambda selected, *_: [
+                {**row, "net": -0.1} for row in selected
+            ],
+        ) as records:
+            report = summarize(
+                buckets, rows, "sling", 3600, since=7250, until=12500
+            )
+        self.assertEqual(
+            [row["signal_id"] for row in records.call_args.args[0]],
+            [2, 3],
+        )
+        self.assertEqual(
+            sum(tier.get("selections", 0) for tier in report["tiers"].values()),
+            2,
         )
 
     def test_summary_counts_losses_and_selection_coverage_per_tier(self):
