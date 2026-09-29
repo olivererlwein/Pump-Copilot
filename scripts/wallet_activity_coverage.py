@@ -10,8 +10,8 @@ Activity rule, fixed before looking at any outcome:
   capacity loss being studied. Tiering on observed own operations would be
   circular: lower coverage means fewer observed operations, so a badly covered
   busy hour would be classified as quiet.
-- Excluded from tiers and reported apart: buckets where the WSS delivered
-  nothing for any wallet (`wss_silent`) and buckets where the wallet was muted.
+- Excluded from activity tiers: buckets with no WSS traffic, muted buckets,
+  and buckets predating reliable mute history.
 - Buckets with zero notifications are `idle`. The rest are split into
   terciles by (notifications, start time): low, mid, high.
 
@@ -37,7 +37,7 @@ else:
 
 
 DEFAULT_SINCE = "2026-09-28T02:29:26+00:00"
-TIERS = ("wss_silent", "muted", "idle", "low", "mid", "high")
+TIERS = ("muted", "unknown", "wss_silent", "idle", "low", "mid", "high")
 LOST = ("queue_full", "fetch_failed", "processing_failed", "not_selected")
 
 
@@ -45,10 +45,12 @@ def assign_tiers(buckets: list[dict]) -> dict[int, str]:
     tiers = {}
     active = []
     for row in buckets:
-        if row["all_wallets_pump_notifications"] == 0:
-            tiers[row["start_ts"]] = "wss_silent"
-        elif row.get("muted"):
+        if row.get("muted") is True:
             tiers[row["start_ts"]] = "muted"
+        elif row.get("muted") is None:
+            tiers[row["start_ts"]] = "unknown"
+        elif row["all_wallets_pump_notifications"] == 0:
+            tiers[row["start_ts"]] = "wss_silent"
         elif row["pump_notifications"] == 0:
             tiers[row["start_ts"]] = "idle"
         else:
@@ -61,6 +63,13 @@ def assign_tiers(buckets: list[dict]) -> dict[int, str]:
 
 def ratio(part, whole):
     return part / whole if whole else None
+
+
+def mark_known_mute(buckets, mute_start, mute_end, bucket_seconds):
+    for row in buckets:
+        start = row["start_ts"]
+        if start < mute_end and start + bucket_seconds > mute_start:
+            row["muted"] = True
 
 
 def summarize(
@@ -169,7 +178,12 @@ def main() -> None:
         "--schema", default="training/schema_account_checkpoints_v1.json"
     )
     parser.add_argument("--cutoff", default=frozen.DEFAULT_CUTOFF)
+    parser.add_argument("--known-muted-from")
+    parser.add_argument("--known-muted-through")
     args = parser.parse_args()
+
+    if bool(args.known_muted_from) != bool(args.known_muted_through):
+        parser.error("both --known-muted-from and --known-muted-through are required")
 
     load_dotenv()
     app_token = os.getenv("APP_TOKEN", "")
@@ -185,6 +199,16 @@ def main() -> None:
     coverage = frozen.fetch_json(
         args.base_url, f"/api/wallet-coverage-buckets?{query}", app_token
     )
+    known_mute = None
+    if args.known_muted_from:
+        mute_start = frozen.parse_cutoff(args.known_muted_from)
+        mute_end = frozen.parse_cutoff(args.known_muted_through)
+        if not mute_start < mute_end:
+            parser.error("known mute end must be after its start")
+        known_mute = {"from_ts": mute_start, "observed_through_ts": mute_end}
+        mark_known_mute(
+            coverage["buckets"], mute_start, mute_end, args.bucket_seconds
+        )
 
     schema = frozen.load_json(args.schema)
     frozen.verify_file_sha256(args.frozen_dataset, args.frozen_sha256)
@@ -220,6 +244,8 @@ def main() -> None:
         "non_pump_notifications_since_process_start"
     )
     report["process_started_ts"] = coverage.get("process_started_ts")
+    report["mute_history_start_ts"] = coverage.get("mute_history_start_ts")
+    report["known_mute_override"] = known_mute
     print(json.dumps(report, indent=2, ensure_ascii=True))
 
 

@@ -514,11 +514,14 @@ HELIUS_STANDARD_WSS_MAX_PENDING = max(
 )
 # `logsSubscribe` por mención entrega cualquier transacción que nombre la
 # wallet, incluido spam de tokens. decu recibió 44 por segundo, ninguna de
-# Pump. Por encima de este ritmo la wallet se desuscribe sola hasta el próximo
-# reinicio y se avisa; las demás siguen.
+# Pump. Una wallet que supera el límite se reintenta tras un enfriamiento.
 HELIUS_STANDARD_WSS_MAX_OTHER_PER_MINUTE = max(
     60, int(os.getenv("HELIUS_STANDARD_WSS_MAX_OTHER_PER_MINUTE", "600"))
 )
+HELIUS_STANDARD_WSS_MUTE_SECONDS = max(
+    60, int(os.getenv("HELIUS_STANDARD_WSS_MUTE_SECONDS", "900"))
+)
+HELIUS_WSS_MUTE_HISTORY_START_STATE_KEY = "helius_wss_mute_history_start_ts"
 HELIUS_STANDARD_WSS_TRACK_TOKENS_ENABLED = os.getenv(
     "HELIUS_STANDARD_WSS_TRACK_TOKENS_ENABLED", "false"
 ).lower() == "true"
@@ -580,8 +583,7 @@ HELIUS_STANDARD_WSS_STATE = {
     "muted_wallets": {},
 }
 HELIUS_STANDARD_WSS_CAPACITY_ALERT_ACTIVE = False
-# El silenciado de wallets vive solo en memoria: antes de este instante no se
-# sabe si una wallet estaba silenciada.
+# El instante de arranque sigue marcando el límite de los contadores en memoria.
 PROCESS_STARTED_TS = time.time()
 # Notificaciones sin logs de Pump: se cuentan acá y no se guardan. Cada una
 # era un INSERT en SQLite; a 44 por segundo son 3,8 millones de filas por día
@@ -1005,6 +1007,28 @@ def db():
         "CREATE UNIQUE INDEX IF NOT EXISTS idx_helius_wss_token_active "
         "ON helius_standard_wss_token_intervals(mint) "
         "WHERE unsubscribed_ts IS NULL"
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS helius_standard_wss_wallet_mutes(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            wallet TEXT NOT NULL,
+            trader TEXT NOT NULL,
+            muted_ts REAL NOT NULL,
+            muted_until_ts REAL NOT NULL,
+            unmuted_ts REAL,
+            rate_per_minute INTEGER NOT NULL
+        )
+        """
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_helius_wss_wallet_mutes_wallet_ts "
+        "ON helius_standard_wss_wallet_mutes(wallet, muted_ts)"
+    )
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_helius_wss_wallet_mutes_active "
+        "ON helius_standard_wss_wallet_mutes(wallet) "
+        "WHERE unmuted_ts IS NULL"
     )
 
     # Eventos normalizados preservados antes de activar cualquier efecto. Una
@@ -15569,20 +15593,135 @@ def note_unstored_helius_standard_wss_notification(
 
 
 def helius_standard_wss_wallet_flooded(wallet, rate_per_minute):
-    """True la primera vez que la wallet cruza el umbral; luego queda muda."""
+    """Persist one bounded mute when the wallet crosses the noise threshold."""
     if rate_per_minute <= HELIUS_STANDARD_WSS_MAX_OTHER_PER_MINUTE:
         return False
     with HELIUS_STANDARD_WSS_STATE_LOCK:
         muted = HELIUS_STANDARD_WSS_STATE["muted_wallets"]
         if wallet in muted:
             return False
-        muted[wallet] = {
+        now = time.time()
+        info = {
             "trader": trader_for(wallet),
-            "muted_ts": time.time(),
+            "muted_ts": now,
+            "muted_until_ts": now + HELIUS_STANDARD_WSS_MUTE_SECONDS,
             "rate_per_minute": int(rate_per_minute),
         }
+        conn = db()
+        try:
+            conn.execute(
+                "UPDATE helius_standard_wss_wallet_mutes "
+                "SET unmuted_ts = muted_until_ts "
+                "WHERE wallet = ? AND unmuted_ts IS NULL "
+                "AND muted_until_ts <= ?",
+                (wallet, now),
+            )
+            conn.execute(
+                """
+                INSERT INTO helius_standard_wss_wallet_mutes(
+                    wallet, trader, muted_ts, muted_until_ts, rate_per_minute
+                ) VALUES(?,?,?,?,?)
+                """,
+                (
+                    wallet, info["trader"], now, info["muted_until_ts"],
+                    info["rate_per_minute"],
+                ),
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+        muted[wallet] = info
         HELIUS_STANDARD_WSS_UNSTORED_RECENT.pop(wallet, None)
     return True
+
+
+def restore_helius_standard_wss_wallet_mutes(now=None):
+    """Restore active mutes and mark when their history became reliable."""
+    current_ts = float(now if now is not None else time.time())
+    conn = db()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        conn.execute(
+            "INSERT OR IGNORE INTO app_state(key, value) VALUES(?, ?)",
+            (HELIUS_WSS_MUTE_HISTORY_START_STATE_KEY, repr(current_ts)),
+        )
+        conn.execute(
+            "UPDATE helius_standard_wss_wallet_mutes "
+            "SET unmuted_ts = muted_until_ts "
+            "WHERE unmuted_ts IS NULL AND muted_until_ts <= ?",
+            (current_ts,),
+        )
+        active = conn.execute(
+            """
+            SELECT wallet, trader, muted_ts, muted_until_ts, rate_per_minute
+            FROM helius_standard_wss_wallet_mutes
+            WHERE unmuted_ts IS NULL AND muted_until_ts > ?
+            """,
+            (current_ts,),
+        ).fetchall()
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    with HELIUS_STANDARD_WSS_STATE_LOCK:
+        HELIUS_STANDARD_WSS_STATE["muted_wallets"] = {
+            wallet: {
+                "trader": trader,
+                "muted_ts": muted_ts,
+                "muted_until_ts": muted_until_ts,
+                "rate_per_minute": rate,
+            }
+            for wallet, trader, muted_ts, muted_until_ts, rate in active
+        }
+    return len(active)
+
+
+def get_helius_wss_mute_history_start_ts():
+    conn = db()
+    try:
+        row = conn.execute(
+            "SELECT value FROM app_state WHERE key = ?",
+            (HELIUS_WSS_MUTE_HISTORY_START_STATE_KEY,),
+        ).fetchone()
+        return float(row[0]) if row else None
+    finally:
+        conn.close()
+
+
+def expire_helius_standard_wss_wallet_mutes(now=None):
+    """End elapsed mutes and return wallets eligible for resubscription."""
+    current_ts = float(now if now is not None else time.time())
+    with HELIUS_STANDARD_WSS_STATE_LOCK:
+        muted = HELIUS_STANDARD_WSS_STATE["muted_wallets"]
+        expired = sorted(
+            wallet for wallet, info in muted.items()
+            if info["muted_until_ts"] <= current_ts
+        )
+        if not expired:
+            return []
+        conn = db()
+        try:
+            conn.execute(
+                "UPDATE helius_standard_wss_wallet_mutes "
+                "SET unmuted_ts = muted_until_ts "
+                "WHERE unmuted_ts IS NULL AND muted_until_ts <= ?",
+                (current_ts,),
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+        for wallet in expired:
+            muted.pop(wallet, None)
+            HELIUS_STANDARD_WSS_UNSTORED_RECENT.pop(wallet, None)
+    return expired
 
 
 def record_helius_standard_wss_notification(
@@ -17050,17 +17189,18 @@ def close_helius_token_subscription_interval(mint, reason, now=None):
         conn.close()
 
 
-def close_stale_helius_token_subscription_intervals():
-    """Close intervals left open by a stopped process at its last heartbeat."""
+def close_stale_helius_token_subscription_intervals(reason="process_restart"):
+    """Close active intervals at their last confirmed heartbeat."""
     conn = db()
     try:
         cursor = conn.execute(
             """
             UPDATE helius_standard_wss_token_intervals
             SET unsubscribed_ts = MAX(subscribed_ts, last_confirmed_ts),
-                close_reason = 'process_restart'
+                close_reason = ?
             WHERE unsubscribed_ts IS NULL
-            """
+            """,
+            (reason,),
         )
         conn.commit()
         return int(cursor.rowcount)
@@ -17190,15 +17330,17 @@ async def helius_standard_wss_worker():
     await asyncio.to_thread(
         close_stale_helius_token_subscription_intervals
     )
+    await asyncio.to_thread(restore_helius_standard_wss_wallet_mutes)
 
     while True:
+        await asyncio.to_thread(expire_helius_standard_wss_wallet_mutes)
         with HELIUS_STANDARD_WSS_STATE_LOCK:
             muted = set(HELIUS_STANDARD_WSS_STATE["muted_wallets"])
+        selected_wallets = select_watched_wallets(
+            WATCHED, HELIUS_STANDARD_WSS_TRADERS
+        )
         wallets = [
-            wallet for wallet in select_watched_wallets(
-                WATCHED, HELIUS_STANDARD_WSS_TRADERS
-            )
-            if wallet not in muted
+            wallet for wallet in selected_wallets if wallet not in muted
         ]
         if not wallets:
             update_helius_standard_wss_state(
@@ -17252,6 +17394,10 @@ async def helius_standard_wss_worker():
                     ))
                 next_request_id = len(wallets) + 1
                 last_token_poll = 0.0
+                last_mute_poll = 0.0
+                receive_poll_seconds = min(
+                    5, HELIUS_STANDARD_WSS_TOKEN_POLL_SECONDS
+                )
 
                 while True:
                     if any(
@@ -17264,12 +17410,49 @@ async def helius_standard_wss_worker():
                         raise RuntimeError(
                             "HELIUS_STANDARD_WSS_SUBSCRIPTION_TIMEOUT"
                         )
+                    if time.monotonic() - last_mute_poll >= receive_poll_seconds:
+                        await asyncio.to_thread(
+                            expire_helius_standard_wss_wallet_mutes
+                        )
+                        with HELIUS_STANDARD_WSS_STATE_LOCK:
+                            muted = set(HELIUS_STANDARD_WSS_STATE["muted_wallets"])
+                        pending_wallets = {
+                            address for request_id, address
+                            in pending_requests.items()
+                            if pending_kinds.get(request_id) == "wallet"
+                        }
+                        pending_removals = set(pending_unsubscribes.values())
+                        for wallet in selected_wallets:
+                            if (wallet in muted or wallet in wallets
+                                    or wallet in pending_wallets):
+                                continue
+                            active_ids = [
+                                subscription_id
+                                for subscription_id, address in subscriptions.items()
+                                if address == wallet
+                                and subscription_kinds.get(subscription_id) == "wallet"
+                            ]
+                            if any(sid in pending_removals for sid in active_ids):
+                                continue
+                            wallets.append(wallet)
+                            if active_ids:
+                                subscribed_wallets.add(wallet)
+                                continue
+                            pending_requests[next_request_id] = wallet
+                            pending_kinds[next_request_id] = "wallet"
+                            pending_request_started[next_request_id] = time.monotonic()
+                            await websocket.send(json.dumps(
+                                build_logs_subscribe_request(next_request_id, wallet),
+                                separators=(",", ":"),
+                            ))
+                            next_request_id += 1
+                        last_mute_poll = time.monotonic()
                     if (HELIUS_STANDARD_WSS_TRACK_TOKENS_ENABLED
                             and time.monotonic() - last_token_poll
                             >= HELIUS_STANDARD_WSS_TOKEN_POLL_SECONDS):
                         next_request_id = await sync_helius_standard_wss_tokens(
                             websocket,
-                            wallets,
+                            selected_wallets,
                             subscriptions,
                             subscription_kinds,
                             pending_requests,
@@ -17294,17 +17477,9 @@ async def helius_standard_wss_worker():
                     try:
                         raw = await asyncio.wait_for(
                             websocket.recv(),
-                            timeout=(
-                                HELIUS_STANDARD_WSS_TOKEN_POLL_SECONDS
-                                if HELIUS_STANDARD_WSS_TRACK_TOKENS_ENABLED
-                                else 60
-                            ),
+                            timeout=receive_poll_seconds,
                         )
                     except asyncio.TimeoutError:
-                        if len(subscribed_wallets) < len(wallets):
-                            raise RuntimeError(
-                                "HELIUS_STANDARD_WSS_SUBSCRIPTION_TIMEOUT"
-                            )
                         continue
                     received_ts = time.time()
                     update_helius_standard_wss_state(
@@ -17454,8 +17629,8 @@ async def helius_standard_wss_worker():
                                 f"Rate: {rate} non-Pump notifications/min "
                                 "(limit "
                                 f"{HELIUS_STANDARD_WSS_MAX_OTHER_PER_MINUTE})."
-                                "\nUnsubscribed until the next restart; "
-                                "other wallets continue."
+                                f"\nRetry after {HELIUS_STANDARD_WSS_MUTE_SECONDS} "
+                                "seconds; other wallets continue."
                             )
                         continue
                     should_fetch = await asyncio.to_thread(
@@ -17481,12 +17656,14 @@ async def helius_standard_wss_worker():
                     )
         except asyncio.CancelledError:
             await asyncio.to_thread(
-                close_stale_helius_token_subscription_intervals
+                close_stale_helius_token_subscription_intervals,
+                "worker_cancelled",
             )
             raise
         except Exception as exc:
             await asyncio.to_thread(
-                close_stale_helius_token_subscription_intervals
+                close_stale_helius_token_subscription_intervals,
+                "wss_reconnect",
             )
             consecutive_failures += 1
             retry_seconds = helius_standard_wss_retry_seconds(
@@ -18543,19 +18720,45 @@ def get_wallet_coverage_buckets(conn, wallet, since, until, bucket_seconds):
         start = int(rebase_ts // size) * size
         slot(start)["fallback_rebase_in_bucket"] = True
 
+    history_start = conn.execute(
+        "SELECT value FROM app_state WHERE key = ?",
+        (HELIUS_WSS_MUTE_HISTORY_START_STATE_KEY,),
+    ).fetchone()
+    history_start_ts = (
+        float(history_start[0]) if history_start else PROCESS_STARTED_TS
+    )
+    mute_intervals = conn.execute(
+        """
+        SELECT muted_ts, COALESCE(unmuted_ts, muted_until_ts)
+        FROM helius_standard_wss_wallet_mutes
+        WHERE wallet = ? AND muted_ts < ?
+          AND COALESCE(unmuted_ts, muted_until_ts) > ?
+        """,
+        (wallet, until, since),
+    ).fetchall()
     with HELIUS_STANDARD_WSS_STATE_LOCK:
-        muted = dict(HELIUS_STANDARD_WSS_STATE["muted_wallets"].get(wallet) or {})
+        current_mute = dict(
+            HELIUS_STANDARD_WSS_STATE["muted_wallets"].get(wallet) or {}
+        )
+    if current_mute and not any(
+        start == current_mute["muted_ts"] for start, _ in mute_intervals
+    ):
+        mute_intervals.append((
+            current_mute["muted_ts"],
+            current_mute.get("muted_until_ts", float("inf")),
+        ))
     first = int(since // size) * size
     result = []
     for start in range(first, int(until), size):
         row = slot(start)
         end = start + size
-        if muted and end > muted["muted_ts"]:
+        if any(mute_start < end and mute_end > start
+               for mute_start, mute_end in mute_intervals):
             row["muted"] = True
-        elif start >= PROCESS_STARTED_TS:
+        elif start >= history_start_ts:
             row["muted"] = False
         else:
-            # Anterior al arranque del proceso: el silenciado no se persiste.
+            # Before persistent measurement began, absence is not evidence.
             row["muted"] = None
         result.append(row)
     return result
@@ -18596,6 +18799,7 @@ def api_wallet_coverage_buckets(
         "bucket_seconds": bucket_seconds,
         "affects_decisions": False,
         "process_started_ts": PROCESS_STARTED_TS,
+        "mute_history_start_ts": get_helius_wss_mute_history_start_ts(),
         "muted": muted or None,
         # Las notificaciones sin logs de Pump no se guardan: solo hay un
         # total por proceso, sin reparto por franja.

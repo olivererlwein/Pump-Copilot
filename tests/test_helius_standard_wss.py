@@ -1716,6 +1716,54 @@ class HeliusStandardWssFloodTests(unittest.IsolatedAsyncioTestCase):
                 )
                 self.assertEqual(rate, 1)
 
+    def test_mute_survives_restart_then_expires_and_can_repeat(self):
+        with (
+            patch.object(app, "WATCHED", {"trader-a": "wallet-a"}),
+            patch.object(app, "HELIUS_STANDARD_WSS_MUTE_SECONDS", 900),
+            patch.object(app.time, "time", return_value=1_000.0),
+        ):
+            self.assertTrue(app.helius_standard_wss_wallet_flooded(
+                "wallet-a", app.HELIUS_STANDARD_WSS_MAX_OTHER_PER_MINUTE + 1
+            ))
+        self.reset_memory()
+        self.assertEqual(
+            app.restore_helius_standard_wss_wallet_mutes(now=1_100), 1
+        )
+        self.assertEqual(
+            app.HELIUS_STANDARD_WSS_STATE["muted_wallets"]
+            ["wallet-a"]["muted_until_ts"], 1_900.0
+        )
+        self.assertEqual(
+            app.expire_helius_standard_wss_wallet_mutes(now=1_899), []
+        )
+        self.assertEqual(
+            app.expire_helius_standard_wss_wallet_mutes(now=1_900),
+            ["wallet-a"],
+        )
+        self.assertEqual(
+            app.restore_helius_standard_wss_wallet_mutes(now=2_000), 0
+        )
+        with (
+            patch.object(app, "WATCHED", {"trader-a": "wallet-a"}),
+            patch.object(app.time, "time", return_value=2_100.0),
+        ):
+            self.assertTrue(app.helius_standard_wss_wallet_flooded(
+                "wallet-a", app.HELIUS_STANDARD_WSS_MAX_OTHER_PER_MINUTE + 1
+            ))
+        conn = app.db()
+        try:
+            intervals = conn.execute(
+                "SELECT muted_ts, muted_until_ts, unmuted_ts "
+                "FROM helius_standard_wss_wallet_mutes "
+                "WHERE wallet = 'wallet-a' ORDER BY id"
+            ).fetchall()
+        finally:
+            conn.close()
+        self.assertEqual(intervals, [
+            (1_000.0, 1_900.0, 1_900.0),
+            (2_100.0, 3_000.0, None),
+        ])
+
     async def test_worker_unsubscribes_flooded_wallet_and_skips_it_on_reconnect(self):
         socket = FakeWebSocket()
         with (
@@ -1723,6 +1771,7 @@ class HeliusStandardWssFloodTests(unittest.IsolatedAsyncioTestCase):
             patch.object(app, "HELIUS_STANDARD_WSS_RPC_URL", "https://example.test/rpc"),
             patch.object(app, "HELIUS_STANDARD_WSS_APPLY", False),
             patch.object(app, "HELIUS_STANDARD_WSS_MAX_OTHER_PER_MINUTE", 60),
+            patch.object(app, "HELIUS_STANDARD_WSS_TOKEN_POLL_SECONDS", 0.01),
             patch.object(app, "HELIUS_STANDARD_WSS_RECONNECT_SECONDS", 0.01),
             patch.object(
                 app, "WATCHED",
@@ -1796,6 +1845,9 @@ class HeliusStandardWssFloodTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(stored, 0)
 
                 # Force a reconnect: only the surviving wallet resubscribes.
+                app.start_helius_token_subscription_interval(
+                    "mint-while-connected"
+                )
                 await socket.incoming.put("not json")
                 for _ in range(300):
                     if len(socket.sent) == 4:
@@ -1805,6 +1857,55 @@ class HeliusStandardWssFloodTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(
                     socket.sent[3]["params"][0], {"mentions": ["wallet-b"]}
                 )
+                conn = app.db()
+                try:
+                    reason = conn.execute(
+                        "SELECT close_reason FROM "
+                        "helius_standard_wss_token_intervals "
+                        "WHERE mint = 'mint-while-connected'"
+                    ).fetchone()[0]
+                finally:
+                    conn.close()
+                self.assertEqual(reason, "wss_reconnect")
+
+                await socket.incoming.put(json.dumps(
+                    {"jsonrpc": "2.0", "id": socket.sent[3]["id"],
+                     "result": 93}
+                ))
+                conn = app.db()
+                try:
+                    conn.execute(
+                        "UPDATE helius_standard_wss_wallet_mutes "
+                        "SET muted_until_ts = ? WHERE wallet = 'wallet-a' "
+                        "AND unmuted_ts IS NULL",
+                        (time.time() - 1,),
+                    )
+                    conn.commit()
+                finally:
+                    conn.close()
+                with app.HELIUS_STANDARD_WSS_STATE_LOCK:
+                    app.HELIUS_STANDARD_WSS_STATE["muted_wallets"][
+                        "wallet-a"
+                    ]["muted_until_ts"] = time.time() - 1
+                for _ in range(300):
+                    if len(socket.sent) == 5:
+                        break
+                    await asyncio.sleep(0.01)
+                self.assertEqual(len(socket.sent), 5)
+                self.assertEqual(socket.sent[4]["method"], "logsSubscribe")
+                self.assertEqual(
+                    socket.sent[4]["params"][0], {"mentions": ["wallet-a"]}
+                )
+                await socket.incoming.put(json.dumps(
+                    {"jsonrpc": "2.0", "id": socket.sent[4]["id"],
+                     "result": 94}
+                ))
+                for _ in range(100):
+                    if app.HELIUS_STANDARD_WSS_STATE["subscriptions"] == 2:
+                        break
+                    await asyncio.sleep(0.01)
+                self.assertEqual(app.HELIUS_STANDARD_WSS_STATE["subscriptions"], 2)
+                self.assertEqual(app.HELIUS_STANDARD_WSS_STATE["reconnects"], 1)
             finally:
                 worker.cancel()
                 with self.assertRaises(asyncio.CancelledError):

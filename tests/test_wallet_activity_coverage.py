@@ -4,7 +4,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 import app
-from scripts.wallet_activity_coverage import assign_tiers, summarize
+from scripts.wallet_activity_coverage import (
+    assign_tiers, mark_known_mute, summarize,
+)
 
 
 def wss_event(wallet, signature):
@@ -108,6 +110,29 @@ class WalletCoverageBucketsTests(unittest.TestCase):
         buckets = self.report(started=9000.0)["buckets"]
         self.assertEqual([row["muted"] for row in buckets], [None, False])
 
+    def test_persisted_mute_marks_only_its_historical_interval(self):
+        conn = app.db()
+        try:
+            conn.execute(
+                "INSERT INTO app_state(key, value) VALUES(?, ?)",
+                (app.HELIUS_WSS_MUTE_HISTORY_START_STATE_KEY, "7200"),
+            )
+            conn.execute(
+                "INSERT INTO helius_standard_wss_wallet_mutes("
+                "wallet, trader, muted_ts, muted_until_ts, unmuted_ts, "
+                "rate_per_minute) VALUES('wallet-s', 'sling', 11000, "
+                "11500, 11500, 601)"
+            )
+            conn.commit()
+            with patch.object(app, "PROCESS_STARTED_TS", 20000.0):
+                buckets = app.get_wallet_coverage_buckets(
+                    conn, "wallet-s", 7200.0, 18000.0, 3600
+                )
+        finally:
+            conn.close()
+        self.assertEqual([row["muted"] for row in buckets],
+                         [False, True, False])
+
     def test_rejects_unbounded_ranges(self):
         with (
             patch.object(app, "APP_TOKEN", "token"),
@@ -152,6 +177,27 @@ class ActivityTierTests(unittest.TestCase):
             [tiers[start] for start in range(9)],
             ["wss_silent", "muted", "idle",
              "mid", "low", "low", "high", "mid", "high"],
+        )
+
+    def test_mute_and_unknown_take_priority_over_silent_or_activity(self):
+        buckets = [
+            bucket(0, 0, all_wallets=0, muted=True),
+            bucket(1, 20, all_wallets=20, muted=None),
+            bucket(2, 10, all_wallets=10),
+        ]
+        self.assertEqual(assign_tiers(buckets), {
+            0: "muted", 1: "unknown", 2: "low",
+        })
+
+    def test_known_legacy_mute_marks_partial_buckets(self):
+        buckets = [
+            bucket(0, 0, muted=None),
+            bucket(3600, 0, muted=None),
+            bucket(7200, 0, muted=None),
+        ]
+        mark_known_mute(buckets, 3500, 3700, 3600)
+        self.assertEqual(
+            [row["muted"] for row in buckets], [True, True, None]
         )
 
     def test_summary_counts_losses_and_selection_coverage_per_tier(self):
