@@ -101,7 +101,8 @@ def summarize(
         total = totals[tier]
         total["buckets"] += 1
         for key in (
-            "pump_notifications", "own_parsed_transactions",
+            "pump_notifications", "failed_notifications",
+            "own_parsed_transactions",
             "mention_transactions", "other_unparsed_transactions",
         ):
             total[key] += row[key]
@@ -142,7 +143,10 @@ def summarize(
         )
         report[tier] = {
             **dict(total),
-            "delivery_loss_ratio": ratio(lost, total["pump_notifications"]),
+            "delivery_loss_ratio": ratio(
+                lost,
+                total["pump_notifications"] - total["failed_notifications"],
+            ),
             "mention_share_of_attributed": ratio(
                 total["mention_transactions"], attributed
             ),

@@ -18667,7 +18667,8 @@ def get_wallet_coverage_buckets(conn, wallet, since, until, bucket_seconds):
     Separa lo que la wallet hizo (transacciones que firmó) del tráfico en el
     que solo aparece mencionada (`wallet_not_signer`). Las transacciones que
     nunca se pidieron (`queue_full`) o fallaron no se pueden atribuir: quedan
-    como `unattributable`, ni propias ni ajenas.
+    como `unattributable`, ni propias ni ajenas. Una transacción fallida
+    on-chain no es una operación perdida y se cuenta por separado.
     """
     size = int(bucket_seconds)
 
@@ -18680,6 +18681,7 @@ def get_wallet_coverage_buckets(conn, wallet, since, until, bucket_seconds):
         return rows.setdefault(int(start), {
             "start_ts": int(start),
             "pump_notifications": 0,
+            "failed_notifications": 0,
             "all_wallets_pump_notifications": 0,
             "own_parsed_transactions": 0,
             "mention_transactions": 0,
@@ -18705,21 +18707,23 @@ def get_wallet_coverage_buckets(conn, wallet, since, until, bucket_seconds):
         row["pump_notifications"] = int(own)
         row["all_wallets_pump_notifications"] = int(total)
 
-    for start, status, reason, count in conn.execute(
+    for start, status, reason, failed, count in conn.execute(
         f"""
         SELECT {bucket('n.received_ts')}, t.status,
-               t.unparsed_reason, COUNT(*)
+               t.unparsed_reason, n.failed, COUNT(*)
         FROM helius_standard_wss_notifications n
         LEFT JOIN helius_standard_wss_transactions t
           ON t.signature = n.signature
         WHERE n.received_ts >= ? AND n.received_ts < ?
           AND n.wallet = ? AND n.subject_type = 'wallet'
-        GROUP BY 1, 2, 3
+        GROUP BY 1, 2, 3, 4
         """,
         (since, until, wallet),
     ):
         row = slot(start)
-        if status in ("observed", "applied"):
+        if failed:
+            row["failed_notifications"] += int(count)
+        elif status in ("observed", "applied"):
             row["own_parsed_transactions"] += int(count)
         elif status == "unparsed" and reason == "wallet_not_signer":
             row["mention_transactions"] += int(count)

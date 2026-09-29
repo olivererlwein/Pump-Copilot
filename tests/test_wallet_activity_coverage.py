@@ -27,9 +27,11 @@ class WalletCoverageBucketsTests(unittest.TestCase):
         app.DB = self.original_db
         self.temp_dir.cleanup()
 
-    def notify(self, wallet, signature, ts, status=None, reason=None):
+    def notify(self, wallet, signature, ts, status=None, reason=None,
+               failed=False):
         app.record_helius_standard_wss_notification(
-            wss_event(wallet, signature), True, 100, received_ts=ts
+            {**wss_event(wallet, signature), "failed": failed},
+            True, 100, received_ts=ts
         )
         if status:
             app.finish_helius_standard_wss_transaction(
@@ -67,6 +69,14 @@ class WalletCoverageBucketsTests(unittest.TestCase):
         self.assertEqual(first["mention_transactions"], 1)
         self.assertEqual(first["unattributable"], {"queue_full": 1})
         self.assertEqual(buckets[1]["own_parsed_transactions"], 1)
+
+    def test_failed_chain_transaction_is_not_delivery_loss(self):
+        self.notify("wallet-s", "chain-failed", 7300, failed=True)
+        self.notify("wallet-s", "successful-not-selected", 7350)
+        first = self.report()["buckets"][0]
+        self.assertEqual(first["pump_notifications"], 2)
+        self.assertEqual(first["failed_notifications"], 1)
+        self.assertEqual(first["unattributable"], {"pending_fetch": 1})
 
     def test_counts_real_trades_by_transport_and_fallback_status(self):
         conn = app.db()
@@ -171,6 +181,7 @@ def bucket(start, notifications, all_wallets=None, muted=False, **extra):
     return {
         "start_ts": start,
         "pump_notifications": notifications,
+        "failed_notifications": 0,
         "all_wallets_pump_notifications": (
             notifications if all_wallets is None else all_wallets
         ),
@@ -250,7 +261,8 @@ class ActivityTierTests(unittest.TestCase):
 
     def test_summary_counts_losses_and_selection_coverage_per_tier(self):
         buckets = [
-            bucket(0, 10, own_parsed_transactions=6, mention_transactions=2,
+            bucket(0, 10, failed_notifications=2,
+                   own_parsed_transactions=6, mention_transactions=2,
                    unattributable={"queue_full": 2}),
             bucket(100, 20, unattributable={"queue_full": 10}),
             bucket(200, 30, unattributable={"queue_full": 24}),
@@ -275,7 +287,7 @@ class ActivityTierTests(unittest.TestCase):
         ):
             report = summarize(buckets, rows, "sling", 100)["tiers"]
 
-        self.assertEqual(report["low"]["delivery_loss_ratio"], 0.2)
+        self.assertEqual(report["low"]["delivery_loss_ratio"], 0.25)
         self.assertEqual(report["low"]["mention_share_of_attributed"], 0.25)
         self.assertEqual(report["high"]["delivery_loss_ratio"], 0.8)
         self.assertEqual(report["high"]["selections"], 1)
