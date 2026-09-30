@@ -44,6 +44,7 @@ from solana_rpc_fallback import (
     parse_watched_wallet_pump_events,
     diagnose_unparsed_pump_receipt,
     parse_tracked_token_pump_events,
+    parse_pump_trade_log_prices,
     _rpc_request,
 )
 import solana_rpc_fallback
@@ -580,6 +581,16 @@ HELIUS_STANDARD_WSS_STATE = {
     "last_reconnect_error": None,
     "last_reconnect_close": None,
     "last_reconnect_ts": None,
+    "log_price_shadow": {
+        "transactions_with_logs": 0,
+        "candidate_events": 0,
+        "matched_events": 0,
+        "mismatched_events": 0,
+        "missing_receipt_events": 0,
+        "receipt_only_events": 0,
+        "truncated_notifications": 0,
+        "errors": 0,
+    },
     "last_message_ts": None,
     "last_pump_log_ts": None,
     "last_success_ts": None,
@@ -15601,6 +15612,73 @@ def helius_standard_wss_close_detail(error):
     }
 
 
+def compare_helius_standard_wss_log_prices(event, receipt):
+    if event.get("subject_type") != "token" or not isinstance(
+        event.get("logs"), list
+    ):
+        return None
+    mint = event.get("wallet")
+    signature = event.get("signature")
+    truncated = any(
+        isinstance(line, str) and "Log truncated" in line
+        for line in event["logs"]
+    )
+    candidates = parse_pump_trade_log_prices(
+        event["logs"], signature, mint
+    )
+    receipt_events = {
+        row["event"]["eventIndex"]: row["event"]
+        for row in parse_tracked_token_pump_events(
+            receipt, {mint}, signature
+        )
+        if row["event"].get("pool") == "pump"
+    }
+    matched = 0
+    missing = 0
+    for candidate in candidates:
+        actual = receipt_events.get(candidate["eventIndex"])
+        if actual is None:
+            missing += 1
+        elif all(
+            actual.get(field) == candidate.get(field)
+            for field in ("mint", "txType", "traderPublicKey", "blockEventTs")
+        ) and math.isclose(
+            float(actual["marketCapSol"]),
+            float(candidate["marketCapSol"]),
+            rel_tol=1e-9,
+            abs_tol=1e-9,
+        ):
+            matched += 1
+    return {
+        "transactions_with_logs": 1,
+        "candidate_events": len(candidates),
+        "matched_events": matched,
+        "mismatched_events": len(candidates) - matched - missing,
+        "missing_receipt_events": missing,
+        "receipt_only_events": len(
+            receipt_events.keys()
+            - {candidate["eventIndex"] for candidate in candidates}
+        ),
+        "truncated_notifications": int(truncated),
+    }
+
+
+def note_helius_standard_wss_log_price_shadow(event, receipt):
+    try:
+        compared = compare_helius_standard_wss_log_prices(event, receipt)
+    except Exception:
+        compared = "error"
+    if compared is None:
+        return
+    with HELIUS_STANDARD_WSS_STATE_LOCK:
+        totals = HELIUS_STANDARD_WSS_STATE["log_price_shadow"]
+        if compared == "error":
+            totals["errors"] += 1
+            return
+        for key, count in compared.items():
+            totals[key] += count
+
+
 def note_unstored_helius_standard_wss_notification(
     wallet, message_bytes, failed, received_ts
 ):
@@ -16051,6 +16129,12 @@ async def fetch_helius_standard_wss_transaction(
                 last_success_ts=time.time(),
                 last_error=None,
             )
+            try:
+                await asyncio.to_thread(
+                    note_helius_standard_wss_log_price_shadow, event, receipt
+                )
+            except Exception:
+                pass
     except asyncio.CancelledError:
         raise
     except Exception as exc:
@@ -19423,6 +19507,7 @@ def api_helius_standard_wss_stats(
         )
     with HELIUS_STANDARD_WSS_STATE_LOCK:
         runtime = dict(HELIUS_STANDARD_WSS_STATE)
+        runtime["log_price_shadow"] = dict(runtime["log_price_shadow"])
     selected_wallets = []
     configuration_error = None
     try:

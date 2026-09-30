@@ -23,6 +23,7 @@ from solana_rpc_fallback import (
     diagnose_unparsed_pump_receipt,
     parse_tracked_token_pump_events,
     parse_watched_wallet_pump_events,
+    parse_pump_trade_log_prices,
 )
 
 
@@ -135,6 +136,67 @@ def pump_amm_receipt(virtual_quote=0):
 
 
 class RpcFallbackParserTests(unittest.TestCase):
+    def test_log_price_candidate_matches_receipt_and_preserves_ordinal(self):
+        pump = pump_receipt()
+        amm = pump_amm_receipt()
+        logs = [
+            f"Program {PUMP_AMM_PROGRAM_ID} invoke [1]",
+            amm["meta"]["logMessages"][1],
+            *pump["meta"]["logMessages"],
+        ]
+        candidate = parse_pump_trade_log_prices(logs, SIGNATURE, MINT)
+        receipt_event = parse_tracked_token_pump_events(
+            pump, {MINT}, SIGNATURE
+        )[0]["event"]
+        self.assertEqual(len(candidate), 1)
+        self.assertEqual(candidate[0]["eventIndex"], 1)
+        self.assertEqual(candidate[0]["marketCapSol"],
+                         receipt_event["marketCapSol"])
+        self.assertEqual(candidate[0]["blockEventTs"],
+                         receipt_event["blockEventTs"])
+        self.assertIsNone(candidate[0]["newTokenBalance"])
+        self.assertEqual(
+            parse_pump_trade_log_prices(logs + ["Log truncated"], SIGNATURE, MINT),
+            [],
+        )
+
+    def test_log_price_shadow_detects_price_mismatch_without_changing_receipt(self):
+        receipt = pump_receipt()
+        event = {
+            "subject_type": "token", "wallet": MINT,
+            "signature": SIGNATURE,
+            "logs": receipt["meta"]["logMessages"],
+        }
+        self.assertEqual(
+            app.compare_helius_standard_wss_log_prices(event, receipt),
+            {
+                "transactions_with_logs": 1,
+                "candidate_events": 1,
+                "matched_events": 1,
+                "mismatched_events": 0,
+                "missing_receipt_events": 0,
+                "receipt_only_events": 0,
+                "truncated_notifications": 0,
+            },
+        )
+        for phase in ("preTokenBalances", "postTokenBalances"):
+            receipt["meta"][phase][0]["uiTokenAmount"]["decimals"] = 9
+        self.assertEqual(
+            app.compare_helius_standard_wss_log_prices(event, receipt)[
+                "mismatched_events"
+            ], 1,
+        )
+        receipt["meta"]["preTokenBalances"] = []
+        receipt["meta"]["postTokenBalances"] = []
+        missing = app.compare_helius_standard_wss_log_prices(event, receipt)
+        self.assertEqual(missing["missing_receipt_events"], 1)
+        self.assertEqual(missing["mismatched_events"], 0)
+        receipt = pump_receipt()
+        event["logs"] = event["logs"] + ["Log truncated"]
+        truncated = app.compare_helius_standard_wss_log_prices(event, receipt)
+        self.assertEqual(truncated["truncated_notifications"], 1)
+        self.assertEqual(truncated["receipt_only_events"], 1)
+
     def test_non_sol_pump_amm_pool_is_not_reported_as_parser_failure(self):
         receipt = pump_amm_receipt()
         for phase in ("preTokenBalances", "postTokenBalances"):

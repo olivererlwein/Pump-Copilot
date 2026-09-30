@@ -1312,6 +1312,39 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
             conn.close()
         self.assertEqual(row, ("observed", 1, 1))
 
+    async def test_log_price_shadow_failure_does_not_change_fetch_status(self):
+        event = self.event()
+        app.record_helius_standard_wss_notification(
+            event, True, 200, received_ts=1_700_000_000
+        )
+        with (
+            patch.object(app, "HELIUS_STANDARD_WSS_APPLY", False),
+            patch.object(
+                app, "fetch_confirmed_transaction",
+                return_value={"blockTime": 1_699_999_999},
+            ),
+            patch.object(
+                app, "record_helius_webhook_transactions",
+                return_value={"parsed_events": 1},
+            ),
+            patch.object(
+                app, "note_helius_standard_wss_log_price_shadow",
+                side_effect=RuntimeError("shadow failed"),
+            ),
+        ):
+            await app.fetch_helius_standard_wss_transaction(
+                event, 1_700_000_000, {event["signature"]},
+                asyncio.Semaphore(1), asyncio.Lock(), {"next_ts": 0.0},
+            )
+        conn = app.db()
+        try:
+            status = conn.execute(
+                "SELECT status FROM helius_standard_wss_transactions"
+            ).fetchone()[0]
+        finally:
+            conn.close()
+        self.assertEqual(status, "observed")
+
     async def test_unparsed_receipt_records_reason_without_inbox_write(self):
         event = self.event()
         app.record_helius_standard_wss_notification(

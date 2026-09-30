@@ -230,7 +230,7 @@ def _optional_post_token_amount(balances, owner, mint, decimals):
     return None
 
 
-def _parse_pump_trade(payload, balances, signature):
+def _parse_pump_trade(payload, balances, signature, decimals=None):
     minimum_size = 8 + 32 + 8 + 8 + 1 + 32 + 8 + 8 + 8
     if len(payload) < minimum_size or payload[:8] != PUMP_TRADE_EVENT:
         return None
@@ -249,7 +249,8 @@ def _parse_pump_trade(payload, balances, signature):
     if virtual_tokens <= 0:
         return None
 
-    decimals = _token_decimals(balances, mint)
+    if decimals is None:
+        decimals = _token_decimals(balances, mint)
     scale = 10 ** decimals
     market_cap = (virtual_sol / virtual_tokens) * scale
 
@@ -267,8 +268,9 @@ def _parse_pump_trade(payload, balances, signature):
             "traderPublicKey": user,
             "solAmount": sol_lamports / LAMPORTS_PER_SOL,
             "tokenAmount": token_raw / scale,
-            "newTokenBalance": _optional_post_token_amount(
-                balances, user, mint, decimals
+            "newTokenBalance": (
+                _optional_post_token_amount(balances, user, mint, decimals)
+                if balances else None
             ),
             "marketCapSol": market_cap,
             "vSolInBondingCurve": virtual_sol / LAMPORTS_PER_SOL,
@@ -276,6 +278,45 @@ def _parse_pump_trade(payload, balances, signature):
             "pool": "pump",
         },
     }
+
+
+def parse_pump_trade_log_prices(logs, signature, mint):
+    """Price candidates from bonding-curve logs; caller must verify receipts."""
+    if not isinstance(logs, list) or not signature or not mint:
+        return []
+    if any("Log truncated" in line for line in logs if isinstance(line, str)):
+        return []
+    if not any(
+        isinstance(line, str)
+        and line.startswith(f"Program {PUMP_PROGRAM_ID} invoke ")
+        for line in logs
+    ):
+        return []
+    amm_invoked = any(
+        isinstance(line, str)
+        and line.startswith(f"Program {PUMP_AMM_PROGRAM_ID} invoke ")
+        for line in logs
+    )
+
+    candidates = []
+    event_index = 0
+    for _, payload in _event_payloads({"meta": {"logMessages": logs}}):
+        is_pump = payload.startswith(PUMP_TRADE_EVENT)
+        is_amm = amm_invoked and payload.startswith(
+            (PUMP_AMM_BUY_EVENT, PUMP_AMM_SELL_EVENT)
+        )
+        if not (is_pump or is_amm):
+            continue
+        if is_pump:
+            try:
+                parsed = _parse_pump_trade(payload, None, signature, decimals=6)
+            except (ValueError, struct.error):
+                parsed = None
+            if parsed is not None and parsed["event"]["mint"] == mint:
+                parsed["event"]["eventIndex"] = event_index
+                candidates.append(parsed["event"])
+        event_index += 1
+    return candidates
 
 
 def _parse_pump_amm_trade(payload, balances, signature):
