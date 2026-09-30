@@ -33,6 +33,7 @@ POOL_RAW = bytes(range(65, 97))
 WALLET = _base58_encode(WALLET_RAW)
 MINT = _base58_encode(MINT_RAW)
 POOL = _base58_encode(POOL_RAW)
+OTHER_QUOTE = _base58_encode(bytes(range(97, 129)))
 
 
 def token_balance(owner, mint, amount, decimals=6, index=1):
@@ -134,6 +135,22 @@ def pump_amm_receipt(virtual_quote=0):
 
 
 class RpcFallbackParserTests(unittest.TestCase):
+    def test_non_sol_pump_amm_pool_is_not_reported_as_parser_failure(self):
+        receipt = pump_amm_receipt()
+        for phase in ("preTokenBalances", "postTokenBalances"):
+            for balance in receipt["meta"][phase]:
+                if balance["mint"] == WSOL_MINT:
+                    balance["mint"] = OTHER_QUOTE
+
+        self.assertEqual(
+            parse_tracked_token_pump_events(receipt, {MINT}, SIGNATURE),
+            [],
+        )
+        self.assertEqual(
+            diagnose_unparsed_pump_receipt(receipt, MINT, SIGNATURE, "token"),
+            "unsupported_non_sol_pool",
+        )
+
     def test_diagnoses_nontrade_pump_log_without_claiming_data_loss(self):
         receipt = pump_receipt()
         receipt["meta"]["logMessages"] = [

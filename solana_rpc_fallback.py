@@ -302,12 +302,10 @@ def _parse_pump_amm_trade(payload, balances, signature):
     pool_offset = 8 + (14 * 8)
     pool = _base58_encode(payload[pool_offset:pool_offset + 32])
     user = _base58_encode(payload[pool_offset + 32:pool_offset + 64])
-    base_mints = {
-        mint
-        for phase in balances.values()
-        for (owner, mint), record in phase.items()
-        if owner == pool and mint != WSOL_MINT and record["raw"] >= 0
-    }
+    pool_mints = _pump_amm_pool_mints(pool, balances)
+    if len(pool_mints) >= 2 and WSOL_MINT not in pool_mints:
+        raise ValueError("PUMP_AMM_NON_SOL_POOL")
+    base_mints = pool_mints - {WSOL_MINT}
     if len(base_mints) != 1:
         raise ValueError("PUMP_AMM_BASE_MINT_AMBIGUOUS")
     mint = base_mints.pop()
@@ -347,6 +345,15 @@ def _parse_pump_amm_trade(payload, balances, signature):
             "virtualQuoteReserves": virtual_quote / LAMPORTS_PER_SOL,
             "pool": "pump-amm",
         },
+    }
+
+
+def _pump_amm_pool_mints(pool, balances):
+    return {
+        mint
+        for phase in balances.values()
+        for (owner, mint), record in phase.items()
+        if owner == pool and record["raw"] >= 0
     }
 
 
@@ -533,6 +540,14 @@ def diagnose_unparsed_pump_receipt(receipt, wallet, signature, subject_type="wal
             return "other_token"
 
         payloads = [payload for _, payload in _event_payloads(receipt)]
+        balances = _token_balances(receipt)
+        for payload in payloads:
+            if (payload.startswith((PUMP_AMM_BUY_EVENT, PUMP_AMM_SELL_EVENT))
+                    and len(payload) >= 8 + (14 * 8) + (2 * 32)):
+                pool = _base58_encode(payload[120:152])
+                pool_mints = _pump_amm_pool_mints(pool, balances)
+                if len(pool_mints) >= 2 and WSOL_MINT not in pool_mints:
+                    return "unsupported_non_sol_pool"
         if any(payload.startswith((
             PUMP_TRADE_EVENT, PUMP_AMM_BUY_EVENT, PUMP_AMM_SELL_EVENT
         )) for payload in payloads):
