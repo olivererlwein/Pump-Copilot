@@ -530,9 +530,10 @@ class AccountPriceCheckpointTests(unittest.TestCase):
             )
             conn.execute(
                 """INSERT INTO helius_standard_wss_transactions(
-                    signature, first_received_ts, status
-                ) VALUES(?,?,?)""",
-                ("signature-12", signal_ts + 15, "applied"),
+                    signature, first_received_ts, fetched_ts, status
+                ) VALUES(?,?,?,?)""",
+                ("signature-12", signal_ts + 15, signal_ts + 19,
+                 "applied"),
             )
             conn.executemany(
                 """INSERT INTO helius_standard_wss_token_intervals(
@@ -565,6 +566,7 @@ class AccountPriceCheckpointTests(unittest.TestCase):
         self.assertEqual(trace["inbox_claimed_ts"], signal_ts + 21)
         self.assertEqual(trace["inbox_processed_ts"], signal_ts + 22)
         self.assertEqual(trace["wss_received_ts"], signal_ts + 15)
+        self.assertEqual(trace["wss_fetched_ts"], signal_ts + 19)
         self.assertEqual(trace["previous_subscription_end_ts"], signal_ts - 20)
         self.assertEqual(trace["next_subscription_start_ts"], signal_ts + 1_000)
         self.assertIsNone(trace["first_token_notification_ts"])

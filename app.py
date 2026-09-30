@@ -16854,6 +16854,9 @@ def get_account_checkpoint_ingest_trace(observations):
                        (SELECT t.first_received_ts
                         FROM helius_standard_wss_transactions t
                         WHERE t.signature = e.trade_signature),
+                       (SELECT t.fetched_ts
+                        FROM helius_standard_wss_transactions t
+                        WHERE t.signature = e.trade_signature),
                        (SELECT MAX(COALESCE(s.unsubscribed_ts,
                                             s.last_confirmed_ts))
                         FROM helius_standard_wss_token_intervals s
@@ -16875,7 +16878,7 @@ def get_account_checkpoint_ingest_trace(observations):
                 batch,
             ).fetchall()
             for (signal_id, source, transport, inbox_ts, claim_ts,
-                 processed_ts, wss_ts,
+                 processed_ts, wss_ts, wss_fetched_ts,
                  previous_end_ts, next_start_ts, first_token_ts) in rows:
                 traces[int(signal_id)] = {
                     "source": source,
@@ -16884,6 +16887,7 @@ def get_account_checkpoint_ingest_trace(observations):
                     "inbox_claimed_ts": claim_ts,
                     "inbox_processed_ts": processed_ts,
                     "wss_received_ts": wss_ts,
+                    "wss_fetched_ts": wss_fetched_ts,
                     "previous_subscription_end_ts": previous_end_ts,
                     "next_subscription_start_ts": next_start_ts,
                     "first_token_notification_ts": first_token_ts,
