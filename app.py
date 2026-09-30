@@ -575,6 +575,7 @@ HELIUS_STANDARD_WSS_STATE = {
     "last_token_subscribe_send": None,
     "last_token_subscribe_ack": None,
     "pending_fetches": 0,
+    "last_queue_rejection_composition": None,
     "last_connect_ts": None,
     "last_message_ts": None,
     "last_pump_log_ts": None,
@@ -15899,7 +15900,7 @@ def pending_helius_standard_wss_transactions(
 
 async def recover_helius_standard_wss_pending(
     pending_signatures, fetch_tasks, semaphore, rate_lock, rate_state,
-    include_tokens=True,
+    include_tokens=True, pending_token_tasks=None,
 ):
     reserve_start = (
         HELIUS_STANDARD_WSS_MAX_PENDING
@@ -15932,6 +15933,7 @@ async def recover_helius_standard_wss_pending(
                 semaphore,
                 rate_lock,
                 rate_state,
+                pending_token_tasks=pending_token_tasks,
             )
         recovered += len(interrupted)
         if recovered >= 50:
@@ -16061,6 +16063,7 @@ async def schedule_helius_standard_wss_fetch(
     semaphore,
     rate_lock,
     rate_state,
+    pending_token_tasks=None,
 ):
     signature = event["signature"]
     if signature in pending_signatures:
@@ -16079,15 +16082,42 @@ async def schedule_helius_standard_wss_fetch(
     )
     if (low_priority_token
             or len(pending_signatures) >= HELIUS_STANDARD_WSS_MAX_PENDING):
+        rejection_reason = (
+            "HELIUS_STANDARD_WSS_PRIORITY_RESERVE"
+            if low_priority_token else "HELIUS_STANDARD_WSS_QUEUE_FULL"
+        )
+        attributed = {
+            task_signature: mint for task, (task_signature, mint)
+            in (pending_token_tasks or {}).items()
+            if not task.done() and task_signature in pending_signatures
+        }
+        counts = collections.Counter(attributed.values())
+        update_helius_standard_wss_state(
+            last_queue_rejection_composition={
+                "rejected_ts": time.time(),
+                "reason": rejection_reason,
+                "pending_fetches": len(pending_signatures),
+                "pending_without_token_attribution": (
+                    len(pending_signatures) - sum(counts.values())
+                ),
+                "rejected_subject_type": event.get("subject_type", "wallet"),
+                "rejected_mint": (
+                    event.get("wallet")
+                    if event.get("subject_type") == "token" else None
+                ),
+                "rejected_mint_pending": counts.get(event.get("wallet"), 0),
+                "top_pending_token_mints": [
+                    {"mint": mint, "pending": count}
+                    for mint, count in counts.most_common(5)
+                ],
+            },
+        )
         await asyncio.to_thread(
             finish_helius_standard_wss_transaction,
             signature,
             "queue_full",
             0,
-            error=(
-                "HELIUS_STANDARD_WSS_PRIORITY_RESERVE"
-                if low_priority_token else "HELIUS_STANDARD_WSS_QUEUE_FULL"
-            ),
+            error=rejection_reason,
         )
         return
     pending_signatures.add(signature)
@@ -16105,6 +16135,11 @@ async def schedule_helius_standard_wss_fetch(
         )
     )
     fetch_tasks.add(task)
+    if (pending_token_tasks is not None
+            and event.get("subject_type") == "token"
+            and event.get("wallet")):
+        pending_token_tasks[task] = (signature, event["wallet"])
+        task.add_done_callback(pending_token_tasks.pop)
     task.add_done_callback(fetch_tasks.discard)
 
 
@@ -17478,6 +17513,7 @@ async def helius_standard_wss_worker():
         return
 
     pending_signatures = set()
+    pending_token_tasks = {}
     fetch_tasks = set()
     semaphore = PriorityFetchLimiter(HELIUS_STANDARD_WSS_MAX_IN_FLIGHT)
     rate_lock = asyncio.Lock()
@@ -17569,6 +17605,7 @@ async def helius_standard_wss_worker():
                             pending_signatures, fetch_tasks, semaphore,
                             rate_lock, rate_state,
                             include_tokens=HELIUS_STANDARD_WSS_TRACK_TOKENS_ENABLED,
+                            pending_token_tasks=pending_token_tasks,
                         )
                         last_recovery_poll = time.monotonic()
                     if any(
@@ -17746,6 +17783,7 @@ async def helius_standard_wss_worker():
                                 pending_signatures, fetch_tasks, semaphore,
                                 rate_lock, rate_state,
                                 include_tokens=HELIUS_STANDARD_WSS_TRACK_TOKENS_ENABLED,
+                                pending_token_tasks=pending_token_tasks,
                             )
                             last_recovery_poll = time.monotonic()
                         continue
@@ -17830,6 +17868,7 @@ async def helius_standard_wss_worker():
                         semaphore,
                         rate_lock,
                         rate_state,
+                        pending_token_tasks=pending_token_tasks,
                     )
         except asyncio.CancelledError:
             await asyncio.to_thread(

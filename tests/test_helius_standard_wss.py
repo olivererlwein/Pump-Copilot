@@ -480,6 +480,67 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
             await asyncio.gather(*tasks)
         self.assertEqual(fetch.await_count, 1)
 
+    async def test_rejection_records_pending_token_composition(self):
+        token = {**self.event("hot-mint"), "subject_type": "token"}
+        app.record_helius_standard_wss_notification(
+            token, True, 100, received_ts=1000,
+        )
+        pending = {f"pending-{index}" for index in range(8)}
+        tasks_by_signature = {
+            signature: asyncio.Future() for signature in pending
+        }
+        token_tasks = {
+            tasks_by_signature[f"pending-{index}"]: (
+                f"pending-{index}", "hot-mint"
+            ) for index in range(5)
+        }
+        token_tasks[tasks_by_signature["pending-5"]] = (
+            "pending-5", "cool-mint"
+        )
+        with patch.object(app, "HELIUS_STANDARD_WSS_MAX_PENDING", 10):
+            await app.schedule_helius_standard_wss_fetch(
+                token, 1000, pending, set(), asyncio.Semaphore(1),
+                asyncio.Lock(), {"next_ts": 0.0},
+                pending_token_tasks=token_tasks,
+            )
+        snapshot = app.HELIUS_STANDARD_WSS_STATE[
+            "last_queue_rejection_composition"
+        ]
+        self.assertEqual(snapshot["reason"], "HELIUS_STANDARD_WSS_PRIORITY_RESERVE")
+        self.assertEqual(snapshot["pending_fetches"], 8)
+        self.assertEqual(snapshot["pending_without_token_attribution"], 2)
+        self.assertEqual(snapshot["rejected_mint_pending"], 5)
+        self.assertEqual(snapshot["top_pending_token_mints"], [
+            {"mint": "hot-mint", "pending": 5},
+            {"mint": "cool-mint", "pending": 1},
+        ])
+        self.assertEqual(len(token_tasks), 6)
+
+    async def test_pending_token_attribution_clears_when_fetch_finishes(self):
+        token = {**self.event("mint-a"), "subject_type": "token"}
+        pending = set()
+        tasks = set()
+        token_tasks = {}
+        gate = asyncio.Event()
+
+        async def delayed_fetch(*args):
+            await gate.wait()
+
+        with patch.object(app, "fetch_helius_standard_wss_transaction", delayed_fetch):
+            await app.schedule_helius_standard_wss_fetch(
+                token, 1000, pending, tasks, asyncio.Semaphore(1),
+                asyncio.Lock(), {"next_ts": 0.0},
+                pending_token_tasks=token_tasks,
+            )
+            self.assertEqual(list(token_tasks.values()), [
+                (token["signature"], "mint-a")
+            ])
+            fetch_task = next(iter(tasks))
+            fetch_task.cancel()
+            await asyncio.gather(fetch_task, return_exceptions=True)
+            await asyncio.sleep(0)
+        self.assertEqual(token_tasks, {})
+
     def test_open_paper_position_protects_token_admission(self):
         self.assertFalse(app.helius_standard_wss_token_has_open_position(
             "mint-a"
