@@ -578,6 +578,7 @@ HELIUS_STANDARD_WSS_STATE = {
     "last_queue_rejection_composition": None,
     "last_connect_ts": None,
     "last_reconnect_error": None,
+    "last_reconnect_close": None,
     "last_reconnect_ts": None,
     "last_message_ts": None,
     "last_pump_log_ts": None,
@@ -15586,6 +15587,20 @@ def helius_standard_wss_error_code(error):
     return f"HELIUS_STANDARD_WSS_{error.__class__.__name__}"
 
 
+def helius_standard_wss_close_detail(error):
+    if not isinstance(error, websockets.exceptions.ConnectionClosedError):
+        return None
+    received = error.rcvd
+    sent = error.sent
+    return {
+        "received_code": received.code if received else None,
+        "sent_code": sent.code if sent else None,
+        "ping_timeout": bool(
+            sent and "keepalive ping timeout" in sent.reason.lower()
+        ),
+    }
+
+
 def note_unstored_helius_standard_wss_notification(
     wallet, message_bytes, failed, received_ts
 ):
@@ -17900,6 +17915,7 @@ async def helius_standard_wss_worker():
                 reconnects=reconnects,
                 last_error=error_code,
                 last_reconnect_error=error_code,
+                last_reconnect_close=helius_standard_wss_close_detail(exc),
                 last_reconnect_ts=time.time(),
                 retry_seconds=retry_seconds,
                 next_retry_ts=time.time() + retry_seconds,

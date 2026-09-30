@@ -8,6 +8,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 from urllib.error import HTTPError
+from websockets.exceptions import ConnectionClosedError
+from websockets.frames import Close
 
 import app
 
@@ -106,6 +108,17 @@ class PriorityFetchLimiterTests(unittest.IsolatedAsyncioTestCase):
 
 
 class HeliusStandardWssProtocolTests(unittest.TestCase):
+    def test_reconnect_close_detail_distinguishes_ping_timeout(self):
+        error = ConnectionClosedError(
+            None, Close(1011, "keepalive ping timeout")
+        )
+        self.assertEqual(app.helius_standard_wss_close_detail(error), {
+            "received_code": None,
+            "sent_code": 1011,
+            "ping_timeout": True,
+        })
+        self.assertIsNone(app.helius_standard_wss_close_detail(ValueError("x")))
+
     def test_selects_only_requested_traders(self):
         watched = {"trader-a": "wallet-a", "trader-b": "wallet-b"}
         self.assertEqual(
