@@ -1751,6 +1751,12 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(socket.sent[0]["params"][0], {"mentions": ["mint-a"]})
         self.assertEqual(pending, {2: "mint-a"})
         self.assertEqual(pending_kinds, {2: "token"})
+        send_timing = app.HELIUS_STANDARD_WSS_STATE[
+            "last_token_subscribe_send"
+        ]
+        self.assertEqual(send_timing["mints"], ["mint-a"])
+        self.assertGreaterEqual(send_timing["snapshot_seconds"], 0)
+        self.assertGreaterEqual(send_timing["heartbeat_seconds"], 0)
         self.assertEqual(
             app.HELIUS_STANDARD_WSS_STATE["tracked_tokens_omitted"], 1
         )
@@ -1974,6 +1980,9 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
                 app, "update_helius_standard_wss_capacity_alert",
                 new_callable=AsyncMock,
             ) as capacity_alert,
+            patch.dict(app.HELIUS_STANDARD_WSS_STATE, {
+                "last_token_subscribe_ack": {"mint": "old-mint"},
+            }),
             patch.object(app, "APP_TOKEN", "token"),
         ):
             worker = asyncio.create_task(app.helius_standard_wss_worker())
@@ -1986,6 +1995,9 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(socket.sent[1]["params"][0], {
                     "mentions": ["mint-a"]
                 })
+                self.assertIsNone(app.HELIUS_STANDARD_WSS_STATE[
+                    "last_token_subscribe_ack"
+                ])
                 capacity_alert.assert_any_await(1, 0)
                 await socket.incoming.put(json.dumps({
                     "jsonrpc": "2.0", "id": 1, "result": 91,
@@ -2007,6 +2019,11 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
                         break
                     await asyncio.sleep(0.01)
                 self.assertEqual(interval, ("mint-a", None))
+                ack_timing = app.HELIUS_STANDARD_WSS_STATE[
+                    "last_token_subscribe_ack"
+                ]
+                self.assertEqual(ack_timing["mint"], "mint-a")
+                self.assertGreaterEqual(ack_timing["delay_seconds"], 0)
                 await socket.incoming.put(json.dumps(notification))
                 for _ in range(100):
                     conn = app.db()

@@ -572,6 +572,8 @@ HELIUS_STANDARD_WSS_STATE = {
     "tracked_token_subscriptions": 0,
     "tracked_tokens_desired": 0,
     "tracked_tokens_omitted": 0,
+    "last_token_subscribe_send": None,
+    "last_token_subscribe_ack": None,
     "pending_fetches": 0,
     "last_connect_ts": None,
     "last_message_ts": None,
@@ -17350,6 +17352,7 @@ async def sync_helius_standard_wss_tokens(
     pending_unsubscribe_started,
     next_request_id,
 ):
+    sync_started = time.monotonic()
     active = {
         address for subscription_id, address in subscriptions.items()
         if subscription_kinds.get(subscription_id) == "token"
@@ -17368,11 +17371,13 @@ async def sync_helius_standard_wss_tokens(
     )
     desired = set(desired)
     pending_removals = set(pending_unsubscribes.values())
+    snapshot_finished = time.monotonic()
 
     if active:
         await asyncio.to_thread(
             heartbeat_helius_token_subscription_intervals, active
         )
+    heartbeat_finished = time.monotonic()
 
     for subscription_id, address in sorted(subscriptions.items()):
         if (subscription_kinds.get(subscription_id) != "token"
@@ -17386,8 +17391,10 @@ async def sync_helius_standard_wss_tokens(
             separators=(",", ":"),
         ))
         next_request_id += 1
+    unsubscribe_finished = time.monotonic()
 
-    for token in sorted(desired - active - pending_additions):
+    additions = sorted(desired - active - pending_additions)
+    for token in additions:
         pending_requests[next_request_id] = token
         pending_kinds[next_request_id] = "token"
         pending_request_started[next_request_id] = time.monotonic()
@@ -17396,6 +17403,24 @@ async def sync_helius_standard_wss_tokens(
             separators=(",", ":"),
         ))
         next_request_id += 1
+
+    if additions:
+        update_helius_standard_wss_state(
+            last_token_subscribe_send={
+                "mints": additions,
+                "sent_ts": time.time(),
+                "snapshot_seconds": round(snapshot_finished - sync_started, 3),
+                "heartbeat_seconds": round(
+                    heartbeat_finished - snapshot_finished, 3
+                ),
+                "unsubscribe_seconds": round(
+                    unsubscribe_finished - heartbeat_finished, 3
+                ),
+                "send_seconds": round(
+                    time.monotonic() - unsubscribe_finished, 3
+                ),
+            }
+        )
 
     update_helius_standard_wss_state(
         tracked_tokens_desired=len(desired),
@@ -17501,6 +17526,8 @@ async def helius_standard_wss_worker():
                     tracked_token_subscriptions=0,
                     tracked_tokens_desired=0,
                     tracked_tokens_omitted=0,
+                    last_token_subscribe_send=None,
+                    last_token_subscribe_ack=None,
                     last_connect_ts=now,
                     last_error=None,
                     retry_seconds=None,
@@ -17680,7 +17707,7 @@ async def helius_standard_wss_worker():
                         subscription_id, address = confirmation
                         kind = pending_kinds.pop(response_id)
                         pending_requests.pop(response_id)
-                        pending_request_started.pop(response_id)
+                        request_started = pending_request_started.pop(response_id)
                         subscriptions[subscription_id] = address
                         subscription_kinds[subscription_id] = kind
                         if kind == "wallet":
@@ -17691,6 +17718,15 @@ async def helius_standard_wss_worker():
                             )
                             subscribed_wallets.add(address)
                         elif kind == "token":
+                            update_helius_standard_wss_state(
+                                last_token_subscribe_ack={
+                                    "mint": address,
+                                    "received_ts": received_ts,
+                                    "delay_seconds": round(
+                                        time.monotonic() - request_started, 3
+                                    ),
+                                }
+                            )
                             await asyncio.to_thread(
                                 start_helius_token_subscription_interval,
                                 address,
