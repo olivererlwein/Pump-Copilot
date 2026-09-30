@@ -1847,6 +1847,10 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
         with (
             patch.object(app, "TRACKED_TOKENS", {"mint-a", "mint-b"}),
             patch.object(app, "HELIUS_STANDARD_WSS_MAX_TRACKED_TOKENS", 1),
+            patch.object(
+                app, "_tracked_tokens_priority_snapshot",
+                return_value=["mint-a", "mint-b"],
+            ),
         ):
             next_id = await app.sync_helius_standard_wss_tokens(
                 socket, ["wallet-a"], subscriptions, kinds,
@@ -1896,6 +1900,51 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(socket.sent[1]["params"], [92])
         self.assertEqual(pending_unsubscribes, {3: 92})
         self.assertEqual(subscriptions[91], "wallet-a")
+
+    async def test_expired_outcome_token_is_unsubscribed(self):
+        app.create_signal_outcome(
+            signal_id=None, mint="mint-old", trader="tester",
+            signal_ts=1_700_000_000, price_at_signal=1,
+        )
+        app.create_signal_outcome(
+            signal_id=None, mint="mint-new", trader="tester",
+            signal_ts=1_700_001_200, price_at_signal=1,
+        )
+        socket = FakeWebSocket()
+        with (
+            patch.object(app, "TRACKED_TOKENS", {"mint-old", "mint-new"}),
+            patch.object(app, "HELIUS_STANDARD_WSS_MAX_TRACKED_TOKENS", 7),
+            patch.object(app.time, "time", return_value=1_700_001_300),
+        ):
+            await app.sync_helius_standard_wss_tokens(
+                socket, [], {91: "mint-old"}, {91: "token"},
+                {}, {}, {}, {}, {}, 1,
+            )
+        self.assertEqual(
+            [(message["method"], message["params"][0]) for message in socket.sent],
+            [("logsUnsubscribe", 91), ("logsSubscribe", {"mentions": ["mint-new"]})],
+        )
+
+    async def test_open_paper_position_keeps_expired_outcome_token(self):
+        conn = app.db()
+        try:
+            conn.execute(
+                "INSERT INTO paper_positions(mint, status, opened_ts) "
+                "VALUES('mint-old', 'open', 1700000000)"
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        socket = FakeWebSocket()
+        with (
+            patch.object(app, "TRACKED_TOKENS", {"mint-old"}),
+            patch.object(app.time, "time", return_value=1_700_001_300),
+        ):
+            await app.sync_helius_standard_wss_tokens(
+                socket, [], {91: "mint-old"}, {91: "token"},
+                {}, {}, {}, {}, {}, 1,
+            )
+        self.assertEqual(socket.sent, [])
 
     async def test_token_capacity_alerts_once_and_then_reports_recovery(self):
         with (
@@ -2020,6 +2069,9 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
             patch.object(app, "HELIUS_STANDARD_WSS_TOKEN_POLL_SECONDS", 60),
             patch.object(app, "HELIUS_STANDARD_WSS_TOKEN_WAKE", wake),
             patch.object(app, "TRACKED_TOKENS", tracked),
+            patch.object(
+                app, "_tracked_tokens_priority_snapshot", return_value=["mint-new"]
+            ),
             patch.object(app, "WATCHED", {"trader-a": "wallet-a"}),
             patch.object(app.websockets, "connect", return_value=socket),
             patch.object(
@@ -2073,6 +2125,9 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
             patch.object(app, "HELIUS_STANDARD_WSS_TRACK_TOKENS_ENABLED", True),
             patch.object(app, "HELIUS_STANDARD_WSS_TOKEN_POLL_SECONDS", 1),
             patch.object(app, "TRACKED_TOKENS", {"mint-a"}),
+            patch.object(
+                app, "_tracked_tokens_priority_snapshot", return_value=["mint-a"]
+            ),
             patch.object(app, "WATCHED", {"trader-a": "wallet-a"}),
             patch.object(app.websockets, "connect", return_value=socket),
             patch.object(

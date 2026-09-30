@@ -17497,13 +17497,15 @@ async def sync_helius_standard_wss_tokens(
         address for request_id, address in pending_requests.items()
         if pending_kinds.get(request_id) == "token"
     }
+    priority = _tracked_tokens_priority_snapshot(
+        active_tokens=active | pending_additions,
+    )
+    tracked = set(_tracked_tokens_snapshot()) & set(priority)
     desired, omitted = select_tracked_tokens(
-        _tracked_tokens_snapshot(),
+        tracked,
         wallets,
         HELIUS_STANDARD_WSS_MAX_TRACKED_TOKENS,
-        priority_tokens=_tracked_tokens_priority_snapshot(
-            active_tokens=active | pending_additions,
-        ),
+        priority_tokens=priority,
     )
     desired = set(desired)
     pending_removals = set(pending_unsubscribes.values())
