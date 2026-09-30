@@ -431,7 +431,7 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
         with (
             patch.object(app, "HELIUS_STANDARD_WSS_MAX_PENDING", 10),
             patch.object(
-                app, "helius_standard_wss_token_has_open_position",
+                app, "helius_standard_wss_token_has_open_live_position",
                 return_value=True,
             ),
             patch.object(
@@ -492,6 +492,40 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
             )
             await asyncio.gather(*tasks)
         self.assertEqual(fetch.await_count, 1)
+
+    async def test_paper_token_cannot_consume_wallet_reserve(self):
+        conn = app.db()
+        try:
+            conn.execute(
+                "INSERT INTO paper_positions(mint, status) "
+                "VALUES('mint-a', 'open')"
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        token = {**self.event("mint-a"), "subject_type": "token"}
+        app.record_helius_standard_wss_notification(
+            token, True, 100, received_ts=1000,
+        )
+        pending = {f"pending-{index}" for index in range(8)}
+        with patch.object(app, "HELIUS_STANDARD_WSS_MAX_PENDING", 10):
+            await app.schedule_helius_standard_wss_fetch(
+                token, 1000, pending, set(), asyncio.Semaphore(1),
+                asyncio.Lock(), {"next_ts": 0.0},
+            )
+        conn = app.db()
+        try:
+            status, error = conn.execute(
+                "SELECT status, last_error FROM "
+                "helius_standard_wss_transactions WHERE signature = ?",
+                (token["signature"],),
+            ).fetchone()
+        finally:
+            conn.close()
+        self.assertEqual((status, error), (
+            "queue_full", "HELIUS_STANDARD_WSS_PRIORITY_RESERVE",
+        ))
+        self.assertEqual(len(pending), 8)
 
     async def test_rejection_records_pending_token_composition(self):
         token = {**self.event("hot-mint"), "subject_type": "token"}
@@ -554,8 +588,8 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
             await asyncio.sleep(0)
         self.assertEqual(token_tasks, {})
 
-    def test_open_paper_position_protects_token_admission(self):
-        self.assertFalse(app.helius_standard_wss_token_has_open_position(
+    def test_paper_position_does_not_protect_token_admission(self):
+        self.assertFalse(app.helius_standard_wss_token_has_open_live_position(
             "mint-a"
         ))
         conn = app.db()
@@ -567,7 +601,7 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
             conn.commit()
         finally:
             conn.close()
-        self.assertTrue(app.helius_standard_wss_token_has_open_position(
+        self.assertFalse(app.helius_standard_wss_token_has_open_live_position(
             "mint-a"
         ))
 
@@ -576,7 +610,7 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
             app.sqlite3, "connect", side_effect=sqlite3.OperationalError,
         ):
             self.assertTrue(
-                app.helius_standard_wss_token_has_open_position("mint-a")
+                app.helius_standard_wss_token_has_open_live_position("mint-a")
             )
 
     def test_wallet_notice_recovers_token_queue_rejection_once(self):
@@ -644,6 +678,37 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
         finally:
             conn.close()
         self.assertEqual(row, ("pending_fetch", None, None))
+
+    async def test_recovery_retries_wallet_queue_full_without_second_notice(self):
+        received_ts = time.time() - 5
+        wallet = self.event()
+        token = {
+            **self.event("mint-a"), "signature": "token-sig",
+            "subject_type": "token",
+        }
+        for event in (wallet, token):
+            app.record_helius_standard_wss_notification(
+                event, True, 100, received_ts=received_ts,
+            )
+            app.finish_helius_standard_wss_transaction(
+                event["signature"], "queue_full", 0,
+                now=received_ts + 1,
+            )
+        pending = set()
+        tasks = set()
+        with patch.object(
+            app, "fetch_helius_standard_wss_transaction",
+            new_callable=AsyncMock,
+        ) as fetch:
+            recovered = await app.recover_helius_standard_wss_pending(
+                pending, tasks, asyncio.Semaphore(1),
+                asyncio.Lock(), {"next_ts": 0.0},
+            )
+            await asyncio.gather(*tasks)
+        self.assertEqual(recovered, 1)
+        self.assertEqual(pending, {wallet["signature"]})
+        fetch.assert_awaited_once()
+        self.assertEqual(fetch.await_args.args[0]["subject_type"], "wallet")
 
     def test_old_repeated_wallet_notice_does_not_recover_queue_rejection(self):
         wallet = self.event()
@@ -2370,6 +2435,15 @@ class HeliusStandardWssFloodTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(muted["trader"], "trader-a")
             self.assertEqual(muted["rate_per_minute"], limit + 1)
 
+            for index in range(limit + 20):
+                app.note_unstored_helius_standard_wss_notification(
+                    "wallet-a", 10, False, base + 2 + index * 0.01
+                )
+            self.assertEqual(
+                len(app.HELIUS_STANDARD_WSS_UNSTORED_RECENT["wallet-a"]),
+                limit + 1,
+            )
+
             # Slow traffic never accumulates: one notification per minute.
             for index in range(limit + 5):
                 rate = app.note_unstored_helius_standard_wss_notification(
@@ -2437,12 +2511,83 @@ class HeliusStandardWssFloodTests(unittest.IsolatedAsyncioTestCase):
             (2_100.0, 3_000.0, None),
         ])
 
+    async def test_worker_keeps_noisy_wallet_and_recovers_old_mute(self):
+        socket = FakeWebSocket()
+        with (
+            patch.object(app, "HELIUS_STANDARD_WSS_URL", "wss://example.test"),
+            patch.object(app, "HELIUS_STANDARD_WSS_RPC_URL", "https://example.test/rpc"),
+            patch.object(app, "HELIUS_STANDARD_WSS_MUTE_ENABLED", False),
+            patch.object(app, "HELIUS_STANDARD_WSS_MAX_OTHER_PER_MINUTE", 60),
+            patch.object(app, "WATCHED", {"trader-a": "wallet-a"}),
+            patch.object(app, "HELIUS_STANDARD_WSS_TRADERS", ""),
+            patch.object(app.websockets, "connect", return_value=socket),
+            patch.object(
+                app, "fetch_helius_standard_wss_transaction",
+                new_callable=AsyncMock,
+            ) as fetch,
+        ):
+            self.assertTrue(app.helius_standard_wss_wallet_flooded(
+                "wallet-a", 61,
+            ))
+            worker = asyncio.create_task(app.helius_standard_wss_worker())
+            try:
+                for _ in range(100):
+                    if socket.sent:
+                        break
+                    await asyncio.sleep(0.01)
+                self.assertEqual(socket.sent[0]["params"][0], {
+                    "mentions": ["wallet-a"]
+                })
+                self.assertEqual(
+                    app.HELIUS_STANDARD_WSS_STATE["muted_wallets"], {}
+                )
+                await socket.incoming.put(json.dumps(
+                    {"jsonrpc": "2.0", "id": 1, "result": 91}
+                ))
+                for index in range(61):
+                    await socket.incoming.put(
+                        self.notification(91, f"spam-{index}")
+                    )
+                for _ in range(300):
+                    if app.HELIUS_STANDARD_WSS_UNSTORED.get(
+                        "wallet-a", {}
+                    ).get("notifications") == 61:
+                        break
+                    await asyncio.sleep(0.01)
+                self.assertEqual(len(socket.sent), 1)
+                self.assertEqual(
+                    app.HELIUS_STANDARD_WSS_STATE["muted_wallets"], {}
+                )
+                await socket.incoming.put(
+                    self.notification(91, "pump-sig", pump=True)
+                )
+                for _ in range(100):
+                    if fetch.await_count:
+                        break
+                    await asyncio.sleep(0.01)
+                fetch.assert_awaited_once()
+                conn = app.db()
+                try:
+                    unmuted_ts = conn.execute(
+                        "SELECT unmuted_ts FROM "
+                        "helius_standard_wss_wallet_mutes "
+                        "WHERE wallet = 'wallet-a'"
+                    ).fetchone()[0]
+                finally:
+                    conn.close()
+                self.assertIsNotNone(unmuted_ts)
+            finally:
+                worker.cancel()
+                with self.assertRaises(asyncio.CancelledError):
+                    await worker
+
     async def test_worker_unsubscribes_flooded_wallet_and_skips_it_on_reconnect(self):
         socket = FakeWebSocket()
         with (
             patch.object(app, "HELIUS_STANDARD_WSS_URL", "wss://example.test"),
             patch.object(app, "HELIUS_STANDARD_WSS_RPC_URL", "https://example.test/rpc"),
             patch.object(app, "HELIUS_STANDARD_WSS_APPLY", False),
+            patch.object(app, "HELIUS_STANDARD_WSS_MUTE_ENABLED", True),
             patch.object(app, "HELIUS_STANDARD_WSS_MAX_OTHER_PER_MINUTE", 60),
             patch.object(app, "HELIUS_STANDARD_WSS_TOKEN_POLL_SECONDS", 0.01),
             patch.object(app, "HELIUS_STANDARD_WSS_RECONNECT_SECONDS", 0.01),

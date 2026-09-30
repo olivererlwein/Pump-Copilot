@@ -520,6 +520,9 @@ HELIUS_STANDARD_WSS_MAX_PENDING = max(
 HELIUS_STANDARD_WSS_MAX_OTHER_PER_MINUTE = max(
     60, int(os.getenv("HELIUS_STANDARD_WSS_MAX_OTHER_PER_MINUTE", "600"))
 )
+HELIUS_STANDARD_WSS_MUTE_ENABLED = os.getenv(
+    "HELIUS_STANDARD_WSS_MUTE_ENABLED", "false"
+).lower() == "true"
 HELIUS_STANDARD_WSS_MUTE_SECONDS = max(
     60, int(os.getenv("HELIUS_STANDARD_WSS_MUTE_SECONDS", "900"))
 )
@@ -15696,7 +15699,9 @@ def note_unstored_helius_standard_wss_notification(
         row["message_bytes"] += max(0, int(message_bytes))
         row["last_ts"] = received_ts
         recent = HELIUS_STANDARD_WSS_UNSTORED_RECENT.setdefault(
-            wallet, collections.deque()
+            wallet, collections.deque(
+                maxlen=HELIUS_STANDARD_WSS_MAX_OTHER_PER_MINUTE + 1
+            )
         )
         recent.append(received_ts)
         while recent and recent[0] < received_ts - 60:
@@ -15974,8 +15979,9 @@ def pending_helius_standard_wss_transactions(
             f"""
             SELECT t.signature, t.first_received_ts{event_columns}
             FROM helius_standard_wss_transactions t
-            WHERE t.status IN ('pending_fetch', 'observed')
-              AND t.fetched_ts IS NULL
+            WHERE ((t.status IN ('pending_fetch', 'observed')
+                    AND t.fetched_ts IS NULL)
+                   OR (t.status = 'queue_full' AND ? = 0))
               AND t.first_received_ts >= ?
               AND (? OR EXISTS (
                   SELECT 1 FROM helius_standard_wss_notifications n
@@ -15986,7 +15992,7 @@ def pending_helius_standard_wss_transactions(
             ORDER BY t.first_received_ts, t.signature
             LIMIT ?
             """,
-            (cutoff, int(bool(include_tokens)), *excluded,
+            (int(bool(include_tokens)), cutoff, int(bool(include_tokens)), *excluded,
              max(1, min(int(limit), 50))),
         ).fetchall()
     finally:
@@ -16177,7 +16183,7 @@ async def schedule_helius_standard_wss_fetch(
         event.get("subject_type") == "token"
         and len(pending_signatures) >= low_priority_limit
         and not await asyncio.to_thread(
-            helius_standard_wss_token_has_open_position,
+            helius_standard_wss_token_has_open_live_position,
             event.get("wallet"),
         )
     )
@@ -16242,32 +16248,6 @@ async def schedule_helius_standard_wss_fetch(
         pending_token_tasks[task] = (signature, event["wallet"])
         task.add_done_callback(pending_token_tasks.pop)
     task.add_done_callback(fetch_tasks.discard)
-
-
-def helius_standard_wss_token_has_open_position(mint):
-    if not mint:
-        return False
-    try:
-        conn = sqlite3.connect(DB, timeout=1.0)
-    except sqlite3.Error:
-        return True
-    try:
-        conn.execute("PRAGMA query_only = ON")
-        return conn.execute(
-            """
-            SELECT 1 FROM live_positions
-            WHERE mint = ? AND status = 'open'
-            UNION ALL
-            SELECT 1 FROM paper_positions
-            WHERE mint = ? AND status = 'open'
-            LIMIT 1
-            """,
-            (mint, mint),
-        ).fetchone() is not None
-    except sqlite3.Error:
-        return True
-    finally:
-        conn.close()
 
 
 def helius_standard_wss_token_has_open_live_position(mint):
@@ -17627,6 +17607,9 @@ async def helius_standard_wss_worker():
         close_stale_helius_token_subscription_intervals
     )
     await asyncio.to_thread(restore_helius_standard_wss_wallet_mutes)
+    if not HELIUS_STANDARD_WSS_MUTE_ENABLED:
+        with HELIUS_STANDARD_WSS_STATE_LOCK:
+            HELIUS_STANDARD_WSS_STATE["muted_wallets"].clear()
 
     while True:
         await asyncio.to_thread(expire_helius_standard_wss_wallet_mutes)
@@ -17916,9 +17899,10 @@ async def helius_standard_wss_worker():
                             event.get("failed"),
                             received_ts,
                         )
-                        if helius_standard_wss_wallet_flooded(
-                            event["wallet"], rate
-                        ):
+                        if (HELIUS_STANDARD_WSS_MUTE_ENABLED
+                                and helius_standard_wss_wallet_flooded(
+                                    event["wallet"], rate,
+                                )):
                             wallet = event["wallet"]
                             if wallet in wallets:
                                 wallets.remove(wallet)
@@ -19564,6 +19548,7 @@ def api_helius_standard_wss_stats(
             if wallet in selected_wallets
         ),
         "active_wallets": active_count,
+        "wallet_noise_mute_enabled": HELIUS_STANDARD_WSS_MUTE_ENABLED,
         "muted_wallets": [
             {"wallet": wallet, **info}
             for wallet, info in sorted(muted_wallets.items())
