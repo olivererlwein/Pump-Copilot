@@ -322,6 +322,44 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
             "logs": [],
         }
 
+    async def test_unparsed_samples_are_recent_bounded_and_authenticated(self):
+        now = time.time()
+        for index in range(7):
+            event = {
+                **self.event(f"mint-{index}"),
+                "signature": f"signature-{index}",
+                "subject_type": "token",
+            }
+            app.record_helius_standard_wss_notification(
+                event, True, 100, received_ts=now - index * 10,
+            )
+            app.finish_helius_standard_wss_transaction(
+                event["signature"], "unparsed", 1,
+                unparsed_reason="supported_payload_not_decoded",
+                now=now - index * 10,
+            )
+        old = {**self.event("old-mint"), "signature": "old-signature"}
+        app.record_helius_standard_wss_notification(
+            old, True, 100, received_ts=now - 7200,
+        )
+        app.finish_helius_standard_wss_transaction(
+            old["signature"], "unparsed", 1,
+            unparsed_reason="supported_payload_not_decoded",
+            now=now - 7200,
+        )
+
+        with patch.object(app, "APP_TOKEN", "token"):
+            with self.assertRaises(Exception):
+                app.api_helius_standard_wss_unparsed_samples("wrong")
+            result = app.api_helius_standard_wss_unparsed_samples("token")
+        self.assertEqual(len(result["samples"]), 5)
+        self.assertEqual(
+            [sample["signature"] for sample in result["samples"]],
+            [f"signature-{index}" for index in range(5)],
+        )
+        self.assertEqual(result["samples"][0]["address"], "mint-0")
+        self.assertEqual(result["samples"][0]["subject_type"], "token")
+
     async def test_fetch_priority_protects_live_exits_then_wallets(self):
         token = {**self.event("mint-a"), "subject_type": "token"}
         wallet = {**self.event("wallet-a"), "subject_type": "wallet"}

@@ -19464,6 +19464,45 @@ def api_helius_standard_wss_stats(
     }
 
 
+@app.get("/api/helius-standard-wss-unparsed-samples")
+def api_helius_standard_wss_unparsed_samples(
+    x_app_token: str = Header(default=""),
+):
+    """Return recent public transaction IDs for parser diagnosis only."""
+    auth(x_app_token)
+    conn = db()
+    try:
+        rows = conn.execute(
+            """
+            SELECT t.signature, t.first_received_ts,
+                   (SELECT n.wallet
+                    FROM helius_standard_wss_notifications n
+                    WHERE n.signature = t.signature
+                    ORDER BY n.received_ts LIMIT 1),
+                   (SELECT n.subject_type
+                    FROM helius_standard_wss_notifications n
+                    WHERE n.signature = t.signature
+                    ORDER BY n.received_ts LIMIT 1)
+            FROM helius_standard_wss_transactions t
+            WHERE t.first_received_ts >= ?
+              AND t.status = 'unparsed'
+              AND t.unparsed_reason = 'supported_payload_not_decoded'
+            ORDER BY t.first_received_ts DESC
+            LIMIT 5
+            """,
+            (time.time() - 3600,),
+        ).fetchall()
+    finally:
+        conn.close()
+    return {
+        "samples": [
+            {"signature": signature, "received_ts": received_ts,
+             "address": address, "subject_type": subject_type}
+            for signature, received_ts, address, subject_type in rows
+        ]
+    }
+
+
 @app.get("/api/helius-webhook-sample")
 def api_helius_webhook_sample(
     x_app_token: str = Header(default="")
