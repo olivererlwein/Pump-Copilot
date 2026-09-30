@@ -1011,6 +1011,74 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
             "HELIUS_STANDARD_WSS_PRIORITY_RESERVE": 1,
         })
 
+        conn = app.db()
+        try:
+            for signal_ts in (now - 1900, now - 1850):
+                conn.execute(
+                    "INSERT INTO signal_outcomes(mint, signal_ts, "
+                    "created_ts, updated_ts) VALUES(?,?,?,?)",
+                    ("mint-a", signal_ts, signal_ts, signal_ts),
+                )
+            conn.execute(
+                "INSERT INTO signal_outcomes(mint, signal_ts, "
+                "created_ts, updated_ts) VALUES(?,?,?,?)",
+                ("mint-c", now - 3700, now - 3700, now - 3700),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        outside = {
+            **self.event("mint-a"), "signature": "token-a-before-signal",
+            "subject_type": "token",
+        }
+        app.record_helius_standard_wss_notification(
+            outside, True, 100, received_ts=now - 3000,
+        )
+        app.finish_helius_standard_wss_transaction(
+            outside["signature"], "queue_full", 0,
+            error="HELIUS_STANDARD_WSS_PRIORITY_RESERVE", now=now - 2999,
+        )
+        older = {
+            **self.event("mint-c"), "signature": "token-c-older",
+            "subject_type": "token",
+        }
+        app.record_helius_standard_wss_notification(
+            older, True, 100, received_ts=now - 3650,
+        )
+        app.finish_helius_standard_wss_transaction(
+            older["signature"], "queue_full", 0,
+            error="HELIUS_STANDARD_WSS_PRIORITY_RESERVE", now=now - 3649,
+        )
+        early = {
+            **self.event("mint-x"), "signature": "cross-mint-before-signal",
+            "subject_type": "token",
+        }
+        app.record_helius_standard_wss_notification(
+            early, True, 100, received_ts=now - 2000,
+        )
+        app.finish_helius_standard_wss_transaction(
+            early["signature"], "queue_full", 0,
+            error="HELIUS_STANDARD_WSS_PRIORITY_RESERVE", now=now - 1999,
+        )
+        app.record_helius_standard_wss_notification(
+            {**early, "wallet": "mint-a"}, True, 100,
+            received_ts=now - 1800,
+        )
+        with (
+            patch.object(app, "APP_TOKEN", "token"),
+            patch.object(app.time, "time", return_value=now),
+            patch.object(app, "WATCHED", {"trader-a": "wallet-a"}),
+        ):
+            overlap = app.api_helius_standard_wss_stats(
+                "token", include_outcome_overlap=True
+            )["outcome_queue_overlap"]
+        self.assertEqual(overlap["last_1h"], {
+            "transactions": 1, "mints": 1,
+        })
+        self.assertEqual(overlap["last_24h"], {
+            "transactions": 2, "mints": 2,
+        })
+
     def test_stats_last_hour_excludes_older_queue_failures(self):
         now = 1_700_010_000
         old_event = self.event("wallet-a")

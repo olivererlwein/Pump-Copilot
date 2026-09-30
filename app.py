@@ -19019,6 +19019,31 @@ def get_helius_standard_wss_queue_rejection_reasons(conn, cutoff):
     return {str(reason): int(count) for reason, count in rows}
 
 
+def get_helius_standard_wss_outcome_queue_overlap(conn, cutoff):
+    """Count rejected token transactions inside a signal's 15-minute window."""
+    count, mints = conn.execute(
+        """
+        SELECT COUNT(DISTINCT n.signature), COUNT(DISTINCT o.mint)
+        FROM signal_outcomes o
+        JOIN helius_standard_wss_notifications n
+          ON n.wallet = o.mint AND n.subject_type = 'token'
+         AND n.received_ts >= o.signal_ts
+         AND n.received_ts < o.signal_ts + 900
+         AND n.received_ts >= ?
+        JOIN helius_standard_wss_transactions t
+          ON t.signature = n.signature
+        WHERE o.signal_ts >= ? - 900
+          AND t.first_received_ts >= o.signal_ts
+          AND t.first_received_ts < o.signal_ts + 900
+          AND t.first_received_ts >= ?
+          AND t.status = 'queue_full'
+          AND t.last_error = 'HELIUS_STANDARD_WSS_PRIORITY_RESERVE'
+        """,
+        (cutoff, cutoff, cutoff),
+    ).fetchone()
+    return {"transactions": int(count), "mints": int(mints)}
+
+
 def get_helius_standard_wss_queue_pressure(conn, cutoff):
     minutes = conn.execute(
         """
@@ -19144,7 +19169,8 @@ def get_helius_standard_wss_window_health(conn, cutoff):
 
 @app.get("/api/helius-standard-wss-stats")
 def api_helius_standard_wss_stats(
-    x_app_token: str = Header(default="")
+    x_app_token: str = Header(default=""),
+    include_outcome_overlap: bool = False,
 ):
     auth(x_app_token)
     now = time.time()
@@ -19267,6 +19293,17 @@ def api_helius_standard_wss_stats(
         last_1h = get_helius_standard_wss_window_health(
             conn, now - 3600
         )
+        outcome_overlap = (
+            {
+                "last_1h": get_helius_standard_wss_outcome_queue_overlap(
+                    conn, now - 3600
+                ),
+                "last_24h": get_helius_standard_wss_outcome_queue_overlap(
+                    conn, cutoff
+                ),
+            }
+            if include_outcome_overlap else None
+        )
     finally:
         conn.close()
 
@@ -19381,6 +19418,7 @@ def api_helius_standard_wss_stats(
         "runtime": runtime,
         "last_rpc_error_detail": dict(solana_rpc_fallback.LAST_RPC_ERROR_DETAIL) or None,
         "last_1h": last_1h,
+        "outcome_queue_overlap": outcome_overlap,
         "last_24h": {
             "notifications": int(notification[0] or 0),
             "pump_log_notifications": int(notification[1] or 0),
