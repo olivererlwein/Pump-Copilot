@@ -269,6 +269,7 @@ LIVE_EXECUTION_IMPLEMENTED = environment_flag(
     "LIVE_EXECUTION_IMPLEMENTED",
 )
 from helius_standard_wss import (
+    PriorityFetchLimiter,
     build_helius_standard_wss_url,
     build_logs_subscribe_request,
     build_logs_unsubscribe_request,
@@ -15947,7 +15948,13 @@ async def fetch_helius_standard_wss_transaction(
     signature = event["signature"]
     attempts = 0
     try:
-        async with semaphore:
+        if isinstance(semaphore, PriorityFetchLimiter):
+            slot = semaphore.slot(
+                await helius_standard_wss_fetch_priority(event)
+            )
+        else:
+            slot = semaphore
+        async with slot:
             receipt = None
             last_error = None
             for attempt in range(HELIUS_STANDARD_WSS_FETCH_RETRIES):
@@ -16123,6 +16130,37 @@ def helius_standard_wss_token_has_open_position(mint):
         return True
     finally:
         conn.close()
+
+
+def helius_standard_wss_token_has_open_live_position(mint):
+    if not mint:
+        return False
+    try:
+        conn = sqlite3.connect(DB, timeout=1.0)
+    except sqlite3.Error:
+        return True
+    try:
+        conn.execute("PRAGMA query_only = ON")
+        return conn.execute(
+            "SELECT 1 FROM live_positions "
+            "WHERE mint = ? AND status = 'open' LIMIT 1",
+            (mint,),
+        ).fetchone() is not None
+    except sqlite3.Error:
+        return True
+    finally:
+        conn.close()
+
+
+async def helius_standard_wss_fetch_priority(event):
+    if event.get("subject_type") == "wallet":
+        return 1
+    if await asyncio.to_thread(
+        helius_standard_wss_token_has_open_live_position,
+        event.get("wallet"),
+    ):
+        return 0
+    return 2
 
 
 def token_rpc_probe_once(now=None, mints=None):
@@ -17412,7 +17450,7 @@ async def helius_standard_wss_worker():
 
     pending_signatures = set()
     fetch_tasks = set()
-    semaphore = asyncio.Semaphore(HELIUS_STANDARD_WSS_MAX_IN_FLIGHT)
+    semaphore = PriorityFetchLimiter(HELIUS_STANDARD_WSS_MAX_IN_FLIGHT)
     rate_lock = asyncio.Lock()
     rate_state = {"next_ts": 0.0}
     consecutive_failures = 0

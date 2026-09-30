@@ -12,6 +12,7 @@ from urllib.error import HTTPError
 import app
 
 from helius_standard_wss import (
+    PriorityFetchLimiter,
     build_helius_standard_wss_url,
     build_logs_subscribe_request,
     build_logs_unsubscribe_request,
@@ -40,6 +41,68 @@ class FakeWebSocket:
 
     async def recv(self):
         return await self.incoming.get()
+
+
+class PriorityFetchLimiterTests(unittest.IsolatedAsyncioTestCase):
+    async def test_tokens_use_full_capacity_until_wallet_waits(self):
+        limiter = PriorityFetchLimiter(2)
+        release_tokens = asyncio.Event()
+        started = asyncio.Queue()
+
+        async def use_slot(name, priority):
+            async with limiter.slot(priority):
+                await started.put(name)
+                if name.startswith("token"):
+                    await release_tokens.wait()
+
+        tokens = [
+            asyncio.create_task(use_slot(f"token-{index}", 2))
+            for index in range(2)
+        ]
+        self.assertEqual(
+            [await asyncio.wait_for(started.get(), 1) for _ in range(2)],
+            ["token-0", "token-1"],
+        )
+        wallet = asyncio.create_task(use_slot("wallet", 1))
+        another_token = asyncio.create_task(use_slot("token-2", 2))
+        await asyncio.sleep(0)
+        release_tokens.set()
+        self.assertEqual(await asyncio.wait_for(started.get(), 1), "wallet")
+        await asyncio.gather(*tokens, wallet, another_token)
+
+    async def test_waiting_live_exit_and_wallet_precede_token(self):
+        limiter = PriorityFetchLimiter(1)
+        order = []
+
+        async def use_slot(name, priority):
+            async with limiter.slot(priority):
+                order.append(name)
+
+        async with limiter.slot(2):
+            token = asyncio.create_task(use_slot("token", 2))
+            wallet = asyncio.create_task(use_slot("wallet", 1))
+            live = asyncio.create_task(use_slot("live", 0))
+            await asyncio.sleep(0)
+            self.assertEqual(limiter._waiting, [1, 1, 1])
+        await asyncio.gather(token, wallet, live)
+        self.assertEqual(order, ["live", "wallet", "token"])
+
+    async def test_cancelled_wallet_waiter_does_not_block_tokens(self):
+        limiter = PriorityFetchLimiter(1)
+        async with limiter.slot(2):
+            async def wait_for_wallet():
+                async with limiter.slot(1):
+                    pass
+
+            wallet = asyncio.create_task(wait_for_wallet())
+            await asyncio.sleep(0)
+            wallet.cancel()
+            with self.assertRaises(asyncio.CancelledError):
+                await wallet
+            self.assertEqual(limiter._waiting, [0, 0, 0])
+        async with asyncio.timeout(1):
+            async with limiter.slot(2):
+                pass
 
 
 class HeliusStandardWssProtocolTests(unittest.TestCase):
@@ -258,6 +321,27 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
             "failed": False,
             "logs": [],
         }
+
+    async def test_fetch_priority_protects_live_exits_then_wallets(self):
+        token = {**self.event("mint-a"), "subject_type": "token"}
+        wallet = {**self.event("wallet-a"), "subject_type": "wallet"}
+        self.assertEqual(await app.helius_standard_wss_fetch_priority(token), 2)
+        self.assertEqual(await app.helius_standard_wss_fetch_priority(wallet), 1)
+        conn = app.db()
+        try:
+            conn.execute(
+                "INSERT INTO paper_positions(mint, status) "
+                "VALUES('mint-a', 'open')"
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        self.assertEqual(await app.helius_standard_wss_fetch_priority(token), 2)
+        with patch.object(
+            app, "helius_standard_wss_token_has_open_live_position",
+            return_value=True,
+        ):
+            self.assertEqual(await app.helius_standard_wss_fetch_priority(token), 0)
 
     async def test_priority_reserve_keeps_wallet_and_open_position_capacity(self):
         token = {**self.event("mint-a"), "subject_type": "token"}

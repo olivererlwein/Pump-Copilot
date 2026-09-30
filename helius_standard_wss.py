@@ -1,5 +1,40 @@
+import asyncio
 import json
+from contextlib import asynccontextmanager
 from urllib.parse import quote
+
+
+class PriorityFetchLimiter:
+    """Keep RPC slots busy while admitting live exits and wallet trades first."""
+
+    def __init__(self, capacity):
+        if int(capacity) < 1:
+            raise ValueError("WSS_FETCH_CAPACITY_INVALID")
+        self._available = int(capacity)
+        self._waiting = [0, 0, 0]
+        self._condition = asyncio.Condition()
+
+    @asynccontextmanager
+    async def slot(self, priority):
+        if priority not in (0, 1, 2):
+            raise ValueError("WSS_FETCH_PRIORITY_INVALID")
+        async with self._condition:
+            self._waiting[priority] += 1
+            try:
+                await self._condition.wait_for(
+                    lambda: self._available > 0
+                    and not any(self._waiting[:priority])
+                )
+                self._available -= 1
+            finally:
+                self._waiting[priority] -= 1
+                self._condition.notify_all()
+        try:
+            yield
+        finally:
+            async with self._condition:
+                self._available += 1
+                self._condition.notify_all()
 
 
 def build_helius_standard_wss_url(api_key, explicit_url=""):
