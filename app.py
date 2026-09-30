@@ -577,6 +577,8 @@ HELIUS_STANDARD_WSS_STATE = {
     "pending_fetches": 0,
     "last_queue_rejection_composition": None,
     "last_connect_ts": None,
+    "last_reconnect_error": None,
+    "last_reconnect_ts": None,
     "last_message_ts": None,
     "last_pump_log_ts": None,
     "last_success_ts": None,
@@ -17882,6 +17884,7 @@ async def helius_standard_wss_worker():
                 "wss_reconnect",
             )
             consecutive_failures += 1
+            error_code = helius_standard_wss_error_code(exc)
             retry_seconds = helius_standard_wss_retry_seconds(
                 exc, consecutive_failures
             )
@@ -17895,7 +17898,9 @@ async def helius_standard_wss_worker():
                 tracked_token_subscriptions=0,
                 tracked_tokens_desired=0,
                 reconnects=reconnects,
-                last_error=helius_standard_wss_error_code(exc),
+                last_error=error_code,
+                last_reconnect_error=error_code,
+                last_reconnect_ts=time.time(),
                 retry_seconds=retry_seconds,
                 next_retry_ts=time.time() + retry_seconds,
             )

@@ -2429,6 +2429,14 @@ class HeliusStandardWssFloodTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(
                     socket.sent[3]["params"][0], {"mentions": ["wallet-b"]}
                 )
+                self.assertIsNone(app.HELIUS_STANDARD_WSS_STATE["last_error"])
+                self.assertEqual(
+                    app.HELIUS_STANDARD_WSS_STATE["last_reconnect_error"],
+                    "HELIUS_STANDARD_WSS_JSONDecodeError",
+                )
+                self.assertIsNotNone(
+                    app.HELIUS_STANDARD_WSS_STATE["last_reconnect_ts"]
+                )
                 conn = app.db()
                 try:
                     reason = conn.execute(
