@@ -522,9 +522,11 @@ class AccountPriceCheckpointTests(unittest.TestCase):
             )
             conn.execute(
                 """INSERT INTO market_event_inbox(
-                    signature, event_index, source, received_ts, event_json
-                ) VALUES(?,?,?,?,?)""",
-                ("signature-12", 0, "helius", signal_ts + 20, "{}"),
+                    signature, event_index, source, received_ts, event_json,
+                    claimed_ts, processed_ts
+                ) VALUES(?,?,?,?,?,?,?)""",
+                ("signature-12", 0, "helius", signal_ts + 20, "{}",
+                 signal_ts + 21, signal_ts + 22),
             )
             conn.execute(
                 """INSERT INTO helius_standard_wss_transactions(
@@ -560,6 +562,8 @@ class AccountPriceCheckpointTests(unittest.TestCase):
         self.assertEqual(trace["source"], "helius")
         self.assertEqual(trace["transport"], "helius")
         self.assertEqual(trace["inbox_received_ts"], signal_ts + 20)
+        self.assertEqual(trace["inbox_claimed_ts"], signal_ts + 21)
+        self.assertEqual(trace["inbox_processed_ts"], signal_ts + 22)
         self.assertEqual(trace["wss_received_ts"], signal_ts + 15)
         self.assertEqual(trace["previous_subscription_end_ts"], signal_ts - 20)
         self.assertEqual(trace["next_subscription_start_ts"], signal_ts + 1_000)

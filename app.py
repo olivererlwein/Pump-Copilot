@@ -16805,6 +16805,14 @@ def get_account_checkpoint_ingest_trace(observations):
                         FROM market_event_inbox i
                         WHERE i.signature = e.trade_signature
                           AND i.event_index = e.event_index),
+                       (SELECT i.claimed_ts
+                        FROM market_event_inbox i
+                        WHERE i.signature = e.trade_signature
+                          AND i.event_index = e.event_index),
+                       (SELECT i.processed_ts
+                        FROM market_event_inbox i
+                        WHERE i.signature = e.trade_signature
+                          AND i.event_index = e.event_index),
                        (SELECT t.first_received_ts
                         FROM helius_standard_wss_transactions t
                         WHERE t.signature = e.trade_signature),
@@ -16828,12 +16836,15 @@ def get_account_checkpoint_ingest_trace(observations):
                 """,
                 batch,
             ).fetchall()
-            for (signal_id, source, transport, inbox_ts, wss_ts,
+            for (signal_id, source, transport, inbox_ts, claim_ts,
+                 processed_ts, wss_ts,
                  previous_end_ts, next_start_ts, first_token_ts) in rows:
                 traces[int(signal_id)] = {
                     "source": source,
                     "transport": transport,
                     "inbox_received_ts": inbox_ts,
+                    "inbox_claimed_ts": claim_ts,
+                    "inbox_processed_ts": processed_ts,
                     "wss_received_ts": wss_ts,
                     "previous_subscription_end_ts": previous_end_ts,
                     "next_subscription_start_ts": next_start_ts,
