@@ -18785,7 +18785,7 @@ def api_account_price_checkpoint_stats(x_app_token: str = Header(default="")):
         ).fetchall()
         eligible_rows = conn.execute(
             """
-            SELECT o.id, o.signal_ts, c.checkpoint_seconds
+            SELECT o.id, o.signal_ts, o.status, c.checkpoint_seconds
             FROM signal_outcomes o
             LEFT JOIN account_price_checkpoints c ON c.outcome_id = o.id
             WHERE o.status IN ('active', 'completed')
@@ -18824,10 +18824,13 @@ def api_account_price_checkpoint_stats(x_app_token: str = Header(default="")):
     finally:
         conn.close()
     eligible = {}
-    for outcome_id, signal_ts, checkpoint_seconds in eligible_rows:
+    active_outcomes = set()
+    for outcome_id, signal_ts, status, checkpoint_seconds in eligible_rows:
         record = eligible.setdefault(
             outcome_id, {"signal_ts": float(signal_ts), "done": set()}
         )
+        if status == "active":
+            active_outcomes.add(outcome_id)
         if checkpoint_seconds is not None:
             record["done"].add(int(checkpoint_seconds))
     due_now = 0
@@ -18922,6 +18925,7 @@ def api_account_price_checkpoint_stats(x_app_token: str = Header(default="")):
         ), totals)),
         "checkpoint_counts_by_pool": dict(by_pool),
         "eligibility": {
+            "active_outcomes_in_window": len(active_outcomes),
             "eligible_outcomes_in_window": len(eligible),
             "due_now": due_now,
             "entry_price_basis_last_24h": dict(basis_counts),

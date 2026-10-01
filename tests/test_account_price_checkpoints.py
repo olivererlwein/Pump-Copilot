@@ -206,6 +206,7 @@ class AccountPriceCheckpointTests(unittest.TestCase):
             stats = app.api_account_price_checkpoint_stats("test-token")
         eligibility = stats["eligibility"]
         self.assertEqual(eligibility["eligible_outcomes_in_window"], 1)
+        self.assertEqual(eligibility["active_outcomes_in_window"], 1)
         self.assertEqual(eligibility["due_now"], 1)
         self.assertEqual(
             eligibility["entry_price_basis_last_24h"],
@@ -254,6 +255,7 @@ class AccountPriceCheckpointTests(unittest.TestCase):
                 "test-token"
             )["eligibility"]
         self.assertEqual(eligibility["eligible_outcomes_in_window"], 1)
+        self.assertEqual(eligibility["active_outcomes_in_window"], 0)
         self.assertEqual(eligibility["due_now"], 0)
 
     def test_stats_compare_account_and_primary_prices_without_promoting_them(self):
