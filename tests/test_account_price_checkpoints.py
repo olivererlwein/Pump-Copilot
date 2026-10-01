@@ -188,7 +188,7 @@ class AccountPriceCheckpointTests(unittest.TestCase):
         ):
             stats = app.api_account_price_checkpoint_stats("test-token")
         eligibility = stats["eligibility"]
-        self.assertEqual(eligibility["active_outcomes_in_window"], 1)
+        self.assertEqual(eligibility["eligible_outcomes_in_window"], 1)
         self.assertEqual(eligibility["due_now"], 1)
         self.assertEqual(
             eligibility["entry_price_basis_last_24h"],
@@ -198,6 +198,46 @@ class AccountPriceCheckpointTests(unittest.TestCase):
             eligibility["latest_outcome"]["entry_price_basis"], "unknown"
         )
         self.assertEqual(eligibility["latest_outcome"]["age_seconds"], 12)
+
+    def test_completed_primary_outcome_can_still_get_15m_account_checkpoint(self):
+        outcome_id = self.outcome(basis="pump", mint="busy-mint")
+        conn = app.db()
+        try:
+            conn.execute(
+                "UPDATE signal_outcomes SET price_10s=1, price_30s=1, "
+                "price_1m=1, price_5m=1, price_15m=1 WHERE id=?",
+                (outcome_id,),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        self.assertEqual(app.complete_finished_signal_outcomes("busy-mint"), 1)
+        snapshot = {"busy-mint": {
+            "status": "curve", "price_sol": 1.1e-7,
+            "market_cap_sol": 110, "slot": 123,
+        }}
+        with patch.object(app, "fetch_account_prices", return_value=snapshot):
+            result = app.account_price_checkpoint_once(now=self.signal_ts + 902)
+        self.assertEqual(result["checkpoints_recorded"], 1)
+        conn = app.db()
+        try:
+            row = conn.execute(
+                "SELECT c.checkpoint_seconds, o.status "
+                "FROM account_price_checkpoints c "
+                "JOIN signal_outcomes o ON o.id=c.outcome_id "
+                "WHERE o.id=?", (outcome_id,),
+            ).fetchone()
+        finally:
+            conn.close()
+        self.assertEqual(row, (900, "completed"))
+        with patch.object(app, "APP_TOKEN", "test-token"), patch.object(
+            app.time, "time", return_value=self.signal_ts + 902
+        ):
+            eligibility = app.api_account_price_checkpoint_stats(
+                "test-token"
+            )["eligibility"]
+        self.assertEqual(eligibility["eligible_outcomes_in_window"], 1)
+        self.assertEqual(eligibility["due_now"], 0)
 
     def test_stats_compare_account_and_primary_prices_without_promoting_them(self):
         outcome_id = self.outcome(basis="pump", mint="curve-entry")

@@ -16538,7 +16538,7 @@ def account_price_checkpoint_once(now=None):
             SELECT o.id, o.mint, o.signal_ts, c.checkpoint_seconds
             FROM signal_outcomes o
             LEFT JOIN account_price_checkpoints c ON c.outcome_id = o.id
-            WHERE o.status = 'active'
+            WHERE o.status IN ('active', 'completed')
               AND o.entry_price_basis IN ('pump', 'pump-amm')
               AND o.price_at_signal > 0
               AND o.signal_ts BETWEEN ? AND ?
@@ -18767,7 +18767,7 @@ def api_account_price_checkpoint_stats(x_app_token: str = Header(default="")):
             SELECT o.id, o.signal_ts, c.checkpoint_seconds
             FROM signal_outcomes o
             LEFT JOIN account_price_checkpoints c ON c.outcome_id = o.id
-            WHERE o.status = 'active'
+            WHERE o.status IN ('active', 'completed')
               AND o.entry_price_basis IN ('pump', 'pump-amm')
               AND o.price_at_signal > 0
               AND o.signal_ts BETWEEN ? AND ?
@@ -18901,7 +18901,7 @@ def api_account_price_checkpoint_stats(x_app_token: str = Header(default="")):
         ), totals)),
         "checkpoint_counts_by_pool": dict(by_pool),
         "eligibility": {
-            "active_outcomes_in_window": len(eligible),
+            "eligible_outcomes_in_window": len(eligible),
             "due_now": due_now,
             "entry_price_basis_last_24h": dict(basis_counts),
             "latest_outcome": latest,
