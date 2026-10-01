@@ -116,10 +116,22 @@ class AccountPriceCheckpointTests(unittest.TestCase):
         self.assertEqual((strict["signals"], strict["priced"]), (1, 1))
         self.assertEqual((experimental["signals"], experimental["priced"]), (3, 2))
         self.assertEqual(experimental["missing_checkpoint"], 1)
+        self.assertEqual(
+            experimental["net_usd_at_5pct_if_missing_total_loss"], -30.0
+        )
         self.assertEqual(strict["net_usd_at_2pct"], -5.5)
         self.assertEqual(experimental["net_usd_at_2pct"], -3.5)
         self.assertEqual(experimental["by_trader"]["tester"]["priced"], 2)
         self.assertEqual(app.count_open_positions(mode="paper"), 0)
+
+        with patch.object(app, "APP_TOKEN", "test-token"), patch.object(
+            app.time, "time", return_value=self.signal_ts + 4930
+        ):
+            within_grace = app.paper_wallet_pilot(
+                self.signal_ts - 1, x_app_token="test-token"
+            )["arms"]["watch_plus_copy"]
+        self.assertEqual(within_grace["pending"], 1)
+        self.assertEqual(within_grace["missing_checkpoint"], 0)
 
     def test_valid_sol_curve_is_recorded_once_without_touching_primary_outcome(self):
         outcome_id = self.outcome()

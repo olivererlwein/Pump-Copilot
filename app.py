@@ -14813,7 +14813,7 @@ def paper_wallet_pilot(
                 exit_price is None or not math.isfinite(exit_price)
                 or exit_price <= 0
             ):
-                key = "pending" if ts + 900 > now else "missing_checkpoint"
+                key = "pending" if ts + 960 > now else "missing_checkpoint"
                 result[key] += 1
             else:
                 gross = 25.0 * (exit_price / entry - 1.0)
@@ -14826,6 +14826,10 @@ def paper_wallet_pilot(
 
     for result in arms.values():
         result["traders"] = len(result["traders"])
+        result["net_usd_at_5pct_if_missing_total_loss"] = round(
+            result["net_usd_at_5pct"] - 25.0 * result["missing_checkpoint"],
+            2,
+        )
         for key in ("gross_usd", "net_usd_at_2pct", "net_usd_at_5pct"):
             result[key] = round(result[key], 2)
         for trader_result in result["by_trader"].values():
@@ -14843,7 +14847,8 @@ def paper_wallet_pilot(
         "limitations": (
             "Entry uses signal-time price; exit uses the 15m account checkpoint. "
             "No execution latency, slippage, intrawindow stop/take-profit, "
-            "or trader sells are simulated. Results are not live PnL."
+            "or trader sells are simulated. Missing-checkpoint total loss is "
+            "a sensitivity bound, not an observed result. Results are not live PnL."
         ),
         "evaluations": len(rows), "arms": arms,
     }
