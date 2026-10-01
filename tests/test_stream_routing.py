@@ -88,7 +88,7 @@ class MarketEventRoutingTests(unittest.TestCase):
         live = self.effects["evaluate_live_position_exit"].call_args.kwargs
         self.assertEqual(paper["side"], "sell")
         self.assertEqual(paper["market_cap"], 42)
-        self.assertEqual(paper["new_token_balance"], 0)
+        self.assertIsNone(paper["new_token_balance"])
         self.assertIsNone(live["new_token_balance"])
         self.assertEqual(live["event_block_event_ts"], 1_700_000_000.0)
         self.assertEqual(self.effects["save_token_history"].call_args.kwargs["source"], "token-live")

@@ -831,11 +831,15 @@ def _initialize_db():
 
             signature TEXT,
 
+            event_index INTEGER,
+
+            recorded_ts REAL,
+
             source TEXT DEFAULT 'live',
 
             token_amount REAL DEFAULT 0,
 
-            new_token_balance REAL DEFAULT 0,
+            new_token_balance REAL,
 
             pool TEXT DEFAULT ''
 
@@ -5631,7 +5635,15 @@ def migrate_database():
 
         "new_token_balance":
             "ALTER TABLE trades "
-            "ADD COLUMN new_token_balance REAL DEFAULT 0",
+            "ADD COLUMN new_token_balance REAL",
+
+        "event_index":
+            "ALTER TABLE trades "
+            "ADD COLUMN event_index INTEGER",
+
+        "recorded_ts":
+            "ALTER TABLE trades "
+            "ADD COLUMN recorded_ts REAL",
 
         "pool":
             "ALTER TABLE trades "
@@ -5655,7 +5667,8 @@ def migrate_database():
                 conn.execute(sql)
 
             except Exception:
-                pass
+                if column in ("event_index", "recorded_ts"):
+                    raise
 
 
     existing_paper = [
@@ -12303,11 +12316,7 @@ def save_trade(
 
 
     event_new_token_balance = market_event_new_token_balance(event)
-    paper_new_token_balance = (
-        event_new_token_balance
-        if "newTokenBalance" in event
-        else 0.0
-    )
+    paper_new_token_balance = event_new_token_balance
 
 
     pool = (
@@ -12339,6 +12348,10 @@ def save_trade(
 
             signature,
 
+            event_index,
+
+            recorded_ts,
+
             source,
 
             token_amount,
@@ -12352,7 +12365,7 @@ def save_trade(
         )
 
         VALUES(
-            ?,?,?,?,?,?,?,?,?,?,?,?,?
+            ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
         )
         """,
         (
@@ -12371,6 +12384,10 @@ def save_trade(
             market_cap,
 
             signature,
+
+            event_index,
+
+            time.time(),
 
             source,
 
@@ -13645,11 +13662,7 @@ def route_market_event(
     event_index = market_event_index(event)
     event_block_event_ts = market_event_block_ts(event)
     event_new_token_balance = market_event_new_token_balance(event)
-    paper_new_token_balance = (
-        event_new_token_balance
-        if "newTokenBalance" in event
-        else 0.0
-    )
+    paper_new_token_balance = event_new_token_balance
     save_token_history(
         mint=mint, market_cap=market_cap, trader=trader, side=side,
         signature=signature, source="token-live",
@@ -15024,6 +15037,137 @@ def paper_wallet_pilot(
             "do not replace missing account prices. Results are not live PnL."
         ),
         "evaluations": len(rows), "arms": arms,
+    }
+
+
+@app.get("/api/paper-copy-lifecycle-readiness")
+def paper_copy_lifecycle_readiness(
+    after_ts: float,
+    x_app_token: str = Header(default=""),
+):
+    """Audit whether recorded wallet signals can support a full paper replay."""
+    auth(x_app_token)
+    now = time.time()
+    if not math.isfinite(after_ts) or not now - 86400 <= after_ts <= now:
+        raise HTTPException(400, "INVALID_AFTER_TS")
+
+    conn = db()
+    try:
+        rows = conn.execute(
+            """
+            SELECT e.id, e.ts, e.trader, e.mint, e.decision,
+                   o.id, o.created_ts
+            FROM evaluations e
+            LEFT JOIN signal_outcomes o ON o.signal_id = e.id
+            WHERE e.source = 'live' AND e.ts > ? AND e.ts <= ?
+              AND e.decision IN ('COPY', 'WATCH')
+            ORDER BY e.ts, e.id
+            LIMIT 1001
+            """,
+            (after_ts, now),
+        ).fetchall()
+        if len(rows) > 1000:
+            raise HTTPException(400, "TOO_MANY_SIGNALS")
+        rows = [row for row in rows if row[2] not in OBSERVE_TRADERS]
+        sells = conn.execute(
+            """
+            SELECT ts, recorded_ts, trader, mint, signature, event_index,
+                   new_token_balance
+            FROM trades
+            WHERE source = 'live' AND ts > ? AND ts <= ?
+              AND side LIKE '%sell%'
+            ORDER BY ts, id
+            LIMIT 50001
+            """,
+            (after_ts, now),
+        ).fetchall()
+        if len(sells) > 50000:
+            raise HTTPException(400, "TOO_MANY_TRADER_SELLS")
+        quotes = {}
+        for signal_id, _, _, _, _, outcome_id, created_ts in rows:
+            if outcome_id is None or created_ts is None:
+                continue
+            quote = conn.execute(
+                """
+                SELECT observed_ts FROM account_price_checkpoints
+                WHERE outcome_id = ? AND observed_ts >= ?
+                  AND observed_ts <= ?
+                ORDER BY observed_ts LIMIT 1
+                """,
+                (outcome_id, created_ts, created_ts + 30),
+            ).fetchone()
+            if quote:
+                quotes[signal_id] = float(quote[0]) - float(created_ts)
+    finally:
+        conn.close()
+
+    coverage_rows = [
+        {"signal_id": row[0], "signal_ts": row[1], "mint": row[3]}
+        for row in rows if row[5] is not None and row[1] + 900 <= now
+    ]
+    coverage = get_account_checkpoint_subscription_coverage(coverage_rows)
+    sells_by_pair = collections.defaultdict(list)
+    for sell in sells:
+        sells_by_pair[(sell[2], sell[3])].append(sell)
+
+    totals = collections.Counter()
+    by_trader = collections.defaultdict(collections.Counter)
+    for signal_id, signal_ts, trader, mint, decision, outcome_id, created_ts in rows:
+        stats = by_trader[trader]
+        totals["signals"] += 1
+        totals[f"decision_{decision.lower()}"] += 1
+        stats["signals"] += 1
+        if signal_id in quotes:
+            totals["account_quote_within_30s_of_outcome_creation"] += 1
+            stats["quote_within_30s"] += 1
+        if created_ts is None:
+            totals["missing_outcome"] += 1
+            continue
+        later_chain_sells = [
+            sell for sell in sells_by_pair[(trader, mint)]
+            if sell[0] > signal_ts
+        ]
+        if any(sell[1] is None for sell in later_chain_sells):
+            totals["signals_with_legacy_sell_without_recorded_time"] += 1
+        if any(sell[1] is None and sell[6] == 0 for sell in later_chain_sells):
+            totals["signals_with_ambiguous_legacy_zero_balance"] += 1
+        matching_sells = [
+            sell for sell in later_chain_sells
+            if sell[1] is not None and sell[1] > created_ts
+        ]
+        if matching_sells:
+            totals["signals_with_origin_sell_after_recording"] += 1
+            stats["with_origin_sell_after_recording"] += 1
+            if any(sell[5] is None for sell in matching_sells):
+                totals["signals_with_sell_missing_index"] += 1
+            if any(sell[6] is None for sell in matching_sells):
+                totals["signals_with_sell_missing_balance"] += 1
+            if any(sell[6] == 0 and sell[5] is not None
+                   for sell in matching_sells):
+                totals["signals_with_explicit_zero_balance"] += 1
+        if signal_ts + 900 <= now:
+            totals["matured_15m"] += 1
+            if coverage.get(signal_id, {}).get("complete"):
+                totals["continuous_15m_token_coverage"] += 1
+                stats["continuous_15m_coverage"] += 1
+
+    return {
+        "as_of_ts": now,
+        "after_ts": after_ts,
+        "affects_decisions": False,
+        "writes_production": False,
+        "can_estimate_full_lifecycle_pnl": False,
+        "counts": dict(totals),
+        "by_trader": {trader: dict(counts) for trader, counts in by_trader.items()},
+        "limitations": (
+            "The first account checkpoint within 30s of outcome creation is "
+            "a delayed quote, not an executable entry fill. Legacy trades "
+            "have no event index or recorded time; legacy zero balances can "
+            "mean missing data. A sell must be after the signal on-chain "
+            "and recorded after the outcome was created to count. "
+            "Token coverage is measured only for the first 15m, not until "
+            "the trader's final sale. No PnL is inferred."
+        ),
     }
 
 # =========================================================

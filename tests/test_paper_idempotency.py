@@ -599,6 +599,16 @@ class RouterEventIndexTests(unittest.TestCase):
             self.identidades_aplicadas(),
             ["firma-compartida:0", "firma-compartida:1"],
         )
+        conn = app.db()
+        try:
+            stored_indices = [row for row in conn.execute(
+                "SELECT event_index, recorded_ts FROM trades WHERE signature=? "
+                "ORDER BY event_index", ("firma-compartida",)
+            )]
+        finally:
+            conn.close()
+        self.assertEqual([row[0] for row in stored_indices], [0, 1])
+        self.assertTrue(all(row[1] is not None for row in stored_indices))
 
     def test_tracked_token_route_preserves_the_index(self):
         # Ruta por token seguido, con una billetera ajena: el trader no
@@ -668,6 +678,16 @@ class RouterEventIndexTests(unittest.TestCase):
         finally:
             conn.close()
         self.assertIsNone(stored_balance)
+
+    def test_watched_sell_without_balance_is_partial_but_explicit_zero_closes(self):
+        without_balance = self.evento(0, WALLET, 110.0, None)
+        del without_balance["newTokenBalance"]
+        app.route_market_event(without_balance)
+        self.assertAlmostEqual(self.restante(), 0.75)
+
+        explicit_zero = self.evento(1, WALLET, 110.0, 0.0)
+        app.route_market_event(explicit_zero)
+        self.assertAlmostEqual(self.restante(), 0.0)
 
 
 class TokenHistoryIdempotencyTests(unittest.TestCase):
@@ -863,6 +883,37 @@ class LegacyDataMigrationTests(unittest.TestCase):
             )
         conn.commit()
         conn.close()
+
+    def test_existing_trade_keeps_unknown_event_index(self):
+        conn = sqlite3.connect(app.DB)
+        try:
+            conn.execute(
+                """CREATE TABLE trades(
+                    id INTEGER PRIMARY KEY, ts REAL, trader TEXT, wallet TEXT,
+                    side TEXT, mint TEXT, sol REAL, market_cap_sol REAL,
+                    signature TEXT, source TEXT DEFAULT 'live',
+                    token_amount REAL DEFAULT 0,
+                    new_token_balance REAL DEFAULT 0,
+                    pool TEXT DEFAULT ''
+                )"""
+            )
+            conn.execute(
+                "INSERT INTO trades(signature) VALUES(?)", ("legacy-sig",)
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        app.migrate_database()
+        conn = app.db()
+        try:
+            identity = conn.execute(
+                "SELECT event_index, recorded_ts FROM trades WHERE signature=?",
+                ("legacy-sig",),
+            ).fetchone()
+        finally:
+            conn.close()
+        self.assertEqual(identity, (None, None))
 
     def test_historical_rows_get_identity_so_a_replay_does_not_duplicate(self):
         self.base_vieja()
