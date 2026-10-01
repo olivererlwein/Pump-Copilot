@@ -79,6 +79,48 @@ class AccountPriceCheckpointTests(unittest.TestCase):
             conn.close()
         return signal_id
 
+    def test_paper_wallet_pilot_keeps_watch_separate_and_prices_both_arms(self):
+        watch_id = self.checkpoint_dataset_outcome(0, [1, 1, 1, 1, 1.1])
+        copy_id = self.checkpoint_dataset_outcome(1, [1, 1, 1, 1, 0.8])
+        missing_id = self.checkpoint_dataset_outcome(2, [1, 1, 1, 1, 1.2])
+        conn = app.db()
+        try:
+            conn.execute(
+                "UPDATE evaluations SET source = 'live' WHERE id IN (?, ?, ?)",
+                (watch_id, copy_id, missing_id),
+            )
+            conn.execute(
+                "UPDATE evaluations SET score = 80, decision = 'COPY' WHERE id = ?",
+                (copy_id,),
+            )
+            conn.execute(
+                "DELETE FROM account_price_checkpoints WHERE outcome_id = "
+                "(SELECT id FROM signal_outcomes WHERE signal_id = ?) "
+                "AND checkpoint_seconds = 900",
+                (missing_id,),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        with patch.object(app, "APP_TOKEN", "test-token"), patch.object(
+            app.time, "time", return_value=self.signal_ts + 5000
+        ):
+            report = app.paper_wallet_pilot(
+                self.signal_ts - 1, x_app_token="test-token"
+            )
+
+        strict = report["arms"]["copy_signals"]
+        experimental = report["arms"]["watch_plus_copy"]
+        self.assertEqual(report["evaluations"], 3)
+        self.assertEqual((strict["signals"], strict["priced"]), (1, 1))
+        self.assertEqual((experimental["signals"], experimental["priced"]), (3, 2))
+        self.assertEqual(experimental["missing_checkpoint"], 1)
+        self.assertEqual(strict["net_usd_at_2pct"], -5.5)
+        self.assertEqual(experimental["net_usd_at_2pct"], -3.5)
+        self.assertEqual(experimental["by_trader"]["tester"]["priced"], 2)
+        self.assertEqual(app.count_open_positions(mode="paper"), 0)
+
     def test_valid_sol_curve_is_recorded_once_without_touching_primary_outcome(self):
         outcome_id = self.outcome()
         snapshot = {"mint-a": {

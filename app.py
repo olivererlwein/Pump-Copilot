@@ -14735,6 +14735,119 @@ def paper(
         for r in rows
     ]
 
+
+@app.get("/api/paper-wallet-pilot")
+def paper_wallet_pilot(
+    after_ts: float,
+    x_app_token: str = Header(default=""),
+):
+    """Read-only, fixed-15m paper comparison for post-activation wallet buys."""
+    auth(x_app_token)
+    now = time.time()
+    if (
+        not math.isfinite(after_ts)
+        or after_ts < now - 7 * 86400
+        or after_ts > now
+    ):
+        raise HTTPException(400, "INVALID_AFTER_TS")
+
+    conn = db()
+    try:
+        rows = conn.execute(
+            """
+            SELECT e.ts, e.trader, e.decision,
+                   o.price_at_signal, o.entry_price_basis, c.price_sol
+            FROM evaluations e
+            LEFT JOIN signal_outcomes o ON o.signal_id = e.id
+            LEFT JOIN account_price_checkpoints c
+              ON c.outcome_id = o.id AND c.checkpoint_seconds = 900
+            WHERE e.source = 'live' AND e.ts > ? AND e.ts <= ?
+            ORDER BY e.ts, e.id
+            """,
+            (after_ts, now),
+        ).fetchall()
+    finally:
+        conn.close()
+
+    def arm():
+        return {
+            "signals": 0, "traders": set(), "priced": 0,
+            "pending": 0, "missing_price": 0, "missing_checkpoint": 0,
+            "skipped_capacity": 0, "gross_usd": 0.0,
+            "net_usd_at_2pct": 0.0, "net_usd_at_5pct": 0.0,
+            "by_trader": {},
+        }
+
+    arms = {"copy_signals": arm(), "watch_plus_copy": arm()}
+    occupied_until = {name: [] for name in arms}
+    for ts, trader, decision, entry, basis, exit_price in rows:
+        if trader in OBSERVE_TRADERS:
+            continue
+        for name, selected in (
+            ("copy_signals", decision == "COPY"),
+            ("watch_plus_copy", decision in ("COPY", "WATCH")),
+        ):
+            if not selected:
+                continue
+            result = arms[name]
+            result["signals"] += 1
+            result["traders"].add(trader)
+            trader_result = result["by_trader"].setdefault(
+                trader, {"signals": 0, "priced": 0, "net_usd_at_2pct": 0.0}
+            )
+            trader_result["signals"] += 1
+            if (
+                entry is None or not math.isfinite(entry) or entry <= 0
+                or basis not in ("pump", "pump-amm")
+            ):
+                result["missing_price"] += 1
+                continue
+            occupied_until[name] = [
+                until for until in occupied_until[name] if until > ts
+            ]
+            if len(occupied_until[name]) >= 10:
+                result["skipped_capacity"] += 1
+                continue
+            occupied_until[name].append(ts + 900)
+            if (
+                exit_price is None or not math.isfinite(exit_price)
+                or exit_price <= 0
+            ):
+                key = "pending" if ts + 900 > now else "missing_checkpoint"
+                result[key] += 1
+            else:
+                gross = 25.0 * (exit_price / entry - 1.0)
+                result["priced"] += 1
+                trader_result["priced"] += 1
+                trader_result["net_usd_at_2pct"] += gross - 0.50
+                result["gross_usd"] += gross
+                result["net_usd_at_2pct"] += gross - 0.50
+                result["net_usd_at_5pct"] += gross - 1.25
+
+    for result in arms.values():
+        result["traders"] = len(result["traders"])
+        for key in ("gross_usd", "net_usd_at_2pct", "net_usd_at_5pct"):
+            result[key] = round(result[key], 2)
+        for trader_result in result["by_trader"].values():
+            trader_result["net_usd_at_2pct"] = round(
+                trader_result["net_usd_at_2pct"], 2
+            )
+
+    return {
+        "after_ts": after_ts, "as_of_ts": now,
+        "notional_usd_per_signal": 25,
+        "max_simultaneous_notional_usd": 250,
+        "max_simultaneous_positions": 10,
+        "exit_horizon_seconds": 900,
+        "selection": "recorded COPY vs recorded COPY+WATCH; no thresholds changed",
+        "limitations": (
+            "Entry uses signal-time price; exit uses the 15m account checkpoint. "
+            "No execution latency, slippage, intrawindow stop/take-profit, "
+            "or trader sells are simulated. Results are not live PnL."
+        ),
+        "evaluations": len(rows), "arms": arms,
+    }
+
 # =========================================================
 # HISTORIAL DE TOKEN
 # =========================================================
