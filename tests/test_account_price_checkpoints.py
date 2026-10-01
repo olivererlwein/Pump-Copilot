@@ -977,10 +977,12 @@ class AccountPriceCheckpointTests(unittest.TestCase):
                 conn.execute(
                     """
                     INSERT INTO helius_standard_wss_transactions(
-                        signature, first_received_ts, status
-                    ) VALUES(?,?,?)
+                        signature, first_received_ts, status, last_error
+                    ) VALUES(?,?,?,?)
                     """,
-                    (signature, received_ts, status),
+                    (signature, received_ts, status,
+                     "HELIUS_STANDARD_WSS_PRIORITY_RESERVE"
+                     if signature == "lost-queue" else None),
                 )
             conn.commit()
         finally:
@@ -993,6 +995,8 @@ class AccountPriceCheckpointTests(unittest.TestCase):
         )[signal_id]
         self.assertTrue(coverage["subscription_continuous"])
         self.assertEqual(coverage["known_delivery_failures"], 3)
+        self.assertFalse(coverage["priority_reserve_trace_available"])
+        self.assertEqual(coverage["priority_reserve_rejections"], 1)
         self.assertFalse(coverage["complete"])
         progress = app.get_exit_subscription_coverage_progress([row])
         self.assertEqual(progress["known_delivery_loss_observation_rows"], 1)

@@ -301,6 +301,8 @@ def prospective_report(
     coverage_ratios = []
     selected_coverage = Counter()
     selected_coverage_ratios = []
+    priority_rejection_mints = Counter()
+    priority_rejection_events_by_mint = Counter()
     for row in rows:
         subscription_coverage = row.get("subscription_coverage") or {}
         measurement_available = (
@@ -313,6 +315,13 @@ def prospective_report(
         if float(row["probability"]) >= threshold:
             if measurement_available:
                 selected_coverage["measured"] += 1
+                priority_trace_available = (
+                    subscription_coverage.get(
+                        "priority_reserve_trace_available"
+                    ) is True
+                )
+                if priority_trace_available:
+                    selected_coverage["priority_trace_available_rows"] += 1
                 activation_ts = subscription_coverage.get(
                     "token_tracking_observable_from_ts",
                     subscription_coverage.get("measurement_started_ts"),
@@ -329,6 +338,19 @@ def prospective_report(
                 selected_coverage_ratios.append(
                     float(subscription_coverage.get("coverage_ratio") or 0.0)
                 )
+                priority_rejections = (
+                    int(subscription_coverage.get("priority_reserve_rejections") or 0)
+                    if priority_trace_available else 0
+                )
+                if priority_rejections:
+                    selected_coverage["priority_reserve_exposed"] += 1
+                    selected_coverage["priority_reserve_rejections"] += (
+                        priority_rejections
+                    )
+                    priority_rejection_mints[str(row["mint"])] += 1
+                    priority_rejection_events_by_mint[str(row["mint"])] += (
+                        priority_rejections
+                    )
                 if not coverage_complete:
                     selected_coverage["incomplete"] += 1
                     if not subscription_coverage.get("intervals"):
@@ -499,6 +521,9 @@ def prospective_report(
         and not record["stop_hit"]
         for record in records
     )
+    priority_trace_available = bool(
+        selected_coverage["priority_trace_available_rows"]
+    )
     return {
         "ready_for_review": not blockers,
         "blockers": blockers,
@@ -542,6 +567,28 @@ def prospective_report(
                 ),
                 "selected_rows_known_delivery_loss": (
                     selected_coverage["known_delivery_loss"]
+                ),
+                "selected_priority_reserve_trace_available": (
+                    priority_trace_available
+                ),
+                "selected_priority_reserve_trace_rows": (
+                    selected_coverage["priority_trace_available_rows"]
+                ),
+                "selected_rows_priority_reserve_exposed": (
+                    selected_coverage["priority_reserve_exposed"]
+                    if priority_trace_available else None
+                ),
+                "selected_priority_reserve_rejections": (
+                    selected_coverage["priority_reserve_rejections"]
+                    if priority_trace_available else None
+                ),
+                "selected_priority_reserve_exposed_by_mint": (
+                    dict(priority_rejection_mints.most_common())
+                    if priority_trace_available else None
+                ),
+                "selected_priority_reserve_rejections_by_mint": (
+                    dict(priority_rejection_events_by_mint.most_common())
+                    if priority_trace_available else None
                 ),
                 "selected_rows_no_subscription_interval": (
                     selected_coverage["no_subscription_interval"]

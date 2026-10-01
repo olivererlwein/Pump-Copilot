@@ -17339,6 +17339,7 @@ def get_account_checkpoint_subscription_coverage(observations):
 
     intervals = {signal_id: [] for signal_id in signals}
     delivery_failures = {signal_id: 0 for signal_id in signals}
+    priority_reserve_rejections = {signal_id: 0 for signal_id in signals}
     unresolved_fetches = {signal_id: 0 for signal_id in signals}
     signal_ids = list(signals)
     conn = db()
@@ -17349,6 +17350,11 @@ def get_account_checkpoint_subscription_coverage(observations):
         first_token_subscription_ts = conn.execute(
             "SELECT MIN(subscribed_ts) "
             "FROM helius_standard_wss_token_intervals"
+        ).fetchone()[0]
+        first_priority_reserve_ts = conn.execute(
+            "SELECT MIN(first_received_ts) "
+            "FROM helius_standard_wss_transactions "
+            "WHERE last_error = 'HELIUS_STANDARD_WSS_PRIORITY_RESERVE'"
         ).fetchone()[0]
         # The WSS worker may have run before token tracking was enabled.
         observable_from_ts = (
@@ -17384,12 +17390,15 @@ def get_account_checkpoint_subscription_coverage(observations):
                     continue
                 # Dropped fetches have no block_time; reception time is the
                 # only available bound for known delivery losses.
-                failures, unresolved = conn.execute(
+                failures, priority_rejections, unresolved = conn.execute(
                     """
                     SELECT
                         COALESCE(SUM(t.status IN (
                             'queue_full', 'fetch_failed', 'processing_failed'
                         )), 0),
+                        COALESCE(SUM(t.status = 'queue_full' AND
+                            t.last_error = 'HELIUS_STANDARD_WSS_PRIORITY_RESERVE'
+                        ), 0),
                         COALESCE(SUM(t.status IN ('pending_fetch', 'observed')
                             AND t.fetched_ts IS NULL), 0)
                     FROM helius_standard_wss_notifications n
@@ -17401,6 +17410,7 @@ def get_account_checkpoint_subscription_coverage(observations):
                     (mint, signal_ts, signal_ts + 900.0),
                 ).fetchone()
                 delivery_failures[signal_id] = int(failures)
+                priority_reserve_rejections[signal_id] = int(priority_rejections)
                 unresolved_fetches[signal_id] = int(unresolved)
     finally:
         conn.close()
@@ -17440,6 +17450,13 @@ def get_account_checkpoint_subscription_coverage(observations):
             "intervals": len(merged),
             "subscription_continuous": subscription_continuous,
             "known_delivery_failures": int(delivery_failures[signal_id]),
+            "priority_reserve_trace_available": bool(
+                first_priority_reserve_ts is not None
+                and signal_ts >= float(first_priority_reserve_ts)
+            ),
+            "priority_reserve_rejections": int(
+                priority_reserve_rejections[signal_id]
+            ),
             "unresolved_delivery_fetches": int(unresolved_fetches[signal_id]),
             "complete": bool(
                 subscription_continuous
