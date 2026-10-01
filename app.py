@@ -16764,7 +16764,6 @@ def account_price_checkpoint_once(now=None):
               AND o.price_at_signal > 0
               AND o.signal_ts BETWEEN ? AND ?
             ORDER BY o.signal_ts
-            LIMIT 5000
             """,
             (started_ts - 960, started_ts),
         ).fetchall()
@@ -16790,7 +16789,13 @@ def account_price_checkpoint_once(now=None):
                     (outcome_id, record["signal_ts"], seconds, grace)
                 )
 
-    mints = list(candidates)[:20]
+    mints = sorted(
+        candidates,
+        key=lambda mint: min(
+            signal_ts + seconds + grace
+            for _, signal_ts, seconds, grace in candidates[mint]
+        ),
+    )
     if not mints:
         return {"status": "no_due_checkpoint", "rpc_calls": 0}
 
@@ -16801,42 +16806,46 @@ def account_price_checkpoint_once(now=None):
         rpc_calls += 1
         return _rpc_request(url, method, params)
 
-    snapshots = fetch_account_prices(
-        standard_wss_rpc_url(), mints, rpc_request=counted_rpc
-    )
-    observed_ts = float(now if now is not None else time.time())
     recorded = 0
     priced = 0
+    observed_ts = started_ts
     conn = db()
     try:
-        for mint in mints:
-            snapshot = snapshots.get(mint) or {}
-            price = snapshot.get("price_sol")
-            market_cap = snapshot.get("market_cap_sol")
-            if (snapshot.get("status") not in ("curve", "amm")
-                    or price is None or market_cap is None
-                    or not math.isfinite(price) or price <= 0
-                    or not math.isfinite(market_cap) or market_cap <= 0):
-                continue
-            priced += 1
-            for outcome_id, signal_ts, seconds, grace in candidates[mint]:
-                elapsed = observed_ts - signal_ts
-                if not seconds <= elapsed <= seconds + grace:
+        for offset in range(0, len(mints), 20):
+            batch = mints[offset:offset + 20]
+            snapshots = fetch_account_prices(
+                standard_wss_rpc_url(), batch, rpc_request=counted_rpc
+            )
+            observed_ts = float(now if now is not None else time.time())
+            for mint in batch:
+                snapshot = snapshots.get(mint) or {}
+                price = snapshot.get("price_sol")
+                market_cap = snapshot.get("market_cap_sol")
+                if (snapshot.get("status") not in ("curve", "amm")
+                        or price is None or market_cap is None
+                        or not math.isfinite(price) or price <= 0
+                        or not math.isfinite(market_cap) or market_cap <= 0):
                     continue
-                cursor = conn.execute(
-                    """
-                    INSERT OR IGNORE INTO account_price_checkpoints(
-                        outcome_id, checkpoint_seconds, mint, pool,
-                        price_sol, market_cap_sol, observed_ts, slot
-                    ) VALUES(?,?,?,?,?,?,?,?)
-                    """,
-                    (
-                        outcome_id, seconds, mint, snapshot["status"],
-                        float(price), float(market_cap), observed_ts,
-                        int(snapshot["slot"]),
-                    ),
-                )
-                recorded += cursor.rowcount
+                priced += 1
+                for outcome_id, signal_ts, seconds, grace in candidates[mint]:
+                    elapsed = observed_ts - signal_ts
+                    if not seconds <= elapsed <= seconds + grace:
+                        continue
+                    cursor = conn.execute(
+                        """
+                        INSERT OR IGNORE INTO account_price_checkpoints(
+                            outcome_id, checkpoint_seconds, mint, pool,
+                            price_sol, market_cap_sol, observed_ts, slot
+                        ) VALUES(?,?,?,?,?,?,?,?)
+                        """,
+                        (
+                            outcome_id, seconds, mint, snapshot["status"],
+                            float(price), float(market_cap), observed_ts,
+                            int(snapshot["slot"]),
+                        ),
+                    )
+                    recorded += cursor.rowcount
+            conn.commit()
         conn.execute(
             """
             INSERT INTO account_price_probe_runs(
@@ -18957,6 +18966,7 @@ def api_token_rpc_probe_stats(x_app_token: str = Header(default="")):
 def api_account_price_checkpoint_stats(x_app_token: str = Header(default="")):
     auth(x_app_token)
     now = time.time()
+    ten_second_deadline = sum(ACCOUNT_PRICE_CHECKPOINT_WINDOWS[0])
     conn = db()
     try:
         totals = conn.execute(
@@ -18983,6 +18993,25 @@ def api_account_price_checkpoint_stats(x_app_token: str = Header(default="")):
             "WHERE signal_ts >= ? GROUP BY entry_price_basis",
             (now - 86400,),
         ).fetchall()
+        ten_second_coverage = conn.execute(
+            """
+            SELECT COUNT(*),
+                   COALESCE(SUM(o.created_ts > o.signal_ts + ?), 0),
+                   COALESCE(SUM(o.created_ts <= o.signal_ts + ?
+                                AND c.outcome_id IS NULL), 0),
+                   COALESCE(SUM(o.created_ts <= o.signal_ts + ?
+                                AND c.outcome_id IS NOT NULL), 0)
+            FROM signal_outcomes o
+            LEFT JOIN account_price_checkpoints c
+              ON c.outcome_id = o.id AND c.checkpoint_seconds = 10
+            WHERE o.status IN ('active', 'completed')
+              AND o.entry_price_basis IN ('pump', 'pump-amm')
+              AND o.price_at_signal > 0
+              AND o.signal_ts >= ? AND o.signal_ts < ?
+            """,
+            (ten_second_deadline, ten_second_deadline,
+             ten_second_deadline, now - 86400, now - ten_second_deadline),
+        ).fetchone()
         eligible_rows = conn.execute(
             """
             SELECT o.id, o.signal_ts, o.status, c.checkpoint_seconds
@@ -19124,6 +19153,10 @@ def api_account_price_checkpoint_stats(x_app_token: str = Header(default="")):
             "checkpoints_recorded", "rpc_calls",
         ), totals)),
         "checkpoint_counts_by_pool": dict(by_pool),
+        "ten_second_coverage_last_24h": dict(zip((
+            "eligible", "created_after_deadline", "created_before_deadline_missing",
+            "created_before_deadline_captured",
+        ), ten_second_coverage)),
         "eligibility": {
             "active_outcomes_in_window": len(active_outcomes),
             "eligible_outcomes_in_window": len(eligible),

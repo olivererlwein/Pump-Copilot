@@ -181,6 +181,101 @@ class AccountPriceCheckpointTests(unittest.TestCase):
         self.assertEqual(primary, (None, "active"))
         self.assertEqual(effects, [0, 0])
 
+    def test_due_mints_beyond_first_rpc_batch_are_not_dropped(self):
+        for index in range(25):
+            self.outcome(mint=f"mint-{index}")
+
+        batches = []
+
+        def fetch(_url, mints, rpc_request):
+            batches.append(list(mints))
+            return {
+                mint: {"status": "curve", "price_sol": 1e-7,
+                       "market_cap_sol": 100, "slot": 123}
+                for mint in mints
+            }
+
+        with patch.object(app, "fetch_account_prices", side_effect=fetch):
+            result = app.account_price_checkpoint_once(now=self.signal_ts + 12)
+
+        self.assertEqual([len(batch) for batch in batches], [20, 5])
+        self.assertEqual(result["checkpoints_recorded"], 25)
+        conn = app.db()
+        try:
+            count = conn.execute(
+                "SELECT COUNT(*) FROM account_price_checkpoints "
+                "WHERE checkpoint_seconds=10"
+            ).fetchone()[0]
+        finally:
+            conn.close()
+        self.assertEqual(count, 25)
+
+    def test_old_rows_do_not_hide_new_due_outcome(self):
+        conn = app.db()
+        try:
+            conn.executemany(
+                """
+                INSERT INTO signal_outcomes(
+                    mint, trader, signal_ts, price_at_signal,
+                    entry_price_basis, created_ts, updated_ts
+                ) VALUES(?,?,?,?,?,?,?)
+                """,
+                ((f"old-{index}", "tester", self.signal_ts - 100,
+                  1e-7, "pump", self.signal_ts - 100,
+                  self.signal_ts - 100) for index in range(5000)),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        outcome_id = self.outcome(mint="new-due")
+
+        with patch.object(app, "fetch_account_prices", return_value={
+            "new-due": {"status": "curve", "price_sol": 1e-7,
+                        "market_cap_sol": 100, "slot": 123},
+        }):
+            result = app.account_price_checkpoint_once(now=self.signal_ts + 12)
+        self.assertEqual(result["checkpoints_recorded"], 1)
+        conn = app.db()
+        try:
+            row = conn.execute(
+                "SELECT checkpoint_seconds FROM account_price_checkpoints "
+                "WHERE outcome_id=?", (outcome_id,)
+            ).fetchone()
+        finally:
+            conn.close()
+        self.assertEqual(row, (10,))
+
+    def test_first_batch_survives_later_rpc_failure(self):
+        for index in range(25):
+            self.outcome(mint=f"mint-{index}")
+
+        calls = 0
+
+        def fetch(_url, mints, rpc_request):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                raise RuntimeError("RPC_UNAVAILABLE")
+            return {
+                mint: {"status": "curve", "price_sol": 1e-7,
+                       "market_cap_sol": 100, "slot": 123}
+                for mint in mints
+            }
+
+        with patch.object(app, "fetch_account_prices", side_effect=fetch):
+            with self.assertRaisesRegex(RuntimeError, "RPC_UNAVAILABLE"):
+                app.account_price_checkpoint_once(now=self.signal_ts + 12)
+
+        conn = app.db()
+        try:
+            count = conn.execute(
+                "SELECT COUNT(*) FROM account_price_checkpoints "
+                "WHERE checkpoint_seconds=10"
+            ).fetchone()[0]
+        finally:
+            conn.close()
+        self.assertEqual(count, 20)
+
     def test_unsupported_quote_is_counted_without_price(self):
         self.outcome()
         with patch.object(app, "fetch_account_prices", return_value={
@@ -216,6 +311,52 @@ class AccountPriceCheckpointTests(unittest.TestCase):
             eligibility["latest_outcome"]["entry_price_basis"], "unknown"
         )
         self.assertEqual(eligibility["latest_outcome"]["age_seconds"], 12)
+
+    def test_stats_separate_late_signal_creation_from_missing_probe(self):
+        late = self.outcome(mint="late")
+        missed = self.outcome(mint="missed")
+        captured = self.outcome(mint="captured")
+        conn = app.db()
+        try:
+            conn.execute(
+                "UPDATE signal_outcomes SET created_ts=? WHERE id=?",
+                (self.signal_ts + 16, late),
+            )
+            conn.execute(
+                "UPDATE signal_outcomes SET created_ts=? WHERE id IN (?, ?)",
+                (self.signal_ts + 5, missed, captured),
+            )
+            conn.execute(
+                """
+                INSERT INTO account_price_checkpoints(
+                    outcome_id, checkpoint_seconds, mint, pool,
+                    price_sol, market_cap_sol, observed_ts, slot
+                ) VALUES(?,?,?,?,?,?,?,?)
+                """,
+                (captured, 10, "captured", "curve", 1e-7, 100,
+                 self.signal_ts + 12, 123),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        with patch.object(app, "APP_TOKEN", "test-token"), patch.object(
+            app.time, "time", return_value=self.signal_ts + 20
+        ):
+            stats = app.api_account_price_checkpoint_stats("test-token")
+        self.assertEqual(stats["ten_second_coverage_last_24h"], {
+            "eligible": 3,
+            "created_after_deadline": 1,
+            "created_before_deadline_missing": 1,
+            "created_before_deadline_captured": 1,
+        })
+        with patch.object(app, "APP_TOKEN", "test-token"), patch.object(
+            app.time, "time", return_value=self.signal_ts + 15
+        ):
+            at_deadline = app.api_account_price_checkpoint_stats("test-token")
+        self.assertEqual(
+            at_deadline["ten_second_coverage_last_24h"]["eligible"], 0
+        )
 
     def test_completed_primary_outcome_can_still_get_15m_account_checkpoint(self):
         outcome_id = self.outcome(basis="pump", mint="busy-mint")
