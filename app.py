@@ -154,6 +154,10 @@ TRADER_QUALITY_MIN_SAMPLES = max(
 TRADER_QUALITY_MIN = 5
 TRADER_QUALITY_MAX = 30
 
+# Observational baseline starts after the account-checkpoint completion fix.
+TRADER_QUALITY_SHADOW_START_TS = 1790859840.0
+TRADER_QUALITY_SHADOW_RULE = "account_15m_net5_v1"
+
 # Un outcome es evidencia utilizable cuando su desenlace es decidible:
 # vimos disparar el TP25, el SL10, o completamos la ventana de observación.
 #
@@ -1387,6 +1391,40 @@ CREATE TABLE IF NOT EXISTS signal_outcomes(
             features_json TEXT NOT NULL,
             UNIQUE(evaluation_id, model_version)
         )
+        """
+    )
+
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS trader_quality_shadow(
+            evaluation_id INTEGER PRIMARY KEY,
+            rule_version TEXT NOT NULL,
+            recorded_ts REAL NOT NULL,
+            asof_signal_ts REAL NOT NULL,
+            quality INTEGER NOT NULL,
+            score INTEGER NOT NULL,
+            quality_if_missing_total_loss INTEGER NOT NULL,
+            score_if_missing_total_loss INTEGER NOT NULL,
+            measured_mints INTEGER NOT NULL,
+            profitable_mints INTEGER NOT NULL,
+            missing_mints INTEGER NOT NULL,
+            pending_mints INTEGER NOT NULL,
+            unsupported_mints INTEGER NOT NULL,
+            mean_net_return_pct REAL
+        )
+        """
+    )
+
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_evaluations_trader_source_ts
+        ON evaluations(trader, source, ts, id)
+        """
+    )
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_signal_outcomes_signal_id
+        ON signal_outcomes(signal_id)
         """
     )
 
@@ -6461,6 +6499,107 @@ def beta_posterior_rate(successes, total):
     )
 
 
+def record_trader_quality_shadow(
+    evaluation_id, trader, mint, signal_ts, score_components, trader_score
+):
+    """Snapshot a point-in-time alternative; never return a trade decision."""
+    asof_ts = float(signal_ts)
+    if not math.isfinite(asof_ts) or asof_ts <= 0:
+        raise ValueError("SHADOW_QUALITY_INVALID_SIGNAL_TS")
+
+    conn = db()
+    try:
+        rows = conn.execute(
+            """
+            WITH first_signals AS (
+                SELECT e.mint, e.ts, e.transport, o.id AS outcome_id,
+                       o.entry_price_basis, o.price_at_signal,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY e.mint ORDER BY e.ts, e.id
+                       ) AS mint_rank
+                FROM evaluations e
+                LEFT JOIN signal_outcomes o ON o.signal_id = e.id
+                WHERE e.trader = ? AND e.source = 'live'
+                  AND e.ts < ? AND e.id < ? AND e.mint != ?
+            )
+            SELECT f.ts, f.transport, f.outcome_id,
+                   f.entry_price_basis, f.price_at_signal,
+                   c.price_sol
+            FROM first_signals f
+            LEFT JOIN account_price_checkpoints c
+              ON c.outcome_id = f.outcome_id
+             AND c.checkpoint_seconds = 900
+             AND c.observed_ts <= ?
+            WHERE f.mint_rank = 1 AND f.ts >= ?
+            """,
+            (
+                trader, asof_ts, int(evaluation_id), mint, asof_ts,
+                TRADER_QUALITY_SHADOW_START_TS,
+            ),
+        ).fetchall()
+
+        measured = profitable = missing = pending = unsupported = 0
+        net_return_sum = 0.0
+        for prior_ts, transport, outcome_id, basis, entry, exit_price in rows:
+            if (transport not in ("live", "helius") or outcome_id is None
+                    or basis not in ("pump", "pump-amm")
+                    or entry is None or not math.isfinite(entry) or entry <= 0):
+                unsupported += 1
+            elif (exit_price is not None and math.isfinite(exit_price)
+                  and exit_price > 0):
+                net_return_pct = (exit_price / entry - 1.0) * 100 - 5.0
+                if not math.isfinite(net_return_pct):
+                    unsupported += 1
+                    continue
+                measured += 1
+                profitable += int(net_return_pct > 0)
+                net_return_sum += net_return_pct
+            elif float(prior_ts) + 960 <= asof_ts:
+                missing += 1
+            else:
+                pending += 1
+
+        posterior = beta_posterior_rate(profitable, measured)
+        quality = clamp_trader_quality(
+            TRADER_QUALITY_MIN
+            + posterior * (TRADER_QUALITY_MAX - TRADER_QUALITY_MIN)
+        )
+        shadow_score = min(
+            100, max(0, int(score_components) - int(trader_score) + quality)
+        )
+        conservative_quality = clamp_trader_quality(
+            TRADER_QUALITY_MIN
+            + beta_posterior_rate(profitable, measured + missing)
+            * (TRADER_QUALITY_MAX - TRADER_QUALITY_MIN)
+        )
+        conservative_score = min(
+            100,
+            max(0, int(score_components) - int(trader_score)
+                + conservative_quality),
+        )
+        conn.execute(
+            """
+            INSERT INTO trader_quality_shadow(
+                evaluation_id, rule_version, recorded_ts, asof_signal_ts,
+                quality, score, quality_if_missing_total_loss,
+                score_if_missing_total_loss, measured_mints, profitable_mints,
+                missing_mints, pending_mints, unsupported_mints,
+                mean_net_return_pct
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            """,
+            (
+                int(evaluation_id), TRADER_QUALITY_SHADOW_RULE, time.time(),
+                asof_ts, quality, shadow_score, conservative_quality,
+                conservative_score, measured, profitable,
+                missing, pending, unsupported,
+                round(net_return_sum / measured, 4) if measured else None,
+            ),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def get_trader_entry_samples(trader, connection=None):
     """Una muestra por token: el primer outcome completado de cada mint."""
     conn = connection or db()
@@ -10027,6 +10166,9 @@ def evaluate_buy(
     )
 
 
+    score_components = int(score)
+
+
     score = min(
         100,
         int(score)
@@ -10274,6 +10416,16 @@ def evaluate_buy(
             "attempted": False,
             "reason": "TRANSPORT_LIVE_BUYS_DISABLED",
         }
+
+    if source == "live" and trader not in OBSERVE_TRADERS:
+        try:
+            record_trader_quality_shadow(
+                signal_id, trader, mint, signal_ts, score_components,
+                trader_score,
+            )
+        except Exception as exc:
+            # A diagnostic must never interrupt the recorded decision.
+            print(f"[SHADOW QUALITY] {type(exc).__name__}")
 
     return {
         "score": score,
@@ -15002,6 +15154,54 @@ def position_events(
 # =========================================================
 # ESTADÍSTICAS TRADERS
 # =========================================================
+
+@app.get("/api/trader-quality-shadow")
+def api_trader_quality_shadow(
+    x_app_token: str = Header(default=""), limit: int = 100
+):
+    auth(x_app_token)
+    conn = db()
+    try:
+        rows = conn.execute(
+            """
+            SELECT q.evaluation_id, e.trader, e.mint, q.asof_signal_ts,
+                   e.score, e.decision, q.quality, q.score,
+                   q.quality_if_missing_total_loss,
+                   q.score_if_missing_total_loss,
+                   q.measured_mints, q.profitable_mints, q.missing_mints,
+                   q.pending_mints, q.unsupported_mints,
+                   q.mean_net_return_pct, q.rule_version
+            FROM trader_quality_shadow q
+            JOIN evaluations e ON e.id = q.evaluation_id
+            ORDER BY q.evaluation_id DESC LIMIT ?
+            """,
+            (min(max(int(limit), 1), 200),),
+        ).fetchall()
+    finally:
+        conn.close()
+    return {
+        "affects_decisions": False,
+        "rule": TRADER_QUALITY_SHADOW_RULE,
+        "round_trip_cost_pct": 5.0,
+        "start_ts": TRADER_QUALITY_SHADOW_START_TS,
+        "limitations": (
+            "Signal-time entry versus 15m account price, minus an assumed "
+            "5% round-trip cost. No execution latency, actual fills, or staged "
+            "exits are simulated. Missing checkpoints are shown separately "
+            "and as a total-loss sensitivity, not observed losses."
+        ),
+        "rows": [
+            dict(zip((
+                "evaluation_id", "trader", "mint", "signal_ts",
+                "recorded_score", "recorded_decision", "shadow_quality",
+                "shadow_score", "quality_if_missing_total_loss",
+                "score_if_missing_total_loss", "measured_mints", "profitable_mints",
+                "missing_mints", "pending_mints", "unsupported_mints",
+                "mean_net_return_pct", "rule_version",
+            ), row))
+            for row in rows
+        ],
+    }
 
 @app.get("/api/trader-stats")
 def trader_stats(
