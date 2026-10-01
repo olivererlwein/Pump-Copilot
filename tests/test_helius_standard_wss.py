@@ -106,6 +106,135 @@ class PriorityFetchLimiterTests(unittest.IsolatedAsyncioTestCase):
             async with limiter.slot(2):
                 pass
 
+    async def test_wallet_notice_promotes_token_fetch_already_waiting(self):
+        limiter = PriorityFetchLimiter(1)
+        order = []
+        token_event = {
+            "signature": "shared-sig", "wallet": "mint-a",
+            "subject_type": "token",
+        }
+
+        async def fetch(name):
+            async with limiter.slot(2):
+                order.append(name)
+
+        async with limiter.slot(2):
+            task = asyncio.create_task(fetch("shared"))
+            other = asyncio.create_task(fetch("other-token"))
+            await asyncio.sleep(0)
+            self.assertEqual(limiter._waiting, [0, 0, 2])
+            promoted = await app.promote_helius_standard_wss_wallet_fetch(
+                {"signature": "shared-sig", "wallet": "watched-wallet",
+                 "subject_type": "wallet"},
+                {"shared-sig"},
+                {task: ("shared-sig", "mint-a")},
+                limiter,
+            )
+            self.assertTrue(promoted)
+            self.assertEqual(limiter._waiting, [0, 1, 1])
+            self.assertEqual(token_event["wallet"], "mint-a")
+        await asyncio.gather(task, other)
+        self.assertEqual(order, ["shared", "other-token"])
+
+    async def test_wallet_notice_before_token_task_starts(self):
+        limiter = PriorityFetchLimiter(1)
+        priority_computed = asyncio.Event()
+        enter_slot = asyncio.Event()
+        token_event = {
+            "signature": "shared-sig", "wallet": "mint-a",
+            "subject_type": "token",
+        }
+
+        async def fetch():
+            priority = await app.helius_standard_wss_fetch_priority(token_event)
+            priority_computed.set()
+            await enter_slot.wait()
+            async with limiter.slot(priority):
+                return token_event["subject_type"]
+
+        async with limiter.slot(2):
+            task = asyncio.create_task(fetch())
+            await asyncio.wait_for(priority_computed.wait(), 1)
+            promoted = await app.promote_helius_standard_wss_wallet_fetch(
+                {"signature": "shared-sig", "wallet": "watched-wallet",
+                 "subject_type": "wallet"},
+                {"shared-sig"},
+                {task: ("shared-sig", "mint-a")},
+                limiter,
+            )
+            self.assertTrue(promoted)
+            enter_slot.set()
+            await asyncio.sleep(0)
+            self.assertEqual(limiter._waiting, [0, 1, 0])
+        self.assertEqual(await task, "token")
+
+    async def test_wallet_notice_does_not_downgrade_live_exit(self):
+        limiter = PriorityFetchLimiter(1)
+        token_event = {
+            "signature": "live-sig", "wallet": "mint-live",
+            "subject_type": "token",
+        }
+
+        async def fetch():
+            async with limiter.slot(0):
+                pass
+
+        async with limiter.slot(2):
+            task = asyncio.create_task(fetch())
+            await asyncio.sleep(0)
+            promoted = await app.promote_helius_standard_wss_wallet_fetch(
+                {"signature": "live-sig", "wallet": "watched-wallet",
+                 "subject_type": "wallet"},
+                {"live-sig"},
+                {task: ("live-sig", "mint-live")},
+                limiter,
+            )
+            self.assertFalse(promoted)
+            self.assertEqual(limiter._waiting, [1, 0, 0])
+            self.assertEqual(token_event["wallet"], "mint-live")
+            self.assertEqual(token_event["subject_type"], "token")
+            with patch.object(
+                app, "helius_standard_wss_token_has_open_live_position",
+                return_value=True,
+            ):
+                self.assertEqual(
+                    await app.helius_standard_wss_fetch_priority(token_event), 0
+                )
+        await task
+
+    async def test_cancelled_promoted_waiter_releases_priority(self):
+        limiter = PriorityFetchLimiter(1)
+
+        async def fetch():
+            async with limiter.slot(2):
+                pass
+
+        async with limiter.slot(2):
+            task = asyncio.create_task(fetch())
+            await asyncio.sleep(0)
+            self.assertTrue(await limiter.promote(task, 1))
+            task.cancel()
+            with self.assertRaises(asyncio.CancelledError):
+                await task
+            self.assertEqual(limiter._waiting, [0, 0, 0])
+
+    async def test_active_fetch_is_not_promoted_after_slot_acquired(self):
+        limiter = PriorityFetchLimiter(1)
+        acquired = asyncio.Event()
+        release = asyncio.Event()
+
+        async def fetch():
+            async with limiter.slot(2):
+                acquired.set()
+                await release.wait()
+
+        task = asyncio.create_task(fetch())
+        await acquired.wait()
+        self.assertFalse(await limiter.promote(task, 1))
+        self.assertEqual(limiter._promoted, {})
+        release.set()
+        await task
+
 
 class HeliusStandardWssProtocolTests(unittest.TestCase):
     def test_reconnect_close_detail_distinguishes_ping_timeout(self):
@@ -334,6 +463,65 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
             "failed": False,
             "logs": [],
         }
+
+    def test_wallet_timing_excludes_token_flood_and_uses_wallet_notice(self):
+        first = {**self.event(), "subject_type": "wallet"}
+        app.record_helius_standard_wss_notification(
+            first, True, 100, received_ts=1010,
+        )
+        app.finish_helius_standard_wss_transaction(
+            "signature-a", "applied", 1, parsed_events=1,
+            block_time=1000, now=1013,
+        )
+        second = {**self.event("mint-b"), "signature": "signature-b",
+                  "subject_type": "token"}
+        app.record_helius_standard_wss_notification(
+            second, True, 100, received_ts=1020,
+        )
+        app.record_helius_standard_wss_notification(
+            {**second, "wallet": "wallet-a", "subject_type": "wallet"},
+            True, 100, received_ts=1025,
+        )
+        app.finish_helius_standard_wss_transaction(
+            "signature-b", "applied", 1, parsed_events=1,
+            block_time=1019, now=1022,
+        )
+        app.record_helius_standard_wss_notification(
+            {**self.event(), "signature": "signature-c",
+             "subject_type": "wallet"},
+            True, 100, received_ts=1027,
+        )
+        app.finish_helius_standard_wss_transaction(
+            "signature-c", "queue_full", 0, now=1030,
+        )
+        conn = app.db()
+        try:
+            timing = app.get_helius_standard_wss_wallet_timing(conn, 1000)
+        finally:
+            conn.close()
+        self.assertEqual(timing, {
+            "sampled_wallet_notifications": 3,
+            "sample_limit": 1000,
+            "with_block_time": 2,
+            "token_notice_first": 1,
+            "queue_full": 1,
+            "fetch_failed": 0,
+            "block_to_wallet_notice_p50_seconds": 6.0,
+            "block_to_wallet_notice_p95_seconds": 10.0,
+            "wallet_notice_to_completion_p50_seconds": 3.0,
+            "wallet_notice_to_completion_p95_seconds": 3.0,
+            "completed_before_wallet_notice": 1,
+        })
+        app.record_helius_standard_wss_notification(
+            {**first, "wallet": "wallet-b"}, True, 100, received_ts=1011,
+        )
+        conn = app.db()
+        try:
+            timing = app.get_helius_standard_wss_wallet_timing(conn, 1000)
+        finally:
+            conn.close()
+        self.assertEqual(timing["sampled_wallet_notifications"], 4)
+        self.assertEqual(timing["token_notice_first"], 1)
 
     async def test_unparsed_samples_are_recent_bounded_and_authenticated(self):
         now = time.time()
@@ -639,6 +827,32 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
         finally:
             conn.close()
         self.assertEqual(row, ("pending_fetch", None, None))
+
+    async def test_pending_token_wallet_notice_needs_promotion_even_when_fetch_true(self):
+        token = {**self.event("mint-a"), "subject_type": "token"}
+        self.assertTrue(app.record_helius_standard_wss_notification(
+            token, True, 100, received_ts=1000,
+        ))
+        limiter = PriorityFetchLimiter(1)
+
+        async def fetch():
+            async with limiter.slot(2):
+                pass
+
+        async with limiter.slot(2):
+            task = asyncio.create_task(fetch())
+            await asyncio.sleep(0)
+            wallet = {**token, "wallet": "wallet-a", "subject_type": "wallet"}
+            self.assertTrue(app.record_helius_standard_wss_notification(
+                wallet, True, 100, received_ts=1001,
+            ))
+            self.assertTrue(await app.promote_helius_standard_wss_wallet_fetch(
+                wallet, {token["signature"]},
+                {task: (token["signature"], "mint-a")}, limiter,
+            ))
+            self.assertEqual(limiter._waiting, [0, 1, 0])
+            self.assertEqual(token["subject_type"], "token")
+        await task
 
     def test_stale_wallet_notice_does_not_recover_token_rejection(self):
         token = {**self.event("mint-a"), "subject_type": "token"}

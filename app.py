@@ -16281,6 +16281,21 @@ async def helius_standard_wss_fetch_priority(event):
     return 2
 
 
+async def promote_helius_standard_wss_wallet_fetch(
+    event, pending_signatures, pending_token_tasks, semaphore,
+):
+    if (event.get("subject_type") != "wallet"
+            or event["signature"] not in pending_signatures):
+        return False
+    for task, (signature, _mint) in list(pending_token_tasks.items()):
+        if signature != event["signature"] or task.done():
+            continue
+        if isinstance(semaphore, PriorityFetchLimiter):
+            return await semaphore.promote(task, 1)
+        return False
+    return False
+
+
 def token_rpc_probe_once(now=None, mints=None):
     polled_ts = float(now if now is not None else time.time())
     if mints is None:
@@ -17945,6 +17960,11 @@ async def helius_standard_wss_worker():
                         ),
                         received_ts,
                     )
+                    if event.get("subject_type") == "wallet":
+                        await promote_helius_standard_wss_wallet_fetch(
+                            event, pending_signatures, pending_token_tasks,
+                            semaphore,
+                        )
                     if not should_fetch:
                         continue
                     await schedule_helius_standard_wss_fetch(
@@ -19333,6 +19353,60 @@ def get_helius_standard_wss_window_health(conn, cutoff):
     }
 
 
+def get_helius_standard_wss_wallet_timing(conn, cutoff):
+    rows = conn.execute(
+        """
+        SELECT n.received_ts, t.block_time, t.fetched_ts, t.status,
+               EXISTS(
+                   SELECT 1 FROM helius_standard_wss_notifications token
+                   WHERE token.signature = n.signature
+                     AND token.subject_type = 'token'
+                     AND token.received_ts < n.received_ts
+               )
+        FROM (
+            SELECT signature, wallet, received_ts
+            FROM helius_standard_wss_notifications
+            WHERE received_ts >= ? AND subject_type = 'wallet' AND failed = 0
+            ORDER BY received_ts DESC LIMIT 1000
+        ) n
+        LEFT JOIN helius_standard_wss_transactions t
+          ON t.signature = n.signature
+        """,
+        (cutoff,),
+    ).fetchall()
+    arrived = {"applied", "observed", "unparsed"}
+    arrival = sorted(
+        received - block
+        for received, block, _fetched, status, _token_first in rows
+        if status in arrived and block is not None
+    )
+    completion = sorted(
+        fetched - received
+        for received, _block, fetched, status, _token_first in rows
+        if status in arrived and fetched is not None and fetched >= received
+    )
+
+    def percentile(values, fraction):
+        return round(values[math.ceil(len(values) * fraction) - 1], 3) if values else None
+
+    return {
+        "sampled_wallet_notifications": len(rows),
+        "sample_limit": 1000,
+        "with_block_time": len(arrival),
+        "token_notice_first": sum(bool(row[4]) for row in rows),
+        "queue_full": sum(row[3] == "queue_full" for row in rows),
+        "fetch_failed": sum(row[3] == "fetch_failed" for row in rows),
+        "block_to_wallet_notice_p50_seconds": percentile(arrival, 0.5),
+        "block_to_wallet_notice_p95_seconds": percentile(arrival, 0.95),
+        "wallet_notice_to_completion_p50_seconds": percentile(completion, 0.5),
+        "wallet_notice_to_completion_p95_seconds": percentile(completion, 0.95),
+        "completed_before_wallet_notice": sum(
+            bool(status in arrived and fetched is not None and fetched < received)
+            for received, _block, fetched, status, _token_first in rows
+        ),
+    }
+
+
 @app.get("/api/helius-standard-wss-stats")
 def api_helius_standard_wss_stats(
     x_app_token: str = Header(default=""),
@@ -19457,6 +19531,9 @@ def api_helius_standard_wss_stats(
             get_helius_standard_wss_queue_rejection_reasons(conn, cutoff)
         )
         last_1h = get_helius_standard_wss_window_health(
+            conn, now - 3600
+        )
+        wallet_timing_1h = get_helius_standard_wss_wallet_timing(
             conn, now - 3600
         )
         outcome_overlap = (
@@ -19586,6 +19663,7 @@ def api_helius_standard_wss_stats(
         "runtime": runtime,
         "last_rpc_error_detail": dict(solana_rpc_fallback.LAST_RPC_ERROR_DETAIL) or None,
         "last_1h": last_1h,
+        "wallet_timing_1h": wallet_timing_1h,
         "outcome_queue_overlap": outcome_overlap,
         "last_24h": {
             "notifications": int(notification[0] or 0),

@@ -12,29 +12,62 @@ class PriorityFetchLimiter:
             raise ValueError("WSS_FETCH_CAPACITY_INVALID")
         self._available = int(capacity)
         self._waiting = [0, 0, 0]
+        self._queued = {}
+        self._promoted = {}
+        self._active = set()
         self._condition = asyncio.Condition()
 
     @asynccontextmanager
     async def slot(self, priority):
         if priority not in (0, 1, 2):
             raise ValueError("WSS_FETCH_PRIORITY_INVALID")
+        task = asyncio.current_task()
         async with self._condition:
-            self._waiting[priority] += 1
+            waiting_priority = [min(priority, self._promoted.pop(task, priority))]
+            self._waiting[waiting_priority[0]] += 1
+            self._queued[task] = waiting_priority
             try:
                 await self._condition.wait_for(
                     lambda: self._available > 0
-                    and not any(self._waiting[:priority])
+                    and not any(self._waiting[:waiting_priority[0]])
                 )
                 self._available -= 1
+                self._active.add(task)
             finally:
-                self._waiting[priority] -= 1
+                self._waiting[waiting_priority[0]] -= 1
+                self._queued.pop(task, None)
                 self._condition.notify_all()
         try:
             yield
         finally:
             async with self._condition:
+                self._active.discard(task)
                 self._available += 1
                 self._condition.notify_all()
+
+    async def promote(self, task, priority):
+        if priority not in (0, 1, 2):
+            raise ValueError("WSS_FETCH_PRIORITY_INVALID")
+        async with self._condition:
+            waiting = self._queued.get(task)
+            if waiting is None:
+                if task.done() or task in self._active:
+                    return False
+                if task not in self._promoted:
+                    task.add_done_callback(
+                        lambda done: self._promoted.pop(done, None)
+                    )
+                self._promoted[task] = min(
+                    priority, self._promoted.get(task, priority)
+                )
+                return True
+            if priority >= waiting[0]:
+                return False
+            self._waiting[waiting[0]] -= 1
+            waiting[0] = priority
+            self._waiting[priority] += 1
+            self._condition.notify_all()
+            return True
 
 
 def build_helius_standard_wss_url(api_key, explicit_url=""):
