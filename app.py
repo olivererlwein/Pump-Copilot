@@ -14755,8 +14755,9 @@ def paper_wallet_pilot(
     try:
         rows = conn.execute(
             """
-            SELECT e.ts, e.trader, e.decision,
-                   o.price_at_signal, o.entry_price_basis, c.price_sol
+            SELECT e.ts, e.trader, e.mint, e.decision,
+                   o.price_at_signal, o.entry_price_basis,
+                   o.status, o.price_15m, c.price_sol
             FROM evaluations e
             LEFT JOIN signal_outcomes o ON o.signal_id = e.id
             LEFT JOIN account_price_checkpoints c
@@ -14775,12 +14776,15 @@ def paper_wallet_pilot(
             "pending": 0, "missing_price": 0, "missing_checkpoint": 0,
             "skipped_capacity": 0, "gross_usd": 0.0,
             "net_usd_at_2pct": 0.0, "net_usd_at_5pct": 0.0,
-            "by_trader": {},
+            "by_trader": {}, "mint_counts": collections.Counter(),
+            "missing_checkpoint_by_outcome_status": {},
+            "missing_checkpoint_primary_15m_available": 0,
         }
 
     arms = {"copy_signals": arm(), "watch_plus_copy": arm()}
     occupied_until = {name: [] for name in arms}
-    for ts, trader, decision, entry, basis, exit_price in rows:
+    for (ts, trader, mint, decision, entry, basis,
+         outcome_status, primary_15m, exit_price) in rows:
         if trader in OBSERVE_TRADERS:
             continue
         for name, selected in (
@@ -14792,6 +14796,7 @@ def paper_wallet_pilot(
             result = arms[name]
             result["signals"] += 1
             result["traders"].add(trader)
+            result["mint_counts"][mint] += 1
             trader_result = result["by_trader"].setdefault(
                 trader, {"signals": 0, "priced": 0, "net_usd_at_2pct": 0.0}
             )
@@ -14815,6 +14820,14 @@ def paper_wallet_pilot(
             ):
                 key = "pending" if ts + 960 > now else "missing_checkpoint"
                 result[key] += 1
+                if key == "missing_checkpoint":
+                    statuses = result["missing_checkpoint_by_outcome_status"]
+                    status = outcome_status or "unknown"
+                    statuses[status] = statuses.get(status, 0) + 1
+                    if (primary_15m is not None
+                            and math.isfinite(primary_15m)
+                            and primary_15m > 0):
+                        result["missing_checkpoint_primary_15m_available"] += 1
             else:
                 gross = 25.0 * (exit_price / entry - 1.0)
                 result["priced"] += 1
@@ -14826,6 +14839,12 @@ def paper_wallet_pilot(
 
     for result in arms.values():
         result["traders"] = len(result["traders"])
+        mint_counts = result.pop("mint_counts")
+        result["unique_mints"] = len(mint_counts)
+        result["repeated_mint_signals"] = sum(
+            count - 1 for count in mint_counts.values() if count > 1
+        )
+        result["largest_mint_cluster"] = max(mint_counts.values(), default=0)
         result["net_usd_at_5pct_if_missing_total_loss"] = round(
             result["net_usd_at_5pct"] - 25.0 * result["missing_checkpoint"],
             2,
@@ -14848,7 +14867,9 @@ def paper_wallet_pilot(
             "Entry uses signal-time price; exit uses the 15m account checkpoint. "
             "No execution latency, slippage, intrawindow stop/take-profit, "
             "or trader sells are simulated. Missing-checkpoint total loss is "
-            "a sensitivity bound, not an observed result. Results are not live PnL."
+            "a sensitivity bound, not an observed result. Current outcome "
+            "status and primary 15m availability are diagnostic only; they "
+            "do not replace missing account prices. Results are not live PnL."
         ),
         "evaluations": len(rows), "arms": arms,
     }

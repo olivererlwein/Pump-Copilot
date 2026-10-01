@@ -99,6 +99,13 @@ class AccountPriceCheckpointTests(unittest.TestCase):
                 "AND checkpoint_seconds = 900",
                 (missing_id,),
             )
+            conn.execute(
+                "UPDATE signal_outcomes SET status='completed', price_15m=1.2 "
+                "WHERE signal_id=?", (missing_id,),
+            )
+            conn.execute(
+                "UPDATE evaluations SET mint='mint-0' WHERE id=?", (missing_id,)
+            )
             conn.commit()
         finally:
             conn.close()
@@ -116,6 +123,16 @@ class AccountPriceCheckpointTests(unittest.TestCase):
         self.assertEqual((strict["signals"], strict["priced"]), (1, 1))
         self.assertEqual((experimental["signals"], experimental["priced"]), (3, 2))
         self.assertEqual(experimental["missing_checkpoint"], 1)
+        self.assertEqual(experimental["unique_mints"], 2)
+        self.assertEqual(experimental["repeated_mint_signals"], 1)
+        self.assertEqual(experimental["largest_mint_cluster"], 2)
+        self.assertEqual(
+            experimental["missing_checkpoint_by_outcome_status"],
+            {"completed": 1},
+        )
+        self.assertEqual(
+            experimental["missing_checkpoint_primary_15m_available"], 1
+        )
         self.assertEqual(
             experimental["net_usd_at_5pct_if_missing_total_loss"], -30.0
         )
