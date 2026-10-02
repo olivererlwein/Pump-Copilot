@@ -124,10 +124,8 @@ class PaperCopyLifecycleReplayTests(unittest.TestCase):
         report = replay_paper_cycles(
             [signal(1, 100)], [trade(1, 100, "buy", 100, 100), sell],
         )
-        self.assertEqual(report["rows"][0]["status"], "late_or_ambiguous_arrival")
-        self.assertEqual(report["timing_flag_counts"], {
-            "before_previous_quote": 1,
-        })
+        self.assertEqual(report["rows"][0]["status"], "sell_before_entry_quote")
+        self.assertFalse(report["rows"][0]["paper_entered"])
         duplicate = signal(1, 100)
         duplicate["outcome_count"] = 2
         report = replay_paper_cycles(
@@ -158,6 +156,30 @@ class PaperCopyLifecycleReplayTests(unittest.TestCase):
             [trade(1, 100, "buy", 100, 100), first_sell, second_sell],
         )
         self.assertEqual(report["rows"][0]["status"], "late_or_ambiguous_arrival")
+
+    def test_buy_before_entry_quote_updates_opening_inventory(self):
+        second_buy = trade(2, 103, "buy", 100, 200)
+        second_buy["recorded_ts"] = 104
+        report = replay_paper_cycles(
+            [signal(1, 100)],
+            [trade(1, 100, "buy", 100, 100), second_buy,
+             trade(3, 110, "sell", 200, 0, 2)],
+        )
+        self.assertEqual(report["counts"], {"complete": 1})
+        self.assertEqual(report["rows"][0]["pre_entry_buys"], 1)
+        self.assertEqual(report["rows"][0]["net_usd_at_5pct"], 23.75)
+
+    def test_sell_before_entry_quote_is_not_a_paper_position(self):
+        early_sell = trade(2, 103, "sell", 50, 50, 2)
+        early_sell["recorded_ts"] = 104
+        report = replay_paper_cycles(
+            [signal(1, 100)],
+            [trade(1, 100, "buy", 100, 100), early_sell],
+        )
+        self.assertEqual(report["counts"], {"sell_before_entry_quote": 1})
+        self.assertFalse(report["rows"][0]["paper_entered"])
+        self.assertEqual(report["uncertain_entered_cycles"], 0)
+        self.assertEqual(report["if_uncertain_entered_total_loss"]["net_usd_at_5pct"], 0)
 
     def test_endpoint_uses_prospective_boundary_and_stays_read_only(self):
         with tempfile.TemporaryDirectory() as directory, patch.object(

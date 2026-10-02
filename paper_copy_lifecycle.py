@@ -107,6 +107,23 @@ def replay_paper_cycles(signals, trades, stake_usd=25.0):
                     timing_flags.append("non_monotonic_recorded_time")
                 if trade["recorded_ts"] <= last_quote_ts:
                     timing_flags.append("before_previous_quote")
+                if (timing_flags == ["before_previous_quote"]
+                        and last_quote_ts == signal["entry_observed_ts"]):
+                    if side == "sell":
+                        result["status"] = "sell_before_entry_quote"
+                        result["paper_entered"] = False
+                        occupied_until = index
+                        break
+                    if not _balance_matches(
+                        trade["new_token_balance"], balance + amount
+                    ):
+                        result["status"] = "opening_inventory_unknown"
+                        result["paper_entered"] = False
+                        break
+                    balance = float(trade["new_token_balance"])
+                    last_recorded_ts = trade["recorded_ts"]
+                    result["pre_entry_buys"] = result.get("pre_entry_buys", 0) + 1
+                    continue
                 if timing_flags:
                     result["status"] = "late_or_ambiguous_arrival"
                     result["timing_flags"] = timing_flags
