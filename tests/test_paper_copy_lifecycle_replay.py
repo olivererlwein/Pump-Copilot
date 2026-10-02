@@ -178,6 +178,9 @@ class PaperCopyLifecycleReplayTests(unittest.TestCase):
         )
         self.assertEqual(report["counts"], {"sell_before_entry_quote": 1})
         self.assertFalse(report["rows"][0]["paper_entered"])
+        self.assertEqual(report["rows"][0]["early_sell"], {
+            "seconds_after_signal": 2, "seconds_before_entry_quote": 1,
+        })
         self.assertEqual(report["uncertain_entered_cycles"], 0)
         self.assertEqual(report["if_uncertain_entered_total_loss"]["net_usd_at_5pct"], 0)
 

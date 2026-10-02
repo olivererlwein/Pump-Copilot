@@ -112,6 +112,14 @@ def replay_paper_cycles(signals, trades, stake_usd=25.0):
                     if side == "sell":
                         result["status"] = "sell_before_entry_quote"
                         result["paper_entered"] = False
+                        result["early_sell"] = {
+                            "seconds_after_signal": round(
+                                trade["recorded_ts"] - signal["created_ts"], 3
+                            ),
+                            "seconds_before_entry_quote": round(
+                                signal["entry_observed_ts"] - trade["recorded_ts"], 3
+                            ),
+                        }
                         occupied_until = index
                         break
                     if not _balance_matches(
