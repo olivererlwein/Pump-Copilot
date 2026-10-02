@@ -110,3 +110,51 @@ class PaperCopyLifecycleReadinessTests(unittest.TestCase):
         self.assertFalse(report["can_estimate_full_lifecycle_pnl"])
         self.assertFalse(report["affects_decisions"])
         self.assertNotIn("signals_with_ambiguous_legacy_zero_balance", report["counts"])
+
+    def test_readiness_counts_sell_quote_but_never_calls_it_pnl(self):
+        self.signal("sig-a", 9_050, "WATCH", "mint-a")
+        conn = app.db()
+        try:
+            cursor = conn.execute(
+                "INSERT INTO trades(ts, trader, mint, side, signature, "
+                "source, event_index, recorded_ts, new_token_balance) "
+                "VALUES(?,?,?,?,?,?,?,?,?)",
+                (9_100, "test-trader", "mint-a", "sell", "sell-a",
+                 "live", 0, 9_101, 0),
+            )
+            conn.execute(
+                "INSERT INTO paper_copy_sell_quotes(trade_id, recorded_ts, "
+                "observed_ts, mint, pool, price_sol, market_cap_sol, slot) "
+                "VALUES(?,?,?,?,?,?,?,?)",
+                (cursor.lastrowid, 9_101, 9_105, "mint-a", "curve",
+                 1e-7, 100, 123),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        with patch.object(app, "APP_TOKEN", "test-token"), patch.object(
+            app.time, "time", return_value=self.now
+        ):
+            report = app.paper_copy_lifecycle_readiness(
+                9_000, x_app_token="test-token"
+            )
+        self.assertEqual(
+            report["counts"]["signals_with_all_eligible_sell_quotes"], 1
+        )
+        self.assertFalse(report["can_estimate_full_lifecycle_pnl"])
+        conn = app.db()
+        try:
+            conn.execute("DELETE FROM paper_copy_sell_quotes")
+            conn.commit()
+        finally:
+            conn.close()
+        with patch.object(app, "APP_TOKEN", "test-token"), patch.object(
+            app.time, "time", return_value=self.now
+        ):
+            unquoted = app.paper_copy_lifecycle_readiness(
+                9_000, x_app_token="test-token"
+            )
+        self.assertEqual(
+            unquoted["counts"]["signals_with_unquoted_eligible_sell_after_30s"],
+            1,
+        )

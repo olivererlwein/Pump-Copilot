@@ -24,6 +24,15 @@ not report PnL. A token event market cap is only a separately labeled proxy,
 never an executable exit price. Missing sell-side quotes are `exit_missing`;
 unclosed positions are `still_open`.
 
+The opt-in `PAPER_COPY_SELL_QUOTE_ENABLED` worker captures a separate delayed
+account quote after an eligible trader sell, with one row per trade. It starts
+only when account checkpoints are enabled. Its `rpc_calls` log is separate
+from fixed-checkpoint probe counts. Before activation, or when the worker is
+down, an old unquoted sell is simply `unquoted`, not a proven capture failure.
+The readiness endpoint remains read-only and keeps full-lifecycle PnL disabled
+even when a quote exists, because inventory allocation and executable fills
+are not yet established.
+
 Once sell-side quotes and inventory allocation are captured, simulate $25 per
 eligible entry with at most 10 simultaneous positions, without orders or DB
 changes to real/paper execution. Show gross return and separate 2% and 5%

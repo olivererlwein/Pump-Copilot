@@ -79,6 +79,106 @@ class AccountPriceCheckpointTests(unittest.TestCase):
             conn.close()
         return signal_id
 
+    def test_paper_sell_quote_is_delayed_and_idempotent(self):
+        signal_id = self.checkpoint_dataset_outcome(
+            40, [1.0, 1.0, 1.0, 1.0, 1.0]
+        )
+        signal_ts = self.signal_ts + 40 * 2_000
+        conn = app.db()
+        try:
+            conn.execute(
+                "UPDATE evaluations SET source = 'live' WHERE id = ?",
+                (signal_id,),
+            )
+            conn.execute(
+                "UPDATE signal_outcomes SET created_ts = ? "
+                "WHERE signal_id = ?", (signal_ts + 1, signal_id),
+            )
+            cursor = conn.execute(
+                "INSERT INTO trades(ts, recorded_ts, trader, mint, side, "
+                "signature, event_index, new_token_balance, source) "
+                "VALUES(?,?,?,?,?,?,?,?,?)",
+                (signal_ts + 60, signal_ts + 70, "tester", "mint-40",
+                 "sell", "sell-40", 0, 0, "live"),
+            )
+            trade_id = cursor.lastrowid
+            conn.commit()
+        finally:
+            conn.close()
+        def snapshot(_url, _mints, rpc_request):
+            rpc_request("rpc", "getMultipleAccounts", [])
+            return {"mint-40": {"status": "curve", "price_sol": 1.1,
+                                "market_cap_sol": 110.0, "slot": 7}}
+
+        with (
+            patch.object(app, "OBSERVE_TRADERS", {"tester"}),
+            patch.object(app, "fetch_account_prices") as ignored_fetch,
+        ):
+            self.assertEqual(app.paper_copy_sell_quote_once(
+                now=signal_ts + 74
+            )["candidates"], 0)
+            ignored_fetch.assert_not_called()
+        with (
+            patch.object(app, "standard_wss_rpc_url", return_value="rpc"),
+            patch.object(app, "_rpc_request", return_value={}) as rpc,
+            patch.object(app, "fetch_account_prices", side_effect=snapshot) as fetch,
+        ):
+            result = app.paper_copy_sell_quote_once(now=signal_ts + 75)
+            self.assertEqual(result["recorded"], 1)
+            self.assertEqual(result["rpc_calls"], 1)
+            self.assertEqual(app.paper_copy_sell_quote_once(
+                now=signal_ts + 76
+            )["recorded"], 0)
+            self.assertEqual(fetch.call_count, 1)
+            self.assertEqual(rpc.call_count, 1)
+        conn = app.db()
+        try:
+            self.assertEqual(conn.execute(
+                "SELECT recorded_ts, observed_ts, price_sol FROM "
+                "paper_copy_sell_quotes WHERE trade_id = ?", (trade_id,),
+            ).fetchone(), (signal_ts + 70, signal_ts + 75, 1.1))
+        finally:
+            conn.close()
+
+    def test_paper_sell_quote_does_not_backfill_expired_sell(self):
+        signal_id = self.checkpoint_dataset_outcome(
+            41, [1.0, 1.0, 1.0, 1.0, 1.0]
+        )
+        signal_ts = self.signal_ts + 41 * 2_000
+        conn = app.db()
+        try:
+            conn.execute(
+                "UPDATE evaluations SET source = 'live' WHERE id = ?",
+                (signal_id,),
+            )
+            conn.execute(
+                "UPDATE signal_outcomes SET created_ts = ? "
+                "WHERE signal_id = ?", (signal_ts + 1, signal_id),
+            )
+            conn.execute(
+                "INSERT INTO trades(ts, recorded_ts, trader, mint, side, "
+                "signature, event_index, new_token_balance, source) "
+                "VALUES(?,?,?,?,?,?,?,?,?)",
+                (signal_ts + 60, signal_ts + 70, "tester", "mint-41",
+                 "sell", "sell-41", 0, 0, "live"),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        with (
+            patch.object(app, "standard_wss_rpc_url", return_value="rpc"),
+            patch.object(app, "fetch_account_prices", return_value={
+                "mint-41": {"status": "unsupported_pool", "slot": 7},
+            }),
+        ):
+            self.assertEqual(app.paper_copy_sell_quote_once(
+                now=signal_ts + 75
+            )["recorded"], 0)
+        with patch.object(app, "fetch_account_prices") as fetch:
+            result = app.paper_copy_sell_quote_once(now=signal_ts + 101)
+        self.assertEqual(result["candidates"], 0)
+        fetch.assert_not_called()
+
     def test_paper_wallet_pilot_keeps_watch_separate_and_prices_both_arms(self):
         watch_id = self.checkpoint_dataset_outcome(0, [1, 1, 1, 1, 1.1])
         copy_id = self.checkpoint_dataset_outcome(1, [1, 1, 1, 1, 0.8])

@@ -552,6 +552,9 @@ ACCOUNT_PRICE_CHECKPOINT_ENABLED = os.getenv(
 ACCOUNT_PRICE_CHECKPOINT_POLL_SECONDS = max(
     3, int(os.getenv("ACCOUNT_PRICE_CHECKPOINT_POLL_SECONDS", "5"))
 )
+PAPER_COPY_SELL_QUOTE_ENABLED = environment_flag(
+    "PAPER_COPY_SELL_QUOTE_ENABLED",
+)
 LIVE_ACCOUNT_EXIT_MONITOR_ENABLED = environment_flag(
     "LIVE_ACCOUNT_EXIT_MONITOR_ENABLED",
 )
@@ -5670,6 +5673,11 @@ def migrate_database():
                 if column in ("event_index", "recorded_ts"):
                     raise
 
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_trades_recorded_ts "
+        "ON trades(recorded_ts)"
+    )
+
 
     existing_paper = [
         row[1]
@@ -5848,6 +5856,20 @@ def migrate_database():
             unsupported_mints INTEGER NOT NULL,
             checkpoints_recorded INTEGER NOT NULL,
             rpc_calls INTEGER NOT NULL
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS paper_copy_sell_quotes(
+            trade_id INTEGER PRIMARY KEY,
+            recorded_ts REAL NOT NULL,
+            observed_ts REAL NOT NULL,
+            mint TEXT NOT NULL,
+            pool TEXT NOT NULL,
+            price_sol REAL NOT NULL,
+            market_cap_sol REAL NOT NULL,
+            slot INTEGER NOT NULL
         )
         """
     )
@@ -14173,6 +14195,9 @@ async def startup():
     if ACCOUNT_PRICE_CHECKPOINT_ENABLED:
         asyncio.create_task(account_price_checkpoint_worker())
 
+    if ACCOUNT_PRICE_CHECKPOINT_ENABLED and PAPER_COPY_SELL_QUOTE_ENABLED:
+        asyncio.create_task(paper_copy_sell_quote_worker())
+
     if LIVE_ACCOUNT_EXIT_MONITOR_ENABLED:
         asyncio.create_task(live_account_exit_monitor_worker())
 # =========================================================
@@ -15051,35 +15076,45 @@ def paper_copy_lifecycle_readiness(
     if not math.isfinite(after_ts) or not now - 86400 <= after_ts <= now:
         raise HTTPException(400, "INVALID_AFTER_TS")
 
+    excluded = tuple(sorted(OBSERVE_TRADERS))
+    exclusions = ",".join("?" for _ in excluded)
+    evaluation_exclusion = (
+        f"AND e.trader NOT IN ({exclusions})" if excluded else ""
+    )
+    sell_exclusion = (
+        f"AND t.trader NOT IN ({exclusions})" if excluded else ""
+    )
     conn = db()
     try:
         rows = conn.execute(
-            """
+            f"""
             SELECT e.id, e.ts, e.trader, e.mint, e.decision,
                    o.id, o.created_ts
             FROM evaluations e
             LEFT JOIN signal_outcomes o ON o.signal_id = e.id
             WHERE e.source = 'live' AND e.ts > ? AND e.ts <= ?
               AND e.decision IN ('COPY', 'WATCH')
+              {evaluation_exclusion}
             ORDER BY e.ts, e.id
             LIMIT 1001
             """,
-            (after_ts, now),
+            (after_ts, now, *excluded),
         ).fetchall()
         if len(rows) > 1000:
             raise HTTPException(400, "TOO_MANY_SIGNALS")
-        rows = [row for row in rows if row[2] not in OBSERVE_TRADERS]
         sells = conn.execute(
-            """
-            SELECT ts, recorded_ts, trader, mint, signature, event_index,
-                   new_token_balance
-            FROM trades
-            WHERE source = 'live' AND ts > ? AND ts <= ?
-              AND side LIKE '%sell%'
-            ORDER BY ts, id
+            f"""
+            SELECT t.ts, t.recorded_ts, t.trader, t.mint, t.signature,
+                   t.event_index, t.new_token_balance, q.observed_ts
+            FROM trades t
+            LEFT JOIN paper_copy_sell_quotes q ON q.trade_id = t.id
+            WHERE t.source = 'live' AND t.ts > ? AND t.ts <= ?
+              AND t.side LIKE '%sell%'
+              {sell_exclusion}
+            ORDER BY t.ts, t.id
             LIMIT 50001
             """,
-            (after_ts, now),
+            (after_ts, now, *excluded),
         ).fetchall()
         if len(sells) > 50000:
             raise HTTPException(400, "TOO_MANY_TRADER_SELLS")
@@ -15145,6 +15180,16 @@ def paper_copy_lifecycle_readiness(
             if any(sell[6] == 0 and sell[5] is not None
                    for sell in matching_sells):
                 totals["signals_with_explicit_zero_balance"] += 1
+            eligible_sells = [
+                sell for sell in matching_sells
+                if sell[4] and sell[5] is not None and sell[6] is not None
+            ]
+            if eligible_sells:
+                if all(sell[7] is not None for sell in eligible_sells):
+                    totals["signals_with_all_eligible_sell_quotes"] += 1
+                if any(sell[7] is None and sell[1] + 30 <= now
+                       for sell in eligible_sells):
+                    totals["signals_with_unquoted_eligible_sell_after_30s"] += 1
         if signal_ts + 900 <= now:
             totals["matured_15m"] += 1
             if coverage.get(signal_id, {}).get("complete"):
@@ -15156,6 +15201,9 @@ def paper_copy_lifecycle_readiness(
         "after_ts": after_ts,
         "affects_decisions": False,
         "writes_production": False,
+        "sell_quote_capture_enabled": (
+            ACCOUNT_PRICE_CHECKPOINT_ENABLED and PAPER_COPY_SELL_QUOTE_ENABLED
+        ),
         "can_estimate_full_lifecycle_pnl": False,
         "counts": dict(totals),
         "by_trader": {trader: dict(counts) for trader, counts in by_trader.items()},
@@ -15166,7 +15214,9 @@ def paper_copy_lifecycle_readiness(
             "mean missing data. A sell must be after the signal on-chain "
             "and recorded after the outcome was created to count. "
             "Token coverage is measured only for the first 15m, not until "
-            "the trader's final sale. No PnL is inferred."
+            "the trader's final sale. Sell-time account quotes are delayed "
+            "observations, not executable fills. Multiple buys need an "
+            "inventory allocation before PnL can be inferred."
         ),
     }
 
@@ -17025,6 +17075,111 @@ def account_price_checkpoint_once(now=None):
         conn.close()
     return {"status": "sampled", "rpc_calls": rpc_calls,
             "priced_mints": priced, "checkpoints_recorded": recorded}
+
+
+def paper_copy_sell_quote_once(now=None):
+    """Record delayed account quotes for recent watched-trader sells only."""
+    started_ts = float(now if now is not None else time.time())
+    excluded = tuple(sorted(OBSERVE_TRADERS))
+    exclusion_sql = (
+        "AND t.trader NOT IN (" + ",".join("?" for _ in excluded) + ")"
+        if excluded else ""
+    )
+    conn = db()
+    try:
+        rows = conn.execute(
+            f"""
+            SELECT t.id, t.mint, t.trader, t.recorded_ts
+            FROM trades t
+            WHERE t.source = 'live' AND t.side LIKE '%sell%'
+              AND t.recorded_ts BETWEEN ? AND ?
+              AND t.signature IS NOT NULL AND t.signature <> ''
+              AND t.event_index IS NOT NULL AND t.event_index >= 0
+              AND t.new_token_balance IS NOT NULL
+              AND t.new_token_balance >= 0
+              AND t.mint IS NOT NULL AND t.mint <> ''
+              {exclusion_sql}
+              AND NOT EXISTS (
+                  SELECT 1 FROM paper_copy_sell_quotes q
+                  WHERE q.trade_id = t.id
+              )
+              AND EXISTS (
+                  SELECT 1 FROM evaluations e
+                  JOIN signal_outcomes o ON o.signal_id = e.id
+                  WHERE e.source = 'live' AND e.decision IN ('WATCH', 'COPY')
+                    AND e.trader = t.trader AND e.mint = t.mint
+                    AND e.ts < t.ts AND e.ts >= t.ts - 86400
+                    AND o.created_ts < t.recorded_ts
+              )
+            ORDER BY t.recorded_ts, t.id
+            LIMIT 101
+            """,
+            (started_ts - 30, started_ts, *excluded),
+        ).fetchall()
+    finally:
+        conn.close()
+    mints = list(dict.fromkeys(row[1] for row in rows[:100]))[:20]
+    if not mints:
+        return {"candidates": 0, "recorded": 0, "rpc_calls": 0}
+    rpc_calls = 0
+
+    def counted_rpc(url, method, params):
+        nonlocal rpc_calls
+        rpc_calls += 1
+        return _rpc_request(url, method, params)
+
+    try:
+        snapshots = fetch_account_prices(
+            standard_wss_rpc_url(), mints, rpc_request=counted_rpc
+        )
+    finally:
+        print(f"[PAPER SELL QUOTE] rpc_calls={rpc_calls} mints={len(mints)}")
+    observed_ts = float(now if now is not None else time.time())
+    recorded = 0
+    conn = db()
+    try:
+        for trade_id, mint, _trader, sell_recorded_ts in rows:
+            if mint not in mints or observed_ts > float(sell_recorded_ts) + 30:
+                continue
+            snapshot = snapshots.get(mint) or {}
+            price = snapshot.get("price_sol")
+            market_cap = snapshot.get("market_cap_sol")
+            slot = snapshot.get("slot")
+            if (snapshot.get("status") not in ("curve", "amm")
+                    or not isinstance(price, (int, float))
+                    or not isinstance(market_cap, (int, float))
+                    or not math.isfinite(price) or price <= 0
+                    or not math.isfinite(market_cap) or market_cap <= 0
+                    or not isinstance(slot, int) or isinstance(slot, bool)
+                    or slot <= 0):
+                continue
+            cursor = conn.execute(
+                """
+                INSERT OR IGNORE INTO paper_copy_sell_quotes(
+                    trade_id, recorded_ts, observed_ts, mint, pool,
+                    price_sol, market_cap_sol, slot
+                ) VALUES(?,?,?,?,?,?,?,?)
+                """,
+                (trade_id, sell_recorded_ts, observed_ts, mint,
+                 snapshot["status"], float(price), float(market_cap), slot),
+            )
+            recorded += cursor.rowcount
+        conn.commit()
+    finally:
+        conn.close()
+    return {"candidates": len(rows), "recorded": recorded,
+            "rpc_calls": rpc_calls}
+
+
+async def paper_copy_sell_quote_worker():
+    while True:
+        try:
+            await asyncio.to_thread(paper_copy_sell_quote_once)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            print(f"[PAPER SELL QUOTE] {helius_standard_wss_error_code(exc)}")
+        await asyncio.sleep(min(5, ACCOUNT_PRICE_CHECKPOINT_POLL_SECONDS))
 
 
 async def account_price_checkpoint_worker():

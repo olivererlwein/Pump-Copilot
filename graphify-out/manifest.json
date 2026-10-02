@@ -6,9 +6,9 @@
     "semantic_hash": "5ebef3dd159986e465ab65e4014107ec"
   },
   "app.py": {
-    "mtime": 1790903416.7944863,
-    "seen": 1790903428.259323,
-    "ast_hash": "78edcef78a01e1d6a9d1aa06d9be1e1f",
+    "mtime": 1790904221.7620137,
+    "seen": 1790904334.3028438,
+    "ast_hash": "29b3830398033560650f9a607c97796f",
     "semantic_hash": ""
   },
   "models/baseline_v2_shadow.json": {
@@ -378,9 +378,9 @@
     "semantic_hash": ""
   },
   "tests/test_account_price_checkpoints.py": {
-    "mtime": 1790901785.5117798,
-    "seen": 1790903323.3530383,
-    "ast_hash": "8ef518fdeb08b89ee07dcbf20ddfa57b",
+    "mtime": 1790904178.8675501,
+    "seen": 1790904334.3028822,
+    "ast_hash": "791196b11ccf47b93d9aebb2f5b902c0",
     "semantic_hash": ""
   },
   "tests/test_training_data_quality.py": {
@@ -534,9 +534,9 @@
     "semantic_hash": ""
   },
   "tests/test_paper_copy_lifecycle_readiness.py": {
-    "mtime": 1790878520.7612703,
-    "seen": 1790898167.5476613,
-    "ast_hash": "25a75130cca500fc4e6a7d354bc9c765",
+    "mtime": 1790904108.7707207,
+    "seen": 1790904334.3028927,
+    "ast_hash": "bd4d033ebd753652d3f98eb0a9a8b3d4",
     "semantic_hash": ""
   },
   "tests/test_token_creation_probe.py": {
@@ -552,15 +552,15 @@
     "semantic_hash": ""
   },
   "reports/ingest_coverage/2026-10-01-deploy-boundary.md": {
-    "mtime": 1790903416.8054872,
-    "seen": 1790903428.2594607,
-    "ast_hash": "749ffed143ac55064b42604064e35fdb",
+    "mtime": 1790903652.1838531,
+    "seen": 1790904334.302929,
+    "ast_hash": "fcfff7d525d8041b043c77ef5d830715",
     "semantic_hash": ""
   },
   "reports/ingest_coverage/2026-10-01-paper-copy-protocol.md": {
-    "mtime": 1790898892.0344276,
-    "seen": 1790903323.3531902,
-    "ast_hash": "e32d571e74efd8fb96f79467f26641e9",
+    "mtime": 1790904205.421885,
+    "seen": 1790904334.3029299,
+    "ast_hash": "b7307885f018fa9b3b5ff3e40ce54c1d",
     "semantic_hash": ""
   }
 }
