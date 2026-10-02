@@ -68,3 +68,11 @@ After startup, WSS reconnected, wallet/token subscriptions were ready, and
 live trading, buys and sells remained off. The 580-test suite passed locally
 before deployment. Re-run the frozen validator with this second timestamp as
 `--cutoff` only after post-deploy signals have matured for 15 minutes.
+
+At 2026-10-02 01:27 UTC the fair-share phase had zero frozen-selected
+signals after the second boundary, so no coverage comparison was possible.
+The WSS remained connected with 11 wallets ready; the rolling-hour view
+showed 836 explicit mint-cap rejections and zero wallet queue rejections
+among 77 sampled wallet notices. This is a transport-health check, not an
+effectiveness result; the rolling-hour window includes some pre-boundary
+traffic.
