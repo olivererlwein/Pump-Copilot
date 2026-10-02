@@ -60,3 +60,11 @@ selected-signal completeness and reserve/cap exposure by mint, including hot
 mints. If wallet delivery worsens or a selected mint loses more coverage due
 to the cap without improvement elsewhere, revert this experiment. Do not
 change COPY thresholds or infer trading edge from this queue intervention.
+
+Deployed as `c0c66b3`; the new Railway process started at **2026-10-02
+01:11:50.087 UTC** (`process_started_ts=1790903510.08653`). Before push at
+01:11:13 UTC, WSS was connected with 11 wallets and all live gates were off.
+After startup, WSS reconnected, wallet/token subscriptions were ready, and
+live trading, buys and sells remained off. The 580-test suite passed locally
+before deployment. Re-run the frozen validator with this second timestamp as
+`--cutoff` only after post-deploy signals have matured for 15 minutes.
