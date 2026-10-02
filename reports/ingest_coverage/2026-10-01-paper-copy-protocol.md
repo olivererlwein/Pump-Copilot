@@ -33,6 +33,15 @@ The readiness endpoint remains read-only and keeps full-lifecycle PnL disabled
 even when a quote exists, because inventory allocation and executable fills
 are not yet established.
 
+Activated in Railway at the process boundary **2026-10-02 01:32:27.800 UTC**
+(`process_started_ts=1790904747.80009`) with
+`PAPER_COPY_SELL_QUOTE_ENABLED=true` and the existing account checkpoint
+worker enabled. Only this new variable was changed. The lifecycle endpoint
+confirmed capture enabled and full-lifecycle PnL disabled; `/api/status`
+confirmed live trading, buys and sells false. WSS reconnected with 11 wallets
+and both wallet/token subscriptions ready. Count sells recorded after this
+boundary separately from earlier unquoted sells; a quote is not a fill.
+
 Once sell-side quotes and inventory allocation are captured, simulate $25 per
 eligible entry with at most 10 simultaneous positions, without orders or DB
 changes to real/paper execution. Show gross return and separate 2% and 5%
