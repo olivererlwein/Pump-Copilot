@@ -6,7 +6,7 @@ import threading
 import unittest
 from contextlib import suppress
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 import app
 
@@ -417,14 +417,14 @@ class MarketEventInboxConsumerTests(unittest.TestCase):
 
         with (
             patch.object(
-                app, "mark_market_event_processed", return_value=True
+                app, "mark_market_event_processed", wraps=app.mark_market_event_processed
             ) as mark,
             patch.object(app, "route_market_event") as route,
         ):
             result = app.consume_market_event_inbox_once(now=205.0)
 
         self.assertEqual(result["processed"], 1)
-        mark.assert_called_once_with("sig-1", 0, source="rpc")
+        mark.assert_called_once_with("sig-1", 0, source="rpc", inbox_claim_token=ANY)
         self.assertEqual(route.call_args.kwargs, {
             "allow_live_buys": False,
             "allow_live_exits": False,
@@ -501,7 +501,7 @@ class MarketEventInboxConsumerTests(unittest.TestCase):
         app.establish_market_event_inbox_activation(now=200.5)
 
         with (
-            patch.object(app, "mark_market_event_processed", return_value=True) as mark,
+            patch.object(app, "mark_market_event_processed", wraps=app.mark_market_event_processed) as mark,
             patch.object(app, "route_market_event") as route,
         ):
             result = app.consume_market_event_inbox_once(now=205.0)
@@ -514,8 +514,9 @@ class MarketEventInboxConsumerTests(unittest.TestCase):
             "failed": 0,
             "released": 0,
             "lost_claims": 0,
+            "deferred": 0,
         })
-        mark.assert_called_once_with("sig-1", 0, source="helius")
+        mark.assert_called_once_with("sig-1", 0, source="helius", inbox_claim_token=ANY)
         routed = route.call_args.args[0]
         self.assertEqual(routed["traderPublicKey"], "wallet-1")
         self.assertEqual(routed["eventIndex"], 0)
@@ -609,12 +610,8 @@ class MarketEventInboxConsumerTests(unittest.TestCase):
         self.assertEqual(self.row()[0], "failed")
         self.assertIn("RuntimeError: boom", self.row()[5])
 
-    def test_reservation_failure_returns_the_row_for_a_safe_retry(self):
-        """Si la reserva lanza, no hubo efectos: la fila vuelve a la cola.
-
-        Solo la reserva se reintenta. Reconstruir la fila es determinista y el
-        enrutado ya reservó; ambos siguen siendo terminales.
-        """
+    def test_reservation_failure_waits_for_lease_before_safe_retry(self):
+        """A DB error may arrive after commit, so do not release the claim."""
         self.insert_validated_event()
         app.establish_market_event_inbox_activation(now=200.5)
 
@@ -629,21 +626,21 @@ class MarketEventInboxConsumerTests(unittest.TestCase):
             first = app.consume_market_event_inbox_once(now=205.0)
 
         route.assert_not_called()
-        self.assertEqual(first["released"], 1)
+        self.assertEqual(first["deferred"], 1)
         self.assertEqual(first["failed"], 0)
         status, attempts, claim_token, claimed_ts, processed_ts, error = (
             self.row()
         )
-        self.assertEqual(status, "validated")
+        self.assertEqual(status, "processing")
         self.assertEqual(attempts, 1)
-        self.assertIsNone(claim_token)
-        self.assertIsNone(claimed_ts)
+        self.assertIsNotNone(claim_token)
+        self.assertEqual(claimed_ts, 205.0)
         self.assertIsNone(processed_ts)
-        self.assertIn("database is locked", error)
+        self.assertIsNone(error)
 
-        # La identidad sigue libre: el reintento la reserva y enruta una vez.
+        recovered_at = 206.0 + app.MARKET_EVENT_INBOX_CONSUMER_LEASE_SECONDS
         with patch.object(app, "route_market_event") as route:
-            second = app.consume_market_event_inbox_once(now=206.0)
+            second = app.consume_market_event_inbox_once(now=recovered_at)
 
         route.assert_called_once()
         self.assertEqual(second["processed"], 1)
@@ -652,6 +649,32 @@ class MarketEventInboxConsumerTests(unittest.TestCase):
         self.assertFalse(
             app.mark_market_event_processed("sig-1", 0, source="live")
         )
+
+    def test_reservation_commits_then_reports_error_without_duplicate_route(self):
+        self.insert_validated_event()
+        app.establish_market_event_inbox_activation(now=200.5)
+        reserve = app.mark_market_event_processed
+
+        def commit_then_fail(*args, **kwargs):
+            self.assertTrue(reserve(*args, **kwargs))
+            raise sqlite3.OperationalError("reply lost after commit")
+
+        with (
+            patch.object(app, "mark_market_event_processed", side_effect=commit_then_fail),
+            patch.object(app, "route_market_event") as route,
+        ):
+            first = app.consume_market_event_inbox_once(now=205.0)
+
+        route.assert_not_called()
+        self.assertEqual(first["deferred"], 1)
+        self.assertEqual(self.row()[0], "reserved")
+        recovered_at = 206.0 + app.MARKET_EVENT_INBOX_CONSUMER_LEASE_SECONDS
+        with patch.object(app, "route_market_event") as route:
+            second = app.consume_market_event_inbox_once(now=recovered_at)
+
+        route.assert_called_once()
+        self.assertEqual(second["processed"], 1)
+        self.assertEqual(self.row()[0], "processed")
 
     def test_missing_activation_does_not_claim_a_validated_row(self):
         self.insert_validated_event()
@@ -677,6 +700,135 @@ class MarketEventInboxConsumerTests(unittest.TestCase):
             "sig-1", 0, second["claim_token"], "duplicate", now=recovered_at,
         ))
         self.assertEqual(self.row()[:2], ("duplicate", 2))
+
+    def test_crash_after_identity_reservation_retries_before_router(self):
+        self.insert_validated_event()
+        app.establish_market_event_inbox_activation(now=200.5)
+        claim = app.claim_market_event_inbox_processing_batch(now=205.0)[0]
+        self.assertTrue(app.mark_market_event_processed(
+            "sig-1", 0, source="helius", inbox_claim_token=claim["claim_token"],
+        ))
+
+        recovered_at = 206.0 + app.MARKET_EVENT_INBOX_CONSUMER_LEASE_SECONDS
+        with patch.object(app, "route_market_event") as route:
+            result = app.consume_market_event_inbox_once(now=recovered_at)
+
+        route.assert_called_once()
+        self.assertEqual(result["processed"], 1)
+        self.assertEqual(result["duplicates"], 0)
+        self.assertEqual(self.row()[0], "processed")
+
+    def test_crash_after_router_starts_is_quarantined_without_second_order(self):
+        self.insert_validated_event()
+        app.establish_market_event_inbox_activation(now=200.5)
+        with patch.object(app, "route_market_event", side_effect=SystemExit):
+            with self.assertRaises(SystemExit):
+                app.consume_market_event_inbox_once(now=205.0)
+
+        self.assertEqual(self.row()[0], "routing")
+        recovered_at = 206.0 + app.MARKET_EVENT_INBOX_CONSUMER_LEASE_SECONDS
+        with patch.object(app, "route_market_event") as route:
+            result = app.consume_market_event_inbox_once(now=recovered_at)
+
+        route.assert_not_called()
+        self.assertEqual(result["failed"], 1)
+        self.assertEqual(self.row()[0], "failed")
+        self.assertIn("ROUTING_OUTCOME_UNKNOWN", self.row()[5])
+
+    def test_crash_before_router_boundary_retries_after_restart(self):
+        self.insert_validated_event()
+        app.establish_market_event_inbox_activation(now=200.5)
+        with patch.object(app, "begin_market_event_inbox_routing", side_effect=SystemExit):
+            with self.assertRaises(SystemExit):
+                app.consume_market_event_inbox_once(now=205.0)
+
+        self.assertEqual(self.row()[0], "reserved")
+        recovered_at = 206.0 + app.MARKET_EVENT_INBOX_CONSUMER_LEASE_SECONDS
+        with patch.object(app, "route_market_event") as route:
+            result = app.consume_market_event_inbox_once(now=recovered_at)
+
+        route.assert_called_once()
+        self.assertEqual(result["processed"], 1)
+        self.assertEqual(self.row()[0], "processed")
+
+    def test_transition_error_defers_without_releasing_reserved_identity(self):
+        self.insert_validated_event()
+        app.establish_market_event_inbox_activation(now=200.5)
+        with (
+            patch.object(app, "begin_market_event_inbox_routing",
+                         side_effect=sqlite3.OperationalError("database is locked")),
+            patch.object(app, "route_market_event") as route,
+        ):
+            first = app.consume_market_event_inbox_once(now=205.0)
+
+        route.assert_not_called()
+        self.assertEqual(first["deferred"], 1)
+        self.assertEqual(self.row()[0], "reserved")
+        recovered_at = 206.0 + app.MARKET_EVENT_INBOX_CONSUMER_LEASE_SECONDS
+        with patch.object(app, "route_market_event") as route:
+            second = app.consume_market_event_inbox_once(now=recovered_at)
+
+        route.assert_called_once()
+        self.assertEqual(second["processed"], 1)
+
+    def test_expired_claim_cannot_reserve_or_start_router_twice(self):
+        self.insert_validated_event()
+        first = app.claim_market_event_inbox_processing_batch(now=205.0)[0]
+        recovered_at = 206.0 + app.MARKET_EVENT_INBOX_CONSUMER_LEASE_SECONDS
+        second = app.claim_market_event_inbox_processing_batch(now=recovered_at)[0]
+
+        with self.assertRaisesRegex(RuntimeError, "CLAIM_LOST"):
+            app.mark_market_event_processed(
+                "sig-1", 0, source="helius",
+                inbox_claim_token=first["claim_token"],
+            )
+        self.assertTrue(app.mark_market_event_processed(
+            "sig-1", 0, source="helius",
+            inbox_claim_token=second["claim_token"],
+        ))
+        with self.assertRaisesRegex(RuntimeError, "CLAIM_LOST"):
+            app.begin_market_event_inbox_routing(
+                "sig-1", 0, first["claim_token"]
+            )
+        app.begin_market_event_inbox_routing(
+            "sig-1", 0, second["claim_token"]
+        )
+        self.assertEqual(self.row()[0], "routing")
+
+    def test_stale_claim_with_other_transport_reservation_is_duplicate(self):
+        self.insert_validated_event()
+        app.establish_market_event_inbox_activation(now=200.5)
+        app.claim_market_event_inbox_processing_batch(now=205.0)
+        self.assertTrue(app.mark_market_event_processed("sig-1", 0, source="live"))
+
+        recovered_at = 206.0 + app.MARKET_EVENT_INBOX_CONSUMER_LEASE_SECONDS
+        with patch.object(app, "route_market_event") as route:
+            result = app.consume_market_event_inbox_once(now=recovered_at)
+
+        route.assert_not_called()
+        self.assertEqual(result["duplicates"], 1)
+        self.assertEqual(result["failed"], 0)
+        self.assertEqual(self.row()[0], "duplicate")
+
+    def test_reserved_marker_survives_multiple_stale_claims(self):
+        self.insert_validated_event()
+        app.establish_market_event_inbox_activation(now=200.5)
+        claim = app.claim_market_event_inbox_processing_batch(now=205.0)[0]
+        self.assertTrue(app.mark_market_event_processed(
+            "sig-1", 0, source="helius", inbox_claim_token=claim["claim_token"],
+        ))
+
+        recovered_at = 206.0 + app.MARKET_EVENT_INBOX_CONSUMER_LEASE_SECONDS
+        first_reclaim = app.claim_market_event_inbox_processing_batch(now=recovered_at)[0]
+        self.assertEqual(first_reclaim["reclaimed_status"], "reserved")
+        with patch.object(app, "route_market_event") as route:
+            result = app.consume_market_event_inbox_once(
+                now=recovered_at + app.MARKET_EVENT_INBOX_CONSUMER_LEASE_SECONDS + 1
+            )
+
+        route.assert_called_once()
+        self.assertEqual(result["processed"], 1)
+        self.assertEqual(self.row()[0], "processed")
 
 
 class MarketEventChronologyTests(unittest.TestCase):

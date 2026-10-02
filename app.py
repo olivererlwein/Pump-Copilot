@@ -1713,6 +1713,7 @@ def mark_market_event_processed(
     signature,
     event_index=0,
     source="live",
+    inbox_claim_token=None,
 ):
     """Reserva una operación por identidad completa antes de sus efectos."""
     event_id = market_event_identity(signature, event_index)
@@ -1733,6 +1734,18 @@ def mark_market_event_processed(
             """,
             (event_id, signature, event_index, time.time(), source),
         )
+
+        if cursor.rowcount and inbox_claim_token is not None:
+            claimed = conn.execute(
+                """
+                UPDATE market_event_inbox SET status = 'reserved'
+                WHERE signature = ? AND event_index = ?
+                AND status = 'processing' AND claim_token = ?
+                """,
+                (signature, event_index, inbox_claim_token),
+            )
+            if claimed.rowcount != 1:
+                raise RuntimeError("MARKET_EVENT_INBOX_CLAIM_LOST")
 
         # Mantener la tabla vieja para que una reversión del despliegue no
         # vuelva a aplicar los eventos comunes, que PumpPortal representa como
@@ -11614,11 +11627,12 @@ def claim_market_event_inbox_processing_batch(limit=None, now=None):
                 event_json,
                 received_ts,
                 block_event_ts,
-                source
+                source,
+                status
             FROM market_event_inbox
             WHERE status = 'validated'
             OR (
-                status = 'processing'
+                status IN ('processing', 'reserved', 'routing')
                 AND COALESCE(claimed_ts, 0) <= ?
             )
             ORDER BY received_ts, signature, event_index
@@ -11627,11 +11641,14 @@ def claim_market_event_inbox_processing_batch(limit=None, now=None):
             (stale_before, limit),
         ).fetchall()
 
-        for signature, event_index, _, _, _, _, _ in rows:
+        for signature, event_index, _, _, _, _, _, _ in rows:
             conn.execute(
                 """
                 UPDATE market_event_inbox
-                SET status = 'processing',
+                SET status = CASE
+                        WHEN status IN ('reserved', 'routing') THEN status
+                        ELSE 'processing'
+                    END,
                     attempts = attempts + 1,
                     claim_token = ?,
                     claimed_ts = ?,
@@ -11658,6 +11675,7 @@ def claim_market_event_inbox_processing_batch(limit=None, now=None):
             "received_ts": row[4],
             "block_event_ts": row[5],
             "source": row[6],
+            "reclaimed_status": row[7],
             "claim_token": claim_token,
         }
         for row in rows
@@ -11704,7 +11722,7 @@ def finish_market_event_inbox_processing(
                 claimed_ts = NULL
             WHERE signature = ?
             AND event_index = ?
-            AND status = 'processing'
+            AND status IN ('processing', 'reserved', 'routing')
             AND claim_token = ?
             """,
             (
@@ -11722,6 +11740,25 @@ def finish_market_event_inbox_processing(
         conn.close()
 
 
+def begin_market_event_inbox_routing(signature, event_index, claim_token):
+    """Commit the last safe-to-retry boundary before router effects begin."""
+    conn = db()
+    try:
+        cursor = conn.execute(
+            """
+            UPDATE market_event_inbox SET status = 'routing'
+            WHERE signature = ? AND event_index = ?
+            AND status = 'reserved' AND claim_token = ?
+            """,
+            (signature, event_index, claim_token),
+        )
+        conn.commit()
+        if cursor.rowcount != 1:
+            raise RuntimeError("MARKET_EVENT_INBOX_CLAIM_LOST")
+    finally:
+        conn.close()
+
+
 def consume_market_event_inbox_once(limit=None, now=None):
     """Enruta una vez los eventos validados posteriores a la activación.
 
@@ -11730,10 +11767,9 @@ def consume_market_event_inbox_once(limit=None, now=None):
     una ruta que pudo alcanzar el camino del dinero sería menos seguro que
     hacer visible la pérdida para revisión manual.
 
-    La única falla que se reintenta es la de la reserva misma —un error de base
-    al escribir `processed_market_events`—: ahí no hubo efecto alguno y la fila
-    vuelve a `validated` con el error anotado. Una fila que no se puede
-    reconstruir es determinista y queda fallida; reintentarla no la arregla.
+    Una reserva o transición de estado con resultado incierto conserva el
+    lease. Tras vencer, el estado comprometido determina si aún es seguro
+    ejecutar el router. Una fila que no se puede reconstruir queda fallida.
     """
     activation_ts = get_market_event_inbox_activation_ts()
     if activation_ts is None:
@@ -11748,12 +11784,17 @@ def consume_market_event_inbox_once(limit=None, now=None):
         "failed": 0,
         "released": 0,
         "lost_claims": 0,
+        "deferred": 0,
     }
 
     for row in rows:
         reserving = False
+        reserved_before_route = False
         try:
-            if not market_event_is_after_activation(
+            if row["reclaimed_status"] == "routing":
+                status = "failed"
+                error = "ROUTING_OUTCOME_UNKNOWN"
+            elif not market_event_is_after_activation(
                 received_ts=row["received_ts"],
                 block_event_ts=row["block_event_ts"],
                 activation_ts=activation_ts,
@@ -11775,18 +11816,27 @@ def consume_market_event_inbox_once(limit=None, now=None):
                 # del transporte en vivo.
                 transport = "rpc" if row.get("source") == "rpc" else "helius"
 
-                reserving = True
-                reserved = mark_market_event_processed(
-                    row["signature"],
-                    row["event_index"],
-                    source=transport,
-                )
-                reserving = False
+                if row["reclaimed_status"] == "reserved":
+                    reserved = True
+                else:
+                    reserving = True
+                    reserved = mark_market_event_processed(
+                        row["signature"],
+                        row["event_index"],
+                        source=transport,
+                        inbox_claim_token=row["claim_token"],
+                    )
+                    reserving = False
 
                 if not reserved:
                     status = "duplicate"
                     error = None
                 else:
+                    reserved_before_route = True
+                    begin_market_event_inbox_routing(
+                        row["signature"], row["event_index"], row["claim_token"]
+                    )
+                    reserved_before_route = False
                     event_id = market_event_identity(
                         row["signature"], row["event_index"]
                     )
@@ -11802,9 +11852,13 @@ def consume_market_event_inbox_once(limit=None, now=None):
                     status = "processed"
                     error = None
         except Exception as exc:
-            # Si la reserva lanzó, su transacción hizo rollback y la identidad
-            # sigue libre: no hubo efectos y se puede reintentar.
-            status = "validated" if reserving else "failed"
+            if reserving or reserved_before_route:
+                # El commit pudo completarse antes de que llegara la excepción.
+                # El lease permite releer 'processing', 'reserved' o 'routing'
+                # sin liberar una identidad que ya pueda estar comprometida.
+                result["deferred"] += 1
+                continue
+            status = "failed"
             error = f"{exc.__class__.__name__}: {exc}"
 
         finished = finish_market_event_inbox_processing(
@@ -11838,6 +11892,12 @@ async def market_event_inbox_consumer_worker():
                 print(
                     "[HELIUS INBOX CONSUMER] "
                     f"{result['released']} evento(s) devueltos para reintento"
+                )
+            if result.get("deferred"):
+                await send_discord_alert(
+                    "Pump Copilot: Helius inbox difirió "
+                    f"{result['deferred']} evento(s) por reserva incierta; "
+                    "revisar si persiste tras el lease."
                 )
             if result["failed"]:
                 await send_discord_alert(
