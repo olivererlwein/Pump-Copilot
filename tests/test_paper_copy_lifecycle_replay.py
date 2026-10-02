@@ -94,12 +94,17 @@ class PaperCopyLifecycleReplayTests(unittest.TestCase):
             [signal(1, 100)], [trade(1, 100, "buy", 100, 100), early],
         )
         self.assertEqual(report["rows"][0]["status"], "late_or_ambiguous_arrival")
+        self.assertEqual(report["rows"][0]["timing_flags"], [
+            "before_signal_recorded", "non_monotonic_recorded_time",
+            "before_previous_quote",
+        ])
         rpc = trade(2, 110, "sell", 100, 0, 2)
         rpc["transport"] = "rpc"
         report = replay_paper_cycles(
             [signal(1, 100)], [trade(1, 100, "buy", 100, 100), rpc],
         )
         self.assertEqual(report["rows"][0]["status"], "late_or_ambiguous_arrival")
+        self.assertEqual(report["timing_flag_counts"], {"rpc_transport": 1})
 
     def test_duplicate_sell_identity_is_not_counted_twice(self):
         first = trade(2, 110, "sell", 50, 50, 2)
@@ -120,6 +125,9 @@ class PaperCopyLifecycleReplayTests(unittest.TestCase):
             [signal(1, 100)], [trade(1, 100, "buy", 100, 100), sell],
         )
         self.assertEqual(report["rows"][0]["status"], "late_or_ambiguous_arrival")
+        self.assertEqual(report["timing_flag_counts"], {
+            "before_previous_quote": 1,
+        })
         duplicate = signal(1, 100)
         duplicate["outcome_count"] = 2
         report = replay_paper_cycles(

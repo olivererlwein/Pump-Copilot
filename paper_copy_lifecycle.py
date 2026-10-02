@@ -98,11 +98,27 @@ def replay_paper_cycles(signals, trades, stake_usd=25.0):
                 if len(identities[(trade["signature"], trade["event_index"])]) != 1:
                     result["status"] = "duplicate_trade_identity"
                     break
-                if (trade["transport"] == "rpc"
-                        or trade["recorded_ts"] <= signal["created_ts"]
-                        or trade["recorded_ts"] <= last_recorded_ts
-                        or trade["recorded_ts"] <= last_quote_ts):
+                timing_flags = []
+                if trade["transport"] == "rpc":
+                    timing_flags.append("rpc_transport")
+                if trade["recorded_ts"] <= signal["created_ts"]:
+                    timing_flags.append("before_signal_recorded")
+                if trade["recorded_ts"] <= last_recorded_ts:
+                    timing_flags.append("non_monotonic_recorded_time")
+                if trade["recorded_ts"] <= last_quote_ts:
+                    timing_flags.append("before_previous_quote")
+                if timing_flags:
                     result["status"] = "late_or_ambiguous_arrival"
+                    result["timing_flags"] = timing_flags
+                    result["first_ambiguous_trade"] = {
+                        "trade_id": trade["id"], "side": side,
+                        "transport": trade["transport"],
+                        "block_ts": trade["ts"],
+                        "recorded_ts": trade["recorded_ts"],
+                        "signal_created_ts": signal["created_ts"],
+                        "previous_recorded_ts": last_recorded_ts,
+                        "previous_quote_ts": last_quote_ts,
+                    }
                     break
                 last_recorded_ts = trade["recorded_ts"]
                 expected = balance + amount if side == "buy" else balance - amount
@@ -150,6 +166,9 @@ def replay_paper_cycles(signals, trades, stake_usd=25.0):
                     break
 
     counts = collections.Counter(row["status"] for row in results)
+    timing_flag_counts = collections.Counter(
+        flag for row in results for flag in row.get("timing_flags", ())
+    )
     def summary():
         return {"complete": 0, "net_usd_at_2pct": 0.0,
                 "net_usd_at_5pct": 0.0}
@@ -172,7 +191,8 @@ def replay_paper_cycles(signals, trades, stake_usd=25.0):
         row.get("net_usd_at_5pct", 0) for row in results
     )
     return {
-        "counts": dict(counts), "by_trader": dict(by_trader),
+        "counts": dict(counts), "timing_flag_counts": dict(timing_flag_counts),
+        "by_trader": dict(by_trader),
         "by_mint": dict(by_mint), "rows": results,
         "completed_sample_only": {
             "net_usd_at_2pct": round(complete_net_2pct, 2),
