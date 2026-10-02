@@ -870,7 +870,9 @@ def _initialize_db():
             signature TEXT NOT NULL,
             event_index INTEGER NOT NULL,
             ts REAL,
-            source TEXT DEFAULT 'live'
+            source TEXT DEFAULT 'live',
+            route_state TEXT,
+            route_event_json TEXT
         )
         """
     )
@@ -1714,12 +1716,25 @@ def mark_market_event_processed(
     event_index=0,
     source="live",
     inbox_claim_token=None,
+    recovery_event=None,
 ):
     """Reserva una operación por identidad completa antes de sus efectos."""
     event_id = market_event_identity(signature, event_index)
 
     if event_id is None:
         return False
+
+    if recovery_event is not None and (
+        source != "live"
+        or market_event_identity(
+            recovery_event.get("signature"), market_event_index(recovery_event)
+        ) != event_id
+    ):
+        raise ValueError("STREAM_RECOVERY_EVENT_ID_MISMATCH")
+    recovery_json = (
+        json.dumps(recovery_event, separators=(",", ":"))
+        if recovery_event is not None else None
+    )
 
     conn = db()
 
@@ -1728,11 +1743,16 @@ def mark_market_event_processed(
         cursor = conn.execute(
             """
             INSERT OR IGNORE INTO processed_market_events(
-                event_id, signature, event_index, ts, source
+                event_id, signature, event_index, ts, source,
+                route_state, route_event_json
             )
-            VALUES(?,?,?,?,?)
+            VALUES(?,?,?,?,?,?,?)
             """,
-            (event_id, signature, event_index, time.time(), source),
+            (
+                event_id, signature, event_index, time.time(), source,
+                "reserved" if recovery_json is not None else None,
+                recovery_json,
+            ),
         )
 
         if cursor.rowcount and inbox_claim_token is not None:
@@ -1777,6 +1797,22 @@ def mark_signature_processed(signature, source="live"):
         event_index=0,
         source=source,
     )
+
+
+def move_stream_route_state(event_id, old_state, new_state):
+    conn = db()
+    try:
+        cursor = conn.execute(
+            """UPDATE processed_market_events
+            SET route_state = ?, route_event_json = CASE
+                WHEN ? = 'processed' THEN NULL ELSE route_event_json END
+            WHERE event_id = ? AND source = 'live' AND route_state = ?""",
+            (new_state, new_state, event_id, old_state),
+        )
+        conn.commit()
+        return cursor.rowcount == 1
+    finally:
+        conn.close()
 
 def count_open_positions(
     mode="paper",
@@ -5308,9 +5344,22 @@ def migrate_processed_market_events(conn):
             signature TEXT NOT NULL,
             event_index INTEGER NOT NULL,
             ts REAL,
-            source TEXT DEFAULT 'live'
+            source TEXT DEFAULT 'live',
+            route_state TEXT,
+            route_event_json TEXT
         )
         """
+    )
+    columns = {
+        row[1] for row in conn.execute("PRAGMA table_info(processed_market_events)")
+    }
+    for column in ("route_state", "route_event_json"):
+        if column not in columns:
+            conn.execute(f"ALTER TABLE processed_market_events ADD COLUMN {column} TEXT")
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_processed_market_events_route_state "
+        "ON processed_market_events(route_state, ts) "
+        "WHERE route_state IN ('reserved', 'routing', 'uncertain')"
     )
     cursor = conn.execute(
         """
@@ -13789,6 +13838,87 @@ def route_market_event(
         )
 
 
+def recover_reserved_stream_events_once(now=None):
+    """Replay only events that never crossed the routing boundary."""
+    now = time.time() if now is None else now
+    cutoff = now - MARKET_EVENT_INBOX_CONSUMER_LEASE_SECONDS
+    conn = db()
+    try:
+        rows = conn.execute(
+            """SELECT event_id, signature, event_index, route_event_json
+            FROM processed_market_events
+            WHERE source = 'live' AND route_state = 'reserved' AND ts <= ?
+            ORDER BY ts LIMIT 25""",
+            (cutoff,),
+        ).fetchall()
+    finally:
+        conn.close()
+
+    recovered_ids = []
+    for row in rows:
+        event_id, signature, event_index, raw = row
+        try:
+            event = json.loads(raw)
+            if not isinstance(event, dict) or market_event_identity(
+                event.get("signature"), market_event_index(event)
+            ) != market_event_identity(signature, event_index) or (
+                event.get("traderPublicKey") or event.get("user")
+                or event.get("wallet")
+            ) not in WATCHED.values():
+                raise ValueError("STREAM_RECOVERY_EVENT_ID_MISMATCH")
+        except (TypeError, ValueError, json.JSONDecodeError):
+            move_stream_route_state(event_id, "reserved", "uncertain")
+            continue
+        if not move_stream_route_state(event_id, "reserved", "routing"):
+            continue
+        try:
+            route_market_event(
+                event, allow_live_buys=False, allow_live_exits=False,
+                transport="pumpportal-recovery",
+            )
+        except Exception:
+            move_stream_route_state(event_id, "routing", "uncertain")
+            continue
+        if move_stream_route_state(event_id, "routing", "processed"):
+            recovered_ids.append(event_id)
+
+    conn = db()
+    try:
+        uncertain_ids = [row[0] for row in conn.execute(
+            """SELECT event_id FROM processed_market_events
+            WHERE source = 'live' AND (
+                route_state = 'uncertain' OR
+                (route_state = 'routing' AND ts <= ?))
+            ORDER BY ts LIMIT 25""",
+            (cutoff,),
+        ).fetchall()]
+    finally:
+        conn.close()
+    return {"recovered_ids": recovered_ids, "uncertain_ids": uncertain_ids}
+
+
+async def stream_event_recovery_worker():
+    alerted = set()
+    while True:
+        try:
+            result = await asyncio.to_thread(recover_reserved_stream_events_once)
+            for event_id in result["recovered_ids"]:
+                await send_discord_alert(
+                    "Pump Copilot: PumpPortal event recovered without live "
+                    f"orders; check any open position for {event_id}."
+                )
+            for event_id in result["uncertain_ids"]:
+                if event_id not in alerted:
+                    alerted.add(event_id)
+                    await send_discord_alert(
+                        "Pump Copilot: PumpPortal route outcome uncertain; "
+                        f"manual reconciliation required for {event_id}."
+                    )
+        except Exception as exc:
+            print("[STREAM RECOVERY ERROR]", repr(exc))
+        await asyncio.sleep(5)
+
+
 async def stream():
 
     global FORCE_STREAM_ERROR
@@ -14080,10 +14210,16 @@ async def stream():
                             )
                             continue
 
+                        wallet = (
+                            event.get("traderPublicKey") or event.get("user")
+                            or event.get("wallet")
+                        )
+                        watched = wallet in WATCHED.values()
                         if not mark_market_event_processed(
                             signature,
                             event_index=event_index,
-                            source="live"
+                            source="live",
+                            recovery_event=event if watched else None,
                         ):
                             print(
                                 f"[DUPLICATE DB] Ignorado {event_id[:12]}..."
@@ -14095,7 +14231,19 @@ async def stream():
                         if len(SEEN_EVENT_IDS) > 5000:
                             SEEN_EVENT_IDS.clear()
 
-                    route_market_event(event)
+                    if signature and watched:
+                        if not move_stream_route_state(event_id, "reserved", "routing"):
+                            raise RuntimeError("STREAM_ROUTE_RESERVATION_LOST")
+                    try:
+                        route_market_event(event)
+                    except Exception:
+                        if signature and watched:
+                            move_stream_route_state(event_id, "routing", "uncertain")
+                        raise
+                    if signature and watched and not move_stream_route_state(
+                        event_id, "routing", "processed"
+                    ):
+                        raise RuntimeError("STREAM_ROUTE_COMPLETION_UNCERTAIN")
 
 
         except Exception as ex:
@@ -14225,6 +14373,10 @@ async def startup():
 
     asyncio.create_task(
         stream()
+    )
+
+    asyncio.create_task(
+        stream_event_recovery_worker()
     )
 
     asyncio.create_task(

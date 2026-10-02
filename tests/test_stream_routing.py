@@ -1,9 +1,10 @@
 import asyncio
 import json
+import sqlite3
 import tempfile
 import time
 import unittest
-from contextlib import ExitStack
+from contextlib import ExitStack, closing
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -411,6 +412,59 @@ class StreamRoutingTests(unittest.IsolatedAsyncioTestCase):
             [0, 1],
         )
 
+    async def test_router_failure_is_quarantined_without_replay(self):
+        event = {
+            "signature": "failed-route", "traderPublicKey": "wallet",
+            "mint": "mint", "txType": "buy",
+        }
+        socket = AsyncMock()
+        socket.recv.side_effect = [json.dumps(event), asyncio.CancelledError()]
+        connection = AsyncMock()
+        connection.__aenter__.return_value = socket
+        with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
+            for name, value in {
+                "DB": Path(directory) / "failure.db", "API_KEY": "test-key",
+                "WATCHED": {"trader": "wallet"}, "TRACKED_TOKENS": set(),
+                "SUBSCRIBED_TOKENS": set(), "SEEN_EVENT_IDS": set(),
+                "FORCE_STREAM_ERROR": False,
+            }.items():
+                stack.enter_context(patch.object(app, name, value))
+            stack.enter_context(patch.object(
+                app.websockets, "connect", return_value=connection,
+            ))
+            stack.enter_context(patch.object(
+                app, "mark_stream_recovered", new=AsyncMock(),
+            ))
+            stack.enter_context(patch.object(
+                app, "mark_stream_problem", new=AsyncMock(),
+            ))
+            stack.enter_context(patch.object(
+                app.asyncio, "sleep",
+                new=AsyncMock(side_effect=asyncio.CancelledError()),
+            ))
+            route = stack.enter_context(patch.object(
+                app, "route_market_event", side_effect=RuntimeError("route failed"),
+            ))
+            app.migrate_database()
+            with self.assertRaises(asyncio.CancelledError):
+                await app.stream()
+            conn = app.db()
+            try:
+                state = conn.execute(
+                    "SELECT route_state FROM processed_market_events "
+                    "WHERE signature = ?", (event["signature"],),
+                ).fetchone()[0]
+            finally:
+                conn.close()
+            self.assertEqual(state, "uncertain")
+            self.assertFalse(app.mark_market_event_processed(event["signature"]))
+            with patch.object(app, "route_market_event") as replay:
+                app.recover_reserved_stream_events_once(
+                    now=time.time() + app.MARKET_EVENT_INBOX_CONSUMER_LEASE_SECONDS + 1,
+                )
+                replay.assert_not_called()
+            route.assert_called_once_with(event)
+
     async def check_routing(self, watched, tracked, real_effects=False):
         event = {
             "signature": "routing-test-signature",
@@ -488,6 +542,11 @@ class StreamRoutingTests(unittest.IsolatedAsyncioTestCase):
             conn = app.db()
             try:
                 self.assertEqual(conn.execute("SELECT COUNT(*) FROM trades").fetchone()[0], int(watched))
+                state = conn.execute(
+                    "SELECT route_state, route_event_json FROM processed_market_events "
+                    "WHERE signature = ?", (event["signature"],),
+                ).fetchone()
+                self.assertEqual(state, ("processed", None) if watched else (None, None))
                 if real_effects:
                     position = conn.execute(
                         "SELECT remaining_pct, tp_stage, status FROM paper_positions"
@@ -511,3 +570,139 @@ class StreamRoutingTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_partial_sell_updates_paper_once_and_preserves_outcome(self):
         await self.check_routing(watched=True, tracked=True, real_effects=True)
+
+
+class StreamRecoveryTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.patch_db = patch.object(app, "DB", Path(self.temp.name) / "stream.db")
+        self.patch_db.start()
+        self.addCleanup(self.patch_db.stop)
+        self.patch_watched = patch.object(app, "WATCHED", {"trader": "wallet"})
+        self.patch_watched.start()
+        self.addCleanup(self.patch_watched.stop)
+        app.migrate_database()
+        self.event = {
+            "signature": "stream-recovery-sig", "traderPublicKey": "wallet",
+            "mint": "mint", "txType": "buy",
+        }
+        self.event_id = app.market_event_identity(self.event["signature"], 0)
+
+    def age_reservation(self):
+        conn = app.db()
+        try:
+            conn.execute(
+                "UPDATE processed_market_events SET ts = ? WHERE event_id = ?",
+                (time.time() - app.MARKET_EVENT_INBOX_CONSUMER_LEASE_SECONDS - 1,
+                 self.event_id),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    def route_state(self):
+        conn = app.db()
+        try:
+            return conn.execute(
+                "SELECT route_state, route_event_json FROM processed_market_events "
+                "WHERE event_id = ?", (self.event_id,),
+            ).fetchone()
+        finally:
+            conn.close()
+
+    def test_reserved_event_replays_once_without_live_orders(self):
+        self.assertTrue(app.mark_market_event_processed(
+            self.event["signature"], recovery_event=self.event,
+        ))
+        self.age_reservation()
+        with patch.object(app, "route_market_event") as route:
+            result = app.recover_reserved_stream_events_once()
+            self.assertEqual(result["recovered_ids"], [self.event_id])
+            route.assert_called_once_with(
+                self.event, allow_live_buys=False, allow_live_exits=False,
+                transport="pumpportal-recovery",
+            )
+            self.assertEqual(app.recover_reserved_stream_events_once()["recovered_ids"], [])
+            route.assert_called_once()
+        self.assertEqual(self.route_state(), ("processed", None))
+        self.assertFalse(app.mark_market_event_processed(
+            self.event["signature"], source="helius",
+        ))
+
+    def test_routing_state_is_never_replayed(self):
+        self.assertTrue(app.mark_market_event_processed(
+            self.event["signature"], recovery_event=self.event,
+        ))
+        self.assertTrue(app.move_stream_route_state(
+            self.event_id, "reserved", "routing",
+        ))
+        self.age_reservation()
+        with patch.object(app, "route_market_event") as route:
+            result = app.recover_reserved_stream_events_once()
+            route.assert_not_called()
+        self.assertEqual(result["uncertain_ids"], [self.event_id])
+
+    def test_mismatched_payload_is_quarantined(self):
+        self.assertTrue(app.mark_market_event_processed(
+            self.event["signature"], recovery_event=self.event,
+        ))
+        conn = app.db()
+        try:
+            conn.execute(
+                "UPDATE processed_market_events SET route_event_json = ? "
+                "WHERE event_id = ?",
+                (json.dumps({**self.event, "signature": "other"}), self.event_id),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        self.age_reservation()
+        with patch.object(app, "route_market_event") as route:
+            result = app.recover_reserved_stream_events_once()
+            route.assert_not_called()
+        self.assertEqual(result["uncertain_ids"], [self.event_id])
+        self.assertEqual(self.route_state()[0], "uncertain")
+
+    def test_removed_wallet_is_not_silently_processed(self):
+        self.assertTrue(app.mark_market_event_processed(
+            self.event["signature"], recovery_event=self.event,
+        ))
+        self.age_reservation()
+        with patch.object(app, "WATCHED", {}), patch.object(
+            app, "route_market_event"
+        ) as route:
+            result = app.recover_reserved_stream_events_once()
+            route.assert_not_called()
+        self.assertEqual(result["uncertain_ids"], [self.event_id])
+
+    def test_old_schema_migrates_without_replaying_old_rows(self):
+        path = Path(self.temp.name) / "old.db"
+        with closing(sqlite3.connect(path)) as conn:
+            conn.execute(
+                "CREATE TABLE processed_market_events ("
+                "event_id TEXT PRIMARY KEY, signature TEXT NOT NULL, "
+                "event_index INTEGER NOT NULL, ts REAL, source TEXT DEFAULT 'live')"
+            )
+            conn.execute(
+                "INSERT INTO processed_market_events VALUES (?, ?, 0, 1, 'live')",
+                (self.event_id, self.event["signature"]),
+            )
+            conn.commit()
+        with patch.object(app, "DB", path):
+            app.migrate_database()
+            conn = app.db()
+            try:
+                self.assertEqual(
+                    conn.execute(
+                        "SELECT route_state, route_event_json FROM "
+                        "processed_market_events WHERE event_id = ?",
+                        (self.event_id,),
+                    ).fetchone(),
+                    (None, None),
+                )
+            finally:
+                conn.close()
+            with patch.object(app, "route_market_event") as route:
+                app.recover_reserved_stream_events_once()
+                route.assert_not_called()
