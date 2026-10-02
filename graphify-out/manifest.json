@@ -6,9 +6,9 @@
     "semantic_hash": "5ebef3dd159986e465ab65e4014107ec"
   },
   "app.py": {
-    "mtime": 1790897896.5249302,
-    "seen": 1790898167.5475824,
-    "ast_hash": "c0d70f7d4b28fcd67d5dce2dc2b71b4f",
+    "mtime": 1790903416.7944863,
+    "seen": 1790903428.259323,
+    "ast_hash": "78edcef78a01e1d6a9d1aa06d9be1e1f",
     "semantic_hash": ""
   },
   "models/baseline_v2_shadow.json": {
@@ -342,9 +342,9 @@
     "semantic_hash": ""
   },
   "tests/test_helius_standard_wss.py": {
-    "mtime": 1790828094.9152124,
-    "seen": 1790858671.7155962,
-    "ast_hash": "54a53184a083e88e3996847fcf20cd8b",
+    "mtime": 1790903416.8004866,
+    "seen": 1790903428.2593956,
+    "ast_hash": "acdfaf53f277ed4727e287169a5fa515",
     "semantic_hash": ""
   },
   "helius_credit_usage.py": {
@@ -378,9 +378,9 @@
     "semantic_hash": ""
   },
   "tests/test_account_price_checkpoints.py": {
-    "mtime": 1790897896.5324216,
-    "seen": 1790898167.5476463,
-    "ast_hash": "fdc54ad7a9237007310f1227d3ac39a8",
+    "mtime": 1790901785.5117798,
+    "seen": 1790903323.3530383,
+    "ast_hash": "8ef518fdeb08b89ee07dcbf20ddfa57b",
     "semantic_hash": ""
   },
   "tests/test_training_data_quality.py": {
@@ -474,15 +474,15 @@
     "semantic_hash": ""
   },
   "scripts/validate_frozen_exit_candidate.py": {
-    "mtime": 1790897896.5274181,
-    "seen": 1790898167.5476363,
-    "ast_hash": "799b4f2bc54af19ef1b73531c4173a54",
+    "mtime": 1790902080.4792671,
+    "seen": 1790903323.3530183,
+    "ast_hash": "cf367060b6c929c2517dc80ddbc8a9aa",
     "semantic_hash": ""
   },
   "tests/test_frozen_exit_candidate.py": {
-    "mtime": 1790897896.5364249,
-    "seen": 1790898167.547652,
-    "ast_hash": "52c55b810c4c0c668c35ba3e8f878259",
+    "mtime": 1790901889.1144986,
+    "seen": 1790903323.3530514,
+    "ast_hash": "3319491aaf5ae606be86f79a4c461383",
     "semantic_hash": ""
   },
   "reports/ingest_coverage/2026-09-28T014805Z.json": {
@@ -549,6 +549,18 @@
     "mtime": 1790867610.4876075,
     "seen": 1790898167.5476766,
     "ast_hash": "8d0719cce961cb361482be4341ebc872",
+    "semantic_hash": ""
+  },
+  "reports/ingest_coverage/2026-10-01-deploy-boundary.md": {
+    "mtime": 1790903416.8054872,
+    "seen": 1790903428.2594607,
+    "ast_hash": "749ffed143ac55064b42604064e35fdb",
+    "semantic_hash": ""
+  },
+  "reports/ingest_coverage/2026-10-01-paper-copy-protocol.md": {
+    "mtime": 1790898892.0344276,
+    "seen": 1790903323.3531902,
+    "ast_hash": "e32d571e74efd8fb96f79467f26641e9",
     "semantic_hash": ""
   }
 }

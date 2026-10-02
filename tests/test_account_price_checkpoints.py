@@ -954,6 +954,8 @@ class AccountPriceCheckpointTests(unittest.TestCase):
             for signature, wallet, subject_type, received_ts, status in (
                 ("lost-queue", "mint-9", "token", signal_ts + 100,
                  "queue_full"),
+                ("lost-cap", "mint-9", "token", signal_ts + 150,
+                 "queue_full"),
                 ("lost-fetch", "mint-9", "token", signal_ts + 200,
                  "fetch_failed"),
                 ("lost-process", "mint-9", "token", signal_ts + 300,
@@ -982,7 +984,10 @@ class AccountPriceCheckpointTests(unittest.TestCase):
                     """,
                     (signature, received_ts, status,
                      "HELIUS_STANDARD_WSS_PRIORITY_RESERVE"
-                     if signature == "lost-queue" else None),
+                     if signature == "lost-queue" else (
+                         "HELIUS_STANDARD_WSS_MINT_PENDING_CAP"
+                         if signature == "lost-cap" else None
+                     )),
                 )
             conn.commit()
         finally:
@@ -994,9 +999,10 @@ class AccountPriceCheckpointTests(unittest.TestCase):
             [row]
         )[signal_id]
         self.assertTrue(coverage["subscription_continuous"])
-        self.assertEqual(coverage["known_delivery_failures"], 3)
+        self.assertEqual(coverage["known_delivery_failures"], 4)
         self.assertFalse(coverage["priority_reserve_trace_available"])
         self.assertEqual(coverage["priority_reserve_rejections"], 1)
+        self.assertEqual(coverage["mint_cap_rejections"], 1)
         self.assertFalse(coverage["complete"])
         progress = app.get_exit_subscription_coverage_progress([row])
         self.assertEqual(progress["known_delivery_loss_observation_rows"], 1)
@@ -1006,7 +1012,8 @@ class AccountPriceCheckpointTests(unittest.TestCase):
         try:
             conn.execute(
                 "DELETE FROM helius_standard_wss_transactions "
-                "WHERE signature IN ('lost-queue', 'lost-fetch', 'lost-process')"
+                "WHERE signature IN ('lost-queue', 'lost-cap', "
+                "'lost-fetch', 'lost-process')"
             )
             conn.commit()
         finally:

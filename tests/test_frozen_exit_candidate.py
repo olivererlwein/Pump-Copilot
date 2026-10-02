@@ -184,6 +184,7 @@ class FrozenExitCandidateTests(unittest.TestCase):
         self.assertEqual(coverage["selected_rows_measured"], 1)
         self.assertFalse(coverage["selected_priority_reserve_trace_available"])
         self.assertIsNone(coverage["selected_rows_priority_reserve_exposed"])
+        self.assertIsNone(coverage["selected_rows_mint_cap_exposed"])
         self.assertEqual(coverage["selected_rows_incomplete"], 0)
         self.assertEqual(coverage["selected_rows_unmeasured"], 0)
         self.assertEqual(coverage["selected_rows_no_subscription_interval"], 0)
@@ -216,6 +217,7 @@ class FrozenExitCandidateTests(unittest.TestCase):
                 "subscription_continuous": False,
                 "priority_reserve_trace_available": True,
                 "priority_reserve_rejections": 3,
+                "mint_cap_rejections": 2,
                 "complete": False,
             },
             "ambiguous": False,
@@ -244,6 +246,13 @@ class FrozenExitCandidateTests(unittest.TestCase):
         self.assertEqual(
             coverage["selected_priority_reserve_rejections_by_mint"],
             {"mint": 3},
+        )
+        self.assertEqual(coverage["selected_mint_cap_trace_rows"], 1)
+        self.assertEqual(coverage["selected_rows_mint_cap_exposed"], 1)
+        self.assertEqual(coverage["selected_mint_cap_rejections"], 2)
+        self.assertEqual(
+            coverage["selected_mint_cap_rejections_by_mint"],
+            {"mint": 2},
         )
         self.assertEqual(coverage["selected_rows_no_subscription_interval"], 0)
         self.assertEqual(coverage["selected_rows_subscription_gap"], 1)

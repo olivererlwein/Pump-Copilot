@@ -303,6 +303,8 @@ def prospective_report(
     selected_coverage_ratios = []
     priority_rejection_mints = Counter()
     priority_rejection_events_by_mint = Counter()
+    mint_cap_mints = Counter()
+    mint_cap_events_by_mint = Counter()
     for row in rows:
         subscription_coverage = row.get("subscription_coverage") or {}
         measurement_available = (
@@ -322,6 +324,8 @@ def prospective_report(
                 )
                 if priority_trace_available:
                     selected_coverage["priority_trace_available_rows"] += 1
+                if "mint_cap_rejections" in subscription_coverage:
+                    selected_coverage["mint_cap_trace_rows"] += 1
                 activation_ts = subscription_coverage.get(
                     "token_tracking_observable_from_ts",
                     subscription_coverage.get("measurement_started_ts"),
@@ -351,6 +355,14 @@ def prospective_report(
                     priority_rejection_events_by_mint[str(row["mint"])] += (
                         priority_rejections
                     )
+                cap_rejections = int(
+                    subscription_coverage.get("mint_cap_rejections") or 0
+                )
+                if cap_rejections:
+                    selected_coverage["mint_cap_exposed"] += 1
+                    selected_coverage["mint_cap_rejections"] += cap_rejections
+                    mint_cap_mints[str(row["mint"])] += 1
+                    mint_cap_events_by_mint[str(row["mint"])] += cap_rejections
                 if not coverage_complete:
                     selected_coverage["incomplete"] += 1
                     if not subscription_coverage.get("intervals"):
@@ -522,7 +534,14 @@ def prospective_report(
         for record in records
     )
     priority_trace_available = bool(
-        selected_coverage["priority_trace_available_rows"]
+        selected_coverage["measured"]
+        and selected_coverage["priority_trace_available_rows"]
+        == selected_coverage["measured"]
+    )
+    mint_cap_trace_available = bool(
+        selected_coverage["measured"]
+        and selected_coverage["mint_cap_trace_rows"]
+        == selected_coverage["measured"]
     )
     return {
         "ready_for_review": not blockers,
@@ -589,6 +608,25 @@ def prospective_report(
                 "selected_priority_reserve_rejections_by_mint": (
                     dict(priority_rejection_events_by_mint.most_common())
                     if priority_trace_available else None
+                ),
+                "selected_mint_cap_trace_rows": (
+                    selected_coverage["mint_cap_trace_rows"]
+                ),
+                "selected_rows_mint_cap_exposed": (
+                    selected_coverage["mint_cap_exposed"]
+                    if mint_cap_trace_available else None
+                ),
+                "selected_mint_cap_rejections": (
+                    selected_coverage["mint_cap_rejections"]
+                    if mint_cap_trace_available else None
+                ),
+                "selected_mint_cap_exposed_by_mint": (
+                    dict(mint_cap_mints.most_common())
+                    if mint_cap_trace_available else None
+                ),
+                "selected_mint_cap_rejections_by_mint": (
+                    dict(mint_cap_events_by_mint.most_common())
+                    if mint_cap_trace_available else None
                 ),
                 "selected_rows_no_subscription_interval": (
                     selected_coverage["no_subscription_interval"]

@@ -43,3 +43,20 @@ explicit zero balance; five had matured for 15 minutes and two had continuous
 token coverage. It reports `can_estimate_full_lifecycle_pnl=false`: no account
 quote is yet captured at trader-sale time. Live trading, live buys and live
 sells remained disabled; WSS was connected with 11 wallets ready.
+
+## Token fair-share experiment (not part of the first boundary)
+
+The next code change caps low-priority pending fetches from one mint at 25% of
+the token queue, but only once the queue is at least half full. With the
+current 500-task global limit, that means a 400-task token ceiling, a 200-task
+pressure trigger, and a 100-task per-mint cap. Wallet notices, open live
+positions, and already-persisted recovery tasks bypass the new cap; the
+existing global limit and wallet reserve remain. Cap rejections are explicit
+delivery failures, not prices or lost fills.
+
+Compare cohorts only after the next Railway process start. Check that wallet
+queue rejections stay at zero and wallet latency does not rise; compare
+selected-signal completeness and reserve/cap exposure by mint, including hot
+mints. If wallet delivery worsens or a selected mint loses more coverage due
+to the cap without improvement elsewhere, revert this experiment. Do not
+change COPY thresholds or infer trading edge from this queue intervention.

@@ -681,6 +681,143 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
             await asyncio.gather(*tasks)
         self.assertEqual(fetch.await_count, 1)
 
+    async def test_mint_pending_cap_preserves_other_mints_and_wallets(self):
+        hot = {**self.event("mint-a"), "subject_type": "token"}
+        other = {**self.event("mint-b"), "subject_type": "token",
+                 "signature": "other-sig"}
+        wallet = {**self.event("mint-a"), "signature": "wallet-sig"}
+        protected = {**hot, "signature": "protected-sig"}
+        for event in (hot, other, wallet, protected):
+            app.record_helius_standard_wss_notification(
+                event, True, 100, received_ts=1000,
+            )
+        pending = {"pending-a", "pending-b", "pending-c", "pending-d"}
+        token_tasks = {
+            asyncio.Future(): (signature, "mint-a")
+            for signature in ("pending-a", "pending-b")
+        }
+        tasks = set()
+        with (
+            patch.object(app, "HELIUS_STANDARD_WSS_MAX_PENDING", 10),
+            patch.object(
+                app, "fetch_helius_standard_wss_transaction",
+                new_callable=AsyncMock,
+            ) as fetch,
+        ):
+            await app.schedule_helius_standard_wss_fetch(
+                hot, 1000, pending, tasks, asyncio.Semaphore(1),
+                asyncio.Lock(), {"next_ts": 0.0},
+                pending_token_tasks=token_tasks,
+            )
+            conn = app.db()
+            try:
+                self.assertEqual(conn.execute(
+                    "SELECT status, last_error FROM "
+                    "helius_standard_wss_transactions WHERE signature = ?",
+                    (hot["signature"],),
+                ).fetchone(), (
+                    "queue_full", "HELIUS_STANDARD_WSS_MINT_PENDING_CAP",
+                ))
+            finally:
+                conn.close()
+            for event in (other, wallet):
+                await app.schedule_helius_standard_wss_fetch(
+                    event, 1000, pending, tasks, asyncio.Semaphore(1),
+                    asyncio.Lock(), {"next_ts": 0.0},
+                    pending_token_tasks=token_tasks,
+                )
+            with patch.object(
+                app, "helius_standard_wss_token_has_open_live_position",
+                return_value=True,
+            ):
+                await app.schedule_helius_standard_wss_fetch(
+                    protected, 1000, pending, tasks, asyncio.Semaphore(1),
+                    asyncio.Lock(), {"next_ts": 0.0},
+                    pending_token_tasks=token_tasks,
+                )
+            await asyncio.gather(*tasks)
+        self.assertEqual(fetch.await_count, 3)
+
+    async def test_mint_pending_cap_ignores_finished_fetches(self):
+        token = {**self.event("mint-a"), "subject_type": "token"}
+        app.record_helius_standard_wss_notification(
+            token, True, 100, received_ts=1000,
+        )
+        pending = {"pending-a", "pending-b", "pending-c", "pending-d"}
+        finished = asyncio.Future()
+        finished.set_result(None)
+        token_tasks = {
+            asyncio.Future(): ("pending-a", "mint-a"),
+            finished: ("pending-b", "mint-a"),
+        }
+        tasks = set()
+        with (
+            patch.object(app, "HELIUS_STANDARD_WSS_MAX_PENDING", 10),
+            patch.object(
+                app, "fetch_helius_standard_wss_transaction",
+                new_callable=AsyncMock,
+            ) as fetch,
+        ):
+            await app.schedule_helius_standard_wss_fetch(
+                token, 1000, pending, tasks, asyncio.Semaphore(1),
+                asyncio.Lock(), {"next_ts": 0.0},
+                pending_token_tasks=token_tasks,
+            )
+            await asyncio.gather(*tasks)
+        self.assertEqual(fetch.await_count, 1)
+
+    async def test_mint_pending_cap_waits_for_queue_pressure(self):
+        token = {**self.event("mint-a"), "subject_type": "token"}
+        app.record_helius_standard_wss_notification(
+            token, True, 100, received_ts=1000,
+        )
+        pending = {"pending-a", "pending-b"}
+        token_tasks = {
+            asyncio.Future(): (signature, "mint-a") for signature in pending
+        }
+        tasks = set()
+        with (
+            patch.object(app, "HELIUS_STANDARD_WSS_MAX_PENDING", 10),
+            patch.object(
+                app, "fetch_helius_standard_wss_transaction",
+                new_callable=AsyncMock,
+            ) as fetch,
+            patch.object(
+                app, "helius_standard_wss_token_has_open_live_position",
+                side_effect=AssertionError("unexpected position lookup"),
+            ),
+        ):
+            await app.schedule_helius_standard_wss_fetch(
+                token, 1000, pending, tasks, asyncio.Semaphore(1),
+                asyncio.Lock(), {"next_ts": 0.0},
+                pending_token_tasks=token_tasks,
+            )
+            await asyncio.gather(*tasks)
+        self.assertEqual(fetch.await_count, 1)
+
+    async def test_mint_pending_cap_does_not_discard_recovery(self):
+        token = {**self.event("mint-a"), "subject_type": "token"}
+        pending = {"pending-a", "pending-b", "pending-c", "pending-d"}
+        token_tasks = {
+            asyncio.Future(): (signature, "mint-a")
+            for signature in ("pending-a", "pending-b")
+        }
+        tasks = set()
+        with (
+            patch.object(app, "HELIUS_STANDARD_WSS_MAX_PENDING", 10),
+            patch.object(
+                app, "fetch_helius_standard_wss_transaction",
+                new_callable=AsyncMock,
+            ) as fetch,
+        ):
+            await app.schedule_helius_standard_wss_fetch(
+                token, 1000, pending, tasks, asyncio.Semaphore(1),
+                asyncio.Lock(), {"next_ts": 0.0},
+                pending_token_tasks=token_tasks, from_recovery=True,
+            )
+            await asyncio.gather(*tasks)
+        self.assertEqual(fetch.await_count, 1)
+
     async def test_paper_token_cannot_consume_wallet_reserve(self):
         conn = app.db()
         try:

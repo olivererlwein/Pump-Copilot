@@ -16518,6 +16518,7 @@ async def recover_helius_standard_wss_pending(
                 rate_lock,
                 rate_state,
                 pending_token_tasks=pending_token_tasks,
+                from_recovery=True,
             )
         recovered += len(interrupted)
         if recovered >= 50:
@@ -16654,6 +16655,7 @@ async def schedule_helius_standard_wss_fetch(
     rate_lock,
     rate_state,
     pending_token_tasks=None,
+    from_recovery=False,
 ):
     signature = event["signature"]
     if signature in pending_signatures:
@@ -16662,26 +16664,44 @@ async def schedule_helius_standard_wss_fetch(
         HELIUS_STANDARD_WSS_MAX_PENDING
         - max(1, HELIUS_STANDARD_WSS_MAX_PENDING // 5)
     )
-    low_priority_token = (
-        event.get("subject_type") == "token"
-        and len(pending_signatures) >= low_priority_limit
-        and not await asyncio.to_thread(
+    token_event = event.get("subject_type") == "token"
+    attributed = {
+        task_signature: mint for task, (task_signature, mint)
+        in (pending_token_tasks or {}).items()
+        if not task.done() and task_signature in pending_signatures
+    }
+    counts = collections.Counter(attributed.values())
+    # ponytail: fixed quarter-share; revisit only if post-deploy coverage shows unfair loss.
+    mint_cap_reached = (
+        token_event and not from_recovery
+        and len(pending_signatures) >= low_priority_limit // 2
+        and counts[event.get("wallet")] >= max(1, low_priority_limit // 4)
+    )
+    protected_position = (
+        await asyncio.to_thread(
             helius_standard_wss_token_has_open_live_position,
             event.get("wallet"),
-        )
+        ) if token_event and (
+            len(pending_signatures) >= low_priority_limit
+            or mint_cap_reached
+        ) else False
+    )
+    low_priority_token = (
+        token_event
+        and len(pending_signatures) >= low_priority_limit
+        and not protected_position
     )
     if (low_priority_token
-            or len(pending_signatures) >= HELIUS_STANDARD_WSS_MAX_PENDING):
+            or len(pending_signatures) >= HELIUS_STANDARD_WSS_MAX_PENDING
+            or (mint_cap_reached and not protected_position)):
         rejection_reason = (
             "HELIUS_STANDARD_WSS_PRIORITY_RESERVE"
-            if low_priority_token else "HELIUS_STANDARD_WSS_QUEUE_FULL"
+            if low_priority_token else (
+                "HELIUS_STANDARD_WSS_QUEUE_FULL"
+                if len(pending_signatures) >= HELIUS_STANDARD_WSS_MAX_PENDING
+                else "HELIUS_STANDARD_WSS_MINT_PENDING_CAP"
+            )
         )
-        attributed = {
-            task_signature: mint for task, (task_signature, mint)
-            in (pending_token_tasks or {}).items()
-            if not task.done() and task_signature in pending_signatures
-        }
-        counts = collections.Counter(attributed.values())
         update_helius_standard_wss_state(
             last_queue_rejection_composition={
                 "rejected_ts": time.time(),
@@ -17340,6 +17360,7 @@ def get_account_checkpoint_subscription_coverage(observations):
     intervals = {signal_id: [] for signal_id in signals}
     delivery_failures = {signal_id: 0 for signal_id in signals}
     priority_reserve_rejections = {signal_id: 0 for signal_id in signals}
+    mint_cap_rejections = {signal_id: 0 for signal_id in signals}
     unresolved_fetches = {signal_id: 0 for signal_id in signals}
     signal_ids = list(signals)
     conn = db()
@@ -17390,7 +17411,7 @@ def get_account_checkpoint_subscription_coverage(observations):
                     continue
                 # Dropped fetches have no block_time; reception time is the
                 # only available bound for known delivery losses.
-                failures, priority_rejections, unresolved = conn.execute(
+                failures, priority_rejections, cap_rejections, unresolved = conn.execute(
                     """
                     SELECT
                         COALESCE(SUM(t.status IN (
@@ -17398,6 +17419,9 @@ def get_account_checkpoint_subscription_coverage(observations):
                         )), 0),
                         COALESCE(SUM(t.status = 'queue_full' AND
                             t.last_error = 'HELIUS_STANDARD_WSS_PRIORITY_RESERVE'
+                        ), 0),
+                        COALESCE(SUM(t.status = 'queue_full' AND
+                            t.last_error = 'HELIUS_STANDARD_WSS_MINT_PENDING_CAP'
                         ), 0),
                         COALESCE(SUM(t.status IN ('pending_fetch', 'observed')
                             AND t.fetched_ts IS NULL), 0)
@@ -17411,6 +17435,7 @@ def get_account_checkpoint_subscription_coverage(observations):
                 ).fetchone()
                 delivery_failures[signal_id] = int(failures)
                 priority_reserve_rejections[signal_id] = int(priority_rejections)
+                mint_cap_rejections[signal_id] = int(cap_rejections)
                 unresolved_fetches[signal_id] = int(unresolved)
     finally:
         conn.close()
@@ -17457,6 +17482,7 @@ def get_account_checkpoint_subscription_coverage(observations):
             "priority_reserve_rejections": int(
                 priority_reserve_rejections[signal_id]
             ),
+            "mint_cap_rejections": int(mint_cap_rejections[signal_id]),
             "unresolved_delivery_fetches": int(unresolved_fetches[signal_id]),
             "complete": bool(
                 subscription_continuous
