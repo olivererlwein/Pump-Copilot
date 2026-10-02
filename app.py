@@ -989,6 +989,8 @@ def _initialize_db():
             signature TEXT PRIMARY KEY,
             first_received_ts REAL NOT NULL,
             fetched_ts REAL,
+            fetch_started_ts REAL,
+            receipt_received_ts REAL,
             block_time REAL,
             status TEXT NOT NULL,
             fetch_attempts INTEGER NOT NULL DEFAULT 0,
@@ -1092,6 +1094,7 @@ def _initialize_db():
             block_time REAL,
             block_event_ts REAL,
             received_ts REAL NOT NULL,
+            inserted_ts REAL,
             event_json TEXT NOT NULL,
             status TEXT NOT NULL DEFAULT 'observed',
             attempts INTEGER NOT NULL DEFAULT 0,
@@ -1161,6 +1164,8 @@ def _initialize_db():
             event_index INTEGER NOT NULL DEFAULT 0,
 
             ts REAL,
+
+            recorded_ts REAL,
 
             trader TEXT,
 
@@ -5478,6 +5483,7 @@ def migrate_evaluation_event_identity(conn):
                 trade_signature TEXT,
                 event_index INTEGER NOT NULL DEFAULT 0,
                 ts REAL,
+                recorded_ts REAL,
                 trader TEXT,
                 mint TEXT,
                 source TEXT,
@@ -5500,14 +5506,14 @@ def migrate_evaluation_event_identity(conn):
         conn.execute(
             f"""
             INSERT INTO evaluations_identity_v2(
-                id, trade_signature, event_index, ts, trader, mint, source,
+                id, trade_signature, event_index, ts, recorded_ts, trader, mint, source,
                 score, decision, trader_score, timing_score, size_score,
                 token_score, consensus_score, market_score, reasons,
                 market_cap, sol_amount, data_version
             )
             SELECT
                 id, trade_signature, {legacy_event_index},
-                ts, trader, mint, source,
+                ts, recorded_ts, trader, mint, source,
                 score, decision, trader_score, timing_score, size_score,
                 token_score, consensus_score, market_score, reasons,
                 market_cap, sol_amount, data_version
@@ -5617,6 +5623,15 @@ def migrate_database():
     migrate_market_event_inbox_index_scheme(conn)
     migrate_inbox_event_index_to_ordinal(conn)
     migrate_market_event_inbox_validation(conn)
+
+    for table, column in (
+        ("helius_standard_wss_transactions", "fetch_started_ts"),
+        ("helius_standard_wss_transactions", "receipt_received_ts"),
+        ("market_event_inbox", "inserted_ts"),
+    ):
+        columns = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+        if column not in columns:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} REAL")
 
     existing = [
         row[1]
@@ -5883,6 +5898,8 @@ def migrate_database():
     ]
 
     evaluation_migrations = {
+        "recorded_ts":
+            "ALTER TABLE evaluations ADD COLUMN recorded_ts REAL",
         "market_cap":
             "ALTER TABLE evaluations "
             "ADD COLUMN market_cap REAL DEFAULT 0",
@@ -10275,6 +10292,8 @@ def evaluate_buy(
 
                 ts,
 
+                recorded_ts,
+
                 trader,
 
                 mint,
@@ -10310,7 +10329,7 @@ def evaluate_buy(
             )
 
             VALUES(
-                ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+                ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
             )
             """,
             (
@@ -10319,6 +10338,8 @@ def evaluate_buy(
                 event_index,
 
                 signal_ts,
+
+                time.time(),
 
                 trader,
 
@@ -16465,6 +16486,8 @@ def finish_helius_standard_wss_transaction(
     error=None,
     now=None,
     unparsed_reason=None,
+    fetch_started_ts=None,
+    receipt_received_ts=None,
 ):
     conn = db()
     try:
@@ -16473,7 +16496,9 @@ def finish_helius_standard_wss_transaction(
             UPDATE helius_standard_wss_transactions
             SET fetched_ts = ?, block_time = ?, status = ?,
                 fetch_attempts = ?, parsed_events = ?, last_error = ?,
-                unparsed_reason = ?
+                unparsed_reason = ?,
+                fetch_started_ts = COALESCE(?, fetch_started_ts),
+                receipt_received_ts = COALESCE(?, receipt_received_ts)
             WHERE signature = ?
             """,
             (
@@ -16484,6 +16509,8 @@ def finish_helius_standard_wss_transaction(
                 int(parsed_events),
                 str(error)[:500] if error else None,
                 unparsed_reason if status == "unparsed" else None,
+                fetch_started_ts,
+                receipt_received_ts,
                 signature,
             ),
         )
@@ -16621,6 +16648,8 @@ async def fetch_helius_standard_wss_transaction(
 ):
     signature = event["signature"]
     attempts = 0
+    fetch_started_ts = None
+    receipt_received_ts = None
     try:
         if isinstance(semaphore, PriorityFetchLimiter):
             slot = semaphore.slot(
@@ -16642,6 +16671,8 @@ async def fetch_helius_standard_wss_transaction(
                         + HELIUS_STANDARD_WSS_FETCH_INTERVAL_SECONDS
                     )
                 try:
+                    if fetch_started_ts is None:
+                        fetch_started_ts = time.time()
                     receipt = await asyncio.to_thread(
                         fetch_confirmed_transaction,
                         standard_wss_rpc_url(),
@@ -16650,6 +16681,7 @@ async def fetch_helius_standard_wss_transaction(
                 except Exception as exc:
                     last_error = helius_standard_wss_error_code(exc)
                 if receipt is not None:
+                    receipt_received_ts = time.time()
                     break
                 if attempt + 1 < HELIUS_STANDARD_WSS_FETCH_RETRIES:
                     await asyncio.sleep(0.5 * (2 ** attempt))
@@ -16662,6 +16694,7 @@ async def fetch_helius_standard_wss_transaction(
                     "fetch_failed",
                     attempts,
                     error=error,
+                    fetch_started_ts=fetch_started_ts,
                 )
                 update_helius_standard_wss_state(last_error=error)
                 return
@@ -16699,6 +16732,8 @@ async def fetch_helius_standard_wss_transaction(
                 parsed_events,
                 receipt.get("blockTime"),
                 unparsed_reason=unparsed_reason,
+                fetch_started_ts=fetch_started_ts,
+                receipt_received_ts=receipt_received_ts,
             )
             update_helius_standard_wss_state(
                 last_success_ts=time.time(),
@@ -16721,6 +16756,8 @@ async def fetch_helius_standard_wss_transaction(
                 "processing_failed",
                 attempts,
                 error=error,
+                fetch_started_ts=fetch_started_ts,
+                receipt_received_ts=receipt_received_ts,
             )
         finally:
             update_helius_standard_wss_state(last_error=error)
@@ -18905,9 +18942,9 @@ def record_helius_webhook_transactions(
                             signature, event_index, event_index_scheme,
                             source, wallet, trader,
                             mint, side, pool, block_time, block_event_ts,
-                            received_ts, event_json
+                            received_ts, inserted_ts, event_json
                         )
-                        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)
+                        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                         """,
                         (
                             signature,
@@ -18926,6 +18963,7 @@ def record_helius_webhook_transactions(
                             float(block_time) if block_time else None,
                             market_event_block_ts(normalized_event),
                             received_ts,
+                            time.time(),
                             json.dumps(
                                 normalized_event,
                                 sort_keys=True,
@@ -20167,6 +20205,86 @@ def get_helius_standard_wss_wallet_timing(conn, cutoff):
     }
 
 
+def get_helius_standard_wss_wallet_stage_timing(conn, cutoff):
+    rows = conn.execute(
+        """
+        SELECT n.wallet, n.received_ts, t.block_time, t.status,
+               t.fetch_started_ts, t.receipt_received_ts,
+               (SELECT MIN(i.inserted_ts) FROM market_event_inbox i
+                WHERE i.signature = n.signature AND i.wallet = n.wallet
+                  AND i.source = 'helius'),
+               (SELECT MIN(tr.recorded_ts) FROM trades tr
+                WHERE tr.signature = n.signature AND tr.wallet = n.wallet
+                  AND tr.source = 'live' AND tr.transport = 'helius'),
+               (SELECT MIN(e.recorded_ts)
+                FROM market_event_inbox i
+                JOIN evaluations e ON e.trade_signature = i.signature
+                                  AND e.event_index = i.event_index
+                WHERE i.signature = n.signature AND i.wallet = n.wallet
+                  AND i.source = 'helius' AND e.transport = 'helius')
+        FROM (
+            SELECT signature, wallet, received_ts
+            FROM helius_standard_wss_notifications
+            WHERE received_ts >= ? AND subject_type = 'wallet' AND failed = 0
+            ORDER BY received_ts DESC LIMIT 1000
+        ) n
+        LEFT JOIN helius_standard_wss_transactions t ON t.signature = n.signature
+        """,
+        (cutoff,),
+    ).fetchall()
+    stages = (
+        "block_to_notice", "notice_to_fetch_start", "fetch_start_to_receipt",
+        "receipt_to_inbox", "inbox_to_trade", "inbox_to_decision",
+        "block_to_decision",
+    )
+    by_wallet = {}
+    for wallet, notice, block, status, fetch_start, receipt, inbox, trade, decision in rows:
+        item = by_wallet.setdefault(wallet, {
+            "wallet": wallet, "notifications": 0, "queue_full": 0,
+            "fetch_failed": 0, "inbox_rows": 0, "trades": 0,
+            "decisions": 0, "stages": {name: [] for name in stages},
+            "out_of_order": {name: 0 for name in stages},
+        })
+        item["notifications"] += 1
+        item["queue_full"] += status == "queue_full"
+        item["fetch_failed"] += status == "fetch_failed"
+        item["inbox_rows"] += inbox is not None
+        item["trades"] += trade is not None
+        item["decisions"] += decision is not None
+        values = {
+            "block_to_notice": (block, notice),
+            "notice_to_fetch_start": (notice, fetch_start),
+            "fetch_start_to_receipt": (fetch_start, receipt),
+            "receipt_to_inbox": (receipt, inbox),
+            "inbox_to_trade": (inbox, trade),
+            "inbox_to_decision": (inbox, decision),
+            "block_to_decision": (block, decision),
+        }
+        for name, (start, end) in values.items():
+            if start is not None and end is not None and end >= start:
+                item["stages"][name].append(end - start)
+            elif start is not None and end is not None:
+                item["out_of_order"][name] += 1
+
+    for item in by_wallet.values():
+        item["stages"] = {
+            name: {
+                "n": len(values),
+                "p50_seconds": round(values[math.ceil(len(values) * .5) - 1], 3)
+                if values else None,
+                "p95_seconds": round(values[math.ceil(len(values) * .95) - 1], 3)
+                if values else None,
+            }
+            for name, samples in item["stages"].items()
+            for values in [sorted(samples)]
+        }
+    return {
+        "sampled_wallet_notifications": len(rows),
+        "sample_limit": 1000,
+        "wallets": sorted(by_wallet.values(), key=lambda item: item["wallet"]),
+    }
+
+
 @app.get("/api/helius-standard-wss-stats")
 def api_helius_standard_wss_stats(
     x_app_token: str = Header(default=""),
@@ -20294,6 +20412,9 @@ def api_helius_standard_wss_stats(
             conn, now - 3600
         )
         wallet_timing_1h = get_helius_standard_wss_wallet_timing(
+            conn, now - 3600
+        )
+        wallet_stage_timing_1h = get_helius_standard_wss_wallet_stage_timing(
             conn, now - 3600
         )
         outcome_overlap = (
@@ -20424,6 +20545,7 @@ def api_helius_standard_wss_stats(
         "last_rpc_error_detail": dict(solana_rpc_fallback.LAST_RPC_ERROR_DETAIL) or None,
         "last_1h": last_1h,
         "wallet_timing_1h": wallet_timing_1h,
+        "wallet_stage_timing_1h": wallet_stage_timing_1h,
         "outcome_queue_overlap": outcome_overlap,
         "last_24h": {
             "notifications": int(notification[0] or 0),

@@ -1996,13 +1996,24 @@ class InboxRoundTripTests(unittest.TestCase):
         conn = app.db()
         try:
             transaction = conn.execute(
-                "SELECT status, fetch_attempts, parsed_events "
+                "SELECT status, fetch_attempts, parsed_events, "
+                "fetch_started_ts, receipt_received_ts, fetched_ts "
                 "FROM helius_standard_wss_transactions WHERE signature = ?",
+                (SIGNATURE,),
+            ).fetchone()
+            inserted = conn.execute(
+                "SELECT MIN(inserted_ts), MAX(inserted_ts) "
+                "FROM market_event_inbox WHERE signature = ?",
                 (SIGNATURE,),
             ).fetchone()
         finally:
             conn.close()
-        self.assertEqual(transaction, ("applied", 1, 2))
+        self.assertEqual(transaction[:3], ("applied", 1, 2))
+        self.assertLessEqual(
+            transaction[3], transaction[4]
+        )
+        self.assertLessEqual(transaction[4], inserted[0])
+        self.assertLessEqual(inserted[1], transaction[5])
 
     def test_block_event_ts_survives_serialization(self):
         # Tenía la misma forma rota que el índice: el parser lo guardaba al
