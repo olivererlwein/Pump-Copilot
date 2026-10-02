@@ -6,9 +6,9 @@
     "semantic_hash": "5ebef3dd159986e465ab65e4014107ec"
   },
   "app.py": {
-    "mtime": 1790912051.4903004,
-    "seen": 1790912119.0892136,
-    "ast_hash": "f79454ac96bf4906e20e8c687ec8af1d",
+    "mtime": 1790952359.5251482,
+    "seen": 1790952710.5339222,
+    "ast_hash": "f02bc8b12155f96dc30f7776014d488d",
     "semantic_hash": ""
   },
   "models/baseline_v2_shadow.json": {
@@ -552,15 +552,21 @@
     "semantic_hash": ""
   },
   "reports/ingest_coverage/2026-10-01-deploy-boundary.md": {
-    "mtime": 1790904544.8912332,
-    "seen": 1790912119.0894558,
-    "ast_hash": "2f98d64f8e5729cf4913ea2ce7ca5621",
+    "mtime": 1790912517.6090255,
+    "seen": 1790952710.5342011,
+    "ast_hash": "bb0cec3ca1c484f7138e917c26a4b02d",
     "semantic_hash": ""
   },
   "reports/ingest_coverage/2026-10-01-paper-copy-protocol.md": {
     "mtime": 1790904931.8182924,
     "seen": 1790912119.0894578,
     "ast_hash": "8ce004ddb02d14db7fea39cb48227766",
+    "semantic_hash": ""
+  },
+  "tests/test_api_auth.py": {
+    "mtime": 1790952432.88754,
+    "seen": 1790952710.5340433,
+    "ast_hash": "9c935c358dfc01e1c7115ed335c40084",
     "semantic_hash": ""
   }
 }

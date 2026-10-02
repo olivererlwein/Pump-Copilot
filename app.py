@@ -67,7 +67,7 @@ API_KEY = os.getenv(
 
 APP_TOKEN = os.getenv(
     "APP_TOKEN",
-    "change-this-long-random-token"
+    ""
 )
 
 DISCORD_ALERT_WEBHOOK_URL = os.getenv(
@@ -14040,6 +14040,9 @@ async def stream():
 async def startup():
     global KILL_SWITCH
 
+    if not APP_TOKEN.strip() or APP_TOKEN == "change-this-long-random-token":
+        raise RuntimeError("APP_TOKEN must be configured with a non-default value")
+
     KILL_SWITCH = get_persistent_kill_switch()
 
     print(
@@ -14206,7 +14209,11 @@ async def startup():
 
 def auth(x_app_token):
 
-    if x_app_token != APP_TOKEN:
+    if (
+        not APP_TOKEN.strip()
+        or APP_TOKEN == "change-this-long-random-token"
+        or not secrets.compare_digest((x_app_token or "").encode(), APP_TOKEN.encode())
+    ):
 
         raise HTTPException(
             401,
@@ -20641,25 +20648,30 @@ def api_trader_quality_profile(
     }
 
 @app.get("/api/training-stats")
-def api_training_stats():
+def api_training_stats(x_app_token: str = Header(default="")):
+    auth(x_app_token)
     return get_training_dataset_stats()
 
 
 @app.get("/api/training-stats-by-trader")
-def api_training_stats_by_trader():
+def api_training_stats_by_trader(x_app_token: str = Header(default="")):
+    auth(x_app_token)
     return get_training_stats_by_trader()
 
 
 @app.get("/api/training-checkpoint-freshness")
-def api_training_checkpoint_freshness():
+def api_training_checkpoint_freshness(x_app_token: str = Header(default="")):
+    auth(x_app_token)
     return get_training_checkpoint_freshness()
 
 @app.get("/api/training-expired-preview")
 def api_training_expired_preview(
-    limit: int = 20
+    limit: int = 20,
+    x_app_token: str = Header(default=""),
 ):
+    auth(x_app_token)
     return get_training_expired_preview(
-        limit
+        max(1, min(limit, 100))
     )
 
 
@@ -20683,8 +20695,10 @@ def api_training_dataset(
 
 @app.get("/api/training-dataset-preview")
 def api_training_dataset_preview(
-    limit: int = 20
+    limit: int = 20,
+    x_app_token: str = Header(default=""),
 ):
+    auth(x_app_token)
     rows = get_training_dataset_rows()
 
     safe_limit = max(
