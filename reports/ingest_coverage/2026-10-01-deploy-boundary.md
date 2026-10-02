@@ -25,3 +25,21 @@ change its threshold. Exclude signals whose 15-minute window overlaps the
 deployment interruption when evaluating continuous coverage. Priority-reserve
 exposure means rejected token observations in a signal window, not lost fills;
 the same rejection can overlap multiple signals.
+
+## First post-boundary check (2026-10-02 00:01 UTC)
+
+The frozen validator found four selected signals, all from Cooker and four
+distinct mints. Two were complete with no known delivery loss or reserve
+rejection. The other two had three and two known losses respectively; each
+loss was a token priority-reserve rejection on that signal's mint. All four
+had continuous subscription intervals. This is direct attribution, but four
+signals from one trader do not establish a general loss rate or a trading
+edge. The post-boundary cohort remains at 2/100 complete selections for
+review, and the frozen validator reports `ready_for_review=false`.
+
+At 2026-10-02 00:33 UTC, the read-only lifecycle endpoint counted seven
+WATCH signals with a nearby account quote and an origin-trader sell with
+explicit zero balance; five had matured for 15 minutes and two had continuous
+token coverage. It reports `can_estimate_full_lifecycle_pnl=false`: no account
+quote is yet captured at trader-sale time. Live trading, live buys and live
+sells remained disabled; WSS was connected with 11 wallets ready.
