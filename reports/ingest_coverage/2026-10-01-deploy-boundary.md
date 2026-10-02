@@ -76,3 +76,24 @@ showed 836 explicit mint-cap rejections and zero wallet queue rejections
 among 77 sampled wallet notices. This is a transport-health check, not an
 effectiveness result; the rolling-hour window includes some pre-boundary
 traffic.
+
+## Fair recovery boundary (2026-10-02 03:38:31.517 UTC)
+
+Commit `41b5d4a` makes the recovery poll obey the per-mint cap without
+terminally marking deferred rows as `queue_full`. When a mint is capped, the
+same poll searches for pending rows from another mint. The wallet reserve is
+unchanged. This addresses recovery monopolization, not the RPC throughput
+limit or historical gaps. The pressure trigger still permits more than 100
+pending fetches from one mint while total pending is below 200; do not read
+the cap as an unconditional ceiling.
+
+Pre-deploy rolling-hour WSS measurements: 49,406 token-heavy notifications,
+7,345 queue-full transactions all attributed to the mint cap, 70 sampled
+wallet notifications with zero queue-full, and wallet-notice-to-completion
+p95 1.051 seconds. These figures include earlier traffic and are not a
+post-deploy outcome. The 585-test suite passed before push. Railway's new
+`process_started_ts` is `1790912311.5169783`; after startup WSS was connected
+with 11 wallets and no runtime error, and live trading/buys/sells were false.
+Use this timestamp as the next frozen-validator cutoff. Preserve the 01:32
+phase separately, and do not infer complete coverage or a trading edge from
+the recovery fix alone.
