@@ -16487,13 +16487,21 @@ def finish_helius_standard_wss_transaction(
 
 def pending_helius_standard_wss_transactions(
     now=None, limit=50, include_tokens=True, exclude_signatures=(),
-    include_event=False,
+    include_event=False, exclude_mints=(),
 ):
     cutoff = float(now if now is not None else time.time()) - 900
     excluded = tuple(sorted(set(exclude_signatures)))
     exclusion = (
         "AND t.signature NOT IN (" + ",".join("?" for _ in excluded) + ")"
         if excluded else ""
+    )
+    excluded_mints = tuple(sorted(set(exclude_mints)))
+    mint_exclusion = (
+        "AND NOT EXISTS ("
+        "SELECT 1 FROM helius_standard_wss_notifications n "
+        "WHERE n.signature = t.signature AND n.subject_type = 'token' "
+        "AND n.wallet IN (" + ",".join("?" for _ in excluded_mints) + "))"
+        if include_tokens and excluded_mints else ""
     )
     event_columns = ""
     if include_event:
@@ -16521,11 +16529,13 @@ def pending_helius_standard_wss_transactions(
                   WHERE n.signature = t.signature
                     AND n.subject_type = 'wallet'
               ))
+              {mint_exclusion}
               {exclusion}
             ORDER BY t.first_received_ts, t.signature
             LIMIT ?
             """,
-            (int(bool(include_tokens)), cutoff, int(bool(include_tokens)), *excluded,
+            (int(bool(include_tokens)), cutoff, int(bool(include_tokens)),
+             *(excluded_mints if include_tokens else ()), *excluded,
              max(1, min(int(limit), 50))),
         ).fetchall()
     finally:
@@ -16547,32 +16557,50 @@ async def recover_helius_standard_wss_pending(
     ):
         if allow_tokens and not include_tokens:
             break
-        available = capacity - len(pending_signatures)
-        if available <= 0:
-            continue
-        interrupted = await asyncio.to_thread(
-            pending_helius_standard_wss_transactions,
-            limit=min(50 - recovered, available),
-            include_tokens=allow_tokens,
-            exclude_signatures=pending_signatures,
-            include_event=True,
-        )
-        for signature, first_received_ts, wallet, subject_type in interrupted:
-            await schedule_helius_standard_wss_fetch(
-                {"signature": signature, "wallet": wallet,
-                 "subject_type": subject_type},
-                first_received_ts,
-                pending_signatures,
-                fetch_tasks,
-                semaphore,
-                rate_lock,
-                rate_state,
-                pending_token_tasks=pending_token_tasks,
-                from_recovery=True,
+        excluded_mints = set()
+        while recovered < 50 and len(pending_signatures) < capacity:
+            prior_recovered = recovered
+            prior_excluded = len(excluded_mints)
+            interrupted = await asyncio.to_thread(
+                pending_helius_standard_wss_transactions,
+                limit=min(50 - recovered, capacity - len(pending_signatures)),
+                include_tokens=allow_tokens,
+                exclude_signatures=pending_signatures.copy(),
+                include_event=True,
+                exclude_mints=excluded_mints,
             )
-        recovered += len(interrupted)
-        if recovered >= 50:
-            break
+            if not interrupted:
+                break
+            reserve_full = False
+            for signature, first_received_ts, wallet, subject_type in interrupted:
+                if len(pending_signatures) >= capacity:
+                    break
+                admitted = await schedule_helius_standard_wss_fetch(
+                    {"signature": signature, "wallet": wallet,
+                     "subject_type": subject_type},
+                    first_received_ts,
+                    pending_signatures,
+                    fetch_tasks,
+                    semaphore,
+                    rate_lock,
+                    rate_state,
+                    pending_token_tasks=pending_token_tasks,
+                    from_recovery=True,
+                )
+                if admitted is True:
+                    recovered += 1
+                elif admitted is False and subject_type == "token" and wallet:
+                    excluded_mints.add(wallet)
+                else:
+                    reserve_full = True
+                    break
+                if recovered >= 50:
+                    break
+            if reserve_full or not allow_tokens:
+                break
+            if (recovered == prior_recovered
+                    and len(excluded_mints) == prior_excluded):
+                break
     return recovered
 
 
@@ -16723,7 +16751,7 @@ async def schedule_helius_standard_wss_fetch(
     counts = collections.Counter(attributed.values())
     # ponytail: fixed quarter-share; revisit only if post-deploy coverage shows unfair loss.
     mint_cap_reached = (
-        token_event and not from_recovery
+        token_event
         and len(pending_signatures) >= low_priority_limit // 2
         and counts[event.get("wallet")] >= max(1, low_priority_limit // 4)
     )
@@ -16744,6 +16772,12 @@ async def schedule_helius_standard_wss_fetch(
     if (low_priority_token
             or len(pending_signatures) >= HELIUS_STANDARD_WSS_MAX_PENDING
             or (mint_cap_reached and not protected_position)):
+        if from_recovery:
+            if (mint_cap_reached and not protected_position
+                    and not low_priority_token
+                    and len(pending_signatures) < HELIUS_STANDARD_WSS_MAX_PENDING):
+                return False
+            return None
         rejection_reason = (
             "HELIUS_STANDARD_WSS_PRIORITY_RESERVE"
             if low_priority_token else (
@@ -16779,7 +16813,7 @@ async def schedule_helius_standard_wss_fetch(
             0,
             error=rejection_reason,
         )
-        return
+        return False
     pending_signatures.add(signature)
     update_helius_standard_wss_state(
         pending_fetches=len(pending_signatures)
@@ -16801,6 +16835,7 @@ async def schedule_helius_standard_wss_fetch(
         pending_token_tasks[task] = (signature, event["wallet"])
         task.add_done_callback(pending_token_tasks.pop)
     task.add_done_callback(fetch_tasks.discard)
+    return True
 
 
 def helius_standard_wss_token_has_open_live_position(mint):

@@ -795,8 +795,11 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
             await asyncio.gather(*tasks)
         self.assertEqual(fetch.await_count, 1)
 
-    async def test_mint_pending_cap_does_not_discard_recovery(self):
+    async def test_mint_pending_cap_defers_recovery_without_discarding_it(self):
         token = {**self.event("mint-a"), "subject_type": "token"}
+        app.record_helius_standard_wss_notification(
+            token, True, 100, received_ts=time.time() - 5,
+        )
         pending = {"pending-a", "pending-b", "pending-c", "pending-d"}
         token_tasks = {
             asyncio.Future(): (signature, "mint-a")
@@ -816,7 +819,93 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
                 pending_token_tasks=token_tasks, from_recovery=True,
             )
             await asyncio.gather(*tasks)
-        self.assertEqual(fetch.await_count, 1)
+        self.assertEqual(fetch.await_count, 0)
+        conn = app.db()
+        try:
+            self.assertEqual(conn.execute(
+                "SELECT status FROM helius_standard_wss_transactions "
+                "WHERE signature = ?", (token["signature"],)
+            ).fetchone()[0], "pending_fetch")
+        finally:
+            conn.close()
+        pending.remove("pending-a")
+        token_tasks.pop(next(task for task, value in token_tasks.items()
+                             if value[0] == "pending-a"))
+        with (
+            patch.object(app, "HELIUS_STANDARD_WSS_MAX_PENDING", 10),
+            patch.object(
+                app, "fetch_helius_standard_wss_transaction",
+                new_callable=AsyncMock,
+            ) as fetch,
+        ):
+            recovered = await app.recover_helius_standard_wss_pending(
+                pending, tasks, asyncio.Semaphore(1), asyncio.Lock(),
+                {"next_ts": 0.0}, pending_token_tasks=token_tasks,
+            )
+            await asyncio.gather(*tasks)
+        self.assertEqual(recovered, 1)
+        fetch.assert_awaited_once()
+
+    async def test_recovery_skips_capped_hot_mint_for_cool_mint(self):
+        observed_at = time.time() - 5
+        for index in range(4):
+            event = {**self.event("hot-mint"), "subject_type": "token",
+                     "signature": f"hot-{index}"}
+            app.record_helius_standard_wss_notification(
+                event, True, 100, received_ts=observed_at + index * 0.01,
+            )
+        cool = {**self.event("cool-mint"), "subject_type": "token",
+                "signature": "cool-0"}
+        app.record_helius_standard_wss_notification(
+            cool, True, 100, received_ts=observed_at + 1,
+        )
+        pending = {"pending-a", "pending-b", "pending-c", "pending-d"}
+        token_tasks = {
+            asyncio.Future(): (signature, "hot-mint")
+            for signature in ("pending-a", "pending-b")
+        }
+        tasks = set()
+        with (
+            patch.object(app, "HELIUS_STANDARD_WSS_MAX_PENDING", 10),
+            patch.object(
+                app, "fetch_helius_standard_wss_transaction",
+                new_callable=AsyncMock,
+            ) as fetch,
+        ):
+            recovered = await app.recover_helius_standard_wss_pending(
+                pending, tasks, asyncio.Semaphore(1), asyncio.Lock(),
+                {"next_ts": 0.0}, pending_token_tasks=token_tasks,
+            )
+            await asyncio.gather(*tasks)
+        self.assertEqual(recovered, 1)
+        self.assertEqual(fetch.await_args.args[0]["signature"], "cool-0")
+        conn = app.db()
+        try:
+            self.assertEqual(conn.execute(
+                "SELECT COUNT(*) FROM helius_standard_wss_transactions "
+                "WHERE signature LIKE 'hot-%' AND status = 'pending_fetch'"
+            ).fetchone()[0], 4)
+        finally:
+            conn.close()
+
+    async def test_recovery_stops_when_token_reserve_fills(self):
+        with (
+            patch.object(
+                app, "pending_helius_standard_wss_transactions",
+                side_effect=[[], [("token-sig", time.time(), "hot-mint", "token")]],
+            ) as query,
+            patch.object(
+                app, "schedule_helius_standard_wss_fetch",
+                new_callable=AsyncMock, return_value=None,
+            ) as schedule,
+        ):
+            recovered = await app.recover_helius_standard_wss_pending(
+                set(), set(), asyncio.Semaphore(1), asyncio.Lock(),
+                {"next_ts": 0.0}, pending_token_tasks={},
+            )
+        self.assertEqual(recovered, 0)
+        self.assertEqual(query.call_count, 2)
+        schedule.assert_awaited_once()
 
     async def test_paper_token_cannot_consume_wallet_reserve(self):
         conn = app.db()

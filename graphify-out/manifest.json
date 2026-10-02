@@ -6,9 +6,9 @@
     "semantic_hash": "5ebef3dd159986e465ab65e4014107ec"
   },
   "app.py": {
-    "mtime": 1790904221.7620137,
-    "seen": 1790904334.3028438,
-    "ast_hash": "29b3830398033560650f9a607c97796f",
+    "mtime": 1790912051.4903004,
+    "seen": 1790912119.0892136,
+    "ast_hash": "f79454ac96bf4906e20e8c687ec8af1d",
     "semantic_hash": ""
   },
   "models/baseline_v2_shadow.json": {
@@ -342,9 +342,9 @@
     "semantic_hash": ""
   },
   "tests/test_helius_standard_wss.py": {
-    "mtime": 1790903416.8004866,
-    "seen": 1790903428.2593956,
-    "ast_hash": "acdfaf53f277ed4727e287169a5fa515",
+    "mtime": 1790912065.2367494,
+    "seen": 1790912119.0893598,
+    "ast_hash": "4073ee0c4f7651b66afe609119573082",
     "semantic_hash": ""
   },
   "helius_credit_usage.py": {
@@ -378,9 +378,9 @@
     "semantic_hash": ""
   },
   "tests/test_account_price_checkpoints.py": {
-    "mtime": 1790904178.8675501,
-    "seen": 1790904334.3028822,
-    "ast_hash": "791196b11ccf47b93d9aebb2f5b902c0",
+    "mtime": 1790904402.4336715,
+    "seen": 1790912119.089343,
+    "ast_hash": "1f28b663cf56e97e4c148febca0ea04c",
     "semantic_hash": ""
   },
   "tests/test_training_data_quality.py": {
@@ -552,15 +552,15 @@
     "semantic_hash": ""
   },
   "reports/ingest_coverage/2026-10-01-deploy-boundary.md": {
-    "mtime": 1790903652.1838531,
-    "seen": 1790904334.302929,
-    "ast_hash": "fcfff7d525d8041b043c77ef5d830715",
+    "mtime": 1790904544.8912332,
+    "seen": 1790912119.0894558,
+    "ast_hash": "2f98d64f8e5729cf4913ea2ce7ca5621",
     "semantic_hash": ""
   },
   "reports/ingest_coverage/2026-10-01-paper-copy-protocol.md": {
-    "mtime": 1790904205.421885,
-    "seen": 1790904334.3029299,
-    "ast_hash": "b7307885f018fa9b3b5ff3e40ce54c1d",
+    "mtime": 1790904931.8182924,
+    "seen": 1790912119.0894578,
+    "ast_hash": "8ce004ddb02d14db7fea39cb48227766",
     "semantic_hash": ""
   }
 }
