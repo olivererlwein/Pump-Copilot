@@ -49,6 +49,7 @@ from solana_rpc_fallback import (
 )
 import solana_rpc_fallback
 from onchain_account_prices import fetch_account_prices
+from paper_copy_lifecycle import replay_paper_cycles
 
 
 # =========================================================
@@ -15458,6 +15459,90 @@ def paper_copy_lifecycle_readiness(
             "observations, not executable fills. Multiple buys need an "
             "inventory allocation before PnL can be inferred."
         ),
+    }
+
+
+@app.get("/api/paper-copy-lifecycle-replay")
+def paper_copy_lifecycle_replay(
+    after_ts: float,
+    x_app_token: str = Header(default=""),
+):
+    """Read-only counterfactual replay after sell-quote capture began."""
+    auth(x_app_token)
+    now = time.time()
+    if (not math.isfinite(after_ts) or after_ts < 1790904747.80009
+            or after_ts < now - 7 * 86400 or after_ts > now):
+        raise HTTPException(400, "INVALID_AFTER_TS")
+    conn = db()
+    conn.row_factory = sqlite3.Row
+    try:
+        signals = [dict(row) for row in conn.execute(
+            """SELECT e.id, e.trade_signature AS signature, e.event_index,
+                      e.ts, e.trader, e.mint, e.decision, o.created_ts,
+                      (SELECT COUNT(*) FROM signal_outcomes
+                       WHERE signal_id = e.id) AS outcome_count,
+                      c.price_sol AS entry_price, c.pool AS entry_pool,
+                      c.observed_ts AS entry_observed_ts
+            FROM evaluations e
+            LEFT JOIN signal_outcomes o ON o.id = (
+                SELECT MIN(id) FROM signal_outcomes WHERE signal_id = e.id)
+            LEFT JOIN account_price_checkpoints c ON c.rowid = (
+                SELECT rowid FROM account_price_checkpoints
+                WHERE outcome_id = o.id AND observed_ts >= o.created_ts
+                  AND observed_ts <= o.created_ts + 30
+                  AND mint = e.mint AND checkpoint_seconds IN (10, 30)
+                ORDER BY observed_ts LIMIT 1)
+            WHERE e.source = 'live' AND e.decision IN ('WATCH', 'COPY')
+              AND e.ts > ? AND e.ts <= ?
+            ORDER BY e.ts, e.id LIMIT 1001""",
+            (after_ts, now),
+        ).fetchall()]
+        if len(signals) > 1000:
+            raise HTTPException(400, "TOO_MANY_SIGNALS")
+        trades = [dict(row) for row in conn.execute(
+            """WITH selected_pairs AS (
+                SELECT DISTINCT trader, mint FROM evaluations
+                WHERE source = 'live' AND decision IN ('WATCH', 'COPY')
+                  AND ts > ? AND ts <= ?
+            )
+            SELECT t.id, t.ts, t.recorded_ts, t.trader, t.mint, t.side,
+                      t.signature, t.event_index, t.token_amount,
+                      t.new_token_balance, t.transport,
+                      q.price_sol AS exit_price, q.pool AS exit_pool,
+                      q.observed_ts AS exit_observed_ts
+            FROM trades t
+            JOIN selected_pairs p ON p.trader = t.trader AND p.mint = t.mint
+            LEFT JOIN paper_copy_sell_quotes q ON q.trade_id = t.id
+                AND q.mint = t.mint
+            WHERE t.source = 'live' AND t.ts > ? AND t.ts <= ?
+            ORDER BY t.ts, t.id LIMIT 50001""",
+            (after_ts, now, after_ts, now),
+        ).fetchall()]
+        if len(trades) > 50000:
+            raise HTTPException(400, "TOO_MANY_TRADES")
+    finally:
+        conn.close()
+    signals = [s for s in signals if s["trader"] not in OBSERVE_TRADERS]
+    pairs = {(s["trader"], s["mint"]) for s in signals}
+    trades = [t for t in trades if (t["trader"], t["mint"]) in pairs]
+    replay = replay_paper_cycles(signals, trades)
+    return {
+        "after_ts": after_ts, "as_of_ts": now,
+        "affects_decisions": False, "writes_production": False,
+        "executes_orders": False, "realized_pnl_estimate": False,
+        "paper_stake_usd_per_cycle": 25.0,
+        "assumed_total_round_trip_cost_pct": [2.0, 5.0],
+        "limitations": (
+            "Entry and exit account quotes are observed after the events, not "
+            "executable fills. Only closed cycles with a zero-start balance, "
+            "continuous observed inventory, and every sell quoted within "
+            "30 seconds have hypothetical PnL. Overlapping signals are not "
+            "additional positions. No latency, liquidity, or actual fees are "
+            "reconstructed. Balance arithmetic cannot prove that no unseen "
+            "round trip occurred between observed trades. Incomplete cycles "
+            "are excluded, not zero returns."
+        ),
+        **replay,
     }
 
 # =========================================================
