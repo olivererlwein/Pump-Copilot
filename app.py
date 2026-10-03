@@ -17742,8 +17742,9 @@ def paper_immediate_quote_once(now=None):
         row = conn.execute(
             f"""
             SELECT e.id, e.trader, e.mint
-            FROM evaluations e
-            JOIN signal_outcomes o ON o.signal_id = e.id
+            FROM (SELECT * FROM signal_outcomes
+                  ORDER BY id DESC LIMIT 100) o
+            JOIN evaluations e ON e.id = o.signal_id
             LEFT JOIN paper_immediate_quotes q ON q.signal_id = e.id
             WHERE e.source = 'live' AND e.transport = 'helius'
               AND e.decision IN ('WATCH', 'COPY')
