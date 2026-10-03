@@ -8,6 +8,7 @@ from scripts.validate_frozen_exit_candidate import (
     build_prospective_rows,
     parse_cutoff,
     prospective_report,
+    selected_coverage_attribution,
     selected_subscription_gap_diagnostics,
     validate_frozen_population,
     verify_file_sha256,
@@ -260,6 +261,10 @@ class FrozenExitCandidateTests(unittest.TestCase):
         self.assertIsNone(coverage["complete_event_sequence_result"])
         self.assertEqual(coverage["median_subscription_coverage_ratio"], 0.9)
 
+        split = prospective_report([row])["mint_cap_exposure_sensitivity"]
+        self.assertIsNone(split["unexposed"])
+        self.assertEqual(split["exposed"]["positions"], 1)
+
     def test_separates_activation_overlap_from_new_missing_subscriptions(self):
         def selected_row(signal_id, signal_ts, interval_count):
             return {
@@ -330,6 +335,106 @@ class FrozenExitCandidateTests(unittest.TestCase):
             ),
             [],
         )
+
+    def test_coverage_attribution_separates_traders_and_overlapping_causes(self):
+        rows = [
+            {
+                "signal_id": 1, "trader": "alpha", "mint": "hot",
+                "probability": 0.8,
+                "subscription_coverage": {
+                    "measurement_available": True, "complete": False,
+                    "known_delivery_failures": 2, "mint_cap_rejections": 2,
+                    "priority_reserve_trace_available": True,
+                    "intervals": 1, "subscription_continuous": False,
+                },
+            },
+            {
+                "signal_id": 2, "trader": "beta", "mint": "hot",
+                "probability": 0.8,
+                "subscription_coverage": {
+                    "measurement_available": True, "complete": True,
+                    "intervals": 1, "subscription_continuous": True,
+                },
+            },
+            {
+                "signal_id": 3, "trader": "alpha", "mint": "cold",
+                "probability": 0.8,
+                "subscription_coverage": {
+                    "measurement_available": False,
+                },
+            },
+            {
+                "signal_id": 4, "trader": "alpha", "mint": "ignored",
+                "probability": 0.2,
+            },
+            {
+                "signal_id": 5, "trader": "gamma", "mint": "other",
+                "probability": 0.8,
+                "subscription_coverage": {
+                    "measurement_available": True, "complete": False,
+                    "known_delivery_failures": 2, "mint_cap_rejections": 1,
+                    "priority_reserve_trace_available": True,
+                    "intervals": 1, "subscription_continuous": True,
+                },
+            },
+        ]
+
+        result = selected_coverage_attribution(rows, 0.45)
+
+        self.assertEqual(result["by_trader"]["alpha"]["selected"], 2)
+        self.assertEqual(result["by_trader"]["alpha"]["known_delivery_loss"], 1)
+        self.assertEqual(result["by_trader"]["alpha"]["subscription_gap"], 1)
+        self.assertEqual(result["by_trader"]["alpha"]["unmeasured"], 1)
+        self.assertEqual(result["by_trader"]["beta"]["complete"], 1)
+        self.assertEqual(result["by_trader"]["gamma"]["other_delivery_loss"], 1)
+        self.assertNotIn("other_delivery_loss", result["by_trader"]["alpha"])
+        self.assertEqual(result["by_mint"]["hot"]["selected"], 2)
+        self.assertEqual(len(result["incomplete_signals"]), 3)
+        self.assertEqual(
+            result["incomplete_signals"][0]["mint_cap_rejections"], 2
+        )
+        self.assertNotIn("ignored", result["by_mint"])
+
+    def test_missing_cap_trace_is_not_counted_as_unexposed(self):
+        base = {
+            "signal_ts": 1000, "trader": "test", "probability": 0.8,
+            "price_at_signal": 1.0,
+            "path": [{"checkpoint_seconds": 900, "price_sol": 1.1}],
+            "ambiguous": False,
+        }
+        rows = [
+            {
+                **base, "signal_id": 1, "mint": "known",
+                "subscription_coverage": {
+                    "measurement_available": True, "complete": True,
+                    "mint_cap_rejections": 0,
+                },
+            },
+            {
+                **base, "signal_id": 2, "mint": "unknown",
+                "subscription_coverage": {
+                    "measurement_available": True, "complete": False,
+                    "mint_cap_rejections": None,
+                    "known_delivery_failures": 1,
+                    "priority_reserve_trace_available": True,
+                },
+            },
+        ]
+
+        split = prospective_report(rows)["mint_cap_exposure_sensitivity"]
+        attribution = selected_coverage_attribution(rows, 0.45)
+
+        self.assertEqual(split["unexposed"]["positions"], 1)
+        self.assertEqual(split["unexposed"]["unique_mints"], 1)
+        self.assertIsNone(split["exposed"])
+        self.assertEqual(split["selected_without_cap_trace"], 1)
+        self.assertEqual(
+            attribution["by_trader"]["test"]["cap_trace_unavailable"], 1
+        )
+        self.assertEqual(
+            attribution["by_trader"]["test"]["unclassified_delivery_loss"], 1
+        )
+        self.assertNotIn("other_delivery_loss", attribution["by_trader"]["test"])
 
 
 if __name__ == "__main__":

@@ -218,6 +218,91 @@ def selected_subscription_gap_diagnostics(rows, threshold):
     return diagnostics
 
 
+def selected_coverage_attribution(rows, threshold):
+    """Attribute selected token-coverage failures; flags may overlap."""
+    by_trader = {}
+    by_mint = {}
+    issues = []
+    for row in rows:
+        if float(row["probability"]) < threshold:
+            continue
+        coverage = row.get("subscription_coverage") or {}
+        trader = str(row.get("trader") or "")
+        mint = str(row.get("mint") or "")
+        measured = coverage.get("measurement_available") is True
+        complete = measured and coverage.get("complete") is True
+        known_loss = (
+            int(coverage.get("known_delivery_failures") or 0)
+            if measured else 0
+        )
+        cap_known = measured and coverage.get("mint_cap_rejections") is not None
+        cap_rejections = (
+            int(coverage["mint_cap_rejections"]) if cap_known else 0
+        )
+        priority_known = (
+            measured
+            and coverage.get("priority_reserve_trace_available") is True
+        )
+        priority_rejections = (
+            int(coverage.get("priority_reserve_rejections") or 0)
+            if priority_known else 0
+        )
+        remaining_loss = max(0, known_loss - cap_rejections - priority_rejections)
+        flags = {
+            "complete": complete,
+            "unmeasured": not measured,
+            "cap_trace_unavailable": measured and not cap_known,
+            "known_delivery_loss": known_loss > 0,
+            "mint_cap_exposed": cap_known and cap_rejections > 0,
+            "priority_reserve_exposed": priority_rejections > 0,
+            "other_delivery_loss": (
+                cap_known and priority_known and remaining_loss > 0
+            ),
+            "unclassified_delivery_loss": (
+                (not cap_known or not priority_known)
+                and remaining_loss > 0
+            ),
+            "subscription_gap": bool(
+                measured and not complete
+                and coverage.get("intervals")
+                and not coverage.get("subscription_continuous")
+            ),
+            "no_subscription_interval": bool(
+                measured and not complete
+                and not coverage.get("intervals")
+            ),
+            "unresolved_fetch": bool(
+                coverage.get("unresolved_delivery_fetches")
+            ),
+        }
+        if not complete and not any(flags.values()):
+            flags["unattributed_incomplete"] = True
+        for key, value in ((trader, by_trader), (mint, by_mint)):
+            counts = value.setdefault(key, Counter())
+            counts["selected"] += 1
+            counts.update(name for name, present in flags.items() if present)
+        if not flags["complete"]:
+            issues.append({
+                "signal_id": int(row["signal_id"]),
+                "trader": trader,
+                "mint": mint,
+                "flags": [name for name, present in flags.items() if present],
+                "mint_cap_rejections": int(
+                    coverage.get("mint_cap_rejections") or 0
+                ),
+            })
+    return {
+        "by_trader": {key: dict(value) for key, value in sorted(by_trader.items())},
+        "by_mint": {key: dict(value) for key, value in sorted(by_mint.items())},
+        "incomplete_signals": issues,
+        "note": (
+            "Flags can overlap. Rejection counts can repeat across signals "
+            "on the same mint with overlapping 15m windows; do not sum "
+            "them as unique events. Token delivery loss is not wallet-signal loss."
+        ),
+    }
+
+
 def selected_records(
     rows: list[dict], threshold: float, cost_per_side: float
 ) -> list[dict]:
@@ -289,6 +374,37 @@ def prospective_report(
         TRAILING_DROP_FROM_PEAK,
         hold_seconds,
     )
+    cap_trace_rows = [
+        row for row in rows
+        if (row.get("subscription_coverage") or {}).get(
+            "measurement_available"
+        ) is True
+        and (row.get("subscription_coverage") or {}).get(
+            "mint_cap_rejections"
+        ) is not None
+    ]
+    selected_without_cap_trace = (
+        sum(float(row["probability"]) >= threshold for row in rows)
+        - sum(float(row["probability"]) >= threshold for row in cap_trace_rows)
+    )
+    cap_exposure_sensitivity = {}
+    for label, exposed in (("unexposed", False), ("exposed", True)):
+        subset = [
+            row for row in cap_trace_rows
+            if bool(row["subscription_coverage"]["mint_cap_rejections"])
+            is exposed
+        ]
+        result = analyse(
+            subset, threshold, "tp100_time", cost_per_side,
+            TRAILING_DROP_FROM_PEAK, hold_seconds,
+        )
+        cap_exposure_sensitivity[label] = (
+            {**result, "unique_mints": len({
+                row["mint"] for row in subset
+                if float(row["probability"]) >= threshold
+            })}
+            if result is not None else None
+        )
     event_covered_rows = []
     dense_rows = []
     event_sequence_rows = []
@@ -553,6 +669,16 @@ def prospective_report(
         "overall": overall,
         "ambiguous_share": overall["ambiguous"] / overall["positions"],
         "unambiguous_sensitivity": unambiguous_sensitivity,
+        "mint_cap_exposure_sensitivity": {
+            **cap_exposure_sensitivity,
+            "selected_without_cap_trace": selected_without_cap_trace,
+            "note": (
+                "Cap exposure is observed after entry and cannot select "
+                "trades. Observational checkpoint-path split, not a causal "
+                "estimate; CI resamples signals, not mint clusters. "
+                "Candidate gates are unchanged."
+            ),
+        },
         "event_path_sensitivity": {
             "rows_with_event_path": len(dense_rows),
             "selected_rows_with_event_path": (
@@ -768,6 +894,9 @@ def main() -> None:
     if args.subscription_trace:
         report["selected_missing_subscription_trace"] = (
             selected_subscription_gap_diagnostics(rows, args.threshold)
+        )
+        report["selected_coverage_attribution"] = (
+            selected_coverage_attribution(rows, args.threshold)
         )
     print(json.dumps(report, indent=2, ensure_ascii=True))
 
