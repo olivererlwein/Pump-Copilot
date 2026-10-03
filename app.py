@@ -5,6 +5,7 @@ import asyncio
 import math
 import statistics
 import collections
+import hashlib
 import secrets
 import sqlite3
 import random
@@ -521,6 +522,9 @@ HELIUS_STANDARD_WSS_FETCH_INTERVAL_SECONDS = max(
 HELIUS_STANDARD_WSS_MAX_PENDING = max(
     10, min(5000, int(os.getenv("HELIUS_STANDARD_WSS_MAX_PENDING", "500")))
 )
+HELIUS_STANDARD_WSS_CAP_PRICE_SHADOW_ENABLED = os.getenv(
+    "HELIUS_STANDARD_WSS_CAP_PRICE_SHADOW_ENABLED", "false"
+).lower() == "true"
 # `logsSubscribe` por mención entrega cualquier transacción que nombre la
 # wallet, incluido spam de tokens. decu recibió 44 por segundo, ninguna de
 # Pump. Una wallet que supera el límite se reintenta tras un enfriamiento.
@@ -607,6 +611,10 @@ HELIUS_STANDARD_WSS_STATE = {
         "truncated_notifications": 0,
         "errors": 0,
     },
+    "cap_price_shadow": {
+        "sampled": 0, "stored": 0, "empty": 0,
+        "rate_limited": 0, "errors": 0,
+    },
     "last_message_ts": None,
     "last_pump_log_ts": None,
     "last_success_ts": None,
@@ -625,6 +633,9 @@ PROCESS_STARTED_TS = time.time()
 # de spam, y para eso alcanza la memoria del proceso.
 HELIUS_STANDARD_WSS_UNSTORED = {}
 HELIUS_STANDARD_WSS_UNSTORED_RECENT = {}
+HELIUS_STANDARD_WSS_CAP_SHADOW_MINUTE = None
+HELIUS_STANDARD_WSS_CAP_SHADOW_COUNTS = collections.Counter()
+HELIUS_STANDARD_WSS_CAP_SHADOW_TASKS = set()
 
 MARKET_EVENT_INBOX_ACTIVATION_STATE_KEY = (
     "market_event_inbox_processing_activation_ts"
@@ -1018,6 +1029,26 @@ def _initialize_db():
             "ALTER TABLE helius_standard_wss_transactions "
             "ADD COLUMN unparsed_reason TEXT"
         )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS helius_wss_cap_price_candidates(
+            id INTEGER PRIMARY KEY,
+            signature TEXT NOT NULL,
+            event_index INTEGER NOT NULL,
+            mint TEXT NOT NULL,
+            received_ts REAL NOT NULL,
+            block_event_ts INTEGER,
+            side TEXT NOT NULL,
+            trader TEXT NOT NULL,
+            market_cap_sol REAL NOT NULL,
+            UNIQUE(signature, event_index)
+        )
+        """
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_helius_wss_cap_price_mint_ts "
+        "ON helius_wss_cap_price_candidates(mint, received_ts)"
+    )
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS token_rpc_probe_samples(
@@ -16806,6 +16837,96 @@ def note_helius_standard_wss_log_price_shadow(event, receipt):
             totals[key] += count
 
 
+def record_helius_wss_cap_price_candidates(event, received_ts):
+    """Sample rejected token logs for diagnosis; never an authoritative price."""
+    global HELIUS_STANDARD_WSS_CAP_SHADOW_MINUTE
+    signature = event.get("signature")
+    mint = event.get("wallet")
+    if (event.get("subject_type") != "token" or not signature or not mint
+            or not isinstance(event.get("logs"), list)):
+        return
+    # Stable sampling and a per-minute budget prevent a hot mint from
+    # turning a protective queue rejection into another write queue.
+    digest = hashlib.blake2b(signature.encode("utf-8"), digest_size=2).digest()
+    if int.from_bytes(digest, "big") % 8:
+        return
+    minute = int(received_ts // 60)
+    with HELIUS_STANDARD_WSS_STATE_LOCK:
+        stats = HELIUS_STANDARD_WSS_STATE["cap_price_shadow"]
+        if HELIUS_STANDARD_WSS_CAP_SHADOW_MINUTE != minute:
+            HELIUS_STANDARD_WSS_CAP_SHADOW_MINUTE = minute
+            HELIUS_STANDARD_WSS_CAP_SHADOW_COUNTS.clear()
+        if (HELIUS_STANDARD_WSS_CAP_SHADOW_COUNTS["total"] >= 30
+                or HELIUS_STANDARD_WSS_CAP_SHADOW_COUNTS[mint] >= 10):
+            stats["rate_limited"] += 1
+            return
+        HELIUS_STANDARD_WSS_CAP_SHADOW_COUNTS["total"] += 1
+        HELIUS_STANDARD_WSS_CAP_SHADOW_COUNTS[mint] += 1
+        stats["sampled"] += 1
+    if len(event["logs"]) > 512:
+        with HELIUS_STANDARD_WSS_STATE_LOCK:
+            stats["empty"] += 1
+        return
+    candidates = parse_pump_trade_log_prices(event["logs"], signature, mint)
+    rows = []
+    for candidate in candidates:
+        try:
+            price = float(candidate["marketCapSol"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if not math.isfinite(price) or price <= 0:
+            continue
+        rows.append((
+            signature, int(candidate["eventIndex"]), mint, received_ts,
+            candidate.get("blockEventTs"), candidate["txType"],
+            candidate["traderPublicKey"], price,
+        ))
+    if not rows:
+        with HELIUS_STANDARD_WSS_STATE_LOCK:
+            stats["empty"] += 1
+        return
+    conn = db()
+    try:
+        conn.execute("PRAGMA busy_timeout = 500")
+        before = conn.total_changes
+        conn.executemany(
+            "INSERT OR IGNORE INTO helius_wss_cap_price_candidates "
+            "(signature, event_index, mint, received_ts, block_event_ts, "
+            "side, trader, market_cap_sol) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            rows,
+        )
+        inserted = conn.total_changes - before
+        conn.execute(
+            "DELETE FROM helius_wss_cap_price_candidates WHERE id <= "
+            "(SELECT MAX(id) - 5000 FROM helius_wss_cap_price_candidates)"
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    with HELIUS_STANDARD_WSS_STATE_LOCK:
+        stats["stored"] += inserted
+
+
+def schedule_helius_wss_cap_price_shadow(event, received_ts):
+    if len(HELIUS_STANDARD_WSS_CAP_SHADOW_TASKS) >= 2:
+        with HELIUS_STANDARD_WSS_STATE_LOCK:
+            HELIUS_STANDARD_WSS_STATE["cap_price_shadow"]["rate_limited"] += 1
+        return
+
+    async def capture():
+        try:
+            await asyncio.to_thread(
+                record_helius_wss_cap_price_candidates, event, received_ts,
+            )
+        except Exception:
+            with HELIUS_STANDARD_WSS_STATE_LOCK:
+                HELIUS_STANDARD_WSS_STATE["cap_price_shadow"]["errors"] += 1
+
+    task = asyncio.create_task(capture())
+    HELIUS_STANDARD_WSS_CAP_SHADOW_TASKS.add(task)
+    task.add_done_callback(HELIUS_STANDARD_WSS_CAP_SHADOW_TASKS.discard)
+
+
 def note_unstored_helius_standard_wss_notification(
     wallet, message_bytes, failed, received_ts
 ):
@@ -17420,6 +17541,9 @@ async def schedule_helius_standard_wss_fetch(
             0,
             error=rejection_reason,
         )
+        if (HELIUS_STANDARD_WSS_CAP_PRICE_SHADOW_ENABLED
+                and rejection_reason == "HELIUS_STANDARD_WSS_MINT_PENDING_CAP"):
+            schedule_helius_wss_cap_price_shadow(event, received_ts)
         return False
     pending_signatures.add(signature)
     update_helius_standard_wss_state(
@@ -21131,6 +21255,7 @@ def api_helius_standard_wss_stats(
     with HELIUS_STANDARD_WSS_STATE_LOCK:
         runtime = dict(HELIUS_STANDARD_WSS_STATE)
         runtime["log_price_shadow"] = dict(runtime["log_price_shadow"])
+        runtime["cap_price_shadow"] = dict(runtime["cap_price_shadow"])
     selected_wallets = []
     configuration_error = None
     try:

@@ -448,10 +448,17 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.original_db = app.DB
+        self.original_cap_minute = app.HELIUS_STANDARD_WSS_CAP_SHADOW_MINUTE
+        self.original_cap_counts = app.HELIUS_STANDARD_WSS_CAP_SHADOW_COUNTS.copy()
+        app.HELIUS_STANDARD_WSS_CAP_SHADOW_MINUTE = None
+        app.HELIUS_STANDARD_WSS_CAP_SHADOW_COUNTS.clear()
         app.DB = Path(self.temp_dir.name) / "wss.db"
         app.migrate_database()
 
     def tearDown(self):
+        app.HELIUS_STANDARD_WSS_CAP_SHADOW_MINUTE = self.original_cap_minute
+        app.HELIUS_STANDARD_WSS_CAP_SHADOW_COUNTS.clear()
+        app.HELIUS_STANDARD_WSS_CAP_SHADOW_COUNTS.update(self.original_cap_counts)
         app.DB = self.original_db
         self.temp_dir.cleanup()
 
@@ -463,6 +470,105 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
             "failed": False,
             "logs": [],
         }
+
+    def test_cap_price_candidates_are_bounded_and_idempotent(self):
+        event = {**self.event("mint-a"), "subject_type": "token"}
+        candidate = {
+            "eventIndex": 0, "marketCapSol": 12.5,
+            "blockEventTs": 100, "txType": "buy",
+            "traderPublicKey": "trader-a",
+        }
+        with (
+            patch.object(app.hashlib, "blake2b") as digest,
+            patch.object(app, "parse_pump_trade_log_prices",
+                         return_value=[candidate]) as parse,
+        ):
+            digest.return_value.digest.return_value = b"\x00\x00"
+            app.record_helius_wss_cap_price_candidates(event, 120)
+            app.record_helius_wss_cap_price_candidates(event, 120)
+        self.assertEqual(parse.call_count, 2)
+        conn = app.db()
+        try:
+            rows = conn.execute(
+                "SELECT signature, event_index, mint, market_cap_sol "
+                "FROM helius_wss_cap_price_candidates"
+            ).fetchall()
+        finally:
+            conn.close()
+        self.assertEqual(rows, [("signature-a", 0, "mint-a", 12.5)])
+
+    def test_cap_price_shadow_limits_writes_and_resets_next_minute(self):
+        event = {**self.event("mint-a"), "subject_type": "token"}
+        candidate = {
+            "eventIndex": 0, "marketCapSol": 12.5,
+            "blockEventTs": 100, "txType": "buy",
+            "traderPublicKey": "trader-a",
+        }
+        with (
+            patch.object(app.hashlib, "blake2b") as digest,
+            patch.object(app, "parse_pump_trade_log_prices",
+                         return_value=[candidate]),
+        ):
+            digest.return_value.digest.return_value = b"\x00\x00"
+            for number in range(11):
+                app.record_helius_wss_cap_price_candidates(
+                    {**event, "signature": f"sig-{number}"}, 120,
+                )
+            app.record_helius_wss_cap_price_candidates(
+                {**event, "signature": "sig-next"}, 180,
+            )
+        conn = app.db()
+        try:
+            count = conn.execute(
+                "SELECT COUNT(*) FROM helius_wss_cap_price_candidates"
+            ).fetchone()[0]
+        finally:
+            conn.close()
+        self.assertEqual(count, 11)
+
+    def test_cap_price_shadow_skips_unselected_signature(self):
+        event = {**self.event("mint-a"), "subject_type": "token"}
+        with (
+            patch.object(app.hashlib, "blake2b") as digest,
+            patch.object(app, "parse_pump_trade_log_prices") as parse,
+        ):
+            digest.return_value.digest.return_value = b"\x00\x01"
+            app.record_helius_wss_cap_price_candidates(event, 120)
+        parse.assert_not_called()
+
+    async def test_cap_price_shadow_failure_does_not_change_rejection(self):
+        event = {**self.event("mint-a"), "subject_type": "token"}
+        app.record_helius_standard_wss_notification(
+            event, True, 100, received_ts=1000,
+        )
+        pending = {"pending-a", "pending-b", "pending-c", "pending-d"}
+        token_tasks = {
+            asyncio.Future(): (signature, "mint-a")
+            for signature in ("pending-a", "pending-b")
+        }
+        with (
+            patch.object(app, "HELIUS_STANDARD_WSS_MAX_PENDING", 10),
+            patch.object(app, "HELIUS_STANDARD_WSS_CAP_PRICE_SHADOW_ENABLED", True),
+            patch.object(app, "record_helius_wss_cap_price_candidates",
+                         side_effect=sqlite3.OperationalError("locked")) as capture,
+        ):
+            result = await app.schedule_helius_standard_wss_fetch(
+                event, 1000, pending, set(), asyncio.Semaphore(1),
+                asyncio.Lock(), {"next_ts": 0.0},
+                pending_token_tasks=token_tasks,
+            )
+            await asyncio.gather(*app.HELIUS_STANDARD_WSS_CAP_SHADOW_TASKS)
+        self.assertFalse(result)
+        capture.assert_called_once()
+        conn = app.db()
+        try:
+            row = conn.execute(
+                "SELECT status, last_error FROM helius_standard_wss_transactions "
+                "WHERE signature = ?", (event["signature"],),
+            ).fetchone()
+        finally:
+            conn.close()
+        self.assertEqual(row, ("queue_full", "HELIUS_STANDARD_WSS_MINT_PENDING_CAP"))
 
     def test_wallet_timing_excludes_token_flood_and_uses_wallet_notice(self):
         first = {**self.event(), "subject_type": "wallet"}
