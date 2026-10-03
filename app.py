@@ -11,6 +11,8 @@ import random
 import uuid
 import decimal
 import threading
+from bisect import bisect_right
+from datetime import datetime, timezone
 
 from pathlib import Path
 from urllib.request import Request, urlopen
@@ -555,6 +557,9 @@ ACCOUNT_PRICE_CHECKPOINT_POLL_SECONDS = max(
 )
 PAPER_COPY_SELL_QUOTE_ENABLED = environment_flag(
     "PAPER_COPY_SELL_QUOTE_ENABLED",
+)
+PAPER_IMMEDIATE_QUOTE_ENABLED = environment_flag(
+    "PAPER_IMMEDIATE_QUOTE_ENABLED",
 )
 LIVE_ACCOUNT_EXIT_MONITOR_ENABLED = environment_flag(
     "LIVE_ACCOUNT_EXIT_MONITOR_ENABLED",
@@ -5948,6 +5953,23 @@ def migrate_database():
             price_sol REAL NOT NULL,
             market_cap_sol REAL NOT NULL,
             slot INTEGER NOT NULL
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS paper_immediate_quotes(
+            signal_id INTEGER PRIMARY KEY,
+            utc_day TEXT NOT NULL,
+            trader TEXT NOT NULL,
+            mint TEXT NOT NULL,
+            claimed_ts REAL NOT NULL,
+            observed_ts REAL,
+            status TEXT NOT NULL,
+            price_sol REAL,
+            slot INTEGER,
+            rpc_reserved INTEGER NOT NULL,
+            rpc_used INTEGER NOT NULL DEFAULT 0
         )
         """
     )
@@ -14435,6 +14457,9 @@ async def startup():
     if ACCOUNT_PRICE_CHECKPOINT_ENABLED and PAPER_COPY_SELL_QUOTE_ENABLED:
         asyncio.create_task(paper_copy_sell_quote_worker())
 
+    if PAPER_IMMEDIATE_QUOTE_ENABLED:
+        asyncio.create_task(paper_immediate_quote_worker())
+
     if LIVE_ACCOUNT_EXIT_MONITOR_ENABLED:
         asyncio.create_task(live_account_exit_monitor_worker())
 # =========================================================
@@ -15303,6 +15328,144 @@ def paper_wallet_pilot(
             "do not replace missing account prices. Results are not live PnL."
         ),
         "evaluations": len(rows), "arms": arms,
+    }
+
+
+@app.get("/api/paper-immediate-quote-pilot")
+def paper_immediate_quote_pilot(
+    after_ts: float,
+    x_app_token: str = Header(default=""),
+):
+    auth(x_app_token)
+    now = time.time()
+    if not math.isfinite(after_ts) or not now - 7 * 86400 <= after_ts <= now:
+        raise HTTPException(400, "INVALID_AFTER_TS")
+    conn = db()
+    try:
+        rows = conn.execute(
+            """SELECT e.id, e.trader, e.mint, e.ts, o.created_ts, e.decision,
+                      q.claimed_ts, q.observed_ts, q.status, q.rpc_used,
+                      q.slot
+            FROM evaluations e
+            JOIN signal_outcomes o ON o.signal_id = e.id
+            LEFT JOIN paper_immediate_quotes q ON q.signal_id = e.id
+            WHERE e.source = 'live' AND e.transport = 'helius'
+              AND e.decision IN ('WATCH', 'COPY')
+              AND o.entry_price_basis IN ('pump', 'pump-amm')
+              AND o.created_ts > ? AND o.created_ts <= ?
+              AND e.mint NOT LIKE 'DEMO%'
+            ORDER BY o.created_ts, e.id LIMIT 1001""",
+            (after_ts, now),
+        ).fetchall()
+        if len(rows) > 1000:
+            raise HTTPException(400, "TOO_MANY_SIGNALS")
+        sells_by_pair = {}
+        if rows:
+            sell_rows = conn.execute(
+                """SELECT trader, mint, ts, recorded_ts, id FROM trades
+                WHERE source = 'live' AND side LIKE '%sell%' AND ts > ?
+                  AND ts <= ? ORDER BY trader, mint, ts, id LIMIT 50001""",
+                (min(row[3] for row in rows), now),
+            ).fetchall()
+            if len(sell_rows) > 50000:
+                raise HTTPException(400, "TOO_MANY_TRADER_SELLS")
+            for trader, mint, ts, recorded_ts, trade_id in sell_rows:
+                sells_by_pair.setdefault((trader, mint), []).append(
+                    (ts, trade_id, recorded_ts)
+                )
+        per_trader = {}
+        signals = []
+        for (signal_id, trader, mint, signal_ts, created_ts, decision,
+             claimed_ts, observed_ts, status, rpc_used, slot) in rows:
+            if trader in OBSERVE_TRADERS:
+                continue
+            group = per_trader.setdefault(trader, {
+                "signals": 0, "attempted": 0, "priced": 0,
+                "before_sell_onchain": 0, "before_sell_recorded": 0,
+                "before_sell_both": 0, "sell_before_quote": 0,
+                "no_sell_yet": 0, "failed_or_unsupported": 0,
+                "unattempted": 0, "rpc_calls": 0,
+                "latency_from_signal_seconds": [],
+                "latency_from_record_seconds": [],
+                "attempted_with_sell": 0,
+            })
+            group["signals"] += 1
+            if claimed_ts is None:
+                group["unattempted"] += 1
+            else:
+                group["attempted"] += 1
+                group["rpc_calls"] += rpc_used or 0
+                if status in ("curve", "amm") and observed_ts is not None:
+                    group["priced"] += 1
+                    group["latency_from_signal_seconds"].append(
+                        observed_ts - signal_ts
+                    )
+                    group["latency_from_record_seconds"].append(
+                        observed_ts - created_ts
+                    )
+                elif observed_ts is not None or claimed_ts < now - 30:
+                    group["failed_or_unsupported"] += 1
+            pair_sells = sells_by_pair.get((trader, mint), ())
+            sell_index = bisect_right(pair_sells, (signal_ts, float("inf")))
+            sell = pair_sells[sell_index] if sell_index < len(pair_sells) else None
+            before_chain = before_record = False
+            if sell is None:
+                group["no_sell_yet"] += 1
+            else:
+                if claimed_ts is not None:
+                    group["attempted_with_sell"] += 1
+            if sell is not None and status in ("curve", "amm") and observed_ts is not None:
+                before_chain = observed_ts < sell[0]
+                before_record = sell[2] is not None and observed_ts < sell[2]
+                group["before_sell_onchain"] += int(before_chain)
+                group["before_sell_recorded"] += int(before_record)
+                group["before_sell_both"] += int(before_chain and before_record)
+                group["sell_before_quote"] += int(not before_chain)
+            signals.append({
+                "signal_id": signal_id, "trader": trader, "mint": mint,
+                "decision": decision,
+                "signal_ts": signal_ts, "outcome_created_ts": created_ts,
+                "claimed_ts": claimed_ts, "observed_ts": observed_ts,
+                "quote_latency_from_signal_seconds": (
+                    observed_ts - signal_ts if observed_ts is not None else None
+                ),
+                "quote_latency_from_outcome_seconds": (
+                    observed_ts - created_ts if observed_ts is not None else None
+                ),
+                "quote_status": status or "unattempted", "quote_slot": slot,
+                "first_sell_ts": sell[0] if sell else None,
+                "first_sell_recorded_ts": sell[2] if sell else None,
+                "before_sell_onchain": before_chain if sell else None,
+                "before_sell_recorded": before_record if sell else None,
+            })
+    finally:
+        conn.close()
+    for group in per_trader.values():
+        for key in ("latency_from_signal_seconds", "latency_from_record_seconds"):
+            latencies = group.pop(key)
+            group["median_" + key] = (
+                statistics.median(latencies) if latencies else None
+            )
+        group["timely_fraction_all_signals"] = (
+            group["before_sell_both"] / group["signals"]
+            if group["signals"] else 0.0
+        )
+        group["timely_fraction_attempted_with_sell"] = (
+            group["before_sell_both"] / group["attempted_with_sell"]
+            if group["attempted_with_sell"] else None
+        )
+    return {
+        "after_ts": after_ts, "as_of_ts": now,
+        "enabled": PAPER_IMMEDIATE_QUOTE_ENABLED,
+        "per_trader": per_trader, "signals": signals,
+        "limitations": (
+            "Account prices observed after RPC response are not executable "
+            "fills. On-chain trade timestamps are approximate; confirmed "
+            "account state can lag. The first-come daily and per-trader caps "
+            "create selection bias; no-sell signals are censored. One sell "
+            "may follow multiple overlapping signals. No orders, inventory, "
+            "or PnL are inferred."
+        ),
     }
 
 
@@ -17556,6 +17719,121 @@ async def paper_copy_sell_quote_worker():
         except Exception as exc:
             print(f"[PAPER SELL QUOTE] {helius_standard_wss_error_code(exc)}")
         await asyncio.sleep(min(5, ACCOUNT_PRICE_CHECKPOINT_POLL_SECONDS))
+
+
+def paper_immediate_quote_once(now=None):
+    claimed_ts = float(now if now is not None else time.time())
+    day = datetime.fromtimestamp(claimed_ts, timezone.utc).date().isoformat()
+    conn = db()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        used, reserved = conn.execute(
+            "SELECT COUNT(*), COALESCE(SUM(rpc_reserved), 0) "
+            "FROM paper_immediate_quotes WHERE utc_day = ?", (day,),
+        ).fetchone()
+        if used >= 20 or reserved + 2 > 40:
+            conn.rollback()
+            return {"status": "daily_cap", "rpc_calls": 0}
+        exclusions = tuple(sorted(OBSERVE_TRADERS))
+        exclusion_sql = (
+            "AND e.trader NOT IN (" + ",".join("?" for _ in exclusions) + ")"
+            if exclusions else ""
+        )
+        row = conn.execute(
+            f"""
+            SELECT e.id, e.trader, e.mint
+            FROM evaluations e
+            JOIN signal_outcomes o ON o.signal_id = e.id
+            LEFT JOIN paper_immediate_quotes q ON q.signal_id = e.id
+            WHERE e.source = 'live' AND e.transport = 'helius'
+              AND e.decision IN ('WATCH', 'COPY')
+              AND o.entry_price_basis IN ('pump', 'pump-amm')
+              AND o.created_ts BETWEEN ? AND ?
+              AND q.signal_id IS NULL
+              AND e.mint NOT LIKE 'DEMO%'
+              AND (SELECT COUNT(*) FROM paper_immediate_quotes p
+                   WHERE p.utc_day = ? AND p.trader = e.trader) < 3
+              {exclusion_sql}
+            ORDER BY o.created_ts, e.id LIMIT 1
+            """,
+            (claimed_ts - 10, claimed_ts, day, *exclusions),
+        ).fetchone()
+        if row is None:
+            conn.rollback()
+            return {"status": "no_fresh_signal", "rpc_calls": 0}
+        signal_id, trader, mint = row
+        conn.execute(
+            "INSERT INTO paper_immediate_quotes("
+            "signal_id, utc_day, trader, mint, claimed_ts, status, rpc_reserved) "
+            "VALUES(?,?,?,?,?,'claimed',2)",
+            (signal_id, day, trader, mint, claimed_ts),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    rpc_calls = 0
+    snapshot = {}
+    status = "error"
+
+    def counted_rpc(url, method, params):
+        nonlocal rpc_calls
+        rpc_calls += 1
+        request = Request(
+            url,
+            data=json.dumps({"jsonrpc": "2.0", "id": 1,
+                             "method": method, "params": params}).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urlopen(request, timeout=5) as response:
+            payload = json.load(response)
+        if not isinstance(payload, dict) or "result" not in payload:
+            raise ValueError("PAPER_IMMEDIATE_RPC_INVALID_RESPONSE")
+        return payload["result"]
+
+    try:
+        snapshot = fetch_account_prices(
+            standard_wss_rpc_url(), [mint], rpc_request=counted_rpc,
+        ).get(mint) or {}
+        status = str(snapshot.get("status") or "no_snapshot")
+    except Exception as exc:
+        print(f"[PAPER IMMEDIATE QUOTE] {helius_standard_wss_error_code(exc)}")
+    observed_ts = float(now if now is not None else time.time())
+    price = snapshot.get("price_sol")
+    if status in ("curve", "amm") and (
+        not isinstance(price, (int, float)) or not math.isfinite(price)
+        or price <= 0
+    ):
+        status = "invalid_price"
+    conn = db()
+    try:
+        conn.execute(
+            "UPDATE paper_immediate_quotes SET observed_ts = ?, status = ?, "
+            "price_sol = ?, slot = ?, rpc_used = ? WHERE signal_id = ?",
+            (observed_ts, status,
+             float(price) if status in ("curve", "amm") else None,
+             snapshot.get("slot"), rpc_calls, signal_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return {"status": status, "rpc_calls": rpc_calls, "signal_id": signal_id}
+
+
+async def paper_immediate_quote_worker():
+    while True:
+        try:
+            result = await asyncio.to_thread(paper_immediate_quote_once)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            print(f"[PAPER IMMEDIATE QUOTE] {helius_standard_wss_error_code(exc)}")
+            result = {}
+        if result.get("status") == "daily_cap":
+            await asyncio.sleep(max(1, 86400 - time.time() % 86400))
+            continue
+        await asyncio.sleep(1)
 
 
 async def account_price_checkpoint_worker():
