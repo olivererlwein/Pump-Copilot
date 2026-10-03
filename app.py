@@ -14752,6 +14752,109 @@ def status(
 # TRADES
 # =========================================================
 
+@app.get("/api/market-event-recovery-inventory")
+def market_event_recovery_inventory(
+    limit: int = 50,
+    x_app_token: str = Header(default=""),
+):
+    auth(x_app_token)
+    if not 1 <= limit <= 100:
+        raise HTTPException(400, "INVALID_LIMIT")
+    now = time.time()
+    stale_before = now - MARKET_EVENT_INBOX_CONSUMER_LEASE_SECONDS
+    try:
+        conn = sqlite3.connect(
+            Path(DB).resolve().as_uri() + "?mode=ro", uri=True, timeout=2,
+        )
+    except sqlite3.OperationalError as exc:
+        raise HTTPException(503, "INVENTORY_QUERY_UNAVAILABLE") from exc
+    conn.row_factory = sqlite3.Row
+    deadline = time.monotonic() + 2
+    conn.set_progress_handler(lambda: int(time.monotonic() > deadline), 10000)
+    try:
+        conn.execute("PRAGMA query_only = ON")
+        conn.execute("BEGIN")
+        inbox = conn.execute(
+            """SELECT i.signature, i.event_index, i.event_index_scheme,
+                      i.source, i.trader, i.mint, i.status AS inbox_status,
+                      i.attempts, i.claimed_ts, i.last_error,
+                      p.route_state, p.source AS reserved_by
+            FROM market_event_inbox i
+            LEFT JOIN processed_market_events p
+              ON p.event_id = i.signature || ':' || i.event_index
+            WHERE (i.status IN ('processing', 'reserved', 'routing')
+                   AND COALESCE(i.claimed_ts, 0) <= ?)
+               OR (i.status = 'failed'
+                   AND i.last_error = 'ROUTING_OUTCOME_UNKNOWN')
+            ORDER BY i.received_ts LIMIT ?""",
+            (stale_before, limit + 1),
+        ).fetchall()
+        processed = conn.execute(
+            """SELECT p.signature, p.event_index,
+                      i.event_index_scheme, p.source,
+                      i.trader, i.mint, i.status AS inbox_status,
+                      i.attempts, i.claimed_ts, i.last_error,
+                      p.route_state, p.source AS reserved_by
+            FROM processed_market_events p
+            LEFT JOIN market_event_inbox i
+              ON i.signature = p.signature AND i.event_index = p.event_index
+            WHERE p.route_state IN ('reserved', 'routing', 'uncertain')
+              AND (p.route_state = 'uncertain' OR p.ts <= ?)
+              AND (i.signature IS NULL
+                   OR i.status NOT IN ('processing', 'reserved', 'routing')
+                   OR i.claimed_ts IS NULL OR i.claimed_ts <= ?)
+            ORDER BY p.ts LIMIT ?""",
+            (stale_before, stale_before, limit + 1),
+        ).fetchall()
+        rows = {}
+        for row in (*inbox[:limit], *processed[:limit]):
+            item = dict(row)
+            item["last_error"] = (
+                "ROUTING_OUTCOME_UNKNOWN"
+                if item["last_error"] == "ROUTING_OUTCOME_UNKNOWN" else None
+            )
+            key = (item["signature"], item["event_index"])
+            if key in rows:
+                continue
+            signature, event_index = key
+            item["signature_index_trade_rows"] = conn.execute(
+                "SELECT COUNT(*) FROM trades WHERE signature = ? "
+                "AND event_index = ?", key,
+            ).fetchone()[0]
+            item["signature_index_evaluation_rows"] = conn.execute(
+                "SELECT COUNT(*) FROM evaluations WHERE trade_signature = ? "
+                "AND event_index = ?", key,
+            ).fetchone()[0]
+            item["ambiguous_legacy_trades"] = conn.execute(
+                "SELECT COUNT(*) FROM trades WHERE signature = ? "
+                "AND event_index IS NULL", (signature,),
+            ).fetchone()[0]
+            item["requires_manual_review"] = (
+                item["route_state"] in ("routing", "uncertain")
+                or item["inbox_status"] == "routing"
+                or item["last_error"] == "ROUTING_OUTCOME_UNKNOWN"
+            )
+            rows[key] = item
+        conn.rollback()
+    except sqlite3.OperationalError as exc:
+        raise HTTPException(503, "INVENTORY_QUERY_UNAVAILABLE") from exc
+    finally:
+        conn.close()
+    return {
+        "as_of_ts": now, "inventory_only": True,
+        "stale_after_seconds": MARKET_EVENT_INBOX_CONSUMER_LEASE_SECONDS,
+        "limit_per_source": limit,
+        "inbox_truncated": len(inbox) > limit,
+        "processed_truncated": len(processed) > limit,
+        "rows": list(rows.values()),
+        "limitations": (
+            "Trade/evaluation matches are evidence, not proof of complete "
+            "routing. Zero matches do not prove no side effects; legacy "
+            "event indexes and other transports can be ambiguous. Never "
+            "replay routing or uncertain events automatically."
+        ),
+    }
+
 @app.get("/api/trades")
 def trades(
     x_app_token: str = Header(default=""),
