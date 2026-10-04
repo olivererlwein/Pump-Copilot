@@ -614,6 +614,9 @@ HELIUS_STANDARD_WSS_STATE = {
     "cap_price_shadow": {
         "sampled": 0, "stored": 0, "empty": 0,
         "rate_limited": 0, "errors": 0,
+        "empty_too_many_logs": 0, "empty_truncated": 0,
+        "empty_no_pump_invoke": 0, "empty_amm_only": 0,
+        "empty_no_matching_trade": 0, "empty_invalid_price": 0,
     },
     "last_message_ts": None,
     "last_pump_log_ts": None,
@@ -16845,6 +16848,13 @@ def record_helius_wss_cap_price_candidates(event, received_ts):
     if (event.get("subject_type") != "token" or not signature or not mint
             or not isinstance(event.get("logs"), list)):
         return
+
+    def note_empty(reason):
+        with HELIUS_STANDARD_WSS_STATE_LOCK:
+            stats = HELIUS_STANDARD_WSS_STATE["cap_price_shadow"]
+            stats["empty"] += 1
+            stats[f"empty_{reason}"] += 1
+
     # Stable sampling and a per-minute budget prevent a hot mint from
     # turning a protective queue rejection into another write queue.
     digest = hashlib.blake2b(signature.encode("utf-8"), digest_size=2).digest()
@@ -16864,8 +16874,7 @@ def record_helius_wss_cap_price_candidates(event, received_ts):
         HELIUS_STANDARD_WSS_CAP_SHADOW_COUNTS[mint] += 1
         stats["sampled"] += 1
     if len(event["logs"]) > 512:
-        with HELIUS_STANDARD_WSS_STATE_LOCK:
-            stats["empty"] += 1
+        note_empty("too_many_logs")
         return
     candidates = parse_pump_trade_log_prices(event["logs"], signature, mint)
     rows = []
@@ -16882,8 +16891,19 @@ def record_helius_wss_cap_price_candidates(event, received_ts):
             candidate["traderPublicKey"], price,
         ))
     if not rows:
-        with HELIUS_STANDARD_WSS_STATE_LOCK:
-            stats["empty"] += 1
+        logs = event["logs"]
+        if any(isinstance(line, str) and "Log truncated" in line
+               for line in logs):
+            reason = "truncated"
+        elif not invokes_program(logs, (PUMP_PROGRAM_ID, PUMP_AMM_PROGRAM_ID)):
+            reason = "no_pump_invoke"
+        elif not invokes_program(logs, (PUMP_PROGRAM_ID,)):
+            reason = "amm_only"
+        elif not candidates:
+            reason = "no_matching_trade"
+        else:
+            reason = "invalid_price"
+        note_empty(reason)
         return
     conn = db()
     try:

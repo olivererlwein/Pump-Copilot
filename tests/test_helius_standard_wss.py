@@ -536,6 +536,34 @@ class HeliusStandardWssPersistenceTests(unittest.IsolatedAsyncioTestCase):
             app.record_helius_wss_cap_price_candidates(event, 120)
         parse.assert_not_called()
 
+    def test_cap_price_shadow_attributes_each_empty_sample_once(self):
+        pump = f"Program {app.PUMP_PROGRAM_ID} invoke [1]"
+        amm = f"Program {app.PUMP_AMM_PROGRAM_ID} invoke [1]"
+        cases = (
+            ([], [], "no_pump_invoke"),
+            ([amm], [], "amm_only"),
+            ([pump], [], "no_matching_trade"),
+            ([pump, "Log truncated"], [], "truncated"),
+            ([pump] * 513, [], "too_many_logs"),
+            ([pump], [{"marketCapSol": 0}], "invalid_price"),
+        )
+        stats = app.HELIUS_STANDARD_WSS_STATE["cap_price_shadow"]
+        before = dict(stats)
+        with patch.object(app.hashlib, "blake2b") as digest:
+            digest.return_value.digest.return_value = b"\x00\x00"
+            for index, (logs, candidates, reason) in enumerate(cases):
+                with patch.object(app, "parse_pump_trade_log_prices",
+                                  return_value=candidates):
+                    app.record_helius_wss_cap_price_candidates(
+                        {**self.event("mint-a"), "subject_type": "token",
+                         "signature": f"empty-{index}", "logs": logs}, 120,
+                    )
+                self.assertEqual(stats[f"empty_{reason}"],
+                                 before[f"empty_{reason}"] + 1)
+        self.assertEqual(stats["sampled"], before["sampled"] + len(cases))
+        self.assertEqual(stats["empty"], before["empty"] + len(cases))
+        self.assertEqual(stats["stored"], before["stored"])
+
     async def test_cap_price_shadow_failure_does_not_change_rejection(self):
         event = {**self.event("mint-a"), "subject_type": "token"}
         app.record_helius_standard_wss_notification(
